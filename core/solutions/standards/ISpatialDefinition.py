@@ -1,0 +1,38 @@
+# -*- encoding: utf-8 -*-
+"""
+Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
+License: Apache License 2.0
+
+Interface for spatial definitions.
+"""
+from abc import abstractmethod
+
+from .IDescribable import IDescribable
+
+
+class ISpatialDefinition(IDescribable):
+    """General spatial construct that all other spatial constructions extend from."""
+
+    @abstractmethod
+    def get_spatial_reference_system(self) -> str:
+        """
+        Specifies the OGC Well-Known Text(WKT) representation of
+        spatial reference system to be used in association with the coordinates in
+        the `ISpatialDefinition`.
+        """
+        pass
+
+    @abstractmethod
+    def get_element_count(self) -> int:
+        """Gets number of data elements in the spatial axis."""
+        pass
+
+    @abstractmethod
+    def get_version(self) -> int:
+        """
+        Gets the version number for the spatial axis.
+
+        The version must be incremented if anything inside the spatial axis is changed,
+        or if an entirely new spatial axis is provided.
+        """
+        pass
