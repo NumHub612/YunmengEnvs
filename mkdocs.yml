@@ -1,0 +1,32 @@
+site_name: YunMengEnvs
+
+
+docs_dir: 'docs'
+nav:
+  - Home: 
+    - 'Introduction': README.md 
+
+
+theme:
+  name: readthedocs
+  language: zh  
+  palette:  
+    primary: light blue
+    accent: indigo
+  feature:
+    tabs: true  
+
+
+plugins:
+  - search   
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_source: false  
+            inherited_members: true
+            merge_init_into_class: true
+            heading_level: 3  
+            show_signature_annotations: true
+            modernize_annotations: true  
