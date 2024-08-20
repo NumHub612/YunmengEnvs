@@ -8,24 +8,27 @@ Interface for unit.
 from abc import abstractmethod
 from typing import Optional
 
-from .IDescribable import IDescribable
-from .IDimension import IDimension
+from core.solutions.standards.IDescribable import IDescribable
+from core.solutions.standards.IDimension import IDimension
 
 
 class IUnit(IDescribable):
     """Unit describes the physical unit."""
 
+    @property
     @abstractmethod
-    def get_dimension(self) -> Optional[IDimension]:
+    def dimension(self) -> Optional[IDimension]:
         """Return the dimension of the unit."""
         pass
 
+    @property
     @abstractmethod
-    def get_conversion_factor_to_si(self) -> float:
+    def conversion_factor_to_si(self) -> float:
         """Get the conversion factor to SI unit."""
         pass
 
+    @property
     @abstractmethod
-    def get_offset_to_si(self) -> float:
+    def offset_to_si(self) -> float:
         """Get the offset to SI unit."""
         pass

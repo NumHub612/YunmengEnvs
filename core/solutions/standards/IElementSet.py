@@ -3,13 +3,13 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaced class for element sets.
+Interface class for element sets.
 """
 from enum import Enum
 from abc import abstractmethod
 from typing import List
 
-from .ISpatialDefinition import ISpatialDefinition
+from core.solutions.standards.ISpatialDefinition import ISpatialDefinition
 
 
 class ElementType(Enum):
@@ -24,11 +24,6 @@ class ElementType(Enum):
 
 class IElementSet(ISpatialDefinition):
     """An list of elements having a common type."""
-
-    @abstractmethod
-    def get_element_type(self) -> ElementType:
-        """Returns the type of elements in this set."""
-        pass
 
     @abstractmethod
     def get_element_index(self, element_id: str) -> int:
@@ -70,7 +65,14 @@ class IElementSet(ISpatialDefinition):
         """Returns the z-coordinate of the node."""
         pass
 
+    @property
     @abstractmethod
-    def get_element_count(self) -> int:
-        """Returns the number of elements in this set."""
+    def element_type(self) -> ElementType:
+        """The type of elements in this set."""
+        pass
+
+    @property
+    @abstractmethod
+    def element_count(self) -> int:
+        """The number of elements in this set."""
         pass

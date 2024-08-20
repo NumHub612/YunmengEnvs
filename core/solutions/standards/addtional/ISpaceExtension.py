@@ -3,7 +3,7 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces for extra space information.
+Interface for extra space information.
 """
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -12,7 +12,9 @@ from ..ISpatialDefinition import ISpatialDefinition
 
 
 class ISpaceExtension(ABC):
+
+    @property
     @abstractmethod
-    def get_spatial_definition(self) -> Optional[ISpatialDefinition]:
+    def spatial_definition(self) -> Optional[ISpatialDefinition]:
         """Spatial information."""
         pass

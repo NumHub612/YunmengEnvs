@@ -8,22 +8,24 @@ Interface for time-space components.
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from ..ITimeSet import ITimeSet
-from ..ITime import ITime
+from core.solutions.standards.ITimeSet import ITimeSet
+from core.solutions.standards.ITime import ITime
 
 
 class ITimeExtension(ABC):
     """Methods that are specific for a time-space component."""
 
+    @property
     @abstractmethod
-    def get_time_extent(self) -> Optional[ITimeSet]:
+    def time_extent(self) -> Optional[ITimeSet]:
         """
         The property describes in what timespan the component can operate.
         This can be used to support the user when creating a composition.
         """
         pass
 
+    @property
     @abstractmethod
-    def get_curr_time(self) -> Optional[ITime]:
+    def curr_time(self) -> Optional[ITime]:
         """The property describes what timestamp the component is at."""
         pass

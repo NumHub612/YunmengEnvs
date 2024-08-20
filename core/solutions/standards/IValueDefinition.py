@@ -8,18 +8,20 @@ Interface for value definition.
 from abc import abstractmethod
 from typing import Any
 
-from .IDescribable import IDescribable
+from core.solutions.standards.IDescribable import IDescribable
 
 
 class IValueDefinition(IDescribable):
     """Class describes value definition."""
 
+    @property
     @abstractmethod
-    def get_value_type(self) -> Any:
-        """Get value type."""
+    def value_type(self) -> Any:
+        """Value type."""
         pass
 
+    @property
     @abstractmethod
-    def get_missing_data_value(self) -> Any:
-        """Get missing data value."""
+    def missing_data_value(self) -> Any:
+        """Missing data value."""
         pass

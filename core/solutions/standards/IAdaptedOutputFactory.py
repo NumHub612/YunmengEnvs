@@ -3,28 +3,28 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces for creating instances of `IAdaptedOutput` items.
+Interface for creating instances of `IAdaptedOutput` items.
 """
 from abc import abstractmethod
 from typing import List, Optional
 
-from .IIdentifiable import IIdentifiable
-from .IAdaptedOutput import IAdaptedOutput
-from .IOutput import IOutput
-from .IInput import IInput
+from core.solutions.standards.IIdentifiable import IIdentifiable
+from core.solutions.standards.IAdaptedOutput import IAdaptedOutput
+from core.solutions.standards.IOutput import IOutput
+from core.solutions.standards.IInput import IInput
 
 
 class IAdaptedOutputFactory(IIdentifiable):
     """
-    Factory class for creating instances of `IAdaptedOutput` items.
+    Factory class for creating instances of the `IAdaptedOutput` item.
     """
 
     @abstractmethod
     def get_available_adapter_ids(
-        self, output: IOutput, target: Optional[IInput]
+        self, adaptee: IOutput, target: Optional[IInput]
     ) -> List[IIdentifiable]:
-        """Gets a list of identifier of the available `IAdaptedOutput` that can
-        make the adaptee match the target."""
+        """Gets a list of identifier of the available `IAdaptedOutput`
+        that can make the adaptee match the target."""
         pass
 
     @abstractmethod
@@ -34,5 +34,5 @@ class IAdaptedOutputFactory(IIdentifiable):
         adaptee: IOutput,
         target: Optional[IInput],
     ) -> IAdaptedOutput:
-        """Creates an instance of `IAdaptedOutput` that can adapt the adaptee."""
+        """Creates an adapter instance adapting the adaptee to target."""
         pass

@@ -8,8 +8,8 @@ Interface for qualitative data.
 from abc import abstractmethod
 from typing import List
 
-from .IValueDefinition import IValueDefinition
-from .ICategory import ICategory
+from core.solutions.standards.IValueDefinition import IValueDefinition
+from core.solutions.standards.ICategory import ICategory
 
 
 class IQuality(IValueDefinition):

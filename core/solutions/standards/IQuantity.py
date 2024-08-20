@@ -3,13 +3,13 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces for quantity values.
+Interface for quantity values.
 """
 from abc import abstractmethod
 from typing import Optional
 
-from .IUnit import IUnit
-from .IValueDefinition import IValueDefinition
+from core.solutions.standards.IUnit import IUnit
+from core.solutions.standards.IValueDefinition import IValueDefinition
 
 
 class IQuantity(IValueDefinition):

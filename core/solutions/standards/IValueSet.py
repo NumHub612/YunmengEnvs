@@ -8,22 +8,11 @@ Interface for Value Set.
 from abc import ABC, abstractmethod
 from typing import Any, List
 
-from .IValueDefinition import IValueDefinition
+from core.solutions.standards.IValueDefinition import IValueDefinition
 
 
 class IValueSet(ABC):
     """Class represents a general(ordered) multi-dimensional set of values."""
-
-    @abstractmethod
-    def get_value_definition(self) -> IValueDefinition:
-        """
-        Definition of the values in the value set.
-
-        The "IValueDefinition" should never be returned directly; The all implementing
-        classes should return either an `IQuality`, an `IQuantity`, or a custom
-        derived value definition interface.
-        """
-        pass
 
     @abstractmethod
     def get_number_of_indices(self) -> int:
@@ -100,5 +89,13 @@ class IValueSet(ABC):
 
         Returns:
             The timeseries values.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def value_definition(self) -> IValueDefinition:
+        """
+        Definition of the values in the value set.
         """
         pass

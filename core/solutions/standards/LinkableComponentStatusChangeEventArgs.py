@@ -1,34 +1,64 @@
-from enum import Enum
+# -*- encoding: utf-8 -*-
+"""
+Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
+License: Apache License 2.0
+
+Interface for arguments of linkable component status change event.
+"""
+from abc import ABC, abstractmethod
 from typing import Optional
 
+from core.solutions.standards.ILinkableComponent import ILinkableComponent
+from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
 
-class LinkableComponentStatusChangeEventArgs:
-    def __init__(self):
-        self._linkable_component: Optional[ILinkableComponent] = None
-        self._old_status: Optional[LinkableComponentStatus] = None
-        self._new_status: Optional[LinkableComponentStatus] = None
-        self._messages: str = ""
 
-    def get_linkable_component(self) -> Optional[ILinkableComponent]:
-        return self._linkable_component
+class LinkableComponentStatusChangeEventArgs(ABC):
+    """Interface class for arguments of linkable component status change event."""
 
-    def set_linkable_component(self, obj: ILinkableComponent) -> None:
-        self._linkable_component = obj
+    @property
+    @abstractmethod
+    def linkable_component(self) -> Optional[ILinkableComponent]:
+        """The linkable component."""
+        pass
 
-    def get_old_status(self) -> Optional[LinkableComponentStatus]:
-        return self._old_status
+    @linkable_component.setter
+    @abstractmethod
+    def linkable_component(self, obj: ILinkableComponent):
+        """Sets the linkable component."""
+        pass
 
-    def set_old_status(self, value: LinkableComponentStatus) -> None:
-        self._old_status = value
+    @property
+    @abstractmethod
+    def message(self) -> str:
+        """The message for the event."""
+        pass
 
-    def get_new_status(self) -> Optional[LinkableComponentStatus]:
-        return self._new_status
+    @message.setter
+    @abstractmethod
+    def message(self, msg: str) -> None:
+        """Sets the message."""
+        pass
 
-    def set_new_status(self, value: LinkableComponentStatus) -> None:
-        self._new_status = value
+    @property
+    @abstractmethod
+    def old_status(self) -> Optional[LinkableComponentStatus]:
+        """The old status of the linkable component."""
+        pass
 
-    def get_messages(self) -> str:
-        return self._messages
+    @old_status.setter
+    @abstractmethod
+    def old_status(self, value: LinkableComponentStatus):
+        """Sets the old status."""
+        pass
 
-    def set_messages(self, msg: str) -> None:
-        self._messages = msg
+    @property
+    @abstractmethod
+    def new_status(self) -> Optional[LinkableComponentStatus]:
+        """The new status of the linkable component."""
+        pass
+
+    @new_status.setter
+    @abstractmethod
+    def new_status(self, value: LinkableComponentStatus):
+        """Sets the new status."""
+        pass

@@ -3,14 +3,14 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces for output exchange items.
+Interface for output exchange items.
 """
 from __future__ import annotations
 from abc import abstractmethod
 from typing import List, Optional
 
-from .IBaseExchangeItem import IBaseExchangeItem
-from .IInput import IInput
+from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
+from core.solutions.standards.IInput import IInput
 
 
 class IOutput(IBaseExchangeItem):
@@ -22,7 +22,7 @@ class IOutput(IBaseExchangeItem):
     the data according to the consumer's wishes.
     """
 
-    from .IAdaptedOutput import IAdaptedOutput
+    from core.solutions.standards.IAdaptedOutput import IAdaptedOutput
 
     @abstractmethod
     def get_consumers(self) -> List[Optional[IInput]]:

@@ -3,7 +3,7 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces for entities that can be described.
+Interface for entities that can be described.
 """
 from abc import ABC, abstractmethod
 
@@ -11,22 +11,26 @@ from abc import ABC, abstractmethod
 class IDescribable(ABC):
     """To provide descriptive information on an OpenOasis entity."""
 
+    @property
     @abstractmethod
-    def get_caption(self) -> str:
+    def caption(self) -> str:
         """Caption string."""
         pass
 
+    @caption.setter
     @abstractmethod
-    def set_caption(self, value: str) -> None:
-        """Set the caption string."""
+    def caption(self, value: str):
+        """Sets the caption string."""
         pass
 
+    @property
     @abstractmethod
-    def get_description(self) -> str:
+    def description(self) -> str:
         """Additional descriptive information about the entity."""
         pass
 
+    @description.setter
     @abstractmethod
-    def set_description(self, value: str) -> None:
-        """Set the description string."""
+    def description(self, value: str):
+        """Sets the description."""
         pass

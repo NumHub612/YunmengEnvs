@@ -3,36 +3,40 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces Provides the args for an ExchangeItemValueChanged event.
+Interface provides the args for an ExchangeItemValueChanged event.
 """
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from .IBaseExchangeItem import IBaseExchangeItem
+from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
 
 
 class ExchangeItemChangeEventArgs(ABC):
     """
-    To provides the information that will be passed when firing an
-    `ExchangeItemValueChanged` event.
+    To provides the information that will be passed when
+    firing an `ExchangeItemValueChanged` event.
     """
 
+    @property
     @abstractmethod
-    def get_exchange_item(self) -> Optional[IBaseExchangeItem]:
-        """Gets the exchange item that has been changed."""
+    def exchange_item(self) -> Optional[IBaseExchangeItem]:
+        """The exchange item that has been changed."""
         pass
 
+    @exchange_item.setter
     @abstractmethod
-    def set_exchange_item(self, obj: IBaseExchangeItem):
+    def exchange_item(self, obj: IBaseExchangeItem):
         """Sets the exchange item that has been changed."""
         pass
 
+    @property
     @abstractmethod
-    def get_messages(self) -> str:
-        """Gets the messages that will be sent to the callbacks."""
+    def message(self) -> str:
+        """The message description of the change."""
         pass
 
+    @message.setter
     @abstractmethod
-    def set_messages(self, value: str):
-        """Sets the messages that will be sent to the callbacks."""
+    def message(self, value: str):
+        """Sets the message description of the change."""
         pass

@@ -3,7 +3,7 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces for dimensions in physical quantities.
+Interface for dimensions in physical quantities.
 """
 from enum import Enum
 from abc import ABC, abstractmethod
@@ -21,23 +21,12 @@ class DimensionBase(Enum):
 
 
 class IDimension(ABC):
+    """Interface for dimension-related operations."""
+
     @abstractmethod
     def get_power(self, base_quantity: DimensionBase) -> float:
         """
         Gets the power for the requested dimension.
-
-        Examples:
-            For a quantity such as flow, which may have the unit m3/s,
-            the `get_power` method must work as follows:
-        >>>
-            Flow.get_power(DimensionBase.AmountOfSubstance) -->  0
-            Flow.get_power(DimensionBase.Currency)          -->  0
-            Flow.get_power(DimensionBase.ElectricCurrent)   -->  0
-            Flow.get_power(DimensionBase.Length)            -->  3
-            Flow.get_power(DimensionBase.LuminousIntensity) -->  0
-            Flow.get_power(DimensionBase.Mass)              -->  0
-            Flow.get_power(DimensionBase.Temperature)       -->  0
-            Flow.get_power(DimensionBase.Time)              --> -1
         """
         pass
 
@@ -45,9 +34,5 @@ class IDimension(ABC):
     def set_power(self, base_quantity: DimensionBase, power: float):
         """
         Sets a power for a base dimension.
-
-        Parameters:
-            base_quantity: The base dimension.
-            power: The power.
         """
         pass

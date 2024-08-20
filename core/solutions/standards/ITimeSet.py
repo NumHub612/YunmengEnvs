@@ -8,7 +8,7 @@ Interface for time set.
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from .ITime import ITime
+from core.solutions.standards.ITime import ITime
 
 
 class ITimeSet(ABC):

@@ -3,46 +3,21 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaced class for linkable modules connection and data transfer.
+Interface class for linkable modules connection and data transfer.
 """
 from abc import abstractmethod
 from typing import List, Callable, Optional
 
-from IIdentifiable import IIdentifiable
-from IArgument import IArgument
-from IInput import IInput
-from IOutput import IOutput
-from IAdaptedOutputFactory import IAdaptedOutputFactory
-from LinkableComponentStatus import LinkableComponentStatus
+from core.solutions.standards.IIdentifiable import IIdentifiable
+from core.solutions.standards.IArgument import IArgument
+from core.solutions.standards.IInput import IInput
+from core.solutions.standards.IOutput import IOutput
+from core.solutions.standards.IAdaptedOutputFactory import IAdaptedOutputFactory
+from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
 
 
 class ILinkableComponent(IIdentifiable):
     """class for linkable modules connection and data transfer."""
-
-    @abstractmethod
-    def get_arguments(self) -> List[Optional[IArgument]]:
-        """Gets arguments of the component."""
-        pass
-
-    @abstractmethod
-    def get_status(self) -> LinkableComponentStatus:
-        """Gets the status."""
-        pass
-
-    @abstractmethod
-    def get_inputs(self) -> List[Optional[IInput]]:
-        """Gets the input items."""
-        pass
-
-    @abstractmethod
-    def get_outputs(self) -> List[Optional[IOutput]]:
-        """Gets the output items."""
-        pass
-
-    @abstractmethod
-    def get_adapter_factories(self) -> List[Optional[IAdaptedOutputFactory]]:
-        """Gets the adapted output factories."""
-        pass
 
     @abstractmethod
     def initialize(self):
@@ -138,4 +113,34 @@ class ILinkableComponent(IIdentifiable):
     @abstractmethod
     def add_listener(self, func: Callable):
         """Adds a listener to the component."""
+        pass
+
+    @property
+    @abstractmethod
+    def arguments(self) -> List[Optional[IArgument]]:
+        """Arguments of the component."""
+        pass
+
+    @property
+    @abstractmethod
+    def status(self) -> LinkableComponentStatus:
+        """The status of the component."""
+        pass
+
+    @property
+    @abstractmethod
+    def input_items(self) -> List[Optional[IInput]]:
+        """The input items."""
+        pass
+
+    @property
+    @abstractmethod
+    def output_items(self) -> List[Optional[IOutput]]:
+        """The output items."""
+        pass
+
+    @property
+    @abstractmethod
+    def adapter_factories(self) -> List[Optional[IAdaptedOutputFactory]]:
+        """The adapted output factories."""
         pass

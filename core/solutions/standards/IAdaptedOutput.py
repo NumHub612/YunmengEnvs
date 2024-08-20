@@ -3,13 +3,13 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interface for an output item that can be adapted with data operations.
+Interface for adapted output items.
 """
 from abc import abstractmethod
 from typing import List, Optional
 
-from .IOutput import IOutput
-from .IArgument import IArgument
+from core.solutions.standards.IArgument import IArgument
+from core.solutions.standards.IOutput import IOutput
 
 
 class IAdaptedOutput(IOutput):
@@ -21,28 +21,29 @@ class IAdaptedOutput(IOutput):
     """
 
     @abstractmethod
-    def get_arguments(self) -> List[Optional[IArgument]]:
-        """Arguments needed to let the adapted output do its work."""
-        pass
-
-    @abstractmethod
     def initialize(self):
-        """Lets the adapted output initialize itself based on the current values
-        specified by the arguments.
-        """
-        pass
-
-    @abstractmethod
-    def get_adaptee(self) -> Optional[IOutput]:
-        """Returns the output item."""
-        pass
-
-    @abstractmethod
-    def set_adaptee(self, adaptee: IOutput):
-        """Sets an output that necessitates the specified adpative data operations."""
+        """Initializes the adapter."""
         pass
 
     @abstractmethod
     def refresh(self):
-        """Requests the adapted output item to refresh itself."""
+        """Refreshes the adapter."""
+        pass
+
+    @property
+    @abstractmethod
+    def arguments(self) -> List[Optional[IArgument]]:
+        """Arguments of the adapter."""
+        pass
+
+    @property
+    @abstractmethod
+    def adaptee(self) -> Optional[IOutput]:
+        """The adapted output item."""
+        pass
+
+    @adaptee.setter
+    @abstractmethod
+    def adaptee(self, adaptee: IOutput):
+        """Sets an output item to be adapted."""
         pass

@@ -3,11 +3,12 @@
 Copyright (C) 2024, The YunMengEnvs Project Contributors. Join us !
 License: Apache License 2.0
 
-Interfaces for describing categories.
+Interface for describing categories.
 """
 from abc import abstractmethod
+from typing import Any
 
-from .IDescribable import IDescribable
+from core.solutions.standards.IDescribable import IDescribable
 
 
 class ICategory(IDescribable):
@@ -17,7 +18,8 @@ class ICategory(IDescribable):
     defines one "class" within a "set of classes".
     """
 
+    @property
     @abstractmethod
-    def get_value(self):
+    def value(self) -> Any:
         """Value for this category."""
         pass
