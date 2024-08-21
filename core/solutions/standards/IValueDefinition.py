@@ -17,7 +17,7 @@ class IValueDefinition(IDescribable):
 
     @property
     @abstractmethod
-    def value_type(self) -> Any:
+    def value_type(self) -> type:
         """Value type."""
         pass
 

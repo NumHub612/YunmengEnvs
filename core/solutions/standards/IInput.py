@@ -7,7 +7,7 @@ License: Apache License 2.0
 Interface for input items.
 """
 from abc import abstractmethod
-from typing import List, Optional
+from typing import List
 
 from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
 from core.solutions.standards.IOutput import IOutput
@@ -19,7 +19,7 @@ class IInput(IBaseExchangeItem):
     """
 
     @abstractmethod
-    def get_providers(self) -> List[Optional[IOutput]]:
+    def get_providers(self) -> List[IOutput]:
         """Gets the providers for this input item."""
         pass
 

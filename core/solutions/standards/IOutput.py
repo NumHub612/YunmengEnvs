@@ -6,9 +6,8 @@ License: Apache License 2.0
 
 Interface for output exchange items.
 """
-from __future__ import annotations
 from abc import abstractmethod
-from typing import List, Optional
+from typing import List
 
 from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
 from core.solutions.standards.IInput import IInput
@@ -26,7 +25,7 @@ class IOutput(IBaseExchangeItem):
     from core.solutions.standards.IAdaptedOutput import IAdaptedOutput
 
     @abstractmethod
-    def get_consumers(self) -> List[Optional[IInput]]:
+    def get_consumers(self) -> List[IInput]:
         """Returns a list of all consumers of this output."""
         pass
 
@@ -43,7 +42,7 @@ class IOutput(IBaseExchangeItem):
         pass
 
     @abstractmethod
-    def get_adapters(self) -> List[Optional[IAdaptedOutput]]:
+    def get_adapters(self) -> List[IAdaptedOutput]:
         """Returns a list of all adapted outputs of this output."""
         pass
 

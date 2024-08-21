@@ -7,7 +7,7 @@ License: Apache License 2.0
 Interface for time set.
 """
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List
 
 from core.solutions.standards.ITime import ITime
 
@@ -51,7 +51,7 @@ class ITimeSet(ABC):
         pass
 
     @abstractmethod
-    def get_time_horizon(self) -> Optional[ITime]:
+    def get_time_horizon(self) -> ITime:
         """
         Gets the time horizon of this timeset.
         """

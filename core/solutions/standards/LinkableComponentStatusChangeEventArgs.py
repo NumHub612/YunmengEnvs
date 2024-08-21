@@ -7,7 +7,6 @@ License: Apache License 2.0
 Interface for arguments of linkable component status change event.
 """
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from core.solutions.standards.ILinkableComponent import ILinkableComponent
 from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
@@ -18,7 +17,7 @@ class LinkableComponentStatusChangeEventArgs(ABC):
 
     @property
     @abstractmethod
-    def linkable_component(self) -> Optional[ILinkableComponent]:
+    def linkable_component(self) -> ILinkableComponent:
         """The linkable component."""
         pass
 
@@ -42,7 +41,7 @@ class LinkableComponentStatusChangeEventArgs(ABC):
 
     @property
     @abstractmethod
-    def old_status(self) -> Optional[LinkableComponentStatus]:
+    def old_status(self) -> LinkableComponentStatus:
         """The old status of the linkable component."""
         pass
 
@@ -54,7 +53,7 @@ class LinkableComponentStatusChangeEventArgs(ABC):
 
     @property
     @abstractmethod
-    def new_status(self) -> Optional[LinkableComponentStatus]:
+    def new_status(self) -> LinkableComponentStatus:
         """The new status of the linkable component."""
         pass
 

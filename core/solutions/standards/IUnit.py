@@ -7,7 +7,6 @@ License: Apache License 2.0
 Interface for unit.
 """
 from abc import abstractmethod
-from typing import Optional
 
 from core.solutions.standards.IDescribable import IDescribable
 from core.solutions.standards.IDimension import IDimension
@@ -18,7 +17,7 @@ class IUnit(IDescribable):
 
     @property
     @abstractmethod
-    def dimension(self) -> Optional[IDimension]:
+    def dimension(self) -> IDimension:
         """Return the dimension of the unit."""
         pass
 

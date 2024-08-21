@@ -22,7 +22,7 @@ class IAdaptedOutputFactory(IIdentifiable):
 
     @abstractmethod
     def get_available_adapter_ids(
-        self, adaptee: IOutput, target: Optional[IInput]
+        self, adaptee: IOutput, target: IInput
     ) -> List[IIdentifiable]:
         """Gets a list of identifier of the available `IAdaptedOutput`
         that can make the adaptee match the target."""
@@ -33,7 +33,7 @@ class IAdaptedOutputFactory(IIdentifiable):
         self,
         adapter_id: IIdentifiable,
         adaptee: IOutput,
-        target: Optional[IInput],
-    ) -> IAdaptedOutput:
+        target: IInput,
+    ) -> Optional[IAdaptedOutput]:
         """Creates an adapter instance adapting the adaptee to target."""
         pass

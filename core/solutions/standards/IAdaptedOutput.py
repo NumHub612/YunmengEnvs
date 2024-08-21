@@ -7,7 +7,7 @@ License: Apache License 2.0
 Interface for adapted output items.
 """
 from abc import abstractmethod
-from typing import List, Optional
+from typing import List
 
 from core.solutions.standards.IArgument import IArgument
 from core.solutions.standards.IOutput import IOutput
@@ -33,13 +33,13 @@ class IAdaptedOutput(IOutput):
 
     @property
     @abstractmethod
-    def arguments(self) -> List[Optional[IArgument]]:
+    def arguments(self) -> List[IArgument]:
         """Arguments of the adapter."""
         pass
 
     @property
     @abstractmethod
-    def adaptee(self) -> Optional[IOutput]:
+    def adaptee(self) -> IOutput:
         """The adapted output item."""
         pass
 

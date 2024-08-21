@@ -7,7 +7,7 @@ License: Apache License 2.0
 Interface class for exchange items.
 """
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Any
+from typing import Callable, Optional
 
 from core.solutions.standards.IValueDefinition import IValueDefinition
 from core.solutions.standards.IValueSet import IValueSet
@@ -17,7 +17,8 @@ from core.solutions.standards.ILinkableComponent import ILinkableComponent
 
 
 class IBaseExchangeItem(ABC):
-    """Class presenting a item that can be exchanged, either as an input or output."""
+    """Class presenting a item that can be exchanged,
+    either as an input or output."""
 
     @abstractmethod
     def update(self) -> Optional[IValueSet]:

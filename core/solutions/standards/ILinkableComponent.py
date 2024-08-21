@@ -7,7 +7,7 @@ License: Apache License 2.0
 Interface class for linkable modules connection and data transfer.
 """
 from abc import abstractmethod
-from typing import List, Callable, Optional
+from typing import List, Callable
 
 from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IArgument import IArgument
@@ -118,7 +118,7 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def arguments(self) -> List[Optional[IArgument]]:
+    def arguments(self) -> List[IArgument]:
         """Arguments of the component."""
         pass
 
@@ -130,18 +130,18 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def input_items(self) -> List[Optional[IInput]]:
+    def input_items(self) -> List[IInput]:
         """The input items."""
         pass
 
     @property
     @abstractmethod
-    def output_items(self) -> List[Optional[IOutput]]:
+    def output_items(self) -> List[IOutput]:
         """The output items."""
         pass
 
     @property
     @abstractmethod
-    def adapter_factories(self) -> List[Optional[IAdaptedOutputFactory]]:
+    def adapter_factories(self) -> List[IAdaptedOutputFactory]:
         """The adapted output factories."""
         pass

@@ -7,7 +7,6 @@ License: Apache License 2.0
 Interface provides the args for an ExchangeItemValueChanged event.
 """
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
 
@@ -20,7 +19,7 @@ class ExchangeItemChangeEventArgs(ABC):
 
     @property
     @abstractmethod
-    def exchange_item(self) -> Optional[IBaseExchangeItem]:
+    def exchange_item(self) -> IBaseExchangeItem:
         """The exchange item that has been changed."""
         pass
 

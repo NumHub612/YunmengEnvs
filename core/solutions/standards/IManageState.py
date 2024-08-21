@@ -26,14 +26,14 @@ class IManageState(ABC):
         pass
 
     @abstractmethod
-    def restore_state(self, state_id: Optional[IIdentifiable]):
+    def restore_state(self, state_id: IIdentifiable):
         """
         Restores the state identified by the state_id.
         """
         pass
 
     @abstractmethod
-    def clear_state(self, state_id: Optional[IIdentifiable]):
+    def clear_state(self, state_id: IIdentifiable):
         """
         Clears a specified state from the linkable component.
         """
