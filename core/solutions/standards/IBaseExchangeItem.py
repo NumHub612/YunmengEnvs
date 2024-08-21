@@ -32,13 +32,13 @@ class IBaseExchangeItem(ABC):
 
     @property
     @abstractmethod
-    def value_definition(self) -> Optional[IValueDefinition]:
+    def value_definition(self) -> IValueDefinition:
         """Definition of the values in the exchange item."""
         pass
 
     @property
     @abstractmethod
-    def values(self) -> Optional[IValueSet]:
+    def values(self) -> IValueSet:
         """The values."""
         pass
 
@@ -50,7 +50,7 @@ class IBaseExchangeItem(ABC):
 
     @property
     @abstractmethod
-    def elementset(self) -> Optional[IElementSet]:
+    def elementset(self) -> IElementSet:
         """The exchange item's elements."""
         pass
 
@@ -62,7 +62,7 @@ class IBaseExchangeItem(ABC):
 
     @property
     @abstractmethod
-    def timeset(self) -> Optional[ITimeSet]:
+    def timeset(self) -> ITimeSet:
         """The exchange item's time set."""
         pass
 
@@ -74,7 +74,7 @@ class IBaseExchangeItem(ABC):
 
     @property
     @abstractmethod
-    def component(self) -> Optional[ILinkableComponent]:
+    def component(self) -> ILinkableComponent:
         """The owner of the exchange item."""
         pass
 
