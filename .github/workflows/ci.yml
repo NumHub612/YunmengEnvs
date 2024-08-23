@@ -46,14 +46,4 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           files: ./coverage.xml
-          token: ${{ secrets.CODECOV_TOKEN }}  
-
-      - name: mkdocs
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main' }}
-        run: |
-          cd ${{ github.workspace }}
-          pip install mkdocs
-          pip install mkdocstrings[python]
-          pip install mkdocs-material
-          mkdocs gh-deploy --clean
-        shell: bash      
+          token: ${{ secrets.CODECOV_TOKEN }}      
