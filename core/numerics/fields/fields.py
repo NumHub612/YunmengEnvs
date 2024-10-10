@@ -77,7 +77,7 @@ class Field:
 
         for i in range(self._num_vars):
             res = func(self._values[i])
-            if res is not None:
+            if isinstance(res, Variable) and res.type == self.type:
                 self._values[i] = res
 
     def at(self, indexes: List[int], func: Callable):
@@ -98,8 +98,32 @@ class Field:
 
         for i in indexes:
             res = func(self._values[i])
-            if res is not None:
+            if isinstance(res, Variable) and res.type == self.type:
                 self._values[i] = res
+
+    def assign(self, other: Union["Field", "Variable"]):
+        """
+        Assign the values of another field or a variable to the current field.
+
+        Args:
+            other: The other field or variable to assign.
+        """
+        if isinstance(other, Field):
+            try:
+                self._check_fields_compatible(other)
+            except (ValueError, TypeError) as e:
+                raise TypeError(f"Cannot assign fields: {e}")
+
+            self._values = other._values
+        elif isinstance(other, Variable):
+            if other.type != self.type:
+                raise TypeError(
+                    f"Invalid value type: {other.type} (expected {self.type})"
+                )
+
+            self._values = np.full(self._num_vars, other)
+        else:
+            raise TypeError(f"Cannot assign {type(other)} to field")
 
     # -----------------------------------------------
     # --- reload query methods ---

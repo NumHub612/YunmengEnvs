@@ -21,4 +21,4 @@ class UniformInitialization(IInitCondition):
         return "uniform"
 
     def run(self, field: Field):
-        pass
+        field.assign(self._value)
