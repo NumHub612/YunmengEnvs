@@ -23,7 +23,7 @@ class IInitCondition(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def run(self, field: Field) -> None:
+    def apply_to(self, field: Field) -> None:
         """
         Initializes the field variables.
         """

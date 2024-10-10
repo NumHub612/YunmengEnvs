@@ -20,5 +20,5 @@ class UniformInitialization(IInitCondition):
     def get_name(cls) -> str:
         return "uniform"
 
-    def run(self, field: Field):
+    def apply_to(self, field: Field):
         field.assign(self._value)
