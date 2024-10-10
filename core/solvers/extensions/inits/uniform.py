@@ -5,11 +5,20 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 Initialization by uniform value method.
 """
 from core.solvers.interfaces import IInitCondition
+from core.numerics.fields import Variable, Field
 
 
-class UniformInitCondition(IInitCondition):
+class UniformInitialization(IInitCondition):
     """
     Uniform initialization condition.
     """
 
-    pass
+    def __init__(self, value: Variable):
+        self._value = value
+
+    @classmethod
+    def get_name(cls) -> str:
+        return "uniform"
+
+    def run(self, field: Field):
+        pass

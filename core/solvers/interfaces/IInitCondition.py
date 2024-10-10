@@ -2,14 +2,29 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
 
-Interfaces for initializing the fields.
+Interfaces for initializing the firield variables.
 """
 from abc import ABC, abstractmethod
+
+from core.numerics.fields import Field
 
 
 class IInitCondition(ABC):
     """
-    Interface for initializing the fields.
+    Interface for initializing a fields.
     """
 
-    pass
+    @classmethod
+    @abstractmethod
+    def get_name(cls) -> str:
+        """
+        The unique name of the initialization method.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def run(self, field: Field) -> None:
+        """
+        Initializes the field variables.
+        """
+        raise NotImplementedError
