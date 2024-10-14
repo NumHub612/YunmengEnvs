@@ -19,15 +19,23 @@ class Variable:
     # --- abstract methods ---
     # -----------------------------------------------
 
+    @classmethod
     @abstractmethod
-    def set_by_np(self, np_array: np.ndarray):
+    def from_np(cls, np_arr: np.ndarray) -> "Variable":
         """
         Set a variable by a numpy array.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def set_by_var(self, var: "Variable"):
+    def to_np(self) -> np.ndarray:
+        """
+        Get a numpy array representation of the variable.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def from_var(cls, var: "Variable") -> "Variable":
         """
         Set a variable by another variable.
         """
@@ -46,6 +54,14 @@ class Variable:
     def magnitude(self) -> float:
         """
         Get the magnitude of the variable.
+        """
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def unit(self) -> "Variable":
+        """
+        Get the unit of the variable.
         """
         raise NotImplementedError()
 
@@ -116,15 +132,20 @@ class Vector(Variable):
     # --- override methods ---
     # -----------------------------------------------
 
-    def set_by_np(self, np_array: np.ndarray):
-        if len(np_array.shape) != 1 or np_array.shape[0] != 3:
+    def from_np(cls, np_arr: np.ndarray) -> "Vector":
+        if len(np_arr.shape) != 1 or np_arr.shape[0] != 3:
             raise ValueError("Invalid numpy array shape for Vector.")
-        self._value = np_array
 
-    def set_by_var(self, var: "Vector"):
+        return Vector(np_arr[0], np_arr[1], np_arr[2])
+
+    def to_np(self) -> np.ndarray:
+        return self._value
+
+    def from_var(cls, var: "Vector") -> "Vector":
         if not isinstance(var, Vector):
             raise TypeError("Invalid variable type for Vector.")
-        self._value = var._value
+
+        return Vector(var.x, var.y, var.z)
 
     def __str__(self):
         return f"Vector({self.x}, {self.y}, {self.z})"
@@ -141,6 +162,14 @@ class Vector(Variable):
     def magnitude(self) -> float:
         length = np.sqrt(self.x**2 + self.y**2 + self.z**2)
         return length
+
+    @property
+    def unit(self) -> "Vector":
+        length = self.magnitude
+        if length < self._tol:
+            return Vector(0.0, 0.0, 0.0)
+        else:
+            return self / length
 
     @property
     def x(self) -> float:
@@ -216,17 +245,20 @@ class Scalar(Variable):
     # --- override methods ---
     # -----------------------------------------------
 
-    def set_by_np(self, np_array: np.ndarray):
-        if len(np_array.shape) != 1 or np_array.shape[0] != 1:
+    def from_np(cls, np_arr: np.ndarray) -> "Scalar":
+        if len(np_arr.shape) != 1 or np_arr.shape[0] != 1:
             raise ValueError("Invalid numpy array shape for Scalar.")
 
-        self._value = np_array[0]
+        return Scalar(np_arr[0])
 
-    def set_by_var(self, var: "Scalar"):
+    def to_np(self) -> np.ndarray:
+        return np.array([self._value])
+
+    def from_var(cls, var: "Scalar") -> "Scalar":
         if not isinstance(var, Scalar):
             raise TypeError("Invalid variable type for Scalar.")
 
-        self._value = var._value
+        return Scalar(var.value)
 
     def __str__(self):
         return f"Scalar({self.value})"
@@ -242,6 +274,13 @@ class Scalar(Variable):
     @property
     def magnitude(self) -> float:
         return abs(self.value)
+
+    @property
+    def unit(self) -> "Scalar":
+        if self.magnitude < self._tol:
+            return Scalar(0.0)
+        else:
+            return self / self.magnitude
 
     @property
     def value(self) -> float:
@@ -354,17 +393,27 @@ class Tensor(Variable):
     # --- override methods ---
     # -----------------------------------------------
 
-    def set_by_np(self, np_array: np.ndarray):
+    def from_np(cls, np_array: np.ndarray) -> "Tensor":
         if len(np_array.shape) != 2 or np_array.shape[0] != 3 or np_array.shape[1] != 3:
             raise ValueError("Invalid numpy array shape for Tensor.")
 
-        self._value = np_array
+        return Tensor(
+            np_array[0, 0],
+            np_array[0, 1],
+            np_array[0, 2],
+            np_array[1, 1],
+            np_array[1, 2],
+            np_array[2, 2],
+        )
 
-    def set_by_var(self, var: "Tensor"):
+    def to_np(self) -> np.ndarray:
+        return self._value
+
+    def from_var(cls, var: "Tensor") -> "Tensor":
         if not isinstance(var, Tensor):
             raise TypeError("Invalid variable type for Tensor.")
 
-        self._value = var._value
+        return Tensor(var.xx, var.xy, var.xz, var.yy, var.yz, var.zz)
 
     def __str__(self):
         return f"Tensor([{self.xx}, {self.xy}, {self.xz}], [{self.xy}, {self.yy}, {self.yz}], [{self.xz}, {self.yz}, {self.zz}])"
@@ -383,6 +432,14 @@ class Tensor(Variable):
             self.xx**2 + self.xy**2 + self.xz**2 + self.yy**2 + self.yz**2 + self.zz**2
         )
         return length
+
+    @property
+    def unit(self) -> "Tensor":
+        length = self.magnitude
+        if length < self._tol:
+            return Tensor()
+        else:
+            return self / length
 
     @property
     def xx(self) -> float:

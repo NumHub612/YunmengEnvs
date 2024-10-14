@@ -6,6 +6,7 @@ Implementation of the 1D Burgers equation using finite difference method.
 """
 from core.solvers.interfaces import ISolver
 from core.solvers.extensions.inits import init_methods
+from core.solvers.extensions.boundaries import boundary_conditions
 
 
 class Burgers1D(ISolver):

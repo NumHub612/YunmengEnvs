@@ -9,7 +9,20 @@ from abc import ABC, abstractmethod
 
 class ISolver(ABC):
     """
-    Interface for fluid equations solvers.
+    Interface for fluid dynamic equations solvers.
     """
 
-    pass
+    @classmethod
+    @abstractmethod
+    def get_name(cls) -> str:
+        """
+        The unique name of the solver.
+        """
+        pass
+
+    @abstractmethod
+    def update(self, **kwargs):
+        """
+        Update the solver to get the new solution.
+        """
+        pass
