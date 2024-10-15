@@ -4,10 +4,10 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for time set.
 """
+from core.solutions.standards.ITime import ITime
+
 from abc import ABC, abstractmethod
 from typing import List
-
-from core.solutions.standards.ITime import ITime
 
 
 class ITimeSet(ABC):

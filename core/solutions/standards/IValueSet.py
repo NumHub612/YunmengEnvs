@@ -4,10 +4,10 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for Value Set.
 """
+from core.solutions.standards.IValueDefinition import IValueDefinition
+
 from abc import ABC, abstractmethod
 from typing import Any, List
-
-from core.solutions.standards.IValueDefinition import IValueDefinition
 
 
 class IValueSet(ABC):

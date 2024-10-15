@@ -4,9 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Interface provides the args for an ExchangeItemValueChanged event.
 """
-from abc import ABC, abstractmethod
-
 from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
+
+from abc import ABC, abstractmethod
 
 
 class ExchangeItemChangeEventArgs(ABC):

@@ -4,9 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for spatial definitions.
 """
-from abc import abstractmethod
-
 from core.solutions.standards.IDescribable import IDescribable
+
+from abc import abstractmethod
 
 
 class ISpatialDefinition(IDescribable):

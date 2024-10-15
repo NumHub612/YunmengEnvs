@@ -4,10 +4,10 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for arguments.
 """
+from core.solutions.standards.IIdentifiable import IIdentifiable
+
 from abc import abstractmethod
 from typing import Any, List
-
-from core.solutions.standards.IIdentifiable import IIdentifiable
 
 
 class IArgument(IIdentifiable):

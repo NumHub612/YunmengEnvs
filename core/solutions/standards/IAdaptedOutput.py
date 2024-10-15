@@ -4,11 +4,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for adapted output items.
 """
-from abc import abstractmethod
-from typing import List
-
 from core.solutions.standards.IArgument import IArgument
 from core.solutions.standards.IOutput import IOutput
+
+from abc import abstractmethod
+from typing import List
 
 
 class IAdaptedOutput(IOutput):

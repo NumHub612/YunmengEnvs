@@ -4,10 +4,10 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for describing categories.
 """
+from core.solutions.standards.IDescribable import IDescribable
+
 from abc import abstractmethod
 from typing import Any
-
-from core.solutions.standards.IDescribable import IDescribable
 
 
 class ICategory(IDescribable):

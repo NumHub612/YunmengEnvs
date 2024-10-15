@@ -4,11 +4,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for input items.
 """
-from abc import abstractmethod
-from typing import List
-
 from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
 from core.solutions.standards.IOutput import IOutput
+
+from abc import abstractmethod
+from typing import List
 
 
 class IInput(IBaseExchangeItem):

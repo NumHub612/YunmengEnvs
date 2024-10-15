@@ -4,11 +4,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface class for element sets.
 """
+from core.solutions.standards.ISpatialDefinition import ISpatialDefinition
+
 from enum import Enum
 from abc import abstractmethod
 from typing import List
-
-from core.solutions.standards.ISpatialDefinition import ISpatialDefinition
 
 
 class ElementType(Enum):
