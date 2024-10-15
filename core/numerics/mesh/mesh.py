@@ -39,37 +39,37 @@ class Mesh(ABC):
     @property
     @abstractmethod
     def node_count(self) -> int:
-        """Return the number of nodes in the mesh."""
+        """Return the number of nodes."""
         pass
 
     @property
     @abstractmethod
     def face_count(self) -> int:
-        """Return the number of faces in the mesh."""
+        """Return the number of faces."""
         pass
 
     @property
     @abstractmethod
     def cell_count(self) -> int:
-        """Return the number of cells in the mesh."""
+        """Return the number of cells."""
         pass
 
     @property
     @abstractmethod
     def nodes(self) -> list:
-        """Return all nodes in the mesh."""
+        """Return all nodes."""
         pass
 
     @property
     @abstractmethod
     def faces(self) -> list:
-        """Return all faces in the mesh."""
+        """Return all faces."""
         pass
 
     @property
     @abstractmethod
     def cells(self) -> list:
-        """Return all cells in the mesh."""
+        """Return all cells."""
         pass
 
     @property
@@ -286,7 +286,7 @@ class MeshTopo:
 
 
 class MeshGeom:
-    """Abstract mesh geometry class for describing the geometry."""
+    """Mesh geometry class for describing the geometry."""
 
     def __init__(self, mesh: Mesh):
         self._mesh = mesh

@@ -43,9 +43,9 @@ class Variable:
 
     @property
     @abstractmethod
-    def type(self) -> str:
+    def rank(self) -> str:
         """
-        Get the type of the variable.
+        Get the type of the variable, e.g. scalar, vector, tensor.
         """
         raise NotImplementedError()
 
@@ -155,7 +155,7 @@ class Vector(Variable):
     # -----------------------------------------------
 
     @property
-    def type(self) -> str:
+    def rank(self) -> str:
         return "vector"
 
     @property
@@ -268,7 +268,7 @@ class Scalar(Variable):
     # -----------------------------------------------
 
     @property
-    def type(self) -> str:
+    def rank(self) -> str:
         return "scalar"
 
     @property
@@ -423,7 +423,7 @@ class Tensor(Variable):
     # -----------------------------------------------
 
     @property
-    def type(self) -> str:
+    def rank(self) -> str:
         return "tensor"
 
     @property

@@ -33,17 +33,17 @@ class Field:
     # -----------------------------------------------
 
     @property
-    def type(self) -> str:
+    def dtype(self) -> str:
         """
-        Get the type of the field, e.g. "scalar", "vector", "tensor".
+        Get the data type of the field, e.g. "scalar", "vector", "tensor".
         """
-        return self._default.type
+        return self._default.rank
 
     @property
     @abstractmethod
-    def domain(self) -> str:
+    def etype(self) -> str:
         """
-        Get the domain of the field, e.g. "cell", "face", "node".
+        Get the element type of the field, e.g. "cell", "face", "node".
         """
         raise NotImplementedError
 
@@ -77,7 +77,7 @@ class Field:
 
         for i in range(self._num_vars):
             res = func(self._values[i])
-            if isinstance(res, Variable) and res.type == self.type:
+            if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
 
     def at(self, indexes: List[int], func: Callable):
@@ -98,7 +98,7 @@ class Field:
 
         for i in indexes:
             res = func(self._values[i])
-            if isinstance(res, Variable) and res.type == self.type:
+            if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
 
     def assign(self, other: Union["Field", "Variable"]):
@@ -116,9 +116,9 @@ class Field:
 
             self._values = other._values
         elif isinstance(other, Variable):
-            if other.type != self.type:
+            if other.dtype != self.dtype:
                 raise TypeError(
-                    f"Invalid value type: {other.type} (expected {self.type})"
+                    f"Invalid value type: {other.dtype} (expected {self.dtype})"
                 )
 
             self._values = np.full(self._num_vars, other)
@@ -139,9 +139,9 @@ class Field:
         """
         Set the value of the field at a given position.
         """
-        if value.type != self._default.type:
+        if value.rank != self._default.rank:
             raise TypeError(
-                f"Invalid value type: {value.type} (expected {self._default.type})"
+                f"Invalid value type: {value.rank} (expected {self._default.rank})"
             )
 
         self._values[index] = value
@@ -170,11 +170,11 @@ class Field:
         if self._num_vars != other._num_vars:
             raise ValueError("Fields must have the same number of variables")
 
-        if self.type != other.type:
-            raise TypeError("Fields must have the same default value type")
+        if self.dtype != other.dtype:
+            raise TypeError("Fields must have the same data type")
 
-        if self.domain != other.domain:
-            raise TypeError("Fields must have the same domain")
+        if self.etype != other.etype:
+            raise TypeError("Fields must have the same element type")
 
     def __add__(self, other: Union["Field", "Variable"]) -> "Field":
         """
@@ -190,9 +190,9 @@ class Field:
             result._values = self._values + other._values
             return result
         elif isinstance(other, Variable):
-            if other.type != self._default.type:
+            if other.rank != self._default.rank:
                 raise TypeError(
-                    f"Invalid value type: {other.type} (expected {self._default.type})"
+                    f"Invalid value type: {other.rank} (expected {self._default.rank})"
                 )
 
             def add_constant(x):
@@ -218,9 +218,9 @@ class Field:
             result._values = self._values - other._values
             return result
         elif isinstance(other, Variable):
-            if other.type != self._default.type:
+            if other.rank != self._default.rank:
                 raise TypeError(
-                    f"Invalid value type: {other.type} (expected {self._default.type})"
+                    f"Invalid value type: {other.rank} (expected {self._default.rank})"
                 )
 
             def sub_constant(x):
@@ -289,10 +289,7 @@ class CellField(Field):
         super().__init__(num_cells, default)
 
     @property
-    def domain(self) -> str:
-        """
-        Get the domain of the field, which is "cell".
-        """
+    def etype(self) -> str:
         return "cell"
 
 
@@ -314,10 +311,7 @@ class FaceField(Field):
         super().__init__(num_faces, default)
 
     @property
-    def domain(self) -> str:
-        """
-        Get the domain of the field, which is "face".
-        """
+    def etype(self) -> str:
         return "face"
 
 
@@ -337,8 +331,5 @@ class NodeField(Field):
         super().__init__(num_nodes, default)
 
     @property
-    def domain(self) -> str:
-        """
-        Get the domain of the field, which is "node".
-        """
+    def etype(self) -> str:
         return "node"
