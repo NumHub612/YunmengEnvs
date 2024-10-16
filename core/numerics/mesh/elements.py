@@ -31,11 +31,35 @@ class Coordinate:
         """
         return Coordinate(self.x - other.x, self.y - other.y, self.z - other.z)
 
+    def __mul__(self, other: float) -> "Coordinate":
+        """
+        Multiply a coordinate by a scalar.
+        """
+        return Coordinate(self.x * other, self.y * other, self.z * other)
+
+    def __rmul__(self, other: float) -> "Coordinate":
+        """
+        Multiply a scalar by a coordinate.
+        """
+        return self.__mul__(other)
+
+    def __truediv__(self, other: float) -> "Coordinate":
+        """
+        Divide a coordinate by a scalar.
+        """
+        return Coordinate(self.x / other, self.y / other, self.z / other)
+
     def to_np(self) -> np.ndarray:
         """
         Convert to numpy array.
         """
         return np.array([self.x, self.y, self.z])
+
+    def from_np(self, arr: np.ndarray) -> "Coordinate":
+        """
+        Convert from numpy array.
+        """
+        return Coordinate(arr[0], arr[1], arr[2])
 
 
 @dataclass

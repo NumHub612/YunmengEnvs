@@ -15,7 +15,7 @@ class Mesh(ABC):
     """Abstract mesh class for describing the topology.
 
     NOTE:
-        Don't support isolated element, no check yet.
+        - Don't support isolated element, no check yet.
     """
 
     # -----------------------------------------------
@@ -36,8 +36,8 @@ class Mesh(ABC):
 
     @property
     @abstractmethod
-    def extent(self) -> list:
-        """Return the extent."""
+    def extents(self) -> list:
+        """Return the extents of each dimension."""
         pass
 
     @property
@@ -125,6 +125,11 @@ class Mesh(ABC):
         pass
 
     @abstractmethod
+    def delete_node_group(self, group_name: str):
+        """Delete the given node group."""
+        pass
+
+    @abstractmethod
     def get_group(self, group_name: str) -> list:
         """Return the element indices of given group."""
         pass
@@ -134,7 +139,7 @@ class MeshTopo:
     """Mesh topology class for describing the topology.
 
     NOTE:
-        Require all elements to be continuously encoded, no check yet.
+        - Require all elements to be continuously encoded, no check yet.
     """
 
     def __init__(self, mesh: Mesh):
@@ -335,12 +340,26 @@ class MeshTopo:
                 min_face_index = face.id
         return min_face_index
 
+    # -----------------------------------------------
+    # --- generation methods ---
+    # -----------------------------------------------
+
+    def generate_projection(self, coord: Coordinate, face_index: int) -> Coordinate:
+        """Generate the projection of the given coordinate on the given face."""
+        face = self._mesh.faces[face_index]
+        normal = face.normal
+        vec_np = (coord - face.center).to_np()
+        proj_np = np.dot(vec_np, normal.to_np()) * normal.to_np()
+        proj_coord = Coordinate.from_np(proj_np + face.center.to_np())
+        return proj_coord
+
 
 class MeshGeom:
-    """Mesh geometry class for describing the geometry.
+    """Mesh geometry class for calculating the geometry.
 
     NOTE:
-        Require all elements to be continuously encoded, no check yet.
+        - Require all elements to be continuously encoded, no check yet.
+        - Return None if the elements have no connection.
     """
 
     def __init__(self, mesh: Mesh):
@@ -349,19 +368,21 @@ class MeshGeom:
         self._cell_to_cell_dists = None
         self._cell_to_face_dists = None
         self._cell_to_node_dists = None
-        self._cell_to_cell_vects = None
         self._node_to_node_dists = None
+
+        self._cell_to_cell_vects = None
+        self._cell_to_face_vects = None
 
     def get_mesh(self) -> Mesh:
         """Return the bounded mesh."""
         return self._mesh
 
-    def calculate_cell_to_cell_distance(self, cell1: int, cell2: int) -> float:
-        """Calculate the distance between the centroids of the given cells.
+    # -----------------------------------------------
+    # --- geometry methods ---
+    # -----------------------------------------------
 
-        NOTE:
-            Return None if the cells have no connection.
-        """
+    def calculate_cell_to_cell_distance(self, cell1: int, cell2: int) -> float:
+        """Calculate the distance between the centroids of the given cells."""
         if self._cell_to_cell_dists is None:
             cell_num = self._mesh.cell_count
             cell_dists = [{} for _ in range(cell_num)]
@@ -375,6 +396,7 @@ class MeshGeom:
                     )
                     cell_dists[i][j] = dist
                     cell_dists[j][i] = dist
+
             self._cell_to_cell_dists = cell_dists
 
         if cell2 in self._cell_to_cell_dists[cell1]:
@@ -383,11 +405,7 @@ class MeshGeom:
             return None
 
     def calculate_cell_to_face_distance(self, cell: int, face: int) -> float:
-        """Calculate the distance between the centroid of the given cell and the given face.
-
-        NOTE:
-            Return None if the cell and the face have no connection.
-        """
+        """Calculate the distance between the centroid of the given cell and the given face."""
         if self._cell_to_face_dists is None:
             cell_num = self._mesh.cell_count
             cell_face_dists = [{} for _ in range(cell_num)]
@@ -395,6 +413,7 @@ class MeshGeom:
                 for face in cell.faces:
                     dist = np.linalg.norm(cell.center.to_np() - face.center.to_np())
                     cell_face_dists[cell.id][face.id] = dist
+
             self._cell_to_face_dists = cell_face_dists
 
         if face in self._cell_to_face_dists[cell]:
@@ -403,11 +422,7 @@ class MeshGeom:
             return None
 
     def calculate_cell_to_node_distance(self, cell: int, node: int) -> float:
-        """Calculate the distance between the given cell and the given node.
-
-        NOTE:
-            Return None if the cell and the node have no connection.
-        """
+        """Calculate the distance between the given cell and the given node."""
         if self._cell_to_node_dists is None:
             cell_num = self._mesh.cell_count
             cell_node_dists = [{} for _ in range(cell_num)]
@@ -420,6 +435,7 @@ class MeshGeom:
                         - self._mesh.nodes[j].coord.to_np()
                     )
                     cell_node_dists[i][j] = dist
+
             self._cell_to_node_dists = cell_node_dists
 
         if node in self._cell_to_node_dists[cell]:
@@ -428,11 +444,7 @@ class MeshGeom:
             return None
 
     def calucate_node_to_node_distance(self, node1: int, node2: int) -> float:
-        """Calculate the distance between the given nodes.
-
-        NOTE:
-            Return None if the nodes have no connection.
-        """
+        """Calculate the distance between the given nodes."""
         if self._node_to_node_dists is None:
             node_num = self._mesh.node_count
             node_dists = [{} for _ in range(node_num)]
@@ -446,6 +458,7 @@ class MeshGeom:
                     )
                     node_dists[i][j] = dist
                     node_dists[j][i] = dist
+
             self._node_to_node_dists = node_dists
 
         if node2 in self._node_to_node_dists[node1]:
@@ -453,12 +466,15 @@ class MeshGeom:
         else:
             return None
 
+    # -----------------------------------------------
+    # --- vector methods ---
+    # -----------------------------------------------
+
     def calculate_cell_to_cell_vector(self, cell1: int, cell2: int) -> Coordinate:
         """Calculate the unit vector from the given cells.
 
         NOTE:
-            This method is not symmetric.
-            Return None if the cells have no connection.
+            - This method is not symmetric.
         """
         if self._cell_to_cell_vects is None:
             cell_num = self._mesh.cell_count
@@ -470,12 +486,31 @@ class MeshGeom:
                     vec_np = (
                         self._mesh.cells[i].center - self._mesh.cells[j].center
                     ).to_np()
-                    vec = Vector().from_np(vec_np).unit()
+                    vec = Vector.from_np(vec_np).unit()
                     cell_vecs[i][j] = vec
                     cell_vecs[j][i] = -vec
+
             self._cell_to_cell_vects = cell_vecs
 
         if cell2 in self._cell_to_cell_vects[cell1]:
             return self._cell_to_cell_vects[cell1][cell2]
+        else:
+            return None
+
+    def calculate_cell_to_face_vector(self, cell: int, face: int) -> Coordinate:
+        """Calculate the unit vector from the given cell to the given face."""
+        if self._cell_to_face_vects is None:
+            cell_num = self._mesh.cell_count
+            cell_face_vecs = [{} for _ in range(cell_num)]
+            for cell in self._mesh.cells:
+                for face in cell.faces:
+                    vec_np = (cell.center - face.center).to_np()
+                    vec = Vector.from_np(vec_np).unit()
+                    cell_face_vecs[cell.id][face.id] = vec
+
+            self._cell_to_face_vects = cell_face_vecs
+
+        if face in self._cell_to_face_vects[cell]:
+            return self._cell_to_face_vects[cell][face]
         else:
             return None
