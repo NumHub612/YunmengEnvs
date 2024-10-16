@@ -4,8 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
  
 Interface for creating instances of `IAdaptedOutput` items.
 """
-from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IAdaptedOutput import IAdaptedOutput
+from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IOutput import IOutput
 from core.solutions.standards.IInput import IInput
 
