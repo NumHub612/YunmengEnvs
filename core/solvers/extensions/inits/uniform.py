@@ -13,12 +13,24 @@ class UniformInitialization(IInitCondition):
     Uniform initialization condition.
     """
 
-    def __init__(self, value: Variable):
-        self._value = value
-
     @classmethod
     def get_name(cls) -> str:
         return "uniform"
 
-    def apply_to(self, field: Field):
+    def __init__(self, id: str, value: Variable):
+        """
+        Initialize the uniform initialization condition.
+
+        Args:
+            id: The identifier.
+            value: The value used for initialization.
+        """
+        self._id = id
+        self._value = value
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    def apply(self, field: Field) -> None:
         field.assign(self._value)

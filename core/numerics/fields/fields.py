@@ -8,7 +8,7 @@ from abc import abstractmethod
 from typing import Callable, Union, List
 import numpy as np
 
-from core.numerics.fields.variables import Variable, Scalar, Vector, Tensor
+from core.numerics.fields.variables import Variable, Scalar
 
 
 class Field:
@@ -232,22 +232,22 @@ class Field:
         else:
             raise TypeError(f"Cannot subtract {type(other)} from field")
 
-    def __mul__(self, other: Scalar) -> "Field":
+    def __mul__(self, other: Scalar | float) -> "Field":
         """
         Multiply the field by a scalar element-wise.
         """
-        if not isinstance(other, Scalar):
+        if not isinstance(other, Scalar) and not isinstance(other, float):
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
         result = self.__class__(self._num_vars, self._default)
         result._values = self._values * other
         return result
 
-    def __truediv__(self, other: Scalar) -> "Field":
+    def __truediv__(self, other: Scalar | float) -> "Field":
         """
         Divide the field by a scalar element-wise.
         """
-        if not isinstance(other, Scalar):
+        if not isinstance(other, Scalar) and not isinstance(other, float):
             raise TypeError(f"Cannot divide field by {type(other)}")
 
         result = self.__class__(self._num_vars, self._default)

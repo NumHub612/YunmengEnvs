@@ -14,20 +14,29 @@ class IInitCondition(ABC):
     Interface for initializing a fields.
     """
 
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        """
+        The unique id of a initialization method instance.
+        """
+        pass
+
     @classmethod
     @abstractmethod
     def get_name(cls) -> str:
         """
         The unique name of the initialization method.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
-    def apply_to(self, field: Field, **kwargs) -> None:
+    def apply(self, field: Field, **kwargs) -> None:
         """
         Initializes the field variables.
 
         Args:
             field: The field to be initialized.
+            kwargs: Additional arguments for initializing.
         """
-        raise NotImplementedError
+        pass

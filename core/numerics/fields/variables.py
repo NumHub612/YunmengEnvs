@@ -77,28 +77,28 @@ class Variable:
     # -----------------------------------------------
 
     @abstractmethod
-    def __add__(self, other: "Variable") -> "Variable":
+    def __add__(self, other: "Variable" | float) -> "Variable":
         """
         Add two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __sub__(self, other: "Variable") -> "Variable":
+    def __sub__(self, other: "Variable" | float) -> "Variable":
         """
         Subtract two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __mul__(self, other: "Variable") -> "Variable":
+    def __mul__(self, other: "Variable" | float) -> "Variable":
         """
         Multiply two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __truediv__(self, other: "Variable") -> "Variable":
+    def __truediv__(self, other: "Variable" | float) -> "Variable":
         """
         Divide two variables.
         """
@@ -187,7 +187,10 @@ class Vector(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: "Variable") -> "Variable":
+    def __add__(self, other: "Variable" | float) -> "Vector":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Vector):
             return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
         elif isinstance(other, Scalar):
@@ -197,7 +200,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid variable type for Vector add.")
 
-    def __sub__(self, other: "Variable") -> "Variable":
+    def __sub__(self, other: "Variable" | float) -> "Vector":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Vector):
             return Vector(self.x - other.x, self.y - other.y, self.z - other.z)
         elif isinstance(other, Scalar):
@@ -207,7 +213,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid variable type for Vector sub.")
 
-    def __mul__(self, other: "Variable") -> "Variable":
+    def __mul__(self, other: "Variable" | float) -> "Variable":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Vector):
             return Scalar(self.x * other.x + self.y * other.y + self.z * other.z)
         elif isinstance(other, Scalar):
@@ -217,7 +226,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid variable type for Vector mul.")
 
-    def __truediv__(self, other: "Variable") -> "Variable":
+    def __truediv__(self, other: "Scalar" | float) -> "Vector":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Vector(
                 self.x / other.value, self.y / other.value, self.z / other.value
@@ -225,10 +237,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid variable type for Vector div.")
 
-    def __neg__(self) -> "Variable":
+    def __neg__(self) -> "Vector":
         return Vector(-self.x, -self.y, -self.z)
 
-    def __abs__(self) -> "Variable":
+    def __abs__(self) -> "Vector":
         return Vector(abs(self.x), abs(self.y), abs(self.z))
 
 
@@ -290,7 +302,10 @@ class Scalar(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: "Variable") -> "Variable":
+    def __add__(self, other: "Variable" | float) -> "Variable":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Scalar(self.value + other.value)
         elif isinstance(other, Vector):
@@ -309,7 +324,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid variable type for Scalar add.")
 
-    def __sub__(self, other: "Variable") -> "Variable":
+    def __sub__(self, other: "Variable" | float) -> "Variable":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Scalar(self.value - other.value)
         elif isinstance(other, Vector):
@@ -328,7 +346,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid variable type for Scalar sub.")
 
-    def __mul__(self, other: "Variable") -> "Variable":
+    def __mul__(self, other: "Variable" | float) -> "Variable":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Scalar(self.value * other.value)
         elif isinstance(other, Vector):
@@ -347,7 +368,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid variable type for Scalar mul.")
 
-    def __truediv__(self, other: "Variable") -> "Variable":
+    def __truediv__(self, other: "Variable" | float) -> "Variable":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Scalar(self.value / other.value)
         elif isinstance(other, Vector):
@@ -366,10 +390,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid variable type for Scalar div.")
 
-    def __neg__(self) -> "Variable":
+    def __neg__(self) -> "Scalar":
         return Scalar(-self.value)
 
-    def __abs__(self) -> "Variable":
+    def __abs__(self) -> "Scalar":
         return Scalar(abs(self.value))
 
 
@@ -469,7 +493,10 @@ class Tensor(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: "Variable") -> "Variable":
+    def __add__(self, other: "Variable" | float) -> "Tensor":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Tensor(
                 self.xx + other.value,
@@ -491,7 +518,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid variable type for Tensor add.")
 
-    def __sub__(self, other: "Variable") -> "Variable":
+    def __sub__(self, other: "Variable" | float) -> "Tensor":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Tensor(
                 self.xx - other.value,
@@ -513,7 +543,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid variable type for Tensor sub.")
 
-    def __mul__(self, other: "Variable") -> "Variable":
+    def __mul__(self, other: "Variable" | float) -> "Tensor":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Tensor(
                 self.xx * other.value,
@@ -538,7 +571,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid variable type for Tensor mul.")
 
-    def __truediv__(self, other: "Variable") -> "Variable":
+    def __truediv__(self, other: "Variable" | float) -> "Tensor":
+        if isinstance(other, float):
+            other = Scalar(other)
+
         if isinstance(other, Scalar):
             return Tensor(
                 self.xx / other.value,
@@ -560,10 +596,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid variable type for Tensor div.")
 
-    def __neg__(self) -> "Variable":
+    def __neg__(self) -> "Tensor":
         return Tensor(-self.xx, -self.xy, -self.xz, -self.yy, -self.yz, -self.zz)
 
-    def __abs__(self) -> "Variable":
+    def __abs__(self) -> "Tensor":
         return Tensor(
             abs(self.xx),
             abs(self.xy),

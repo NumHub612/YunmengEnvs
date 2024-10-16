@@ -7,27 +7,33 @@ Custom defined boundary condition.
 from core.solvers.interfaces import IBoundaryCondition
 from core.numerics.mesh import Node, Face, Cell
 
+from typing import Callable
+
 
 class CustomBoundary(IBoundaryCondition):
     """
     Custom defined boundary condition.
     """
 
-    def __init__(self):
-        pass
-
     @classmethod
-    def get_name(cls):
+    def get_name(cls) -> str:
         return "custom"
 
-    def evalute(self, t: float, elem: Node | Face | Cell) -> tuple:
+    def __init__(self, id: str, bc_func: Callable):
         """
-        Evaluate the boundary condition at time t.
+        Initialize the custom boundary condition.
 
         Args:
-            t (float): Time at which the boundary condition is evaluated, in seconds.
-
-        Returns:
-            The boundary condition at time t.
+            id: The unique identifier.
+            bc_func: The function take time and element as input and return the boundary conditions.
         """
-        pass
+        self._id = id
+        self._bc_func = bc_func
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    def evalute(self, t: float, elem: Node | Face | Cell) -> tuple:
+        flux, value = self._bc_func(t, elem)
+        return flux, value
