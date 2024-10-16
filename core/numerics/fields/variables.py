@@ -5,6 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 Variables definition.
 """
 from abc import abstractmethod
+from typing import Union
 import numpy as np
 
 from configs.settings import global_configs
@@ -77,28 +78,28 @@ class Variable:
     # -----------------------------------------------
 
     @abstractmethod
-    def __add__(self, other: "Variable" | float) -> "Variable":
+    def __add__(self, other: Union["Variable", float]) -> "Variable":
         """
         Add two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __sub__(self, other: "Variable" | float) -> "Variable":
+    def __sub__(self, other: Union["Variable", float]) -> "Variable":
         """
         Subtract two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __mul__(self, other: "Variable" | float) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         """
         Multiply two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __truediv__(self, other: "Variable" | float) -> "Variable":
+    def __truediv__(self, other: Union["Variable", float]) -> "Variable":
         """
         Divide two variables.
         """
@@ -187,7 +188,7 @@ class Vector(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: "Variable" | float) -> "Vector":
+    def __add__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -200,7 +201,7 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid variable type for Vector add.")
 
-    def __sub__(self, other: "Variable" | float) -> "Vector":
+    def __sub__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -213,7 +214,7 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid variable type for Vector sub.")
 
-    def __mul__(self, other: "Variable" | float) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -226,7 +227,7 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid variable type for Vector mul.")
 
-    def __truediv__(self, other: "Scalar" | float) -> "Vector":
+    def __truediv__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -302,7 +303,7 @@ class Scalar(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: "Variable" | float) -> "Variable":
+    def __add__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -324,7 +325,7 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid variable type for Scalar add.")
 
-    def __sub__(self, other: "Variable" | float) -> "Variable":
+    def __sub__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -346,7 +347,7 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid variable type for Scalar sub.")
 
-    def __mul__(self, other: "Variable" | float) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -368,7 +369,7 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid variable type for Scalar mul.")
 
-    def __truediv__(self, other: "Variable" | float) -> "Variable":
+    def __truediv__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -493,7 +494,7 @@ class Tensor(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: "Variable" | float) -> "Tensor":
+    def __add__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -518,7 +519,7 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid variable type for Tensor add.")
 
-    def __sub__(self, other: "Variable" | float) -> "Tensor":
+    def __sub__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -543,7 +544,7 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid variable type for Tensor sub.")
 
-    def __mul__(self, other: "Variable" | float) -> "Tensor":
+    def __mul__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, float):
             other = Scalar(other)
 
@@ -571,7 +572,7 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid variable type for Tensor mul.")
 
-    def __truediv__(self, other: "Variable" | float) -> "Tensor":
+    def __truediv__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, float):
             other = Scalar(other)
 

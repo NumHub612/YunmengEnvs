@@ -34,6 +34,6 @@ class CustomBoundary(IBoundaryCondition):
     def id(self) -> str:
         return self._id
 
-    def evalute(self, t: float, elem: Node | Face | Cell) -> tuple:
+    def evaluate(self, t: float, elem: Node | Face | Cell) -> tuple:
         flux, value = self._bc_func(t, elem)
         return flux, value

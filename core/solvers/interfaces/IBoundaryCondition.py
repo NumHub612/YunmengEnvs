@@ -31,7 +31,7 @@ class IBoundaryCondition(ABC):
         pass
 
     @abstractmethod
-    def evalute(self, time: float, elem: Node | Face | Cell, **kwargs) -> tuple:
+    def evaluate(self, time: float, elem: Node | Face | Cell, **kwargs) -> tuple:
         """
         Evaluate the boundary condition.
 

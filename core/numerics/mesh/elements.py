@@ -15,9 +15,9 @@ class Coordinate:
     Coordinate.
     """
 
-    x: float
-    y: float
-    z: float
+    x: float = 0
+    y: float = 0
+    z: float = 0
 
     def __add__(self, other: "Coordinate") -> "Coordinate":
         """

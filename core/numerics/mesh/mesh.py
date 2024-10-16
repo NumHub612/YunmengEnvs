@@ -125,7 +125,7 @@ class Mesh(ABC):
         pass
 
     @abstractmethod
-    def delete_node_group(self, group_name: str):
+    def delete_group(self, group_name: str):
         """Delete the given node group."""
         pass
 
@@ -172,7 +172,8 @@ class MeshTopo:
         if self._boundary_faces is None:
             self._boundary_faces = []
             for face in self._mesh.faces:
-                if len(face.cells) == 1:
+                cells = self.collect_face_cells(face.id)
+                if len(cells) == 1:
                     self._boundary_faces.append(face.id)
         return self._boundary_faces
 
@@ -182,7 +183,7 @@ class MeshTopo:
         if self._interior_faces is None:
             self._interior_faces = []
             for face in self._mesh.faces:
-                if len(face.cells) == 2:
+                if face.id not in self.boundary_faces_indexes:
                     self._interior_faces.append(face.id)
         return self._interior_faces
 
@@ -191,8 +192,8 @@ class MeshTopo:
         """Return the indexes of boundary cells."""
         if self._boundary_cells is None:
             self._boundary_cells = []
-            for face in self.boundary_faces_indexes:
-                cells = self.collect_face_cells(face)
+            for fid in self.boundary_faces_indexes:
+                cells = self.collect_face_cells(fid)
                 self._boundary_cells.extend(cells)
         return self._boundary_cells
 
@@ -212,8 +213,8 @@ class MeshTopo:
         if self._boundary_nodes is None:
             self._boundary_nodes = []
             for face in self.boundary_faces_indexes:
-                nodes = self.collect_face_nodes(face)
-                self._boundary_nodes.extend(nodes)
+                self._boundary_nodes.extend(self._mesh.faces[face].nodes)
+            self._boundary_nodes = list(set(self._boundary_nodes))
         return self._boundary_nodes
 
     @property
@@ -224,6 +225,7 @@ class MeshTopo:
             for node in self._mesh.nodes:
                 if node.id not in self.boundary_nodes_indexes:
                     self._interior_nodes.append(node.id)
+            self._interior_nodes = list(set(self._interior_nodes))
         return self._interior_nodes
 
     # -----------------------------------------------
@@ -235,8 +237,8 @@ class MeshTopo:
         if self._face_cells is None:
             face_cells = [[] for _ in range(self._mesh.face_count)]
             for cell in self._mesh.cells:
-                for face in cell.faces:
-                    face_cells[face.id].append(cell.id)
+                for fid in cell.faces:
+                    face_cells[fid].append(cell.id)
             face_cells = [list(set(cells)) for cells in face_cells]
             self._face_cells = face_cells
         return self._face_cells[face_index]
@@ -246,8 +248,8 @@ class MeshTopo:
         if self._node_faces is None:
             node_faces = [[] for _ in range(self._mesh.node_count)]
             for face in self._mesh.faces:
-                for node in face.nodes:
-                    node_faces[node.id].append(face.id)
+                for nid in face.nodes:
+                    node_faces[nid].append(face.id)
             node_faces = [list(set(faces)) for faces in node_faces]
             self._node_faces = node_faces
         return self._node_faces[node_index]
@@ -257,9 +259,9 @@ class MeshTopo:
         if self._node_cells is None:
             node_cells = [[] for _ in range(self._mesh.node_count)]
             for cell in self._mesh.cells:
-                for face in cell.faces:
-                    for node in face.nodes:
-                        node_cells[node.id].append(cell.id)
+                for fid in cell.faces:
+                    for nid in self._mesh.faces[fid].nodes:
+                        node_cells[nid].append(cell.id)
             node_cells = [list(set(cells)) for cells in node_cells]
             self._node_cells = node_cells
         return self._node_cells[node_index]
@@ -269,9 +271,9 @@ class MeshTopo:
         if self._cell_nodes is None:
             cell_nodes = [[] for _ in range(self._mesh.cell_count)]
             for cell in self._mesh.cells:
-                for face in cell.faces:
-                    for node in face.nodes:
-                        cell_nodes[cell.id].append(node.id)
+                for fid in cell.faces:
+                    for nid in self._mesh.faces[fid].nodes:
+                        cell_nodes[cell.id].append(nid)
             cell_nodes = [list(set(nodes)) for nodes in cell_nodes]
             self._cell_nodes = cell_nodes
         return self._cell_nodes[cell_index]
@@ -296,8 +298,8 @@ class MeshTopo:
                 nodes = face.nodes
                 for i in range(len(nodes)):
                     for j in range(i + 1, len(nodes)):
-                        node_neighbours[nodes[i].id].append(nodes[j].id)
-                        node_neighbours[nodes[j].id].append(nodes[i].id)
+                        node_neighbours[nodes[i]].append(nodes[j])
+                        node_neighbours[nodes[j]].append(nodes[i])
             node_neighbours = [list(set(nodes)) for nodes in node_neighbours]
             self._node_neighbours = node_neighbours
         return self._node_neighbours[node_index]

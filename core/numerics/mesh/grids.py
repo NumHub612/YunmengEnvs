@@ -37,21 +37,21 @@ class Grid1D(Mesh):
             self._nodes.append(node)
 
         # generate mesh
-        for i in range(num - 1):
-            node1, node2 = self._nodes[i : i + 2]
-            length = abs(node2.coord.x - node1.coord.x)
-            center = 0.5 * (node1.coord + node2.coord)
+        for i in range(num):
+            node1 = self._nodes[i]
             normal = Vector(0, 1)
 
             # face
             face1 = Face(i, [i, i], node1.coord, 1, 1, normal)
             self._faces.append(face1)
 
-            face2 = Face(i + 1, [i + 1, i + 1], node2.coord, 1, 1, normal)
-            self._faces.append(face2)
-
             # cell
-            cell = Cell(i, [i, i + 1], center, length, length)
+            if i == num - 1:
+                break
+            node2 = self._nodes[i + 1]
+            length = abs(node2.coord.x - node1.coord.x)
+            center = 0.5 * (node1.coord + node2.coord)
+            cell = Cell(i, [i, i], center, length, length)
             self._cells.append(cell)
 
     @property

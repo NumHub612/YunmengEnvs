@@ -6,7 +6,7 @@ Solving the 1D Burgers equation using finite difference method.
 """
 from core.solvers.interfaces import ISolver, IInitCondition, IBoundaryCondition
 from core.solvers.extensions.inits import UniformInitialization
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
+from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, Node
 from core.numerics.fields import Field, NodeField, Scalar
 
 import copy
@@ -56,7 +56,7 @@ class Burgers1D(ISolver):
             mesh: The mesh of the problem.
             callbacks: The callbacks to be called during the solving process.
         """
-        if mesh.domain != "1D":
+        if mesh.domain != "1d":
             raise ValueError("The domain of the mesh must be 1D.")
 
         self._id = id
@@ -99,51 +99,62 @@ class Burgers1D(ISolver):
         self._ics[var] = ic
 
     def set_bc(self, var: str, elems: list, bc: IBoundaryCondition):
-        if any(elem.type != "node" for elem in elems):
+        if any(not isinstance(elem, Node) for elem in elems):
             raise ValueError("The boundary condition can only be applied to nodes.")
 
         for node in elems:
-            if node not in self._bcs:
-                self._bcs[node] = {}
-            self._bcs[node][var] = bc
+            if node.id not in self._bcs:
+                self._bcs[node.id] = {}
+            self._bcs[node.id][var] = bc
 
-    def initialize(self, total_time: float, nu: float = 0.07):
+    def initialize(self, time_steps: int, nu: float = 0.07):
         """
         Initialize the solver.
 
         Args:
-            total_time: The total time of the simulation, in seconds.
+            time_steps: The total time steps of the simulation.
             nu: The viscosity of the Burgers equation.
         """
         for var, ic in self._ics.items():
             ic.apply(self._fields[var])
 
-        self._total_time = total_time
-        self._t = 0.0
         self._nu = nu
 
         min_dx, _, _ = self._mesh.stat_face_area
         self._dt = nu * min_dx
+        self._total_time = time_steps * self._dt
+        self._t = 0.0
 
     def update(self):
         u = self._fields["u"]
         new_u = copy.deepcopy(u)
+        dx, _, _ = self._mesh.stat_cell_volume
 
         # Apply boundary conditions
-        for node in self._topo.boundary_nodes_indexes:
+        for node in [0, 400]:
+            # for node in self._topo.boundary_nodes_indexes:
             for var, bc in self._bcs.get(node, {"u": self._default_bc}).items():
                 flux, val = bc.evaluate(self._t, self._mesh.nodes[node])
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_nodes_indexes:
-            lnode, rnode = self._topo.collect_cell_neighbours(node)
-            ldist = self._geom.calucate_node_to_node_distance(node, lnode)
-            rdist = self._geom.calucate_node_to_node_distance(node, rnode)
+        for node in range(1, 400):
+            # for node in self._topo.interior_nodes_indexes:
+            # lnode, rnode = self._topo.collect_node_neighbours(node)
+            lnode = node - 1
+            rnode = node + 1
+
+            # ldist = self._geom.calucate_node_to_node_distance(node, lnode)
+            # rdist = self._geom.calucate_node_to_node_distance(node, rnode)
+            ldist = dx
+            rdist = dx
             new_u[node] = (
                 u[node]
                 - u[node] * self._dt / ldist * (u[node] - u[lnode])
-                + self._nu * self._dt / rdist**2 * (u[rnode] - 2 * u[node] + u[lnode])
+                + (u[rnode] - u[node] + u[lnode] * 2.0)
+                * self._nu
+                * self._dt
+                / rdist**2.0
             )
 
         # Update solution
