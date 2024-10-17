@@ -294,12 +294,22 @@ class MeshTopo:
         """Collect the neighbours of given node."""
         if self._node_neighbours is None:
             node_neighbours = [[] for _ in range(self._mesh.node_count)]
-            for face in self._mesh.faces:
-                nodes = face.nodes
-                for i in range(len(nodes)):
-                    for j in range(i + 1, len(nodes)):
-                        node_neighbours[nodes[i]].append(nodes[j])
-                        node_neighbours[nodes[j]].append(nodes[i])
+            if self._mesh.domain == "1d":
+                for cell in self._mesh.cells:
+                    faces = cell.faces
+                    for i in range(len(faces)):
+                        nid1 = self._mesh.faces[faces[i]].nodes[0]
+                        for j in range(i + 1, len(faces)):
+                            nid2 = self._mesh.faces[faces[j]].nodes[0]
+                            node_neighbours[nid1].append(nid2)
+                            node_neighbours[nid2].append(nid1)
+            else:
+                for face in self._mesh.faces:
+                    nodes = face.nodes
+                    for i in range(len(nodes)):
+                        for j in range(i + 1, len(nodes)):
+                            node_neighbours[nodes[i]].append(nodes[j])
+                            node_neighbours[nodes[j]].append(nodes[i])
             node_neighbours = [list(set(nodes)) for nodes in node_neighbours]
             self._node_neighbours = node_neighbours
         return self._node_neighbours[node_index]
@@ -311,7 +321,7 @@ class MeshTopo:
     def search_nearest_nodes(
         self, coord: Coordinate, max_dist: float, top_k: int
     ) -> list:
-        """Search the k nearest nodes to the given coordinate within the given distance."""
+        """Search the k nearest nodes to the given coordinate."""
         distances = []
         for node in self._mesh.nodes:
             dist = np.linalg.norm(node.coord.to_np() - coord.to_np())
@@ -321,7 +331,7 @@ class MeshTopo:
         return distances[:top_k]
 
     def search_nearest_cell(self, coord: Coordinate, max_dist: float) -> int:
-        """Search the nearest cell to the given coordinate within the given distance."""
+        """Search the nearest cell to the given coordinate."""
         min_dist = float("inf")
         min_cell_index = -1
         for cell in self._mesh.cells:
@@ -332,7 +342,7 @@ class MeshTopo:
         return min_cell_index
 
     def search_nearest_face(self, coord: Coordinate, max_dist: float) -> int:
-        """Search the nearest face to the given coordinate within the given distance."""
+        """Search the nearest face to the given coordinate."""
         min_dist = float("inf")
         min_face_index = -1
         for face in self._mesh.faces:
@@ -407,7 +417,7 @@ class MeshGeom:
             return None
 
     def calculate_cell_to_face_distance(self, cell: int, face: int) -> float:
-        """Calculate the distance between the centroid of the given cell and the given face."""
+        """Calculate the distance between the given cell and the given face."""
         if self._cell_to_face_dists is None:
             cell_num = self._mesh.cell_count
             cell_face_dists = [{} for _ in range(cell_num)]

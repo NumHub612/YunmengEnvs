@@ -42,7 +42,7 @@ class Grid1D(Mesh):
             normal = Vector(0, 1)
 
             # face
-            face1 = Face(i, [i, i], node1.coord, 1, 1, normal)
+            face1 = Face(i, [i], node1.coord, 1, 1, normal)
             self._faces.append(face1)
 
             # cell
@@ -51,7 +51,7 @@ class Grid1D(Mesh):
             node2 = self._nodes[i + 1]
             length = abs(node2.coord.x - node1.coord.x)
             center = 0.5 * (node1.coord + node2.coord)
-            cell = Cell(i, [i, i], center, length, length)
+            cell = Cell(i, [i, i + 1], center, length, length)
             self._cells.append(cell)
 
     @property
