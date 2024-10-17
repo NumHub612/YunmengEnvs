@@ -187,7 +187,7 @@ class Field:
                 raise TypeError(f"Cannot add fields: {e}")
 
             result = self.__class__(self._num_vars, self._default)
-            result._values = self._values + other._values
+            result._values += other._values
             return result
         elif isinstance(other, Variable):
             if other.rank != self._default.rank:
@@ -195,14 +195,17 @@ class Field:
                     f"Invalid value type: {other.rank} (expected {self._default.rank})"
                 )
 
-            def add_constant(x):
-                return x + other
-
             result = self.__class__(self._num_vars, self._default)
-            result._values = np.vectorize(add_constant)(self._values)
+            result._values += other
             return result
         else:
             raise TypeError(f"Cannot add {type(other)} to field")
+
+    def __radd__(self, other: Union["Field", "Variable"]) -> "Field":
+        """
+        Add two fields or a field and a constant element-wise.
+        """
+        return self.__add__(other)
 
     def __sub__(self, other: Union["Field", "Variable"]) -> "Field":
         """
@@ -215,7 +218,7 @@ class Field:
                 raise TypeError(f"Cannot subtract fields: {e}")
 
             result = self.__class__(self._num_vars, self._default)
-            result._values = self._values - other._values
+            result._values -= other._values
             return result
         elif isinstance(other, Variable):
             if other.rank != self._default.rank:
@@ -223,31 +226,59 @@ class Field:
                     f"Invalid value type: {other.rank} (expected {self._default.rank})"
                 )
 
-            def sub_constant(x):
-                return x - other
-
             result = self.__class__(self._num_vars, self._default)
-            result._values = np.vectorize(sub_constant)(self._values)
+            result._values -= other
             return result
         else:
             raise TypeError(f"Cannot subtract {type(other)} from field")
 
-    def __mul__(self, other: Scalar | float) -> "Field":
+    def __rsub__(self, other: Union["Field", "Variable"]) -> "Field":
+        """
+        Subtract two fields or a field and a constant element-wise.
+        """
+        if isinstance(other, Field):
+            try:
+                self._check_fields_compatible(other)
+            except (ValueError, TypeError) as e:
+                raise TypeError(f"Cannot subtract fields: {e}")
+
+            result = self.__class__(self._num_vars, self._default)
+            result._values = other._values - self._values
+            return result
+        elif isinstance(other, Variable):
+            if other.rank != self._default.rank:
+                raise TypeError(
+                    f"Invalid value type: {other.rank} (expected {self._default.rank})"
+                )
+
+            result = self.__class__(self._num_vars, self._default)
+            result._values = other - self._values
+            return result
+        else:
+            raise TypeError(f"Cannot subtract {type(other)} from field")
+
+    def __mul__(self, other: Scalar | float | int) -> "Field":
         """
         Multiply the field by a scalar element-wise.
         """
-        if not isinstance(other, Scalar) and not isinstance(other, float):
+        if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
         result = self.__class__(self._num_vars, self._default)
         result._values = self._values * other
         return result
 
-    def __truediv__(self, other: Scalar | float) -> "Field":
+    def __rmul__(self, other: Scalar | float | int) -> "Field":
+        """
+        Multiply the field by a scalar element-wise.
+        """
+        return self.__mul__(other)
+
+    def __truediv__(self, other: Scalar | float | int) -> "Field":
         """
         Divide the field by a scalar element-wise.
         """
-        if not isinstance(other, Scalar) and not isinstance(other, float):
+        if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
 
         result = self.__class__(self._num_vars, self._default)
