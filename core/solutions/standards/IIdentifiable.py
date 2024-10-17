@@ -1,14 +1,12 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
-
+ 
 Interface for objects that have an id.
 """
-from abc import abstractmethod
-
 from core.solutions.standards.IDescribable import IDescribable
+
+from abc import abstractmethod
 
 
 class IIdentifiable(IDescribable):

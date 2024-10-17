@@ -1,16 +1,14 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
-
+ 
 Interface for output exchange items.
 """
-from abc import abstractmethod
-from typing import List
-
 from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
 from core.solutions.standards.IInput import IInput
+
+from abc import abstractmethod
+from typing import List
 
 
 class IOutput(IBaseExchangeItem):
@@ -22,7 +20,7 @@ class IOutput(IBaseExchangeItem):
     the data according to the consumer's wishes.
     """
 
-    from core.solutions.standards.IAdaptedOutput import IAdaptedOutput
+    # from core.solutions.standards.IAdaptedOutput import IAdaptedOutput
 
     @abstractmethod
     def get_consumers(self) -> List[IInput]:
@@ -42,17 +40,17 @@ class IOutput(IBaseExchangeItem):
         pass
 
     @abstractmethod
-    def get_adapters(self) -> List[IAdaptedOutput]:
+    def get_adapters(self):
         """Returns a list of all adapted outputs of this output."""
         pass
 
     @abstractmethod
-    def remove_adapter(self, adaptedOutput: "IAdaptedOutput"):
+    def remove_adapter(self, adaptedOutput):
         """Removes an adapted output from the output item."""
         pass
 
     @abstractmethod
-    def add_adapter(self, adaptedOutput: IAdaptedOutput):
+    def add_adapter(self, adaptedOutput):
         """Adds an adapted output to the output item.
 
         Every adapted output item needs to add itself as an adaptee.

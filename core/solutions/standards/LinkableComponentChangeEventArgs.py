@@ -1,15 +1,13 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
-
+ 
 Interface for arguments of linkable component status change event.
 """
-from abc import ABC, abstractmethod
-
-from core.solutions.standards.ILinkableComponent import ILinkableComponent
 from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
+from core.solutions.standards.ILinkableComponent import ILinkableComponent
+
+from abc import ABC, abstractmethod
 
 
 class LinkableComponentStatusChangeEventArgs(ABC):

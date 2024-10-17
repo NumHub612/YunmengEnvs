@@ -1,19 +1,17 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
-
+ 
 Interface class for exchange items.
 """
-from abc import ABC, abstractmethod
-from typing import Callable, Optional
-
+# from core.solutions.standards.ILinkableComponent import ILinkableComponent
 from core.solutions.standards.IValueDefinition import IValueDefinition
 from core.solutions.standards.IValueSet import IValueSet
 from core.solutions.standards.IElementSet import IElementSet
 from core.solutions.standards.ITimeSet import ITimeSet
-from core.solutions.standards.ILinkableComponent import ILinkableComponent
+
+from abc import ABC, abstractmethod
+from typing import Callable, Optional
 
 
 class IBaseExchangeItem(ABC):
@@ -74,7 +72,7 @@ class IBaseExchangeItem(ABC):
 
     @property
     @abstractmethod
-    def component(self) -> ILinkableComponent:
+    def component(self):
         """The owner of the exchange item."""
         pass
 

@@ -7,17 +7,6 @@ import logging
 import logging.handlers
 import json
 
-
-# confirm config file exists
-cnf_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "configures.json"))
-
-configs = {}
-if os.path.exists(cnf_file):
-    configs = json.load(open(cnf_file, "r", encoding="utf8"))
-else:
-    raise FileNotFoundError(f"Configures file {cnf_file} not found.")
-
-
 # set up logging
 logger = logging.getLogger("yunmengenvs")
 formatter = logging.Formatter(
@@ -38,3 +27,34 @@ console_handler.setLevel(logging.WARNING)
 logger.addHandler(console_handler)
 
 logger.setLevel(logging.INFO)
+
+# confirm config file exists
+cnf_json = os.path.abspath(os.path.join(os.path.dirname(__file__), "configures.json"))
+
+configs = {}
+
+
+def load_configs(config_file: str):
+    global configs
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(f"Configures file {config_file} not found.")
+
+    configs = json.load(open(config_file, "r", encoding="utf8"))
+
+
+# get full configs
+def full_configs():
+    global configs
+    return configs
+
+
+# get global configs
+def global_configs():
+    global configs
+    usr_global_configs = configs.get("global", {})
+
+    global_configs = {
+        "numeric_tolerance": usr_global_configs.get("numeric_tolerance", 1e-12),
+    }
+
+    return global_configs

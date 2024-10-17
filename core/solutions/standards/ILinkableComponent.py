@@ -1,20 +1,18 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
-
+ 
 Interface class for linkable modules connection and data transfer.
 """
-from abc import abstractmethod
-from typing import List, Callable
-
+from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
+from core.solutions.standards.IAdaptedOutputFactory import IAdaptedOutputFactory
 from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IArgument import IArgument
 from core.solutions.standards.IInput import IInput
 from core.solutions.standards.IOutput import IOutput
-from core.solutions.standards.IAdaptedOutputFactory import IAdaptedOutputFactory
-from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
+
+from abc import abstractmethod
+from typing import List
 
 
 class ILinkableComponent(IIdentifiable):
@@ -104,16 +102,6 @@ class ILinkableComponent(IIdentifiable):
         the component changes status to `Finished` if it can't be restarted;
         `Created`, otherwise.
         """
-        pass
-
-    @abstractmethod
-    def remove_listener(self, func: Callable):
-        """Removes a listener from the component."""
-        pass
-
-    @abstractmethod
-    def add_listener(self, func: Callable):
-        """Adds a listener to the component."""
         pass
 
     @property

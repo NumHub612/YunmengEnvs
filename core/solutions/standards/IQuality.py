@@ -1,16 +1,14 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
-
+ 
 Interface for qualitative data.
 """
-from abc import abstractmethod
-from typing import List
-
 from core.solutions.standards.IValueDefinition import IValueDefinition
 from core.solutions.standards.ICategory import ICategory
+
+from abc import abstractmethod
+from typing import List
 
 
 class IQuality(IValueDefinition):

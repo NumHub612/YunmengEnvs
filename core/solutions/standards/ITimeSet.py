@@ -1,15 +1,13 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
-
+ 
 Interface for time set.
 """
+from core.solutions.standards.ITime import ITime
+
 from abc import ABC, abstractmethod
 from typing import List
-
-from core.solutions.standards.ITime import ITime
 
 
 class ITimeSet(ABC):

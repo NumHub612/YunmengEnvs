@@ -1,0 +1,5 @@
+{
+    "global_configs": {
+        "numeric_tolerance": 0.0000000001
+    }
+}

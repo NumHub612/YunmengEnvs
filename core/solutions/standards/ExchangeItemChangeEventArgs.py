@@ -1,14 +1,12 @@
 # -*- encoding: utf-8 -*-
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
-URL: https://github.com/NumHub612/YunmengEnvs  
-License: Apache License 2.0
 
 Interface provides the args for an ExchangeItemValueChanged event.
 """
-from abc import ABC, abstractmethod
-
 from core.solutions.standards.IBaseExchangeItem import IBaseExchangeItem
+
+from abc import ABC, abstractmethod
 
 
 class ExchangeItemChangeEventArgs(ABC):
