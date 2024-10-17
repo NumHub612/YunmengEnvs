@@ -66,6 +66,14 @@ class Variable:
         """
         raise NotImplementedError()
 
+    @property
+    @abstractmethod
+    def zero(self) -> "Variable":
+        """
+        Get the zero value of the variable.
+        """
+        raise NotImplementedError()
+
     @abstractmethod
     def __str__(self):
         """
@@ -209,9 +217,13 @@ class Vector(Variable):
     def unit(self) -> "Vector":
         length = self.magnitude
         if length < self._tol:
-            return Vector(0.0, 0.0, 0.0)
+            return Vector(1.0, 1.0, 1.0)
         else:
             return self / length
+
+    @property
+    def zero(self) -> "Vector":
+        return Vector(0.0, 0.0, 0.0)
 
     @property
     def x(self) -> float:
@@ -357,10 +369,11 @@ class Scalar(Variable):
 
     @property
     def unit(self) -> "Scalar":
-        if self.magnitude < self._tol:
-            return Scalar(0.0)
-        else:
-            return self / self.magnitude
+        return Scalar(1.0)
+
+    @property
+    def zero(self) -> "Scalar":
+        return Scalar(0.0)
 
     @property
     def value(self) -> float:
@@ -523,9 +536,13 @@ class Tensor(Variable):
     def unit(self) -> "Tensor":
         length = self.magnitude
         if length < self._tol:
-            return Tensor()
+            return Tensor(1, 0, 0, 0, 1, 0, 0, 0, 1)
         else:
             return self / length
+
+    @property
+    def zero(self) -> "Tensor":
+        return Tensor(0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     @property
     def xx(self) -> float:

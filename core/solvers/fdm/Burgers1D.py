@@ -115,46 +115,49 @@ class Burgers1D(ISolver):
             time_steps: The total time steps of the simulation.
             nu: The viscosity of the Burgers equation.
         """
+        # initialize fields
         for var, ic in self._ics.items():
             ic.apply(self._fields[var])
 
+        # initialize parameters
         self._nu = nu
 
-        min_dx, _, _ = self._mesh.stat_face_area
+        min_dx, _, _ = self._mesh.stat_cell_volume
         self._dt = nu * min_dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
 
+        # run callbacks
+        for callback in self._callbacks:
+            status = {"time": self._t, "dt": self._dt}
+            results = self._fields
+            callback.on_solver_init(self, status, results)
+
     def update(self):
         u = self._fields["u"]
         new_u = copy.deepcopy(u)
-        dx, _, _ = self._mesh.stat_cell_volume
 
         # Apply boundary conditions
-        for node in [0, 400]:
-            # for node in self._topo.boundary_nodes_indexes:
+        for node in self._topo.boundary_nodes_indexes:
             for var, bc in self._bcs.get(node, {"u": self._default_bc}).items():
                 flux, val = bc.evaluate(self._t, self._mesh.nodes[node])
                 new_u[node] = val
 
         # Update interior nodes
-        for node in range(1, 400):
-            # for node in self._topo.interior_nodes_indexes:
-            # lnode, rnode = self._topo.collect_node_neighbours(node)
-            lnode = node - 1
-            rnode = node + 1
+        for node in self._topo.interior_nodes_indexes:
+            lnode, rnode = self._topo.collect_node_neighbours(node)
+            if lnode > rnode:
+                lnode, rnode = rnode, lnode
 
-            # ldist = self._geom.calucate_node_to_node_distance(node, lnode)
-            # rdist = self._geom.calucate_node_to_node_distance(node, rnode)
-            ldist = dx
-            rdist = dx
+            ldist = self._geom.calucate_node_to_node_distance(node, lnode)
+            rdist = self._geom.calucate_node_to_node_distance(node, rnode)
             new_u[node] = (
                 u[node]
                 - u[node] * self._dt / ldist * (u[node] - u[lnode])
-                + (u[rnode] - u[node] + u[lnode] * 2.0)
-                * self._nu
+                + self._nu
                 * self._dt
                 / rdist**2.0
+                * (u[rnode] - 2.0 * u[node] + u[lnode])
             )
 
         # Update solution
@@ -165,4 +168,4 @@ class Burgers1D(ISolver):
         for callback in self._callbacks:
             status = {"time": self._t, "dt": self._dt}
             results = self._fields
-            callback(self, status, results)
+            callback.on_solver_update(self, status, results)

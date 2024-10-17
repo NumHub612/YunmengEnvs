@@ -117,7 +117,35 @@ if __name__ == "__main__":
     nb_steps = 100
     solver.initialize(nb_steps)
 
+    # analytical solution
+    t = 0
+    u = np.asarray([func(t, x0, nu) for x0 in xs])
+    nx = 401
+    dx = 2 * np.pi / (nx - 1)
+    nu = 0.07
+    dt = dx * nu
+
+    def analytical_solution(u):
+        un = u.copy()
+        # update all inner points at once
+        for i in range(1, nx - 1):
+            u[i] = (
+                un[i]
+                - un[i] * dt / dx * (un[i] - un[i - 1])
+                + nu * dt / dx**2 * (un[i + 1] - 2 * un[i] + un[i - 1])
+            )
+
+        # set boundary conditions
+        u[-1] = (
+            un[-1]
+            - un[-1] * dt / dx * (un[-1] - un[-2])
+            + nu * dt / dx**2 * (un[1] - 2 * un[-1] + un[-2])
+        )
+        u[0] = u[-1]
+        return u
+
     # run solver
+    i = 0
     while solver.current_time < solver.total_time:
         solver.update()
 

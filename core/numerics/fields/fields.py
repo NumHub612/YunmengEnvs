@@ -47,6 +47,30 @@ class Field:
         """
         raise NotImplementedError
 
+    @classmethod
+    def from_np(cls, values: np.ndarray) -> "Field":
+        """
+        Create a field from a numpy array.
+        """
+        if values.ndim != 1:
+            raise ValueError("Numpy array must be 1-dimensional")
+
+        for v in values[1:]:
+            if not isinstance(v, Variable):
+                raise TypeError("Mst contain Variable objects")
+            if v.rank != values[0].rank:
+                raise TypeError("Must contain variables of the same rank")
+
+        field = cls(values.size, values[0].unit)
+        field._values = values
+        return field
+
+    def to_np(self) -> np.ndarray:
+        """
+        Convert the field to a numpy array.
+        """
+        return self._values
+
     def filter(self, func: Callable) -> List[int]:
         """
         Filter the field by a given function.
