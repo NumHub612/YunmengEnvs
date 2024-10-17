@@ -145,7 +145,6 @@ if __name__ == "__main__":
         return u
 
     # run solver
-    i = 0
     while solver.current_time < solver.total_time:
         solver.update()
 

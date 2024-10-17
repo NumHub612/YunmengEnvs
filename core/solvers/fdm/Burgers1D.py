@@ -34,8 +34,8 @@ class Burgers1D(ISolver):
                 "equation": "Burgers' Equation",
                 "equation_expr": "u_t + u*u_x = nu*u_xx",
                 "domain": "1D",
-                "default_init_method": "zero",
-                "default_boundary_condition": "wall",
+                "default_ic": "zero",
+                "default_bc": "wall",
             }
         )
         metas.update(
@@ -133,7 +133,15 @@ class Burgers1D(ISolver):
             results = self._fields
             callback.on_solver_init(self, status, results)
 
-    def update(self):
+    def update(self, dt: float):
+        """
+        Advance this solver to the next step to solve the equations.
+
+        Args:
+            dt: Specified time step used for updating to next step.
+        """
+        self._dt = max(dt, 0.0)
+
         u = self._fields["u"]
         new_u = copy.deepcopy(u)
 
