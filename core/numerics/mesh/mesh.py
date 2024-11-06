@@ -30,7 +30,7 @@ class Mesh(ABC):
 
     @property
     @abstractmethod
-    def domain(self) -> int:
+    def domain(self) -> str:
         """Return the domain of the mesh, e.g. 1d, 2d or 3d."""
         pass
 

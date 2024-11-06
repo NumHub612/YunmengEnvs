@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Plotter for displaying scalar values.
 """
-from core.numerics.fields import Field
+from core.numerics.fields import Field, Scalar
 
 import matplotlib.pyplot as plt
 
@@ -43,7 +43,7 @@ def plot_scalar_field(
     ````
         >>> from core.numerics.fields import Scalar
         >>> import numpy as np
-        >>> data = Field.from_np(np.array([Scalar(i) for i in range(100)]))
+        >>> data = NodeField.from_np(np.array([Scalar(i) for i in range(100)]))
         >>> plot_scalar_field(data,
                 title="Scalar Field", xlabel="x", ylabel="y",
                 grid=True, xlim=[10, 80], ylim=[20, 60],

@@ -86,49 +86,49 @@ class Variable:
     # -----------------------------------------------
 
     @abstractmethod
-    def __add__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __add__(self, other: Union["Variable", float]) -> "Variable":
         """
         Add two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __radd__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __radd__(self, other: Union["Variable", float]) -> "Variable":
         """
         Add two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __sub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __sub__(self, other: Union["Variable", float]) -> "Variable":
         """
         Subtract two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rsub__(self, other: Union["Variable", float]) -> "Variable":
         """
         Subtract two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __mul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         """
         Multiply two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rmul__(self, other: Union["Variable", float]) -> "Variable":
         """
         Multiply two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __truediv__(self, other: Union[float, int]) -> "Variable":
+    def __truediv__(self, other: Union[float]) -> "Variable":
         """
         Divide two variables.
         """
@@ -153,14 +153,14 @@ class Variable:
     # -----------------------------------------------
 
     @abstractmethod
-    def __eq__(self, other: Union["Variable", float, int]) -> bool:
+    def __eq__(self, other: Union["Variable", float]) -> bool:
         """
         Compare two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __ne__(self, other: Union["Variable", float, int]) -> bool:
+    def __ne__(self, other: Union["Variable", float]) -> bool:
         """
         Compare two variables.
         """
@@ -241,7 +241,7 @@ class Vector(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __add__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -252,10 +252,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector add().")
 
-    def __radd__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __radd__(self, other: Union["Variable", float]) -> "Vector":
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __sub__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -266,7 +266,7 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector sub().")
 
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __rsub__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -277,7 +277,7 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector sub().")
 
-    def __mul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -288,10 +288,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector mul().")
 
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rmul__(self, other: Union["Variable", float]) -> "Variable":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Union[float, int]) -> "Vector":
+    def __truediv__(self, other: Union[float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -318,7 +318,7 @@ class Vector(Variable):
             and abs(self.z - other.z) < self._tol
         )
 
-    def __ne__(self, other: Union["Variable", float, int]) -> bool:
+    def __ne__(self, other: Union["Variable", float]) -> bool:
         return not self.__eq__(other)
 
 
@@ -383,7 +383,7 @@ class Scalar(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __add__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -396,10 +396,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar add().")
 
-    def __radd__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __radd__(self, other: Union["Variable", float]) -> "Variable":
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __sub__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -412,7 +412,7 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar sub().")
 
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rsub__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -425,7 +425,7 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar sub().")
 
-    def __mul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -438,10 +438,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar mul().")
 
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rmul__(self, other: Union["Variable", float]) -> "Variable":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __truediv__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -458,7 +458,7 @@ class Scalar(Variable):
     def __abs__(self) -> "Scalar":
         return Scalar(abs(self.value))
 
-    def __eq__(self, other: Union["Scalar", float, int]) -> bool:
+    def __eq__(self, other: Union["Scalar", float]) -> bool:
         if isinstance(other, Scalar):
             return abs(self.value - other.value) < self._tol
         elif isinstance(other, (int, float)):
@@ -466,7 +466,7 @@ class Scalar(Variable):
         else:
             return False
 
-    def __ne__(self, other: Union["Variable", float, int]) -> bool:
+    def __ne__(self, other: Union["Variable", float]) -> bool:
         return not self.__eq__(other)
 
 
@@ -572,7 +572,7 @@ class Tensor(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __add__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -583,10 +583,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor add().")
 
-    def __radd__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __radd__(self, other: Union["Variable", float]) -> "Tensor":
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __sub__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -597,7 +597,7 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor sub().")
 
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __rsub__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -608,7 +608,7 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor sub().")
 
-    def __mul__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __mul__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -617,10 +617,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor mul().")
 
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __rmul__(self, other: Union["Variable", float]) -> "Tensor":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __truediv__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
