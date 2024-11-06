@@ -55,7 +55,7 @@ class Field:
         if values.ndim != 1:
             raise ValueError("Numpy array must be 1-dimensional")
 
-        for v in values[1:]:
+        for v in values:
             if not isinstance(v, Variable):
                 raise TypeError("Mst contain Variable objects")
             if v.rank != values[0].rank:
@@ -81,6 +81,9 @@ class Field:
         Returns:
             The filtered variable indices.
         """
+        if not callable(func):
+            raise TypeError(f"Invalid function type: {type(func)}")
+
         # vectorize the function to apply it to each variable
         vectorized_func = np.vectorize(func)
         mask = vectorized_func(self._values)
@@ -147,7 +150,7 @@ class Field:
 
             self._values = np.full(self._num_vars, other)
         else:
-            raise TypeError(f"Cannot assign {type(other)} to field")
+            raise TypeError(f"Can't assign {type(other)} to field")
 
     # -----------------------------------------------
     # --- reload query methods ---
@@ -157,12 +160,18 @@ class Field:
         """
         Get the value of the field at a given position.
         """
+        if index < 0 or index >= self._num_vars:
+            raise IndexError(f"Index out of range: {index}")
+
         return self._values[index]
 
     def __setitem__(self, index: int, value: Variable):
         """
         Set the value of the field at a given position.
         """
+        if index < 0 or index >= self._num_vars:
+            raise IndexError(f"Index out of range: {index}")
+
         if value.rank != self._default.rank:
             raise TypeError(
                 f"Invalid value type: {value.rank} (expected {self._default.rank})"
