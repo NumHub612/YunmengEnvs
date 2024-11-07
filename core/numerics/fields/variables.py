@@ -8,7 +8,7 @@ from abc import abstractmethod
 from typing import Union
 import numpy as np
 
-from configs.settings import global_configs
+from configs.settings import NUMERIC_TOLERANCE
 
 
 class Variable:
@@ -174,7 +174,7 @@ class Vector(Variable):
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         self._value = np.array([x, y, z])
-        self._tol = global_configs().get("numeric_tolerance", 1e-12)
+        self._tol = NUMERIC_TOLERANCE
 
     # -----------------------------------------------
     # --- override methods ---
@@ -329,7 +329,7 @@ class Scalar(Variable):
 
     def __init__(self, value: float = 0.0):
         self._value = value
-        self._tol = global_configs().get("numeric_tolerance", 1e-12)
+        self._tol = NUMERIC_TOLERANCE
 
     # -----------------------------------------------
     # --- override methods ---
