@@ -50,7 +50,7 @@ class Burgers1D(ISolver):
         )
         return metas
 
-    def __init__(self, id: str, mesh: Mesh, *, callbacks: list = None):
+    def __init__(self, id: str, mesh: Mesh, callbacks: list = None):
         """
         Constructor of the Burgers1D solver.
 
@@ -107,7 +107,7 @@ class Burgers1D(ISolver):
 
     def get_solution(self, field_name: str) -> Field:
         if field_name not in self._fields:
-            raise ValueError(f"Invalid field name: {field_name}")
+            return None
 
         return self._fields[field_name]
 
@@ -145,12 +145,8 @@ class Burgers1D(ISolver):
 
         # run callbacks
         for callback in self._callbacks:
-            if not hasattr(callback, "on_solver_init"):
-                continue
-
-            status = {"time": self._t, "dt": self._dt}
-            results = self._fields
-            callback.on_solver_init(self, status, results)
+            callback.setup(self.get_meta())
+            callback.on_task_begin(self._fields)
 
     def inference(self, dt: float):
         """
@@ -193,9 +189,7 @@ class Burgers1D(ISolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            status = {"time": self._t, "dt": self._dt}
-            results = self._fields
-            callback.on_solver_update(self, status, results)
+            callback.on_step(self._fields)
 
     def optimize(self):
         raise NotImplementedError("Optimization is not supported for this solver.")

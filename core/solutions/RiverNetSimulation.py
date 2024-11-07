@@ -94,23 +94,10 @@ if __name__ == "__main__":
     bc = boundaries.CustomBoundary("bc1", bc_func)
 
     # set callback
-    callback_confs = {
-        "cb1": {
-            "type": "custom",
-            "args": {"func": "print('Time:', t, 'Step:', step, 'Error:', error)"},
-        }
-    }
+    cbs = [callbacks.RenderCallback()]
 
     # set solver
-    solver_confs = {
-        "type": "fdm",
-        "name": "burgers1d",
-        "args": {"nu": 0.07, "time_steps": 100},
-        "inits": {"u": ic},
-        "bcs": {"u": [("gp1", bc)]},
-        "callbacks": {},
-    }
-    solver = fdm.Burgers1D("solver1", grid)
+    solver = fdm.Burgers1D("solver1", grid, cbs)
     solver.set_ic("u", ic)
     solver.set_bc("u", group1, bc)
 
@@ -154,18 +141,18 @@ if __name__ == "__main__":
     u_real = np.asarray([func(solver.total_time, x, nu) for x in xs])
 
     # plot results
-    plt.figure(figsize=(11, 7), dpi=100)
-    plt.plot(xs, u_simu, color="blue", linewidth=2, marker="o", label="Computational")
-    plt.plot(xs, u_real, color="red", linewidth=2, label="Analytical")
-    plt.xlabel("x", fontsize=16)
-    plt.ylabel("u", fontsize=16)
-    plt.title("Comparison of computational and analytical results", fontsize=18)
+    # plt.figure(figsize=(11, 7), dpi=100)
+    # plt.plot(xs, u_simu, color="blue", linewidth=2, marker="o", label="Computational")
+    # plt.plot(xs, u_real, color="red", linewidth=2, label="Analytical")
+    # plt.xlabel("x", fontsize=16)
+    # plt.ylabel("u", fontsize=16)
+    # plt.title("Comparison of computational and analytical results", fontsize=18)
 
-    plt.grid(True)
-    plt.legend(loc="upper right")
-    plt.xlim([0, 2 * np.pi])
-    plt.ylim([0, 10])
+    # plt.grid(True)
+    # plt.legend(loc="upper right")
+    # plt.xlim([0, 2 * np.pi])
+    # plt.ylim([0, 10])
 
-    plt.xticks(np.arange(0, 2 * np.pi, 1))
-    plt.yticks(np.arange(0, 10, 1))
-    plt.show()
+    # plt.xticks(np.arange(0, 2 * np.pi, 1))
+    # plt.yticks(np.arange(0, 10, 1))
+    # plt.show()

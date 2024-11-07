@@ -28,7 +28,7 @@ class ISolver(ABC):
     @abstractmethod
     def status(self) -> dict:
         """
-        The current status of the solver.
+        The current status of the solver, not including the solution.
         """
         pass
 
@@ -82,20 +82,6 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def optimize(self, **kwargs):
-        """
-        Optimize the solver with data to calibrate the parameters.
-        """
-        pass
-
-    @abstractmethod
-    def inference(self, **kwargs):
-        """
-        Inference the solver to get the solutions.
-        """
-        pass
-
-    @abstractmethod
     def reset(self, **kwargs):
         """
         Reset the solver.
@@ -106,5 +92,19 @@ class ISolver(ABC):
     def terminate(self, **kwargs):
         """
         Terminate the solver.
+        """
+        pass
+
+    @abstractmethod
+    def optimize(self, **kwargs):
+        """
+        Optimize the solver with data to calibrate the parameters.
+        """
+        pass
+
+    @abstractmethod
+    def inference(self, **kwargs):
+        """
+        Inference the solver to get the solutions.
         """
         pass
