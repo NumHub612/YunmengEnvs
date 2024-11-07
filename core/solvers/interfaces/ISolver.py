@@ -26,17 +26,9 @@ class ISolver(ABC):
 
     @property
     @abstractmethod
-    def current_time(self) -> float:
+    def status(self) -> dict:
         """
-        The current time of the solver.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def total_time(self) -> float:
-        """
-        The total time of the solver.
+        The current status of the solver.
         """
         pass
 
@@ -60,12 +52,13 @@ class ISolver(ABC):
     def get_solution(self, field_name: str) -> Field:
         """
         Get the solution of the solver.
+        """
+        pass
 
-        Args:
-            field_name: The name of the field to get the solution.
-
-        Returns:
-            The solution of the solver.
+    @abstractmethod
+    def set_ic(self, var: str, ic: IInitCondition):
+        """
+        Set the initial condition.
         """
         pass
 
@@ -82,26 +75,36 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def set_ic(self, var: str, ic: IInitCondition):
-        """
-        Set the initial condition.
-
-        Args:
-            var: Name of the variable to set the initial condition.
-            ic: The initial condition.
-        """
-        pass
-
-    @abstractmethod
-    def initialize(self, **kwargs) -> None:
+    def initialize(self, **kwargs):
         """
         Initialize the solver.
         """
         pass
 
     @abstractmethod
-    def update(self, **kwargs) -> None:
+    def optimize(self, **kwargs):
         """
-        Advance this solver to the next step to solve the equations.
+        Optimize the solver with data to calibrate the parameters.
+        """
+        pass
+
+    @abstractmethod
+    def inference(self, **kwargs):
+        """
+        Inference the solver to get the solutions.
+        """
+        pass
+
+    @abstractmethod
+    def reset(self, **kwargs):
+        """
+        Reset the solver.
+        """
+        pass
+
+    @abstractmethod
+    def terminate(self, **kwargs):
+        """
+        Terminate the solver.
         """
         pass

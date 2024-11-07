@@ -4,7 +4,12 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Solving the 1D Burgers equation using finite difference method.
 """
-from core.solvers.interfaces import ISolver, IInitCondition, IBoundaryCondition
+from core.solvers.interfaces import (
+    ISolver,
+    IInitCondition,
+    IBoundaryCondition,
+    ISolverCallback,
+)
 from core.solvers.extensions.inits import UniformInitialization
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, Node
 from core.numerics.fields import Field, NodeField, Scalar
@@ -40,9 +45,7 @@ class Burgers1D(ISolver):
         )
         metas.update(
             {
-                "accessibale_fields": [
-                    {"name": "u", "etype": "node", "dtype": "scalar"}
-                ],
+                "fields": [{"name": "u", "etype": "node", "dtype": "scalar"}],
             }
         )
         return metas
@@ -64,14 +67,19 @@ class Burgers1D(ISolver):
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
 
+        self._callbacks = []
+        for callback in callbacks or []:
+            if not isinstance(callback, ISolverCallback):
+                raise ValueError(f"Invalid callback: {callback}")
+            self._callbacks.append(callback)
+
+        self._default_init = UniformInitialization("default", Scalar(0.0))
+        self._default_bc = None
+
         self._total_time = 0.0
         self._dt = 0.0
         self._t = 0.0
         self._nu = 0.07
-        self._callbacks = callbacks or []
-
-        self._default_init = UniformInitialization("default", Scalar(0.0))
-        self._default_bc = None
 
         self._fields = {"u": NodeField(mesh.node_count, Scalar())}
         self._ics = {}
@@ -80,6 +88,14 @@ class Burgers1D(ISolver):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def status(self) -> dict:
+        return {
+            "curr_time": self._t,
+            "dt": self._dt,
+            "total_time": self._total_time,
+        }
 
     @property
     def current_time(self) -> float:
@@ -129,13 +145,16 @@ class Burgers1D(ISolver):
 
         # run callbacks
         for callback in self._callbacks:
+            if not hasattr(callback, "on_solver_init"):
+                continue
+
             status = {"time": self._t, "dt": self._dt}
             results = self._fields
             callback.on_solver_init(self, status, results)
 
-    def update(self, dt: float):
+    def inference(self, dt: float):
         """
-        Advance this solver to the next step to solve the equations.
+        Inference the solver to get the solution.
 
         Args:
             dt: Specified time step used for updating to next step.
@@ -177,3 +196,12 @@ class Burgers1D(ISolver):
             status = {"time": self._t, "dt": self._dt}
             results = self._fields
             callback.on_solver_update(self, status, results)
+
+    def optimize(self):
+        raise NotImplementedError("Optimization is not supported for this solver.")
+
+    def reset(self):
+        raise NotImplementedError("Reset is not supported for this solver.")
+
+    def terminate(self):
+        raise NotImplementedError("Termination is not supported for this solver.")

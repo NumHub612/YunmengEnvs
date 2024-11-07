@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     # run solver
     while solver.current_time < solver.total_time:
-        solver.update(dt)
+        solver.inference(dt)
 
     # get solution
     u_simu = solver.get_solution("u")
