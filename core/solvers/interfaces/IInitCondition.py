@@ -11,16 +11,8 @@ from core.numerics.fields import Field
 
 class IInitCondition(ABC):
     """
-    Interface for initializing a fields.
+    Interface class for initializing field.
     """
-
-    @property
-    @abstractmethod
-    def id(self) -> str:
-        """
-        The unique id of a initialization method instance.
-        """
-        pass
 
     @classmethod
     @abstractmethod
@@ -36,7 +28,7 @@ class IInitCondition(ABC):
         Initializes the field variables.
 
         Args:
-            field: The field to be initialized.
-            kwargs: Additional arguments for initializing.
+            field: Field to be initialized.
+            kwargs: Additional arguments.
         """
         pass
