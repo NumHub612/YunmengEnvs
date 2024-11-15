@@ -174,7 +174,6 @@ class Vector(Variable):
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         self._value = np.array([x, y, z])
-        self._tol = NUMERIC_TOLERANCE
 
     # -----------------------------------------------
     # --- override methods ---
@@ -312,11 +311,8 @@ class Vector(Variable):
         if not isinstance(other, Vector):
             return False
 
-        return (
-            abs(self.x - other.x) < self._tol
-            and abs(self.y - other.y) < self._tol
-            and abs(self.z - other.z) < self._tol
-        )
+        is_equal = np.allclose(self.to_np(), other.to_np(), atol=NUMERIC_TOLERANCE)
+        return is_equal
 
     def __ne__(self, other: Union["Variable", float]) -> bool:
         return not self.__eq__(other)
@@ -472,7 +468,7 @@ class Scalar(Variable):
 
 class Tensor(Variable):
     """
-    A 3x3 tensor variable with xx, xy, xz, yy, yz, and zz components.
+    A 2x2 or 3x3 tensor variable.
     """
 
     def __init__(
@@ -480,11 +476,14 @@ class Tensor(Variable):
         xx: float = 0.0,
         xy: float = 0.0,
         xz: float = 0.0,
+        yx: float = 0.0,
         yy: float = 0.0,
         yz: float = 0.0,
+        zx: float = 0.0,
+        zy: float = 0.0,
         zz: float = 0.0,
     ):
-        self._value = np.array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
+        self._value = np.array([[xx, xy, xz], [yx, yy, yz], [zx, zy, zz]])
 
     # -----------------------------------------------
     # --- override methods ---
@@ -492,17 +491,15 @@ class Tensor(Variable):
 
     @classmethod
     def from_np(cls, np_array: np.ndarray) -> "Tensor":
-        if len(np_array.shape) != 2 or np_array.shape[0] != 3 or np_array.shape[1] != 3:
+        if len(np_array.shape) != 2:
             raise ValueError("Invalid numpy array shape for Tensor.")
 
-        return Tensor(
-            np_array[0, 0],
-            np_array[0, 1],
-            np_array[0, 2],
-            np_array[1, 1],
-            np_array[1, 2],
-            np_array[2, 2],
-        )
+        if np_array.shape[0] not in [2, 3] or np_array.shape[1] not in [2, 3]:
+            raise ValueError("Invalid numpy array shape for Tensor.")
+
+        tensor = Tensor()
+        tensor._value = np_array.copy()
+        return tensor
 
     def to_np(self) -> np.ndarray:
         return self._value
@@ -512,10 +509,12 @@ class Tensor(Variable):
         if not isinstance(var, Tensor):
             raise TypeError("Invalid variable type for Tensor.")
 
-        return Tensor(var.xx, var.xy, var.xz, var.yy, var.yz, var.zz)
+        tensor = Tensor()
+        tensor._value = var._value.copy()
+        return tensor
 
     def __str__(self):
-        return f"Tensor([{self.xx}, {self.xy}, {self.xz}], [{self.xy}, {self.yy}, {self.yz}], [{self.xz}, {self.yz}, {self.zz}])"
+        return f"Tensor({self._value})"
 
     # -----------------------------------------------
     # --- properties ---
@@ -527,9 +526,7 @@ class Tensor(Variable):
 
     @property
     def magnitude(self) -> float:
-        length = np.sqrt(
-            self.xx**2 + self.xy**2 + self.xz**2 + self.yy**2 + self.yz**2 + self.zz**2
-        )
+        length = np.linalg.norm(self.to_np())
         return length
 
     @property
@@ -557,12 +554,24 @@ class Tensor(Variable):
         return self._value[0, 2]
 
     @property
+    def yx(self) -> float:
+        return self._value[1, 0]
+
+    @property
     def yy(self) -> float:
         return self._value[1, 1]
 
     @property
     def yz(self) -> float:
         return self._value[1, 2]
+
+    @property
+    def zx(self) -> float:
+        return self._value[2, 0]
+
+    @property
+    def zy(self) -> float:
+        return self._value[2, 1]
 
     @property
     def zz(self) -> float:
@@ -632,14 +641,19 @@ class Tensor(Variable):
             raise TypeError("Invalid type for Tensor div().")
 
     def __neg__(self) -> "Tensor":
-        return Tensor(-self.xx, -self.xy, -self.xz, -self.yy, -self.yz, -self.zz)
+        value = -self.to_np()
+        return Tensor.from_np(value)
 
     def __abs__(self) -> "Tensor":
-        return Tensor(
-            abs(self.xx),
-            abs(self.xy),
-            abs(self.xz),
-            abs(self.yy),
-            abs(self.yz),
-            abs(self.zz),
-        )
+        value = np.abs(self.to_np())
+        return Tensor.from_np(value)
+
+    def __eq__(self, other: Union["Tensor"]) -> bool:
+        if not isinstance(other, Tensor):
+            return False
+
+        is_equal = np.allclose(self.to_np(), other.to_np(), atol=NUMERIC_TOLERANCE)
+        return is_equal
+
+    def __ne__(self, other: Union["Variable", float]) -> bool:
+        return not self.__eq__(other)

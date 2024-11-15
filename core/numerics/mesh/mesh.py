@@ -4,8 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh import Node, Face, Cell, Coordinate
+from core.numerics.mesh import Coordinate
 from core.numerics.fields import Vector
+from configs.settings import logger
 
 from abc import ABC, abstractmethod
 import numpy as np
@@ -18,15 +19,21 @@ class Mesh(ABC):
         - Don't support isolated element, no check yet.
     """
 
+    def __init__(self):
+        self._version = 1
+        self._nodes = []
+        self._faces = []
+        self._cells = []
+        self._groups = {}
+
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
 
     @property
-    @abstractmethod
     def version(self) -> int:
         """Return the version."""
-        pass
+        return self._version
 
     @property
     @abstractmethod
@@ -35,61 +42,34 @@ class Mesh(ABC):
         pass
 
     @property
-    @abstractmethod
-    def extents(self) -> list:
-        """Return the extents of each dimension."""
-        pass
-
-    @property
-    @abstractmethod
     def node_count(self) -> int:
         """Return the number of nodes."""
-        pass
+        return len(self._nodes)
 
     @property
-    @abstractmethod
     def nodes(self) -> list:
         """Return all nodes."""
-        pass
+        return self._nodes
 
     @property
-    def stat_node_elevation(self) -> tuple:
-        """Return the min/max/avg elevation of nodes."""
-        pass
-
-    @property
-    @abstractmethod
     def face_count(self) -> int:
         """Return the number of faces."""
-        pass
+        return len(self._faces)
 
     @property
-    @abstractmethod
     def faces(self) -> list:
         """Return all faces."""
-        pass
+        return self._faces
 
     @property
-    def stat_face_area(self) -> tuple:
-        """Return the min/max/avg area of faces."""
-        pass
-
-    @property
-    @abstractmethod
     def cell_count(self) -> int:
         """Return the number of cells."""
-        pass
+        return len(self._cells)
 
     @property
-    @abstractmethod
     def cells(self) -> list:
         """Return all cells."""
-        pass
-
-    @property
-    def stat_cell_volume(self) -> tuple:
-        """Return the min/max/avg volume of cells."""
-        pass
+        return self._cells
 
     # -----------------------------------------------
     # --- element modification methods ---
@@ -109,30 +89,50 @@ class Mesh(ABC):
     # --- additional methods ---
     # -----------------------------------------------
 
-    @abstractmethod
     def set_node_group(self, group_name: str, node_indices: list):
         """Assign the given nodes to the given group."""
-        pass
+        for node_index in node_indices:
+            if node_index >= self.node_count or node_index < 0:
+                raise ValueError(f"Node index {node_index} out of range.")
 
-    @abstractmethod
+        if group_name in self._groups:
+            logger.warning(f"Group {group_name} already exists, overwriting.")
+
+        self._groups[group_name] = node_indices
+
     def set_face_group(self, group_name: str, face_indices: list):
         """Assign the given faces to the given group."""
-        pass
+        for face_index in face_indices:
+            if face_index >= self.face_count or face_index < 0:
+                raise ValueError(f"Face index {face_index} out of range.")
 
-    @abstractmethod
+        if group_name in self._groups:
+            logger.warning(f"Group {group_name} already exists, overwriting.")
+
+        self._groups[group_name] = face_indices
+
     def set_cell_group(self, group_name: str, cell_indices: list):
         """Assign the given cells to the given group."""
-        pass
+        for cell_index in cell_indices:
+            if cell_index >= self.cell_count or cell_index < 0:
+                raise ValueError(f"Cell index {cell_index} out of range.")
 
-    @abstractmethod
+        if group_name in self._groups:
+            logger.warning(f"Group {group_name} already exists, overwriting.")
+
+        self._groups[group_name] = cell_indices
+
     def delete_group(self, group_name: str):
         """Delete the given node group."""
-        pass
+        if group_name in self._groups:
+            self._groups.pop(group_name)
 
-    @abstractmethod
     def get_group(self, group_name: str) -> list:
         """Return the element indices of given group."""
-        pass
+        if group_name in self._groups:
+            return self._groups[group_name]
+        else:
+            return None
 
 
 class MeshTopo:
@@ -165,6 +165,27 @@ class MeshTopo:
     # -----------------------------------------------
     # --- properties methods ---
     # -----------------------------------------------
+
+    @property
+    def boundary_nodes_indexes(self) -> list:
+        """Return the indexes of boundary nodes."""
+        if self._boundary_nodes is None:
+            self._boundary_nodes = []
+            for face in self.boundary_faces_indexes:
+                self._boundary_nodes.extend(self._mesh.faces[face].nodes)
+            self._boundary_nodes = list(set(self._boundary_nodes))
+        return self._boundary_nodes
+
+    @property
+    def interior_nodes_indexes(self) -> list:
+        """Return the indexes of interior nodes."""
+        if self._interior_nodes is None:
+            self._interior_nodes = []
+            for node in self._mesh.nodes:
+                if node.id not in self.boundary_nodes_indexes:
+                    self._interior_nodes.append(node.id)
+            self._interior_nodes = list(set(self._interior_nodes))
+        return self._interior_nodes
 
     @property
     def boundary_faces_indexes(self) -> list:
@@ -207,30 +228,33 @@ class MeshTopo:
                     self._interior_cells.append(cell.id)
         return self._interior_cells
 
-    @property
-    def boundary_nodes_indexes(self) -> list:
-        """Return the indexes of boundary nodes."""
-        if self._boundary_nodes is None:
-            self._boundary_nodes = []
-            for face in self.boundary_faces_indexes:
-                self._boundary_nodes.extend(self._mesh.faces[face].nodes)
-            self._boundary_nodes = list(set(self._boundary_nodes))
-        return self._boundary_nodes
-
-    @property
-    def interior_nodes_indexes(self) -> list:
-        """Return the indexes of interior nodes."""
-        if self._interior_nodes is None:
-            self._interior_nodes = []
-            for node in self._mesh.nodes:
-                if node.id not in self.boundary_nodes_indexes:
-                    self._interior_nodes.append(node.id)
-            self._interior_nodes = list(set(self._interior_nodes))
-        return self._interior_nodes
-
     # -----------------------------------------------
     # --- connectivity methods ---
     # -----------------------------------------------
+
+    def collect_node_neighbours(self, node_index: int) -> list:
+        """Collect the neighbours of given node."""
+        if self._node_neighbours is None:
+            node_neighbours = [[] for _ in range(self._mesh.node_count)]
+            if self._mesh.domain == "1d":
+                for cell in self._mesh.cells:
+                    faces = cell.faces
+                    for i in range(len(faces)):
+                        nid1 = self._mesh.faces[faces[i]].nodes[0]
+                        for j in range(i + 1, len(faces)):
+                            nid2 = self._mesh.faces[faces[j]].nodes[0]
+                            node_neighbours[nid1].append(nid2)
+                            node_neighbours[nid2].append(nid1)
+            else:
+                for face in self._mesh.faces:
+                    nodes = face.nodes
+                    for i in range(len(nodes)):
+                        for j in range(i + 1, len(nodes)):
+                            node_neighbours[nodes[i]].append(nodes[j])
+                            node_neighbours[nodes[j]].append(nodes[i])
+            node_neighbours = [list(set(nodes)) for nodes in node_neighbours]
+            self._node_neighbours = node_neighbours
+        return self._node_neighbours[node_index]
 
     def collect_face_cells(self, face_index: int) -> list:
         """Collect the cells connected to the given face."""
@@ -289,30 +313,6 @@ class MeshTopo:
                     cell_neighbours[cells[1]].append(cells[0])
             self._cell_neighbours = cell_neighbours
         return self._cell_neighbours[cell_index]
-
-    def collect_node_neighbours(self, node_index: int) -> list:
-        """Collect the neighbours of given node."""
-        if self._node_neighbours is None:
-            node_neighbours = [[] for _ in range(self._mesh.node_count)]
-            if self._mesh.domain == "1d":
-                for cell in self._mesh.cells:
-                    faces = cell.faces
-                    for i in range(len(faces)):
-                        nid1 = self._mesh.faces[faces[i]].nodes[0]
-                        for j in range(i + 1, len(faces)):
-                            nid2 = self._mesh.faces[faces[j]].nodes[0]
-                            node_neighbours[nid1].append(nid2)
-                            node_neighbours[nid2].append(nid1)
-            else:
-                for face in self._mesh.faces:
-                    nodes = face.nodes
-                    for i in range(len(nodes)):
-                        for j in range(i + 1, len(nodes)):
-                            node_neighbours[nodes[i]].append(nodes[j])
-                            node_neighbours[nodes[j]].append(nodes[i])
-            node_neighbours = [list(set(nodes)) for nodes in node_neighbours]
-            self._node_neighbours = node_neighbours
-        return self._node_neighbours[node_index]
 
     # -----------------------------------------------
     # --- retrieval methods ---
@@ -385,16 +385,67 @@ class MeshGeom:
         self._cell_to_cell_vects = None
         self._cell_to_face_vects = None
 
+        self._stats = {"node": {}, "face": {}, "cell": {}}
+
     def get_mesh(self) -> Mesh:
         """Return the bounded mesh."""
         return self._mesh
+
+    # -----------------------------------------------
+    # --- statistics methods ---
+    # -----------------------------------------------
+
+    def statistics_node_attribute(self, attribute: str) -> tuple:
+        """Calculate the (min, max, avg) of the given attribute for nodes."""
+        attribute = attribute.lower()
+        if not hasattr(self._mesh.nodes[0], attribute):
+            raise ValueError(f"Attribute {attribute} not found in nodes.")
+
+        if attribute not in self._stats["node"]:
+            values = [getattr(node, attribute) for node in self._mesh.nodes]
+            self._stats["node"][attribute] = (
+                min(values),
+                max(values),
+                sum(values) / len(values),
+            )
+        return self._stats["node"][attribute]
+
+    def statistics_face_attribute(self, attribute: str) -> tuple:
+        """Calculate the (min, max, avg) of the given attribute for faces."""
+        attribute = attribute.lower()
+        if not hasattr(self._mesh.faces[0], attribute):
+            raise ValueError(f"Attribute {attribute} not found in faces.")
+
+        if attribute not in self._stats["face"]:
+            values = [getattr(face, attribute) for face in self._mesh.faces]
+            self._stats["face"][attribute] = (
+                min(values),
+                max(values),
+                sum(values) / len(values),
+            )
+        return self._stats["face"][attribute]
+
+    def statistics_cell_attribute(self, attribute: str) -> tuple:
+        """Calculate the (min, max, avg) of the given attribute for cells."""
+        attribute = attribute.lower()
+        if not hasattr(self._mesh.cells[0], attribute):
+            raise ValueError(f"Attribute {attribute} not found in cells.")
+
+        if attribute not in self._stats["cell"]:
+            values = [getattr(cell, attribute) for cell in self._mesh.cells]
+            self._stats["cell"][attribute] = (
+                min(values),
+                max(values),
+                sum(values) / len(values),
+            )
+        return self._stats["cell"][attribute]
 
     # -----------------------------------------------
     # --- geometry methods ---
     # -----------------------------------------------
 
     def calculate_cell_to_cell_distance(self, cell1: int, cell2: int) -> float:
-        """Calculate the distance between the centroids of the given cells."""
+        """Calculate the distance between the centroids of cells."""
         if self._cell_to_cell_dists is None:
             cell_num = self._mesh.cell_count
             cell_dists = [{} for _ in range(cell_num)]

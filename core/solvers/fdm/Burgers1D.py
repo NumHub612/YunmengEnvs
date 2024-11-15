@@ -31,16 +31,13 @@ class Burgers1D(ISolver):
         metas = super().get_meta()
         metas.update(
             {
-                "author": "朗月;",
-                "version": "1.0",
-                "email": "none;",
-                "description": "Solver of the 1D Burgers equation using finite difference method.",
+                "description": "Test solver of the 1D Burgers equation using finite difference method.",
                 "type": "fdm",
                 "equation": "Burgers' Equation",
                 "equation_expr": "u_t + u*u_x = nu*u_xx",
                 "domain": "1D",
-                "default_ic": "zero",
-                "default_bc": "wall",
+                "default_ic": "none",
+                "default_bc": "none",
             }
         )
         metas.update(
@@ -138,7 +135,7 @@ class Burgers1D(ISolver):
         # initialize parameters
         self._nu = nu
 
-        min_dx, _, _ = self._mesh.stat_cell_volume
+        min_dx, _, _ = self._geom.statistics_cell_attribute("volume")
         self._dt = nu * min_dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
@@ -163,7 +160,9 @@ class Burgers1D(ISolver):
         # Apply boundary conditions
         for node in self._topo.boundary_nodes_indexes:
             for var, bc in self._bcs.get(node, {"u": self._default_bc}).items():
-                flux, val = bc.evaluate(self._t, self._mesh.nodes[node])
+                if var not in self._fields:
+                    continue
+                _, val = bc.evaluate(self._t, self._mesh.nodes[node])
                 new_u[node] = val
 
         # Update interior nodes
