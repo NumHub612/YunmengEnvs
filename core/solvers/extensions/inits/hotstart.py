@@ -15,7 +15,7 @@ class HotstartInitialization(IInitCondition):
 
     @classmethod
     def get_name(cls) -> str:
-        return "uniform"
+        return "hotstart"
 
     def __init__(self, id: str, field: Field):
         """

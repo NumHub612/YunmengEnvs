@@ -1,4 +1,5 @@
 from core.solvers.extensions.boundaries.custom import *
+from core.solvers.extensions.boundaries.constant import *
 
 
 # register all the boundary conditions.
