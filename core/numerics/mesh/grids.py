@@ -168,6 +168,14 @@ class Grid2D(Mesh):
     def domain(self) -> str:
         return "2d"
 
+    @property
+    def nx(self) -> int:
+        return self._nx
+
+    @property
+    def ny(self) -> int:
+        return self._ny
+
 
 class Grid3D(Mesh):
     """3D structured grid."""
