@@ -6,6 +6,7 @@ Solving the 2D Burgers equation using finite difference method.
 """
 from core.solvers.interfaces import BaseSolver
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
+from core.numerics.fields import NodeField, Vector
 from core.numerics.mesh import Grid2D
 from configs.settings import logger
 
@@ -19,7 +20,7 @@ class Burgers2D(BaseSolver):
 
     @classmethod
     def get_name(cls) -> str:
-        return "Burgers2D"
+        return "burgers2d"
 
     @classmethod
     def get_meta(cls) -> dict:
@@ -87,14 +88,16 @@ class Burgers2D(BaseSolver):
             time_steps: The total time steps of the simulation.
             nu: The viscosity of the Burgers equation.
         """
+        self._fields = {"vel": NodeField(self._mesh.node_count, Vector())}
+
         # Check initial conditions
         if "vel" not in self._ics:
             raise ValueError(f"Solver {self._id} has no initial condition")
 
-        self._ics["ve"].apply(self._fields["vel"])
+        self._ics["vel"].apply(self._fields["vel"])
 
         # Check boundary conditions
-        for node in range(self._topo.boundary_nodes_indexes):
+        for node in self._topo.boundary_nodes_indexes:
             if node not in self._bcs or "vel" not in self._bcs[node]:
                 raise ValueError(f"Solver {self._id} has no boundary for {node}.")
 
@@ -116,12 +119,15 @@ class Burgers2D(BaseSolver):
             callback.setup(self.get_meta())
             callback.on_task_begin(self._fields)
 
-    def inference(self, dt: float):
+    def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
         Inference the solver to get the solutions.
 
         Args:
             dt: Specified time step.
+
+        Returns:
+            A tuple of (is_done, is_terminated, status).
         """
         self._dt = max(dt, 0.0)
         self._t += self._dt
@@ -163,13 +169,22 @@ class Burgers2D(BaseSolver):
         for callback in self._callbacks:
             callback.on_step(self._fields)
 
+        return self._t >= self._total_time, False, self.status
+
     def _calc_grid_indexes(self, nid: int):
-        i = nid // self._mesh.nx
-        j = nid % self._mesh.nx
+        i = nid // self._mesh.ny
+        j = nid % self._mesh.ny
 
         e_node = (i + 1) * self._mesh.ny + j
+        e_node = min(self._mesh.node_count - 1, e_node)
+
         w_node = (i - 1) * self._mesh.ny + j
+        w_node = max(0, w_node)
+
         n_node = i * self._mesh.ny + (j + 1)
+        n_node = min(self._mesh.node_count - 1, n_node)
+
         s_node = i * self._mesh.ny + (j - 1)
+        s_node = max(0, s_node)
 
         return e_node, w_node, n_node, s_node

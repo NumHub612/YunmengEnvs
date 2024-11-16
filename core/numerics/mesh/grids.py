@@ -176,6 +176,12 @@ class Grid2D(Mesh):
     def ny(self) -> int:
         return self._ny
 
+    def refine_cell(self, index: int):
+        pass
+
+    def relax_cell(self, index: int):
+        pass
+
 
 class Grid3D(Mesh):
     """3D structured grid."""

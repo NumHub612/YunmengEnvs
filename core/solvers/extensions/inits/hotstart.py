@@ -32,5 +32,5 @@ class HotstartInitialization(IInitCondition):
     def id(self) -> str:
         return self._id
 
-    def apply(self, field: Field) -> None:
+    def apply(self, field: Field):
         field.assign(self._field)

@@ -398,11 +398,11 @@ class MeshGeom:
     def statistics_node_attribute(self, attribute: str) -> tuple:
         """Calculate the (min, max, avg) of the given attribute for nodes."""
         attribute = attribute.lower()
-        if not hasattr(self._mesh.nodes[0], attribute):
+        if not hasattr(self._mesh.nodes[0].coord, attribute):
             raise ValueError(f"Attribute {attribute} not found in nodes.")
 
         if attribute not in self._stats["node"]:
-            values = [getattr(node, attribute) for node in self._mesh.nodes]
+            values = [getattr(node.coord, attribute) for node in self._mesh.nodes]
             self._stats["node"][attribute] = (
                 min(values),
                 max(values),

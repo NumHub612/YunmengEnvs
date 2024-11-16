@@ -145,7 +145,7 @@ class Burgers1D(ISolver):
             callback.setup(self.get_meta())
             callback.on_task_begin(self._fields)
 
-    def inference(self, dt: float):
+    def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
         Inference the solver to get the solution.
 
@@ -189,6 +189,8 @@ class Burgers1D(ISolver):
         # Call callbacks
         for callback in self._callbacks:
             callback.on_step(self._fields)
+
+        return self._t >= self._total_time, False, self.status
 
     def optimize(self):
         raise NotImplementedError("Optimization is not supported for this solver.")

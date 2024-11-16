@@ -98,9 +98,12 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def inference(self, **kwargs):
+    def inference(self, **kwargs) -> tuple[bool, bool, dict]:
         """
         Inference the solver to get the solutions.
+
+        Returns:
+            A tuple of (is_done, is_terminated, status) resutls.
         """
         pass
 
