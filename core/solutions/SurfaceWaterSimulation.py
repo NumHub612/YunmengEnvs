@@ -31,6 +31,7 @@ class SurfaceWaterSimulation(ILinkableComponent):
 if __name__ == "__main__":
     from core.numerics.mesh import MeshTopo
     import numpy as np
+    import matplotlib.pyplot as plt
 
     # set mesh
     low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
