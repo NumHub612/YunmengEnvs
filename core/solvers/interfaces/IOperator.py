@@ -2,5 +2,5 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
 
-Neumann boundary condition.
+Interface for pde equation discretization operators.
 """

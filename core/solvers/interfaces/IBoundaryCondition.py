@@ -11,16 +11,8 @@ from abc import ABC, abstractmethod
 
 class IBoundaryCondition(ABC):
     """
-    Interface for boundary conditions.
+    Interface for pde boundary conditions classes.
     """
-
-    @property
-    @abstractmethod
-    def id(self) -> str:
-        """
-        Unique id of a boundarycondition instance.
-        """
-        pass
 
     @classmethod
     @abstractmethod

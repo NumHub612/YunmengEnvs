@@ -1,5 +1,6 @@
 from core.solvers.extensions.inits.uniform import *
 from core.solvers.extensions.inits.custom import *
+from core.solvers.extensions.inits.hotstart import *
 
 
 # register all the init methods

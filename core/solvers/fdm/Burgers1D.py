@@ -4,7 +4,12 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Solving the 1D Burgers equation using finite difference method.
 """
-from core.solvers.interfaces import ISolver, IInitCondition, IBoundaryCondition
+from core.solvers.interfaces import (
+    ISolver,
+    IInitCondition,
+    IBoundaryCondition,
+    ISolverCallback,
+)
 from core.solvers.extensions.inits import UniformInitialization
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, Node
 from core.numerics.fields import Field, NodeField, Scalar
@@ -26,28 +31,23 @@ class Burgers1D(ISolver):
         metas = super().get_meta()
         metas.update(
             {
-                "author": "朗月;",
-                "version": "1.0",
-                "email": "none;",
-                "description": "Solver of the 1D Burgers equation using finite difference method.",
+                "description": "Test solver of the 1D Burgers equation using finite difference method.",
                 "type": "fdm",
                 "equation": "Burgers' Equation",
                 "equation_expr": "u_t + u*u_x = nu*u_xx",
                 "domain": "1D",
-                "default_ic": "zero",
-                "default_bc": "wall",
+                "default_ic": "none",
+                "default_bc": "none",
             }
         )
         metas.update(
             {
-                "accessibale_fields": [
-                    {"name": "u", "etype": "node", "dtype": "scalar"}
-                ],
+                "fields": [{"name": "u", "etype": "node", "dtype": "scalar"}],
             }
         )
         return metas
 
-    def __init__(self, id: str, mesh: Mesh, *, callbacks: list = None):
+    def __init__(self, id: str, mesh: Mesh, callbacks: list = None):
         """
         Constructor of the Burgers1D solver.
 
@@ -64,14 +64,19 @@ class Burgers1D(ISolver):
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
 
+        self._callbacks = []
+        for callback in callbacks or []:
+            if not isinstance(callback, ISolverCallback):
+                raise ValueError(f"Invalid callback: {callback}")
+            self._callbacks.append(callback)
+
+        self._default_init = UniformInitialization("default", Scalar(0.0))
+        self._default_bc = None
+
         self._total_time = 0.0
         self._dt = 0.0
         self._t = 0.0
         self._nu = 0.07
-        self._callbacks = callbacks or []
-
-        self._default_init = UniformInitialization("default", Scalar(0.0))
-        self._default_bc = None
 
         self._fields = {"u": NodeField(mesh.node_count, Scalar())}
         self._ics = {}
@@ -80,6 +85,14 @@ class Burgers1D(ISolver):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def status(self) -> dict:
+        return {
+            "curr_time": self._t,
+            "dt": self._dt,
+            "total_time": self._total_time,
+        }
 
     @property
     def current_time(self) -> float:
@@ -91,7 +104,7 @@ class Burgers1D(ISolver):
 
     def get_solution(self, field_name: str) -> Field:
         if field_name not in self._fields:
-            raise ValueError(f"Invalid field name: {field_name}")
+            return None
 
         return self._fields[field_name]
 
@@ -122,20 +135,19 @@ class Burgers1D(ISolver):
         # initialize parameters
         self._nu = nu
 
-        min_dx, _, _ = self._mesh.stat_cell_volume
+        min_dx, _, _ = self._geom.statistics_cell_attribute("volume")
         self._dt = nu * min_dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
 
         # run callbacks
         for callback in self._callbacks:
-            status = {"time": self._t, "dt": self._dt}
-            results = self._fields
-            callback.on_solver_init(self, status, results)
+            callback.setup(self.get_meta())
+            callback.on_task_begin(self._fields)
 
-    def update(self, dt: float):
+    def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
-        Advance this solver to the next step to solve the equations.
+        Inference the solver to get the solution.
 
         Args:
             dt: Specified time step used for updating to next step.
@@ -148,7 +160,9 @@ class Burgers1D(ISolver):
         # Apply boundary conditions
         for node in self._topo.boundary_nodes_indexes:
             for var, bc in self._bcs.get(node, {"u": self._default_bc}).items():
-                flux, val = bc.evaluate(self._t, self._mesh.nodes[node])
+                if var not in self._fields:
+                    continue
+                _, val = bc.evaluate(self._t, self._mesh.nodes[node])
                 new_u[node] = val
 
         # Update interior nodes
@@ -174,6 +188,15 @@ class Burgers1D(ISolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            status = {"time": self._t, "dt": self._dt}
-            results = self._fields
-            callback.on_solver_update(self, status, results)
+            callback.on_step(self._fields)
+
+        return self._t >= self._total_time, False, self.status
+
+    def optimize(self):
+        raise NotImplementedError("Optimization is not supported for this solver.")
+
+    def reset(self):
+        raise NotImplementedError("Reset is not supported for this solver.")
+
+    def terminate(self):
+        raise NotImplementedError("Termination is not supported for this solver.")

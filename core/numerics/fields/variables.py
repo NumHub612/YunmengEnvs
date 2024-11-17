@@ -8,7 +8,7 @@ from abc import abstractmethod
 from typing import Union
 import numpy as np
 
-from configs.settings import global_configs
+from configs.settings import NUMERIC_TOLERANCE
 
 
 class Variable:
@@ -86,49 +86,49 @@ class Variable:
     # -----------------------------------------------
 
     @abstractmethod
-    def __add__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __add__(self, other: Union["Variable", float]) -> "Variable":
         """
         Add two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __radd__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __radd__(self, other: Union["Variable", float]) -> "Variable":
         """
         Add two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __sub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __sub__(self, other: Union["Variable", float]) -> "Variable":
         """
         Subtract two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rsub__(self, other: Union["Variable", float]) -> "Variable":
         """
         Subtract two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __mul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         """
         Multiply two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rmul__(self, other: Union["Variable", float]) -> "Variable":
         """
         Multiply two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __truediv__(self, other: Union[float, int]) -> "Variable":
+    def __truediv__(self, other: Union[float]) -> "Variable":
         """
         Divide two variables.
         """
@@ -153,14 +153,14 @@ class Variable:
     # -----------------------------------------------
 
     @abstractmethod
-    def __eq__(self, other: Union["Variable", float, int]) -> bool:
+    def __eq__(self, other: Union["Variable", float]) -> bool:
         """
         Compare two variables.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def __ne__(self, other: Union["Variable", float, int]) -> bool:
+    def __ne__(self, other: Union["Variable", float]) -> bool:
         """
         Compare two variables.
         """
@@ -174,7 +174,6 @@ class Vector(Variable):
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         self._value = np.array([x, y, z])
-        self._tol = global_configs().get("numeric_tolerance", 1e-12)
 
     # -----------------------------------------------
     # --- override methods ---
@@ -241,7 +240,7 @@ class Vector(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __add__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -252,10 +251,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector add().")
 
-    def __radd__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __radd__(self, other: Union["Variable", float]) -> "Vector":
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __sub__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -266,7 +265,7 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector sub().")
 
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Vector":
+    def __rsub__(self, other: Union["Variable", float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -277,7 +276,7 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector sub().")
 
-    def __mul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -288,10 +287,10 @@ class Vector(Variable):
         else:
             raise TypeError("Invalid type for Vector mul().")
 
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rmul__(self, other: Union["Variable", float]) -> "Variable":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Union[float, int]) -> "Vector":
+    def __truediv__(self, other: Union[float]) -> "Vector":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -312,13 +311,10 @@ class Vector(Variable):
         if not isinstance(other, Vector):
             return False
 
-        return (
-            abs(self.x - other.x) < self._tol
-            and abs(self.y - other.y) < self._tol
-            and abs(self.z - other.z) < self._tol
-        )
+        is_equal = np.allclose(self.to_np(), other.to_np(), atol=NUMERIC_TOLERANCE)
+        return is_equal
 
-    def __ne__(self, other: Union["Variable", float, int]) -> bool:
+    def __ne__(self, other: Union["Variable", float]) -> bool:
         return not self.__eq__(other)
 
 
@@ -329,7 +325,7 @@ class Scalar(Variable):
 
     def __init__(self, value: float = 0.0):
         self._value = value
-        self._tol = global_configs().get("numeric_tolerance", 1e-12)
+        self._tol = NUMERIC_TOLERANCE
 
     # -----------------------------------------------
     # --- override methods ---
@@ -383,7 +379,7 @@ class Scalar(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __add__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -396,10 +392,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar add().")
 
-    def __radd__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __radd__(self, other: Union["Variable", float]) -> "Variable":
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __sub__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -412,7 +408,7 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar sub().")
 
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rsub__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -425,7 +421,7 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar sub().")
 
-    def __mul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __mul__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -438,10 +434,10 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar mul().")
 
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __rmul__(self, other: Union["Variable", float]) -> "Variable":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Union["Variable", float, int]) -> "Variable":
+    def __truediv__(self, other: Union["Variable", float]) -> "Variable":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -458,7 +454,7 @@ class Scalar(Variable):
     def __abs__(self) -> "Scalar":
         return Scalar(abs(self.value))
 
-    def __eq__(self, other: Union["Scalar", float, int]) -> bool:
+    def __eq__(self, other: Union["Scalar", float]) -> bool:
         if isinstance(other, Scalar):
             return abs(self.value - other.value) < self._tol
         elif isinstance(other, (int, float)):
@@ -466,13 +462,13 @@ class Scalar(Variable):
         else:
             return False
 
-    def __ne__(self, other: Union["Variable", float, int]) -> bool:
+    def __ne__(self, other: Union["Variable", float]) -> bool:
         return not self.__eq__(other)
 
 
 class Tensor(Variable):
     """
-    A 3x3 tensor variable with xx, xy, xz, yy, yz, and zz components.
+    A 2x2 or 3x3 tensor variable.
     """
 
     def __init__(
@@ -480,11 +476,14 @@ class Tensor(Variable):
         xx: float = 0.0,
         xy: float = 0.0,
         xz: float = 0.0,
+        yx: float = 0.0,
         yy: float = 0.0,
         yz: float = 0.0,
+        zx: float = 0.0,
+        zy: float = 0.0,
         zz: float = 0.0,
     ):
-        self._value = np.array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
+        self._value = np.array([[xx, xy, xz], [yx, yy, yz], [zx, zy, zz]])
 
     # -----------------------------------------------
     # --- override methods ---
@@ -492,17 +491,15 @@ class Tensor(Variable):
 
     @classmethod
     def from_np(cls, np_array: np.ndarray) -> "Tensor":
-        if len(np_array.shape) != 2 or np_array.shape[0] != 3 or np_array.shape[1] != 3:
+        if len(np_array.shape) != 2:
             raise ValueError("Invalid numpy array shape for Tensor.")
 
-        return Tensor(
-            np_array[0, 0],
-            np_array[0, 1],
-            np_array[0, 2],
-            np_array[1, 1],
-            np_array[1, 2],
-            np_array[2, 2],
-        )
+        if np_array.shape[0] not in [2, 3] or np_array.shape[1] not in [2, 3]:
+            raise ValueError("Invalid numpy array shape for Tensor.")
+
+        tensor = Tensor()
+        tensor._value = np_array.copy()
+        return tensor
 
     def to_np(self) -> np.ndarray:
         return self._value
@@ -512,10 +509,12 @@ class Tensor(Variable):
         if not isinstance(var, Tensor):
             raise TypeError("Invalid variable type for Tensor.")
 
-        return Tensor(var.xx, var.xy, var.xz, var.yy, var.yz, var.zz)
+        tensor = Tensor()
+        tensor._value = var._value.copy()
+        return tensor
 
     def __str__(self):
-        return f"Tensor([{self.xx}, {self.xy}, {self.xz}], [{self.xy}, {self.yy}, {self.yz}], [{self.xz}, {self.yz}, {self.zz}])"
+        return f"Tensor({self._value})"
 
     # -----------------------------------------------
     # --- properties ---
@@ -527,9 +526,7 @@ class Tensor(Variable):
 
     @property
     def magnitude(self) -> float:
-        length = np.sqrt(
-            self.xx**2 + self.xy**2 + self.xz**2 + self.yy**2 + self.yz**2 + self.zz**2
-        )
+        length = np.linalg.norm(self.to_np())
         return length
 
     @property
@@ -557,12 +554,24 @@ class Tensor(Variable):
         return self._value[0, 2]
 
     @property
+    def yx(self) -> float:
+        return self._value[1, 0]
+
+    @property
     def yy(self) -> float:
         return self._value[1, 1]
 
     @property
     def yz(self) -> float:
         return self._value[1, 2]
+
+    @property
+    def zx(self) -> float:
+        return self._value[2, 0]
+
+    @property
+    def zy(self) -> float:
+        return self._value[2, 1]
 
     @property
     def zz(self) -> float:
@@ -572,7 +581,7 @@ class Tensor(Variable):
     # --- reload arithmetic operations ---
     # -----------------------------------------------
 
-    def __add__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __add__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -583,10 +592,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor add().")
 
-    def __radd__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __radd__(self, other: Union["Variable", float]) -> "Tensor":
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __sub__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -597,7 +606,7 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor sub().")
 
-    def __rsub__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __rsub__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -608,7 +617,7 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor sub().")
 
-    def __mul__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __mul__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -617,10 +626,10 @@ class Tensor(Variable):
         else:
             raise TypeError("Invalid type for Tensor mul().")
 
-    def __rmul__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __rmul__(self, other: Union["Variable", float]) -> "Tensor":
         return self.__mul__(other)
 
-    def __truediv__(self, other: Union["Variable", float, int]) -> "Tensor":
+    def __truediv__(self, other: Union["Variable", float]) -> "Tensor":
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
@@ -632,14 +641,19 @@ class Tensor(Variable):
             raise TypeError("Invalid type for Tensor div().")
 
     def __neg__(self) -> "Tensor":
-        return Tensor(-self.xx, -self.xy, -self.xz, -self.yy, -self.yz, -self.zz)
+        value = -self.to_np()
+        return Tensor.from_np(value)
 
     def __abs__(self) -> "Tensor":
-        return Tensor(
-            abs(self.xx),
-            abs(self.xy),
-            abs(self.xz),
-            abs(self.yy),
-            abs(self.yz),
-            abs(self.zz),
-        )
+        value = np.abs(self.to_np())
+        return Tensor.from_np(value)
+
+    def __eq__(self, other: Union["Tensor"]) -> bool:
+        if not isinstance(other, Tensor):
+            return False
+
+        is_equal = np.allclose(self.to_np(), other.to_np(), atol=NUMERIC_TOLERANCE)
+        return is_equal
+
+    def __ne__(self, other: Union["Variable", float]) -> bool:
+        return not self.__eq__(other)
