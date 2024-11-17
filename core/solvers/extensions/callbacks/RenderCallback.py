@@ -15,15 +15,18 @@ class RenderCallback(ISolverCallback):
 
     def __init__(self):
         self._animators = {}
+        self._mesh = None
 
-    def setup(self, solver_meta: dict):
+    def setup(self, solver_meta: dict, mesh: None):
         """
         Sets the solver metadata.
         """
         fields = solver_meta.get("fields", [])
         for field in fields:
-            if field["dtype"] == "scalar" and field["etype"] == "node":
+            if field["dtype"] != "tensor":
                 self._animators[field["name"]] = ImageStreamPlayer(field["name"])
+
+        self._mesh = mesh
 
     def on_task_begin(self, solutions: dict):
         """
@@ -31,7 +34,7 @@ class RenderCallback(ISolverCallback):
         """
         for field_name, field in solutions.items():
             if field_name in self._animators:
-                self._animators[field_name].update(field)
+                self._animators[field_name].update(field, self._mesh)
 
     def on_task_end(self):
         pass
@@ -45,7 +48,7 @@ class RenderCallback(ISolverCallback):
         """
         for field_name, field in solutions.items():
             if field_name in self._animators:
-                self._animators[field_name].update(field)
+                self._animators[field_name].update(field, self._mesh)
 
     def on_step_end(self, **kwargs):
         """

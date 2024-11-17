@@ -15,13 +15,7 @@ class ImageStreamPlayer:
     A class for displaying images stream in the animation.
     """
 
-    def __init__(
-        self, title: str, mesh: Mesh = None, color: str = "g", pause: float = 0.1
-    ):
-        if mesh is not None and mesh.domain != 1:
-            raise ValueError("ImageStreamPlayer only supports 1D meshes yet.")
-        self._mesh = mesh
-
+    def __init__(self, title: str, color: str = "g", pause: float = 0.1):
         plt.ion()
         self._title = title
         self._graph = None
@@ -32,19 +26,40 @@ class ImageStreamPlayer:
         plt.ioff()
         plt.close()
 
-    def update(self, field: Field):
+    def update(self, field: Field, mesh: Mesh = None):
         """
         Update the image stream.
         """
-        if field.dtype != "scalar":
-            raise ValueError("ImageStreamPlayer only supports scalar field.")
+        plt.rcParams["font.sans-serif"] = ["SimHei"]
+        plt.rcParams["axes.unicode_minus"] = False
 
-        values = [e.value for e in field]
+        if field.dtype == "tensor":
+            raise ValueError("ImageStreamPlayer not support tensor fields yet.")
 
         if self._graph is not None:
             self._graph.remove()
 
-        self._graph = plt.plot(values, color=self._color)[0]
+        if field.dtype == "scalar":
+            values = [e.value for e in field]
+            self._graph = plt.plot(values, color=self._color)[0]
+        else:
+            elements = None
+            if field.etype == "node":
+                elements = [node.coord for node in mesh.nodes]
+            elif field.etype == "face":
+                elements = [face.center for face in mesh.faces]
+            elif field.etype == "cell":
+                elements = [cell.center for cell in mesh.cells]
+
+            X = [e.x for e in elements]
+            Y = [e.y for e in elements]
+
+            values = field.to_np()
+            U = [v.x for v in values]
+            V = [v.y for v in values]
+            W = [v.z for v in values]
+            self._graph = plt.quiver(X, Y, U, V, W, color=self._color)
+
         plt.title(self._title)
         plt.pause(self._pause)
 

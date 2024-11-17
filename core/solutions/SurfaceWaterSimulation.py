@@ -5,16 +5,14 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 Simulation solution for surface water modeling.
 """
 from core.solutions.standards import ILinkableComponent, IOutput, IInput
-from core.numerics.mesh import Grid2D, Coordinate, Node, Mesh
+from core.numerics.mesh import Grid2D, Coordinate
 from core.numerics.fields import NodeField, Vector
-from core.solvers import fdm
 from core.solvers import (
     solver_routines,
     init_methods,
     boundary_conditions,
     callback_handlers,
 )
-from core.utils.SympifyNumExpr import lambdify_numexpr
 from configs.settings import logger
 
 
@@ -32,7 +30,6 @@ class SurfaceWaterSimulation(ILinkableComponent):
 
 if __name__ == "__main__":
     from core.numerics.mesh import MeshTopo
-    import matplotlib.pyplot as plt
     import numpy as np
 
     # set mesh
@@ -71,7 +68,7 @@ if __name__ == "__main__":
     bc = boundary_conditions["constant"]("bc1", bc_value, None)
 
     # set callback
-    cbs = []
+    cbs = [callback_handlers["RenderCallback"]()]
 
     # set solver
     solver = solver_routines["fdm"]["burgers2d"]("solver1", grid, cbs)
@@ -90,5 +87,3 @@ if __name__ == "__main__":
 
     # get solution
     u_simu = solver.get_solution("vel")
-
-    # plot results
