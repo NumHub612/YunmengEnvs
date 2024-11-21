@@ -142,7 +142,7 @@ class Burgers1D(ISolver):
 
         # run callbacks
         for callback in self._callbacks:
-            callback.setup(self.get_meta())
+            callback.setup(self.get_meta(), self._mesh)
             callback.on_task_begin(self._fields)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:

@@ -45,7 +45,7 @@ class ImageStreamPlayer:
         else:
             elements = None
             if field.etype == "node":
-                elements = [node.coord for node in mesh.nodes]
+                elements = [node.coordinate for node in mesh.nodes]
             elif field.etype == "face":
                 elements = [face.center for face in mesh.faces]
             elif field.etype == "cell":

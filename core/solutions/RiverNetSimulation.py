@@ -70,7 +70,7 @@ if __name__ == "__main__":
     def ic_func(mesh: Mesh):
         field = NodeField(mesh.node_count, Scalar())
         for i in range(mesh.node_count):
-            x = mesh.nodes[i].coord.x
+            x = mesh.nodes[i].coordinate.x
             value = Scalar(func(0.0, x, nu))
             field[i] = value
         return field
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     }
 
     def bc_func(t, node: Node):
-        value = Scalar(func(t, node.coord.x, nu))
+        value = Scalar(func(t, node.coordinate.x, nu))
         return None, value
 
     bc = boundaries.CustomBoundary("bc1", bc_func)

@@ -49,15 +49,15 @@ class Grid1D(Mesh):
             normal = Vector(0, 1)
 
             # face
-            face1 = Face(i, [i], node1.coord, 1, 1, normal)
+            face1 = Face(i, [i], node1.coordinate, 1, 1, normal)
             self._faces.append(face1)
 
             # cell
             if i == num - 1:
                 break
             node2 = self._nodes[i + 1]
-            length = abs(node2.coord.x - node1.coord.x)
-            center = 0.5 * (node1.coord + node2.coord)
+            length = abs(node2.coordinate.x - node1.coordinate.x)
+            center = 0.5 * (node1.coordinate + node2.coordinate)
             cell = Cell(i, [i, i + 1], center, length, length)
             self._cells.append(cell)
 
@@ -116,8 +116,8 @@ class Grid2D(Mesh):
                 # face 1, n_lu -> n_ru
                 fid1 = i * self._ny + j
                 nodes = [n_lu.id, n_ru.id]
-                center = 0.5 * (n_lu.coord + n_ru.coord)
-                perimeter = abs(n_ru.coord.x - n_lu.coord.x)
+                center = 0.5 * (n_lu.coordinate + n_ru.coordinate)
+                perimeter = abs(n_ru.coordinate.x - n_lu.coordinate.x)
                 area = perimeter
                 normal = Vector(0, 1)
                 face1 = Face(fid1, nodes, center, perimeter, area, normal)
@@ -126,8 +126,8 @@ class Grid2D(Mesh):
                 # face 2, n_ru -> n_rl
                 fid2 = i * self._ny + j + 1
                 nodes = [n_ru.id, n_rl.id]
-                center = 0.5 * (n_ru.coord + n_rl.coord)
-                perimeter = abs(n_rl.coord.x - n_ru.coord.x)
+                center = 0.5 * (n_ru.coordinate + n_rl.coordinate)
+                perimeter = abs(n_rl.coordinate.x - n_ru.coordinate.x)
                 area = perimeter
                 normal = Vector(1, 0)
                 face2 = Face(fid2, nodes, center, perimeter, area, normal)
@@ -136,8 +136,8 @@ class Grid2D(Mesh):
                 # face 3, n_rl -> n_ll
                 fid3 = (i + 1) * self._ny + j
                 nodes = [n_rl.id, n_ll.id]
-                center = 0.5 * (n_rl.coord + n_ll.coord)
-                perimeter = abs(n_ll.coord.x - n_rl.coord.x)
+                center = 0.5 * (n_rl.coordinate + n_ll.coordinate)
+                perimeter = abs(n_ll.coordinate.x - n_rl.coordinate.x)
                 area = perimeter
                 normal = Vector(0, -1)
                 face3 = Face(fid3, nodes, center, perimeter, area, normal)
@@ -146,8 +146,8 @@ class Grid2D(Mesh):
                 # face 4, n_ll -> n_lu
                 fid4 = (i + 1) * self._ny + j + 1
                 nodes = [n_ll.id, n_lu.id]
-                center = 0.5 * (n_ll.coord + n_lu.coord)
-                perimeter = abs(n_lu.coord.x - n_ll.coord.x)
+                center = 0.5 * (n_ll.coordinate + n_lu.coordinate)
+                perimeter = abs(n_lu.coordinate.x - n_ll.coordinate.x)
                 area = perimeter
                 normal = Vector(-1, 0)
                 face4 = Face(fid4, nodes, center, perimeter, area, normal)
@@ -157,7 +157,10 @@ class Grid2D(Mesh):
                 cid = i * self._ny + j
                 faces = [fid1, fid2, fid3, fid4]
                 center = 0.25 * (
-                    face1.center + face2.center + face3.center + face4.center
+                    face1.coordinate
+                    + face2.coordinate
+                    + face3.coordinate
+                    + face4.coordinate
                 )
                 surface = dx * dy
                 volume = surface

@@ -69,7 +69,7 @@ class Node:
     """
 
     id: int
-    coord: Coordinate
+    coordinate: Coordinate
 
 
 @dataclass
@@ -83,7 +83,7 @@ class Face:
 
     id: int
     nodes: list
-    center: Coordinate
+    coordinate: Coordinate
     perimeter: float
     area: float
     normal: Vector
@@ -97,6 +97,6 @@ class Cell:
 
     id: int
     faces: list
-    center: Coordinate
+    coordinate: Coordinate
     surface: float
     volume: float

@@ -324,7 +324,7 @@ class MeshTopo:
         """Search the k nearest nodes to the given coordinate."""
         distances = []
         for node in self._mesh.nodes:
-            dist = np.linalg.norm(node.coord.to_np() - coord.to_np())
+            dist = np.linalg.norm(node.coordinate.to_np() - coord.to_np())
             if dist <= max_dist:
                 distances.append(node.id)
         distances.sort(key=lambda x: x)
@@ -398,11 +398,11 @@ class MeshGeom:
     def statistics_node_attribute(self, attribute: str) -> tuple:
         """Calculate the (min, max, avg) of the given attribute for nodes."""
         attribute = attribute.lower()
-        if not hasattr(self._mesh.nodes[0].coord, attribute):
+        if not hasattr(self._mesh.nodes[0].coordinate, attribute):
             raise ValueError(f"Attribute {attribute} not found in nodes.")
 
         if attribute not in self._stats["node"]:
-            values = [getattr(node.coord, attribute) for node in self._mesh.nodes]
+            values = [getattr(node.coordinate, attribute) for node in self._mesh.nodes]
             self._stats["node"][attribute] = (
                 min(values),
                 max(values),
@@ -495,7 +495,7 @@ class MeshGeom:
                 for j in topos.collect_cell_nodes(i):
                     dist = np.linalg.norm(
                         self._mesh.cells[i].center.to_np()
-                        - self._mesh.nodes[j].coord.to_np()
+                        - self._mesh.nodes[j].coordinate.to_np()
                     )
                     cell_node_dists[i][j] = dist
 
@@ -516,8 +516,8 @@ class MeshGeom:
             for i in range(node_num):
                 for j in topos.collect_node_neighbours(i):
                     dist = np.linalg.norm(
-                        self._mesh.nodes[i].coord.to_np()
-                        - self._mesh.nodes[j].coord.to_np()
+                        self._mesh.nodes[i].coordinate.to_np()
+                        - self._mesh.nodes[j].coordinate.to_np()
                     )
                     node_dists[i][j] = dist
                     node_dists[j][i] = dist
