@@ -76,9 +76,6 @@ class Node:
 class Face:
     """
     Face element for the mesh.
-
-    NOTE:
-        - A face may be a point(for 1d), line(for 2d), or polygon(for 3d).
     """
 
     id: int
