@@ -94,7 +94,8 @@ if __name__ == "__main__":
     bc = boundaries.CustomBoundary("bc1", bc_func)
 
     # set callback
-    cbs = [callbacks.RenderCallback()]
+    output_dir = "./tests/results"
+    cbs = [callbacks.RenderCallback(output_dir)]
 
     # set solver
     solver = fdm.Burgers1D("solver1", grid, cbs)
@@ -139,6 +140,13 @@ if __name__ == "__main__":
     u_simu = solver.get_solution("u")
     u_simu = np.asarray([var.value for var in u_simu])
     u_real = np.asarray([func(solver.total_time, x, nu) for x in xs])
+
+    # results player
+    from core.visuals.animator import ImageSetPlayer
+
+    results_dir = "./tests/results/u"
+    player = ImageSetPlayer(results_dir)
+    player.play()
 
     # plot results
     # plt.figure(figsize=(11, 7), dpi=100)

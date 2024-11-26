@@ -13,7 +13,7 @@ class ISolverCallback(ABC):
     """
 
     @abstractmethod
-    def setup(self, solver_meta: dict):
+    def setup(self, solver_meta: dict, mesh: object):
         """
         Sets the solver metadata.
         """
