@@ -5,13 +5,14 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 Plotter for displaying scalar values.
 """
 from core.numerics.fields import Field, Scalar
-from core.numerics.mesh import Mesh, Coordinate
+from core.numerics.mesh import Mesh
 
 import matplotlib.pyplot as plt
-import seaborn as sns
-import networkx as nx
 import numpy as np
 import os
+
+plt.rcParams["font.sans-serif"] = ["SimHei"]
+plt.rcParams["axes.unicode_minus"] = False
 
 
 def plot_data_series(
@@ -28,7 +29,7 @@ def plot_data_series(
     yticks=None,
     show=True,
     save_dir=None,
-) -> plt.Figure:
+):
     """
     Plot serial datas as a line chart.
 
@@ -62,8 +63,6 @@ def plot_data_series(
         >>> plot_series(xs, ys, title="Comparison")
     ````
     """
-    plt.rcParams["font.sans-serif"] = ["SimHei"]
-    plt.rcParams["axes.unicode_minus"] = False
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -117,13 +116,12 @@ def plot_data_series(
         plt.show()
     plt.close()
 
-    return fig
-
 
 def plot_scalar_field(
     data: Field,
     mesh: Mesh,
     *,
+    figsize=None,
     title="plot",
     axis="auto",
     xlabel="x",
@@ -132,7 +130,7 @@ def plot_scalar_field(
     grid=True,
     show=True,
     save_dir=None,
-) -> plt.Figure:
+):
     """
     Plot scalar field with geometric information.
 
@@ -153,9 +151,6 @@ def plot_scalar_field(
         + If `axis` is "xy", plot the scalar field in the xy-plane, etc.
 
     """
-    plt.rcParams["font.sans-serif"] = ["SimHei"]
-    plt.rcParams["axes.unicode_minus"] = False
-
     # extract values from field.
     if not isinstance(data, Field):
         raise TypeError("data must be a Field object.")
@@ -179,7 +174,11 @@ def plot_scalar_field(
     zs = [coord.z for coord in coords]
 
     # plot scalar field.
-    fig = plt.figure()
+    if figsize is not None:
+        fig = plt.figure(figsize=figsize)
+    else:
+        fig = plt.figure()
+
     if axis == "auto":
         if mesh.domain == "1d":
             ax = fig.add_subplot(111)
@@ -213,7 +212,7 @@ def plot_scalar_field(
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    # ax.set_zlabel(zlabel)
+    ax.set_label(zlabel)
     ax.set_title(title)
     ax.grid(grid)
 
@@ -226,4 +225,3 @@ def plot_scalar_field(
         plt.show()
 
     plt.close()
-    return fig
