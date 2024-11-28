@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh import Coordinate
+from core.numerics.mesh import Coordinate, utils
 from core.numerics.fields import Vector
 from configs.settings import logger
 
@@ -15,8 +15,9 @@ import numpy as np
 class Mesh(ABC):
     """Abstract mesh class for describing the topology.
 
-    NOTE:
-        - Don't support isolated element, no check yet.
+    Notes:
+        - Don't support isolated element.
+        - Require all elements to be continuously encoded.
     """
 
     def __init__(self):
@@ -233,7 +234,7 @@ class MeshTopo:
     # -----------------------------------------------
 
     def collect_node_neighbours(self, node_index: int) -> list:
-        """Collect the neighbours of given node."""
+        """Collect the neighbours indexes of given node."""
         if self._node_neighbours is None:
             node_neighbours = [[] for _ in range(self._mesh.node_count)]
             if self._mesh.domain == "1d":
@@ -299,6 +300,14 @@ class MeshTopo:
                     for nid in self._mesh.faces[fid].nodes:
                         cell_nodes[cell.id].append(nid)
             cell_nodes = [list(set(nodes)) for nodes in cell_nodes]
+
+            for i, ids in enumerate(cell_nodes):
+                coords = [self._mesh.nodes[nid].coordinate for nid in ids]
+                sorted_nodes = utils.sort_coordinates_anticlockwise(
+                    dict(zip(ids, coords))
+                )
+                cell_nodes[i] = sorted_nodes
+
             self._cell_nodes = cell_nodes
         return self._cell_nodes[cell_index]
 
