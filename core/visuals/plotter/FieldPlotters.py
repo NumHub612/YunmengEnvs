@@ -52,8 +52,8 @@ def plot_scalar_field(
 
     # plot 1d mesh special case
     if mesh.domain == "1d":
-        x = GeoMethods.extract_coordinates_separated(mesh, field.etype, dim="x")
-        y = {label: {"values": field.to_np()}.update(kwargs)}
+        x = GeoMethods.extract_coordinates_separated(mesh, field.etype, dim="x")[0]
+        y = {label: {"values": field.to_np(), **kwargs}}
 
         PlotKits.plot_data_series(
             x,
@@ -165,8 +165,8 @@ def plot_vector_field(
 
     # plot 1d mesh special case
     if mesh.domain == "1d":
-        x = GeoMethods.extract_coordinates_separated(mesh, field.etype, dim="x")
-        y = {f"{label}_x": {"values": data_map.get(dimension)}.update(kwargs)}
+        x = GeoMethods.extract_coordinates_separated(mesh, field.etype, dim="x")[0]
+        y = {f"{label}_x": {"values": data_map.get(dimension), **kwargs}}
 
         PlotKits.plot_data_series(
             x,
@@ -242,9 +242,9 @@ def plot_vector_field(
 
 
 if __name__ == "__main__":
-    from core.numerics.mesh import Coordinate, Grid2D
+    from core.numerics.mesh import Coordinate, Grid2D, Grid1D
 
-    # set mesh
+    # set 2d mesh
     low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
     nx, ny = 41, 41
     grid = Grid2D(low_left, upper_right, nx, ny)
@@ -340,4 +340,37 @@ if __name__ == "__main__":
         save_dir=None,
         show=True,
         dimension="x",
+    )
+
+    # set 1d mesh
+    start, end = Coordinate(0), Coordinate(2 * np.pi)
+    grid = Grid1D(start, end, 401)
+
+    scalar_values_n = np.array([np.random.rand(1) for i in range(grid.node_count)])
+    scalar_field = Field.from_np(scalar_values_n, "node")
+
+    plot_scalar_field(
+        scalar_field,
+        grid,
+        title="1D Scalar Field",
+        label="value",
+        save_dir=None,
+        show=True,
+        color="r",
+        marker="o",
+    )
+
+    vector_values_n = np.random.rand(grid.node_count, 3)
+    vector_field = Field.from_np(vector_values_n, "node")
+
+    plot_vector_field(
+        vector_field,
+        grid,
+        title="1D Vector Field",
+        label="u",
+        save_dir=None,
+        show=True,
+        dimension="x",
+        color="r",
+        marker="o",
     )

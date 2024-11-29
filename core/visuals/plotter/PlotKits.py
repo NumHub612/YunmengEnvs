@@ -66,6 +66,7 @@ def plot_data_series(
             styles = {k: v for k, v in y.items() if k not in ["values"]}
 
             if len(values) != len(x):
+                print(values.shape, x.shape)
                 raise ValueError(f"The length of {label} values must be equal to x.")
 
             ax.plot(x, values, label=label, **styles)
