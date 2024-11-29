@@ -108,6 +108,7 @@ def plot_mesh_cloudmap(
     domain: str,
     *,
     title: str = "Cloudmap",
+    label: str = "value",
     figsize: tuple = (8, 6),
     save_dir: str = None,
     show: bool = True,
@@ -123,6 +124,7 @@ def plot_mesh_cloudmap(
         scalars: Scalar values.
         domain: Domain of the values bounded, options: "point", "polygon".
         title: Title of the plot.
+        label: Label of the values.
         figsize: Figure size.
         save_dir: Directory to save the plot.
         show: Whether to show the plot.
@@ -147,13 +149,13 @@ def plot_mesh_cloudmap(
     # Set values to the mesh
     domain = domain.lower()
     if domain == "point":
-        mesh.point_data["values"] = scalars
+        mesh.point_data[label] = scalars
     else:
-        mesh.cell_data["values"] = scalars
+        mesh.cell_data[label] = scalars
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
-    plotter.add_mesh(mesh, scalars="values", cmap=cmap, show_edges=show_edges)
+    plotter.add_mesh(mesh, scalars=label, cmap=cmap, show_edges=show_edges)
     plotter.add_axes()
     plotter.add_bounding_box()
     plotter.view_isometric()
@@ -178,6 +180,7 @@ def plot_mesh_streamplot(
     domain: str,
     *,
     title: str = "Streamplot",
+    label: str = "value",
     figsize: tuple = (8, 6),
     save_dir: str = None,
     show: bool = True,
@@ -194,6 +197,7 @@ def plot_mesh_streamplot(
         vectors: Vector values.
         domain: Domain of the values bounded, options: "point", "polygon".
         title: Title of the plot.
+        label: Label of the values.
         figsize: Figure size.
         save_dir: Directory to save the plot.
         show: Whether to show the plot.
@@ -219,9 +223,9 @@ def plot_mesh_streamplot(
     # Set values to the mesh
     domain = domain.lower()
     if domain == "point":
-        mesh.point_data["values"] = vectors
+        mesh.point_data[label] = vectors
     else:
-        mesh.cell_data["values"] = vectors
+        mesh.cell_data[label] = vectors
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -252,10 +256,12 @@ def plot_mesh_scatters(
     scalars: np.ndarray,
     *,
     title: str = "Scatters",
+    label: str = "value",
     figsize: tuple = (8, 6),
     save_dir: str = None,
     show: bool = True,
     cmap: str = "viridis",
+    show_edges: bool = False,
 ):
     """
     Plot contour with unstructured mesh.
@@ -264,10 +270,12 @@ def plot_mesh_scatters(
         points_coordinates: List of coordinates of points.
         scalars: Scalar values.
         title: Title of the plot.
+        label: Label of the values.
         figsize: Figure size.
         save_dir: Directory to save the plot.
         show: Whether to show the plot.
         cmap: Colormap of the plot.
+        show_edges: Whether to show edges.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -275,11 +283,11 @@ def plot_mesh_scatters(
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
     mesh = pv.PolyData(points)
-    mesh.point_data["values"] = scalars
+    mesh.point_data[label] = scalars
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
-    plotter.add_mesh(mesh, scalars="values", cmap=cmap)
+    plotter.add_mesh(mesh, scalars=label, cmap=cmap, show_edges=show_edges)
 
     plotter.add_axes()
     plotter.add_bounding_box()
