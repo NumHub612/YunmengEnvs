@@ -68,7 +68,7 @@ if __name__ == "__main__":
     nu = 0.07
 
     def ic_func(mesh: Mesh):
-        field = NodeField(mesh.node_count, Scalar())
+        field = NodeField(mesh.node_count, "scalar")
         for i in range(mesh.node_count):
             x = mesh.nodes[i].coordinate.x
             value = Scalar(func(0.0, x, nu))
@@ -95,10 +95,11 @@ if __name__ == "__main__":
 
     # set callback
     output_dir = "./tests/results"
-    cbs = [callbacks.RenderCallback(output_dir)]
+    cb = callbacks.RenderCallback(output_dir)
 
     # set solver
-    solver = fdm.Burgers1D("solver1", grid, cbs)
+    solver = fdm.Burgers1D("solver1", grid)
+    solver.set_callback(cb)
     solver.set_ic("u", ic)
     solver.set_bc("u", group1, bc)
 

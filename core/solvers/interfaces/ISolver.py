@@ -51,6 +51,13 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
+    def set_callback(self, callback: ISolverCallback):
+        """
+        Set the callback to be called during the solving process.
+        """
+        pass
+
+    @abstractmethod
     def set_ic(self, var: str, ic: IInitCondition):
         """
         Set the initial condition.
@@ -113,25 +120,19 @@ class BaseSolver(ISolver):
     Basic solver.
     """
 
-    def __init__(self, id: str, mesh: Mesh, callbacks: list = None):
+    def __init__(self, id: str, mesh: Mesh):
         """
         Initialize the solver.
 
         Args:
             id: The unique id of the solver instance.
             mesh: The mesh of the problem.
-            callbacks: The list of callbacks to be called during the solving process.
         """
         self._id = id
-        self._fields = {}
-
         self._mesh = mesh
 
         self._callbacks = []
-        for callback in callbacks or []:
-            if not isinstance(callback, ISolverCallback):
-                raise ValueError(f"Invalid callback: {callback}")
-            self._callbacks.append(callback)
+        self._fields = {}
 
         self._default_init = None
         self._ics = {}
@@ -147,6 +148,13 @@ class BaseSolver(ISolver):
             return None
 
         return self._fields[field_name]
+
+    def set_callback(self, callback: ISolverCallback):
+        if not isinstance(callback, ISolverCallback):
+            raise ValueError(f"Invalid callback: {callback}")
+
+        callback.setup(self.get_meta(), self._mesh)
+        self._callbacks.append(callback)
 
     def set_ic(self, var: str, ic: IInitCondition):
         if not isinstance(ic, IInitCondition):
