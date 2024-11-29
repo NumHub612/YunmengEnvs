@@ -5,6 +5,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 Geometric methods for mesh processing.
 """
 from core.numerics.mesh import Coordinate
+
+import numpy as np
 import math
 
 
@@ -73,3 +75,55 @@ def sort_coordinates_anticlockwise(coordinates: dict, ignored_axis: str = "z") -
 
     # Return the ids of the sorted coordinates
     return [coord_id for coord_id, _ in sorted_coordinates]
+
+
+def extract_coordinates_separated(mesh, element_type: str, dim: str = "xyz") -> tuple:
+    """Extract x-, y-, z-coordinates from mesh.
+
+    Args:
+        mesh: The mesh to extract coordinates from.
+        element_type: The element type, e.g. 'node', 'cell', 'face'.
+        dim: The dimensions to extract, can be 'xyz', 'xy', 'xz', 'yz', 'x', 'y', 'z'.
+
+    Returns:
+        Coordinates in specified dimensions.
+    """
+    etype = element_type.lower()
+    if etype not in ["node", "cell", "face"]:
+        raise ValueError(f"Invalid element type: {etype}.")
+
+    dim = dim.lower()
+    if dim not in ["xyz", "xy", "xz", "yz", "x", "y", "z"]:
+        raise ValueError(f"Invalid dimension: {dim}.")
+
+    elements_map = {"node": mesh.nodes, "cell": mesh.cells, "face": mesh.faces}
+    elements = elements_map.get(etype)
+
+    xs = np.array([e.coordiante.x for e in elements])
+    ys = np.array([e.coordiante.y for e in elements])
+    zs = np.array([e.coordiante.z for e in elements])
+
+    coordinate_map = {"x": xs, "y": ys, "z": zs}
+    coordinates = [coordinate_map.get(d) for d in dim]
+    return tuple(coordinates)
+
+
+def extract_coordinates(mesh, element_type: str) -> np.ndarray:
+    """Extract coordinates from mesh.
+
+    Args:
+        mesh: The mesh to extract coordinates from.
+        element_type: The element type, e.g. 'node', 'cell', 'face'.
+
+    Returns:
+        All coordinates.
+    """
+    etype = element_type.lower()
+    if etype not in ["node", "cell", "face"]:
+        raise ValueError(f"Invalid element type: {etype}.")
+
+    elements_map = {"node": mesh.nodes, "cell": mesh.cells, "face": mesh.faces}
+    elements = elements_map.get(etype)
+
+    coordinates = np.array([e.coordiante.to_np() for e in elements])
+    return coordinates
