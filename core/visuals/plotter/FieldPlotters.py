@@ -47,6 +47,9 @@ def plot_scalar_field(
         - For streamplot, `kwargs` can be used to specify
           the vector, e.g. "color", "mag", etc.
     """
+    if field.dtype != "scalar":
+        raise ValueError("Field must be a scalar field.")
+
     # plot 1d mesh special case
     if mesh.domain == "1d":
         x = GeoMethods.extract_coordinates_separated(mesh, field.etype, dim="x")
@@ -63,7 +66,7 @@ def plot_scalar_field(
         return
 
     # perpare the geometric data
-    points = GeoMethods.extract_coordinates(mesh, field.etype)
+    points = GeoMethods.extract_coordinates(mesh, "node")
 
     # plot 3d mesh special case
     if mesh.domain == "3d":
@@ -80,7 +83,8 @@ def plot_scalar_field(
 
     # plot 2d mesh
     topo = MeshTopo(mesh)
-    polygons = np.array([topo.collect_cell_nodes(i) for i in range(mesh.cell_count)])
+    polygons = [topo.collect_cell_nodes(i) for i in range(mesh.cell_count)]
+    domain = "point" if field.etype == "node" else "polygon"
 
     style = style.lower()
     if style == "cloudmap":
@@ -88,6 +92,7 @@ def plot_scalar_field(
             points,
             polygons,
             field.to_np(),
+            domain,
             save_dir=save_dir,
             show=show,
             title=title,
@@ -147,6 +152,9 @@ def plot_vector_field(
         - For streamplot, `kwargs` can be used to specify
           the vector, e.g. "color", "mag", etc.
     """
+    if field.dtype != "vector":
+        raise ValueError("Field must be a vector field.")
+
     # split the vector field into components
     values = field.to_np()
     us = values[:, 0]
@@ -171,7 +179,7 @@ def plot_vector_field(
         return
 
     # perpare the geometric data
-    points = GeoMethods.extract_coordinates(mesh, field.etype)
+    points = GeoMethods.extract_coordinates(mesh, "node")
 
     # plot 3d mesh special case
     if mesh.domain == "3d":
@@ -189,7 +197,8 @@ def plot_vector_field(
 
     # plot 2d mesh
     topo = MeshTopo(mesh)
-    polygons = np.array([topo.collect_cell_nodes(i) for i in range(mesh.cell_count)])
+    polygons = [topo.collect_cell_nodes(i) for i in range(mesh.cell_count)]
+    domain = "point" if field.etype == "node" else "polygon"
 
     style = style.lower()
     if style == "cloudmap":
@@ -197,6 +206,7 @@ def plot_vector_field(
             points,
             polygons,
             data_map.get(dimension),
+            domain,
             save_dir=save_dir,
             show=show,
             title=title,
@@ -220,6 +230,7 @@ def plot_vector_field(
             points,
             polygons,
             values,
+            domain,
             save_dir=save_dir,
             show=show,
             title=title,
@@ -228,3 +239,105 @@ def plot_vector_field(
         )
     else:
         raise ValueError(f"Unsupported style: {style}")
+
+
+if __name__ == "__main__":
+    from core.numerics.mesh import Coordinate, Grid2D
+
+    # set mesh
+    low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
+    nx, ny = 41, 41
+    grid = Grid2D(low_left, upper_right, nx, ny)
+
+    scalar_values_n = np.array([np.random.rand(1) for i in range(grid.node_count)])
+    vector_values_n = np.random.rand(grid.node_count, 3)
+    vector_values_n[:, 2] = 0.0
+
+    scalar_values_c = np.array([np.random.rand(1) for i in range(grid.cell_count)])
+    vector_values_c = np.random.rand(grid.cell_count, 3)
+    vector_values_c[:, 2] = 0.0
+
+    # plot scalar field
+    scaler_field_n = Field.from_np(scalar_values_n, "node")
+
+    plot_scalar_field(
+        scaler_field_n,
+        grid,
+        title="Node Scalar Field1",
+        label="value",
+        style="cloudmap",
+        save_dir=None,
+        show=True,
+    )
+
+    plot_scalar_field(
+        scaler_field_n,
+        grid,
+        title="Node Scalar Field2",
+        label="value",
+        style="scatter",
+        save_dir=None,
+        show=True,
+    )
+
+    scaler_field_c = Field.from_np(scalar_values_c, "cell")
+
+    plot_scalar_field(
+        scaler_field_c,
+        grid,
+        title="Cell Scalar Field",
+        label="value",
+        style="cloudmap",
+        save_dir=None,
+        show=True,
+    )
+
+    # plot vector field
+    vector_field_n = Field.from_np(vector_values_n, "node")
+
+    plot_vector_field(
+        vector_field_n,
+        grid,
+        title="Node Vector Field1",
+        label="u",
+        style="cloudmap",
+        save_dir=None,
+        show=True,
+        dimension="x",
+    )
+
+    plot_vector_field(
+        vector_field_n,
+        grid,
+        title="Node Vector Field2",
+        label="v",
+        style="scatter",
+        save_dir=None,
+        show=True,
+        dimension="y",
+    )
+
+    plot_vector_field(
+        vector_field_n,
+        grid,
+        title="Node Vector Field3",
+        label="value",
+        style="streamplot",
+        save_dir=None,
+        show=True,
+        color="b",
+        mag=0.1,
+    )
+
+    vector_field_c = Field.from_np(vector_values_c, "cell")
+
+    plot_vector_field(
+        vector_field_c,
+        grid,
+        title="Cell Vector Field",
+        label="u",
+        style="cloudmap",
+        save_dir=None,
+        show=True,
+        dimension="x",
+    )

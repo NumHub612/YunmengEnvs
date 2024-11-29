@@ -99,9 +99,9 @@ def extract_coordinates_separated(mesh, element_type: str, dim: str = "xyz") -> 
     elements_map = {"node": mesh.nodes, "cell": mesh.cells, "face": mesh.faces}
     elements = elements_map.get(etype)
 
-    xs = np.array([e.coordiante.x for e in elements])
-    ys = np.array([e.coordiante.y for e in elements])
-    zs = np.array([e.coordiante.z for e in elements])
+    xs = np.array([e.coordinate.x for e in elements])
+    ys = np.array([e.coordinate.y for e in elements])
+    zs = np.array([e.coordinate.z for e in elements])
 
     coordinate_map = {"x": xs, "y": ys, "z": zs}
     coordinates = [coordinate_map.get(d) for d in dim]
@@ -125,5 +125,5 @@ def extract_coordinates(mesh, element_type: str) -> np.ndarray:
     elements_map = {"node": mesh.nodes, "cell": mesh.cells, "face": mesh.faces}
     elements = elements_map.get(etype)
 
-    coordinates = np.array([e.coordiante.to_np() for e in elements])
+    coordinates = np.array([e.coordinate.to_np() for e in elements])
     return coordinates
