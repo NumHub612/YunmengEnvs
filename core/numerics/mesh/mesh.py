@@ -4,7 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh import Coordinate, utils
+from core.numerics.GeoMethods import sort_coordinates_anticlockwise
+from core.numerics.mesh import Coordinate
 from core.numerics.fields import Vector
 from configs.settings import logger
 
@@ -303,9 +304,7 @@ class MeshTopo:
 
             for i, ids in enumerate(cell_nodes):
                 coords = [self._mesh.nodes[nid].coordinate for nid in ids]
-                sorted_nodes = utils.sort_coordinates_anticlockwise(
-                    dict(zip(ids, coords))
-                )
+                sorted_nodes = sort_coordinates_anticlockwise(dict(zip(ids, coords)))
                 cell_nodes[i] = sorted_nodes
 
             self._cell_nodes = cell_nodes

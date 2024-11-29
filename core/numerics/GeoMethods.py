@@ -2,7 +2,7 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
 
-Mesh utils.
+Geometric methods for mesh processing.
 """
 from core.numerics.mesh import Coordinate
 import math
