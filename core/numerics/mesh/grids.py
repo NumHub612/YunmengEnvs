@@ -119,7 +119,7 @@ class Grid1D(Grid):
     The 1d grid is a special case of mesh, somehow it is viered.
     """
 
-    def __init__(self, start_coord: Coordinate, end_coord: Coordinate, num: int):
+    def __init__(self, start: Coordinate, end: Coordinate, num: int):
         """
         Initialize a 1D uniform structured grid.
 
@@ -131,7 +131,7 @@ class Grid1D(Grid):
         super().__init__()
         self._nx = num
 
-        self._generate(start_coord, end_coord, num)
+        self._generate(start, end, num)
 
     def _generate(self, start, end, num):
         # generate nodes
@@ -343,10 +343,27 @@ class Grid2D(Grid):
         return north, south, east, west, None, None
 
 
-class Grid3D(Mesh):
+class Grid3D(Grid):
     """3D structured grid."""
 
-    def __init__(self, start, end, num):
+    def __init__(
+        self,
+        lower_left_front: Coordinate,
+        upper_right_back: Coordinate,
+        num_x: int,
+        num_y: int,
+        num_z: int,
+    ):
+        """
+        Initialize a 3D structured grid.
+
+        Args:
+            lower_left_front: The lower left front corner of the grid.
+            upper_right_back: The upper right back corner of the grid.
+            num_x: The number of nodes in the x-direction.
+            num_y: The number of nodes in the y-direction.
+            num_z: The number of nodes in the z-direction.
+        """
         pass
 
     @property
@@ -354,11 +371,31 @@ class Grid3D(Mesh):
         pass
 
     @property
-    def extents(self) -> list:
-        pass
+    def nx(self) -> int:
+        return self._nx
+
+    @property
+    def ny(self) -> int:
+        return self._ny
+
+    @property
+    def nz(self) -> int:
+        return None
 
     def refine_cell(self, index: int):
         pass
 
     def relax_cell(self, index: int):
+        pass
+
+    def match_node(self, i: int, j: int, k: int = None) -> int:
+        pass
+
+    def match_cell(self, i: int, j: int, k: int = None) -> int:
+        pass
+
+    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+        pass
+
+    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
         pass
