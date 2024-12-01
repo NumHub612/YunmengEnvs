@@ -111,6 +111,8 @@ def plot_mesh(
     save_dir: str = None,
     show: bool = True,
     show_edges: bool = False,
+    slice: str | tuple = None,
+    origin: tuple = None,
 ):
     """
     Plot 2d mesh with unstructured mesh.
@@ -123,6 +125,8 @@ def plot_mesh(
         save_dir: Directory to save the plot.
         show: Whether to show the plot.
         show_edges: Whether to show edges.
+        slice: Slice of the mesh, options: "x", "y", "z".
+        origin: Origin of the slice.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -138,6 +142,8 @@ def plot_mesh(
     types = np.array(types)
 
     mesh = pv.UnstructuredGrid(faces, types, points)
+    if slice and origin:
+        mesh = mesh.slice(normal=slice, origin=origin)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -172,6 +178,8 @@ def plot_mesh_cloudmap(
     show: bool = True,
     cmap: str = "coolwarm",
     show_edges: bool = False,
+    slice: str | tuple = None,
+    origin: tuple = None,
 ):
     """
     Plot cloudmap with unstructured mesh.
@@ -188,6 +196,8 @@ def plot_mesh_cloudmap(
         show: Whether to show the plot.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
+        slice: Slice of the mesh, options: "x", "y", "z" or vector.
+        origin: Origin of the slice.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -210,6 +220,9 @@ def plot_mesh_cloudmap(
         mesh.point_data[label] = scalars
     else:
         mesh.cell_data[label] = scalars
+
+    if slice and origin:
+        mesh = mesh.slice(normal=slice, origin=origin)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -245,6 +258,8 @@ def plot_mesh_streamplot(
     color: str = "red",
     mag: float = 0.1,
     show_edges: bool = False,
+    slice: str | tuple = None,
+    origin: tuple = None,
 ):
     """
     Plot streamplot with unstructured mesh.
@@ -262,6 +277,8 @@ def plot_mesh_streamplot(
         color: Color of the arrows.
         mag: Magnitude of the arrows.
         show_edges: Whether to show edges.
+        slice: Slice of the mesh, options: "x", "y", "z" or vector.
+        origin: Origin of the slice.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -284,6 +301,9 @@ def plot_mesh_streamplot(
         mesh.point_data[label] = vectors
     else:
         mesh.cell_data[label] = vectors
+
+    if slice and origin:
+        mesh = mesh.slice(normal=slice, origin=origin)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -320,6 +340,8 @@ def plot_mesh_scatters(
     show: bool = True,
     cmap: str = "viridis",
     show_edges: bool = False,
+    slice: str | tuple = None,
+    origin: tuple = None,
 ):
     """
     Plot contour with unstructured mesh.
@@ -334,6 +356,8 @@ def plot_mesh_scatters(
         show: Whether to show the plot.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
+        slice: Slice of the mesh.
+        origin: Origin of the slice.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -342,6 +366,9 @@ def plot_mesh_scatters(
     points = points_coordinates.astype(np.float32)
     mesh = pv.PolyData(points)
     mesh.point_data[label] = scalars
+
+    if slice and origin:
+        mesh = mesh.slice(normal=slice, origin=origin)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -406,6 +433,8 @@ if __name__ == "__main__":
         title="2D Cloudmap",
         # show=False,
         show=True,
+        slice="x",
+        origin=(0.5, 0.5, 0.0),
     )
 
     plot_mesh_cloudmap(
