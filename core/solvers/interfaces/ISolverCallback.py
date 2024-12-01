@@ -12,6 +12,14 @@ class ISolverCallback(ABC):
     Interface for callback class for reporting solving process.
     """
 
+    @classmethod
+    @abstractmethod
+    def get_name(cls) -> str:
+        """
+        The unique name of the callback method.
+        """
+        pass
+
     @abstractmethod
     def setup(self, solver_meta: dict, mesh: object):
         """

@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # set initial condition
     node_num = grid.node_count
-    init_field = NodeField(node_num, Vector(1, 1))
+    init_field = NodeField(node_num, "vector", Vector(1, 1))
     for i in init_groups:
         init_field[i] = Vector(2, 2)
 
@@ -69,16 +69,21 @@ if __name__ == "__main__":
     bc = boundary_conditions["constant"]("bc1", bc_value, None)
 
     # set callback
-    cbs = [callback_handlers["RenderCallback"]()]
+    output_dir = "./tests/results"
+    confs = {
+        "vel": {"style": "cloudmap", "dimension": "x"},
+    }
+    cb = callback_handlers["render"](output_dir, confs)
 
     # set solver
-    solver = solver_routines["fdm"]["burgers2d"]("solver1", grid, cbs)
+    solver = solver_routines["fdm"]["burgers2d"]("solver1", grid)
+    solver.set_callback(cb)
     solver.set_ic("vel", ic)
     solver.set_bc("vel", bc_groups, bc)
 
     sigma = 0.2
     dt = sigma * dx
-    nb_steps = 12
+    nb_steps = 60
     solver.initialize(nb_steps, sigma=sigma)
 
     # run solver
@@ -88,3 +93,10 @@ if __name__ == "__main__":
 
     # get solution
     u_simu = solver.get_solution("vel")
+
+    # results player
+    from core.visuals.animator import ImageSetPlayer
+
+    results_dir = "./tests/results/vel"
+    player = ImageSetPlayer(results_dir)
+    player.play()
