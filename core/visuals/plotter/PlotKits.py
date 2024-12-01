@@ -102,6 +102,63 @@ def plot_data_series(
     plt.close()
 
 
+def plot_mesh(
+    points_coordinates: np.ndarray,
+    polygons: np.ndarray,
+    *,
+    title: str = "Mesh",
+    figsize: tuple = (8, 6),
+    save_dir: str = None,
+    show: bool = True,
+    show_edges: bool = False,
+):
+    """
+    Plot 2d mesh with unstructured mesh.
+
+    Args:
+        points_coordinates: List of coordinates of points.
+        polygons: Polygons of the mesh.
+        title: Title of the plot.
+        figsize: Figure size.
+        save_dir: Directory to save the plot.
+        show: Whether to show the plot.
+        show_edges: Whether to show edges.
+
+    Notes:
+        - `show` and `save_dir` are mutually exclusive.
+    """
+    # Create a pyvista mesh object
+    points = points_coordinates.astype(np.float32)
+
+    faces, types = [], []
+    for polygon in polygons:
+        faces.append([len(polygon)] + polygon)
+        types.append(vtk.VTK_POLYGON)
+    faces = np.concatenate(faces)
+    types = np.array(types)
+
+    mesh = pv.UnstructuredGrid(faces, types, points)
+
+    # Create a plotter object
+    plotter = pv.Plotter(off_screen=not show, title=title)
+    plotter.add_mesh(mesh, show_edges=show_edges)
+    plotter.add_axes()
+    plotter.add_bounding_box()
+    plotter.view_isometric()
+
+    # Set title and save plot
+    if save_dir and not show:
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_path = os.path.join(save_dir, f"{title}.png")
+
+        winsize = (figsize[0] * 100, figsize[1] * 100)
+        plotter.screenshot(save_path, window_size=winsize)
+    if show:
+        plotter.show()
+    plotter.close()
+
+
 def plot_mesh_cloudmap(
     points_coordinates: np.ndarray,
     polygons: np.ndarray,
