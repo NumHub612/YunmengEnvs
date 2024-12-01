@@ -54,19 +54,14 @@ class Burgers2D(BaseSolver):
             "end_time": self._total_time,
         }
 
-    def __init__(self, id: str, mesh: Mesh, callbacks: list = None):
+    def __init__(self, id: str, mesh: Mesh):
         """
         Initialize the solver.
-
-        Args:
-            id: The unique id of the solver instance.
-            mesh: The mesh of the problem.
-            callbacks: The list of callbacks.
         """
-        super().__init__(id, mesh, callbacks)
+        super().__init__(id, mesh)
 
         if not isinstance(mesh, Grid2D):
-            raise ValueError("The mesh domain must be 2D.")
+            raise ValueError("The mesh domain must be 2D grid.")
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
@@ -88,7 +83,7 @@ class Burgers2D(BaseSolver):
             time_steps: The total time steps of the simulation.
             nu: The viscosity of the Burgers equation.
         """
-        self._fields = {"vel": NodeField(self._mesh.node_count, Vector())}
+        self._fields = {"vel": NodeField(self._mesh.node_count, "vector")}
 
         # Check initial conditions
         if "vel" not in self._ics:
@@ -116,8 +111,7 @@ class Burgers2D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.setup(self.get_meta(), self._mesh)
-            callback.on_task_begin(self._fields)
+            callback.on_task_begin(self._fields, self._t)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -145,7 +139,8 @@ class Burgers2D(BaseSolver):
 
         # Update interior nodes
         for node in self._topo.interior_nodes_indexes:
-            eid, wid, nid, sid = self._calc_grid_indexes(node)
+            nid, sid, eid, wid, _, _ = self._mesh.retrieve_node_neighborhoods(node)
+            # eid, wid, nid, sid = self._calc_grid_indexes(node)
             p = u[node]
             e, w, n, s = u[eid], u[wid], u[nid], u[sid]
 
@@ -167,7 +162,7 @@ class Burgers2D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step(self._fields)
+            callback.on_step(self._fields, self._t)
 
         return self._t >= self._total_time, False, self.status
 

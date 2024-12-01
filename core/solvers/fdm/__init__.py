@@ -1,3 +1,4 @@
+from core.solvers.interfaces.ISolver import ISolver
 from core.solvers.fdm.Burgers1D import *
 from core.solvers.fdm.Burgers2D import *
 

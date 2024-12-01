@@ -68,9 +68,9 @@ if __name__ == "__main__":
     nu = 0.07
 
     def ic_func(mesh: Mesh):
-        field = NodeField(mesh.node_count, Scalar())
+        field = NodeField(mesh.node_count, "scalar")
         for i in range(mesh.node_count):
-            x = mesh.nodes[i].coord.x
+            x = mesh.nodes[i].coordinate.x
             value = Scalar(func(0.0, x, nu))
             field[i] = value
         return field
@@ -88,16 +88,18 @@ if __name__ == "__main__":
     }
 
     def bc_func(t, node: Node):
-        value = Scalar(func(t, node.coord.x, nu))
+        value = Scalar(func(t, node.coordinate.x, nu))
         return None, value
 
     bc = boundaries.CustomBoundary("bc1", bc_func)
 
     # set callback
-    cbs = [callbacks.RenderCallback()]
+    output_dir = "./tests/results"
+    cb = callbacks.RenderCallback(output_dir)
 
     # set solver
-    solver = fdm.Burgers1D("solver1", grid, cbs)
+    solver = fdm.Burgers1D("solver1", grid)
+    solver.set_callback(cb)
     solver.set_ic("u", ic)
     solver.set_bc("u", group1, bc)
 
@@ -139,6 +141,13 @@ if __name__ == "__main__":
     u_simu = solver.get_solution("u")
     u_simu = np.asarray([var.value for var in u_simu])
     u_real = np.asarray([func(solver.total_time, x, nu) for x in xs])
+
+    # results player
+    from core.visuals.animator import ImageSetPlayer
+
+    results_dir = "./tests/results/u"
+    player = ImageSetPlayer(results_dir)
+    player.play()
 
     # plot results
     # plt.figure(figsize=(11, 7), dpi=100)

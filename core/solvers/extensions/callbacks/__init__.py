@@ -9,4 +9,4 @@ for name, obj in list(locals().items()):
             continue
         if name in callback_handlers:
             raise ValueError(f"Duplicated solver callback: {name}.")
-        callback_handlers[name] = obj
+        callback_handlers[obj.get_name()] = obj

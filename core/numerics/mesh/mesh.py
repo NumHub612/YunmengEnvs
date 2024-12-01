@@ -4,6 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Abstract mesh class for describing the geometry and topology.
 """
+from core.numerics.GeoMethods import sort_coordinates_anticlockwise
 from core.numerics.mesh import Coordinate
 from core.numerics.fields import Vector
 from configs.settings import logger
@@ -15,8 +16,9 @@ import numpy as np
 class Mesh(ABC):
     """Abstract mesh class for describing the topology.
 
-    NOTE:
-        - Don't support isolated element, no check yet.
+    Notes:
+        - Don't support isolated element.
+        - Require all elements to be continuously encoded.
     """
 
     def __init__(self):
@@ -233,7 +235,7 @@ class MeshTopo:
     # -----------------------------------------------
 
     def collect_node_neighbours(self, node_index: int) -> list:
-        """Collect the neighbours of given node."""
+        """Collect the neighbours indexes of given node."""
         if self._node_neighbours is None:
             node_neighbours = [[] for _ in range(self._mesh.node_count)]
             if self._mesh.domain == "1d":
@@ -299,6 +301,12 @@ class MeshTopo:
                     for nid in self._mesh.faces[fid].nodes:
                         cell_nodes[cell.id].append(nid)
             cell_nodes = [list(set(nodes)) for nodes in cell_nodes]
+
+            for i, ids in enumerate(cell_nodes):
+                coords = [self._mesh.nodes[nid].coordinate for nid in ids]
+                sorted_nodes = sort_coordinates_anticlockwise(dict(zip(ids, coords)))
+                cell_nodes[i] = sorted_nodes
+
             self._cell_nodes = cell_nodes
         return self._cell_nodes[cell_index]
 
@@ -324,7 +332,7 @@ class MeshTopo:
         """Search the k nearest nodes to the given coordinate."""
         distances = []
         for node in self._mesh.nodes:
-            dist = np.linalg.norm(node.coord.to_np() - coord.to_np())
+            dist = np.linalg.norm(node.coordinate.to_np() - coord.to_np())
             if dist <= max_dist:
                 distances.append(node.id)
         distances.sort(key=lambda x: x)
@@ -398,11 +406,11 @@ class MeshGeom:
     def statistics_node_attribute(self, attribute: str) -> tuple:
         """Calculate the (min, max, avg) of the given attribute for nodes."""
         attribute = attribute.lower()
-        if not hasattr(self._mesh.nodes[0].coord, attribute):
+        if not hasattr(self._mesh.nodes[0].coordinate, attribute):
             raise ValueError(f"Attribute {attribute} not found in nodes.")
 
         if attribute not in self._stats["node"]:
-            values = [getattr(node.coord, attribute) for node in self._mesh.nodes]
+            values = [getattr(node.coordinate, attribute) for node in self._mesh.nodes]
             self._stats["node"][attribute] = (
                 min(values),
                 max(values),
@@ -495,7 +503,7 @@ class MeshGeom:
                 for j in topos.collect_cell_nodes(i):
                     dist = np.linalg.norm(
                         self._mesh.cells[i].center.to_np()
-                        - self._mesh.nodes[j].coord.to_np()
+                        - self._mesh.nodes[j].coordinate.to_np()
                     )
                     cell_node_dists[i][j] = dist
 
@@ -516,8 +524,8 @@ class MeshGeom:
             for i in range(node_num):
                 for j in topos.collect_node_neighbours(i):
                     dist = np.linalg.norm(
-                        self._mesh.nodes[i].coord.to_np()
-                        - self._mesh.nodes[j].coord.to_np()
+                        self._mesh.nodes[i].coordinate.to_np()
+                        - self._mesh.nodes[j].coordinate.to_np()
                     )
                     node_dists[i][j] = dist
                     node_dists[j][i] = dist

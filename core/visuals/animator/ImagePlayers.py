@@ -4,10 +4,14 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Image Players for displaying images in the animation.
 """
-from core.numerics.fields import Field
-from core.numerics.mesh import Mesh
-
+from typing import Callable
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import imageio.v2 as imageio
+import os
+
+plt.rcParams["font.sans-serif"] = ["SimHei"]
+plt.rcParams["axes.unicode_minus"] = False
 
 
 class ImageStreamPlayer:
@@ -15,53 +19,7 @@ class ImageStreamPlayer:
     A class for displaying images stream in the animation.
     """
 
-    def __init__(self, title: str, color: str = "g", pause: float = 0.1):
-        plt.ion()
-        self._title = title
-        self._graph = None
-        self._pause = pause
-        self._color = color
-
-    def __del__(self):
-        plt.ioff()
-        plt.close()
-
-    def update(self, field: Field, mesh: Mesh = None):
-        """
-        Update the image stream.
-        """
-        plt.rcParams["font.sans-serif"] = ["SimHei"]
-        plt.rcParams["axes.unicode_minus"] = False
-
-        if field.dtype == "tensor":
-            raise ValueError("ImageStreamPlayer not support tensor fields yet.")
-
-        if self._graph is not None:
-            self._graph.remove()
-
-        if field.dtype == "scalar":
-            values = [e.value for e in field]
-            self._graph = plt.plot(values, color=self._color)[0]
-        else:
-            elements = None
-            if field.etype == "node":
-                elements = [node.coord for node in mesh.nodes]
-            elif field.etype == "face":
-                elements = [face.center for face in mesh.faces]
-            elif field.etype == "cell":
-                elements = [cell.center for cell in mesh.cells]
-
-            X = [e.x for e in elements]
-            Y = [e.y for e in elements]
-
-            values = field.to_np()
-            U = [v.x for v in values]
-            V = [v.y for v in values]
-            W = [v.z for v in values]
-            self._graph = plt.quiver(X, Y, U, V, W, color=self._color)
-
-        plt.title(self._title)
-        plt.pause(self._pause)
+    pass
 
 
 class ImageSetPlayer:
@@ -69,23 +27,85 @@ class ImageSetPlayer:
     A class for displaying images set in the animation.
     """
 
-    pass
+    IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+
+    def __init__(
+        self,
+        image_dir: str,
+        image_filter: Callable = None,
+        figure_size: tuple = (10, 5),
+        pause: float = 20,
+    ):
+        self._image_dir = image_dir
+        self._filter = image_filter
+        self._pause = pause
+        self._images = [imageio.imread(f) for f in self.update_images()]
+
+        # initialize the figure and axes
+        self._fig, self._ax = plt.subplots(figsize=figure_size)
+        self._ax.axis("off")
+
+    def update_images(self) -> list:
+        """
+        Update the image set.
+
+        Returns:
+            Image file paths.
+        """
+        # retrieve all image files in the directory
+        image_files = []
+        for f in os.listdir(self._image_dir):
+            fpath = os.path.join(self._image_dir, f)
+            if not os.path.isfile(fpath):
+                continue
+            if not fpath.lower().endswith(self.IMAGE_TYPES):
+                continue
+            image_files.append(fpath)
+
+        # sort the image files by time
+        image_files.sort(key=os.path.getmtime)
+
+        # filter the image files
+        if self._filter is not None:
+            image_files = self._filter(image_files)
+
+        return image_files
+
+    def play(self):
+        """
+        Play the image set.
+        """
+
+        def _init():
+            self._ax.clear()
+            return (self._ax,)
+
+        def _update(frame):
+            self._ax.clear()
+            self._ax.imshow(self._images[frame])
+            return (self._ax,)
+
+        ani = FuncAnimation(
+            self._fig,
+            _update,
+            init_func=_init,
+            frames=len(self._images),
+            interval=self._pause,
+            blit=True,
+            repeat=False,
+        )
+
+        plt.show()
+        plt.close()
 
 
 if __name__ == "__main__":
     from core.numerics.fields import NodeField, Scalar
     import random
 
-    player = ImageStreamPlayer("Image Stream")
-    field = NodeField(100, Scalar(1))
+    # Test ImageStreamPlayer
 
-    num = 0
-    while True:
-        if num == 20:
-            break
-        num += 1
-
-        player.update(field)
-
-        for i in random.sample(range(100), 10):
-            field[i] = Scalar(random.random())
+    # Test ImageSetPlayer
+    img_dir = r".\tests\\results"
+    player = ImageSetPlayer(img_dir, pause=0.01)
+    player.play()

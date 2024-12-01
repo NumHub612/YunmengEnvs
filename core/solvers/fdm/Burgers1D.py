@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 Solving the 1D Burgers equation using finite difference method.
 """
 from core.solvers.interfaces import (
-    ISolver,
+    BaseSolver,
     IInitCondition,
     IBoundaryCondition,
     ISolverCallback,
@@ -17,7 +17,7 @@ from core.numerics.fields import Field, NodeField, Scalar
 import copy
 
 
-class Burgers1D(ISolver):
+class Burgers1D(BaseSolver):
     """
     Solver of the 1D Burgers equation using finite difference method.
     """
@@ -47,40 +47,24 @@ class Burgers1D(ISolver):
         )
         return metas
 
-    def __init__(self, id: str, mesh: Mesh, callbacks: list = None):
+    def __init__(self, id: str, mesh: Mesh):
         """
         Constructor of the Burgers1D solver.
-
-        Args:
-            id: The id of the solver.
-            mesh: The mesh of the problem.
-            callbacks: The callbacks to be called during the solving process.
         """
+        super().__init__(id, mesh)
         if mesh.domain != "1d":
             raise ValueError("The domain of the mesh must be 1D.")
 
-        self._id = id
-        self._mesh = mesh
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
 
-        self._callbacks = []
-        for callback in callbacks or []:
-            if not isinstance(callback, ISolverCallback):
-                raise ValueError(f"Invalid callback: {callback}")
-            self._callbacks.append(callback)
-
         self._default_init = UniformInitialization("default", Scalar(0.0))
-        self._default_bc = None
+        self._fields = {"u": NodeField(mesh.node_count, "scalar")}
 
         self._total_time = 0.0
         self._dt = 0.0
         self._t = 0.0
         self._nu = 0.07
-
-        self._fields = {"u": NodeField(mesh.node_count, Scalar())}
-        self._ics = {}
-        self._bcs = {}
 
     @property
     def id(self) -> str:
@@ -101,24 +85,6 @@ class Burgers1D(ISolver):
     @property
     def total_time(self) -> float:
         return self._total_time
-
-    def get_solution(self, field_name: str) -> Field:
-        if field_name not in self._fields:
-            return None
-
-        return self._fields[field_name]
-
-    def set_ic(self, var: str, ic: IInitCondition):
-        self._ics[var] = ic
-
-    def set_bc(self, var: str, elems: list, bc: IBoundaryCondition):
-        if any(not isinstance(elem, Node) for elem in elems):
-            raise ValueError("The boundary condition can only be applied to nodes.")
-
-        for node in elems:
-            if node.id not in self._bcs:
-                self._bcs[node.id] = {}
-            self._bcs[node.id][var] = bc
 
     def initialize(self, time_steps: int, nu: float = 0.07):
         """
@@ -142,7 +108,6 @@ class Burgers1D(ISolver):
 
         # run callbacks
         for callback in self._callbacks:
-            callback.setup(self.get_meta())
             callback.on_task_begin(self._fields)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
@@ -191,12 +156,3 @@ class Burgers1D(ISolver):
             callback.on_step(self._fields)
 
         return self._t >= self._total_time, False, self.status
-
-    def optimize(self):
-        raise NotImplementedError("Optimization is not supported for this solver.")
-
-    def reset(self):
-        raise NotImplementedError("Reset is not supported for this solver.")
-
-    def terminate(self):
-        raise NotImplementedError("Termination is not supported for this solver.")

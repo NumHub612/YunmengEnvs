@@ -4,11 +4,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 Fields definition.
 """
+from core.numerics.fields.variables import Variable, Scalar, Vector, Tensor
+
 from abc import abstractmethod
 from typing import Callable, Union, List
 import numpy as np
-
-from core.numerics.fields.variables import Variable, Scalar
 
 
 class Field:
@@ -16,17 +16,39 @@ class Field:
     Abstract field class.
     """
 
-    def __init__(self, num_vars: int, default: Variable):
+    def __init__(
+        self,
+        variable_num: int,
+        element_type: str,
+        data_type: str,
+        default: Scalar | Vector | Tensor = None,
+    ):
         """
         Initialize the field with a given number of variables and a default value.
 
         Args:
-            num_vars: The number of variables in the field.
-            default: The default value of each variable.
+            variable_num: The number of variables in the field.
+            data_type: The data type, e.g. "scalar", "vector", "tensor".
+            element_type: The element type, e.g. "cell", "face", "node".
         """
-        self._num_vars = num_vars
+        element_type = element_type.lower()
+        if element_type not in ["cell", "face", "node"]:
+            raise ValueError(f"Invalid element type: {element_type}")
+        self._etype = element_type
+
+        data_type = data_type.lower()
+        if data_type not in ["scalar", "vector", "tensor"]:
+            raise ValueError(f"Invalid data type: {data_type}")
+        self._dtype = data_type
+
+        if default and default.rank != self._dtype:
+            raise ValueError(f"Conflicting default value type: {default.rank}")
+        if default is None:
+            type_map = {"scalar": Scalar, "vector": Vector, "tensor": Tensor}
+            default = type_map[data_type]()
         self._default = default
-        self._values = np.full(num_vars, default)
+
+        self._values = np.full(variable_num, default)
 
     # -----------------------------------------------
     # --- Properties and auxiliary methods ---
@@ -37,39 +59,53 @@ class Field:
         """
         Get the data type of the field, e.g. "scalar", "vector", "tensor".
         """
-        return self._default.rank
+        return self._dtype
 
     @property
-    @abstractmethod
     def etype(self) -> str:
         """
         Get the element type of the field, e.g. "cell", "face", "node".
         """
-        raise NotImplementedError
+        return self._etype
 
     @classmethod
-    def from_np(cls, values: np.ndarray) -> "Field":
+    def from_np(cls, values: np.ndarray, element_type: str) -> "Field":
         """
         Create a field from a numpy array.
+
+        Notes:
+            - If values.shape[1] == 1, the field is a scalar field.
+            - If values.shape[1] == 3, the field is a vector field.
+            - If values.shape[1] == 9, the field is a tensor field
         """
-        if values.ndim != 1:
-            raise ValueError("Numpy array must be 1-dimensional")
+        element_type = element_type.lower()
+        if element_type not in ["cell", "face", "node"]:
+            raise ValueError(f"Invalid element type: {element_type}")
 
-        for v in values:
-            if not isinstance(v, Variable):
-                raise TypeError("Mst contain Variable objects")
-            if v.rank != values[0].rank:
-                raise TypeError("Must contain variables of the same rank")
+        if values.ndim != 2:
+            raise ValueError(f"Invalid data shape: {values.shape}")
 
-        field = cls(values.size, values[0].unit)
-        field._values = values
+        if values.shape[1] == 1:
+            data = np.array([Scalar.from_np(v) for v in values])
+            dtype = "scalar"
+        elif values.shape[1] == 3:
+            data = np.array([Vector.from_np(v) for v in values])
+            dtype = "vector"
+        elif values.shape[1] == 9:
+            data = np.array([Tensor.from_np(v.reshape(3, 3)) for v in values])
+            dtype = "tensor"
+        else:
+            raise ValueError(f"Invalid data shape: {values.shape}")
+
+        field = cls(values.size, element_type, dtype)
+        field._values = data
         return field
 
     def to_np(self) -> np.ndarray:
         """
         Convert the field to a numpy array.
         """
-        return self._values
+        return np.array([v.to_np().flatten() for v in self._values])
 
     def filter(self, func: Callable) -> List[int]:
         """
@@ -102,7 +138,7 @@ class Field:
         if not callable(func):
             raise TypeError(f"Invalid function type: {type(func)}")
 
-        for i in range(self._num_vars):
+        for i in range(self._values.size):
             res = func(self._values[i])
             if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
@@ -120,7 +156,7 @@ class Field:
 
         min_index = min(indexes)
         max_index = max(indexes)
-        if min_index < 0 or max_index >= self._num_vars:
+        if min_index < 0 or max_index >= self._values.size:
             raise IndexError(f"Index out of range: {min_index}/{max_index}")
 
         for i in indexes:
@@ -148,7 +184,7 @@ class Field:
                     f"Invalid value type: {other.dtype} (expected {self.dtype})"
                 )
 
-            self._values = np.full(self._num_vars, other)
+            self._values = np.full(self._values.size, other)
         else:
             raise TypeError(f"Can't assign {type(other)} to field")
 
@@ -160,7 +196,7 @@ class Field:
         """
         Get the value of the field at a given position.
         """
-        if index < 0 or index >= self._num_vars:
+        if index < 0 or index >= self._values.size:
             raise IndexError(f"Index out of range: {index}")
 
         return self._values[index]
@@ -169,7 +205,7 @@ class Field:
         """
         Set the value of the field at a given position.
         """
-        if index < 0 or index >= self._num_vars:
+        if index < 0 or index >= self._values.size:
             raise IndexError(f"Index out of range: {index}")
 
         if value.rank != self._default.rank:
@@ -183,13 +219,13 @@ class Field:
         """
         Get the number of variables in the field.
         """
-        return self._num_vars
+        return self._values.size
 
     def __iter__(self):
         """
         Iterate over the variables in the field.
         """
-        for i in range(self._num_vars):
+        for i in range(self._values.size):
             yield self._values[i]
 
     # -----------------------------------------------
@@ -200,7 +236,7 @@ class Field:
         """
         Check if two fields are compatible for arithmetic operations.
         """
-        if self._num_vars != other._num_vars:
+        if self._values.size != other._values.size:
             raise ValueError("Fields must have the same number of variables")
 
         if self.dtype != other.dtype:
@@ -219,7 +255,9 @@ class Field:
             except (ValueError, TypeError) as e:
                 raise TypeError(f"Cannot add fields: {e}")
 
-            result = self.__class__(self._num_vars, self._default)
+            result = self.__class__(
+                self._values.size, self.etype, self.dtype, self._default
+            )
             result._values += other._values
             return result
         elif isinstance(other, Variable):
@@ -228,7 +266,9 @@ class Field:
                     f"Invalid value type: {other.rank} (expected {self._default.rank})"
                 )
 
-            result = self.__class__(self._num_vars, self._default)
+            result = self.__class__(
+                self._values.size, self.etype, self.dtype, self._default
+            )
             result._values += other
             return result
         else:
@@ -250,7 +290,9 @@ class Field:
             except (ValueError, TypeError) as e:
                 raise TypeError(f"Cannot subtract fields: {e}")
 
-            result = self.__class__(self._num_vars, self._default)
+            result = self.__class__(
+                self._values.size, self.etype, self.dtype, self._default
+            )
             result._values -= other._values
             return result
         elif isinstance(other, Variable):
@@ -259,7 +301,9 @@ class Field:
                     f"Invalid value type: {other.rank} (expected {self._default.rank})"
                 )
 
-            result = self.__class__(self._num_vars, self._default)
+            result = self.__class__(
+                self._values.size, self.etype, self.dtype, self._default
+            )
             result._values -= other
             return result
         else:
@@ -275,7 +319,9 @@ class Field:
             except (ValueError, TypeError) as e:
                 raise TypeError(f"Cannot subtract fields: {e}")
 
-            result = self.__class__(self._num_vars, self._default)
+            result = self.__class__(
+                self._values.size, self.etype, self.dtype, self._default
+            )
             result._values = other._values - self._values
             return result
         elif isinstance(other, Variable):
@@ -284,7 +330,9 @@ class Field:
                     f"Invalid value type: {other.rank} (expected {self._default.rank})"
                 )
 
-            result = self.__class__(self._num_vars, self._default)
+            result = self.__class__(
+                self._values.size, self.etype, self.dtype, self._default
+            )
             result._values = other - self._values
             return result
         else:
@@ -297,7 +345,9 @@ class Field:
         if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
-        result = self.__class__(self._num_vars, self._default)
+        result = self.__class__(
+            self._values.size, self.etype, self.dtype, self._default
+        )
         result._values = self._values * other
         return result
 
@@ -314,7 +364,9 @@ class Field:
         if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
 
-        result = self.__class__(self._num_vars, self._default)
+        result = self.__class__(
+            self._values.size, self.etype, self.dtype, self._default
+        )
         result._values = self._values / other
         return result
 
@@ -322,7 +374,9 @@ class Field:
         """
         Negate the field element-wise.
         """
-        result = self.__class__(self._num_vars, self._default)
+        result = self.__class__(
+            self._values.size, self.etype, self.dtype, self._default
+        )
         result._values = -self._values
         return result
 
@@ -330,7 +384,9 @@ class Field:
         """
         Take the absolute value of the field element-wise.
         """
-        result = self.__class__(self._num_vars, self._default)
+        result = self.__class__(
+            self._values.size, self.etype, self.dtype, self._default
+        )
         result._values = np.abs(self._values)
         return result
 
@@ -342,19 +398,16 @@ class CellField(Field):
     Default at each cell center.
     """
 
-    def __init__(self, num_cells: int, default: Variable):
+    def __init__(self, num_cells: int, data_type: str, default: Variable = None):
         """
-        Initialize the cell field with a given number of cells and a default value.
+        Initialize the cell field.
 
         Args:
             num_cells: The number of cells in the field.
+            data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each cell.
         """
-        super().__init__(num_cells, default)
-
-    @property
-    def etype(self) -> str:
-        return "cell"
+        super().__init__(num_cells, "cell", data_type, default)
 
 
 class FaceField(Field):
@@ -364,19 +417,16 @@ class FaceField(Field):
     Default at each face center.
     """
 
-    def __init__(self, num_faces: int, default: Variable):
+    def __init__(self, num_faces: int, data_type: str, default: Variable = None):
         """
-        Initialize the face field with a given number of faces and a default value.
+        Initialize the face field.
 
         Args:
             num_faces: The number of faces in the field.
+            data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each face.
         """
-        super().__init__(num_faces, default)
-
-    @property
-    def etype(self) -> str:
-        return "face"
+        super().__init__(num_faces, "face", data_type, default)
 
 
 class NodeField(Field):
@@ -384,16 +434,13 @@ class NodeField(Field):
     Node field which represents statues of nodes.
     """
 
-    def __init__(self, num_nodes: int, default: Variable):
+    def __init__(self, num_nodes: int, data_type: str, default: Variable = None):
         """
-        Initialize the node field with a given number of nodes and a default value.
+        Initialize the node field.
 
         Args:
             num_nodes: The number of nodes in the field.
+            data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each node.
         """
-        super().__init__(num_nodes, default)
-
-    @property
-    def etype(self) -> str:
-        return "node"
+        super().__init__(num_nodes, "node", data_type, default)
