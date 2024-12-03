@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!
 
 1d/2d/2d structured grids.
 """
-from core.numerics.mesh import Mesh, Coordinate, Node, Face, Cell
+from core.numerics.mesh import Mesh, MeshGeom, Coordinate, Node, Face, Cell
 from core.numerics.fields import Vector
 from configs.settings import logger
 
@@ -284,11 +284,8 @@ class Grid2D(Grid):
                     f_e = (i + 1) * (2 * (self._ny - 1) + 1) + j
 
                 faces = [f_n, f_w, f_s, f_e]
-                center = 0.25 * (
-                    self._faces[f_w].coordinate
-                    + self._faces[f_e].coordinate
-                    + self._faces[f_s].coordinate
-                    + self._faces[f_n].coordinate
+                center = MeshGeom.calculate_center(
+                    [self._faces[id].coordinate for id in faces]
                 )
                 surface = dx * dy
                 volume = surface
@@ -405,11 +402,9 @@ class Grid3D(Grid):
                     n_ru = (k + 1) * self._nx * self._ny + i * self._ny + j + 1
                     n_lu = (k + 1) * self._nx * self._ny + i * self._ny + j
                     nodes = [n_ll, n_rl, n_ru, n_lu]
-                    center = 0.5 * (
-                        self._nodes[n_ll].coordinate
-                        + self._nodes[n_rl].coordinate
-                        + self._nodes[n_ru].coordinate
-                        + self._nodes[n_lu].coordinate
+
+                    center = MeshGeom.calculate_center(
+                        [self._nodes[id].coordinate for id in nodes]
                     )
                     perimeter = 2 * dy + 2 * dz
                     area = dy * dz
@@ -428,11 +423,9 @@ class Grid3D(Grid):
                     n_ur = (k + 1) * self._nx * self._ny + (i + 1) * self._ny + j
                     n_ul = (k + 1) * self._nx * self._ny + i * self._ny + j
                     nodes = [n_ll, n_lr, n_ur, n_ul]
-                    center = 0.5 * (
-                        self._nodes[n_ll].coordinate
-                        + self._nodes[n_lr].coordinate
-                        + self._nodes[n_ur].coordinate
-                        + self._nodes[n_ul].coordinate
+
+                    center = MeshGeom.calculate_center(
+                        [self._nodes[id].coordinate for id in nodes]
                     )
                     perimeter = 2 * dx + 2 * dz
                     area = dx * dz
@@ -449,11 +442,9 @@ class Grid3D(Grid):
                     n_ur = k * self._nx * self._ny + (i + 1) * self._ny + j + 1
                     n_ul = k * self._nx * self._ny + i * self._ny + j + 1
                     nodes = [n_ll, n_lr, n_ur, n_ul]
-                    center = 0.5 * (
-                        self._nodes[n_ll].coordinate
-                        + self._nodes[n_lr].coordinate
-                        + self._nodes[n_ur].coordinate
-                        + self._nodes[n_ul].coordinate
+
+                    center = MeshGeom.calculate_center(
+                        [self._nodes[id].coordinate for id in nodes]
                     )
                     perimeter = 2 * dx + 2 * dy
                     area = dx * dy
@@ -492,13 +483,9 @@ class Grid3D(Grid):
                     )
                     f_t = (k + 1) * faces_per_layer + i * (self._ny - 1) + j
                     faces = [f_s, f_n, f_w, f_e, f_b, f_t]
-                    center = 0.125 * (
-                        self._faces[f_s].coordinate
-                        + self._faces[f_n].coordinate
-                        + self._faces[f_w].coordinate
-                        + self._faces[f_e].coordinate
-                        + self._faces[f_b].coordinate
-                        + self._faces[f_t].coordinate
+
+                    center = MeshGeom.calculate_center(
+                        [self._faces[id].coordinate for id in faces]
                     )
                     surface = 2 * dx * dy + 2 * dy * dz + 2 * dx * dz
                     volume = dx * dy * dz

@@ -55,7 +55,8 @@ class Coordinate:
         """
         return np.array([self.x, self.y, self.z])
 
-    def from_np(self, arr: np.ndarray) -> "Coordinate":
+    @staticmethod
+    def from_np(arr: np.ndarray) -> "Coordinate":
         """
         Convert from numpy array.
         """
