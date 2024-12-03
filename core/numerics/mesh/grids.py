@@ -116,7 +116,9 @@ class Grid(Mesh):
 class Grid1D(Grid):
     """1D uniform structured grid in x-direction.
 
-    The 1d grid is a special case of mesh, somehow it is viered.
+    Notes:
+        - The 1d grid is a special case, somehow it's viered.
+        - All nodes y- ans z-coordinates are set to 0.
     """
 
     def __init__(self, start: Coordinate, end: Coordinate, num: int):
@@ -136,13 +138,9 @@ class Grid1D(Grid):
     def _generate(self, start, end, num):
         # generate nodes
         dx = (end.x - start.x) / (num - 1)
-        dy = (end.y - start.y) / (num - 1)
-        dz = (end.z - start.z) / (num - 1)
         for i in range(num):
             x = start.x + i * dx
-            y = start.y + i * dy
-            z = start.z + i * dz
-            node = Node(i, Coordinate(x, y, z))
+            node = Node(i, Coordinate(x))
             self._nodes.append(node)
 
         # generate mesh
@@ -203,7 +201,11 @@ class Grid1D(Grid):
 
 
 class Grid2D(Grid):
-    """2D structured grid in x-y plane."""
+    """2D structured grid in x-y plane.
+
+    Notes:
+        - All nodes z-coordinate are set to 0.
+    """
 
     def __init__(
         self, lower_left: Coordinate, upper_right: Coordinate, num_x: int, num_y: int
@@ -364,11 +366,149 @@ class Grid3D(Grid):
             num_y: The number of nodes in the y-direction.
             num_z: The number of nodes in the z-direction.
         """
-        pass
+        super().__init__()
+        self._ll = lower_left_front
+        self._ur = upper_right_back
+        self._nx = num_x
+        self._ny = num_y
+        self._nz = num_z
+
+        self._generate()
+
+    def _generate(self):
+        dx = (self._ur.x - self._ll.x) / (self._nx - 1)
+        dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        dz = (self._ur.z - self._ll.z) / (self._nz - 1)
+
+        # generate nodes
+        nid = 0
+        for k in range(self._nz):
+            z = self._ll.z + k * dz
+            for i in range(self._nx):
+                x = self._ll.x + i * dx
+                for j in range(self._ny):
+                    y = self._ll.y + j * dy
+                    node = Node(nid, Coordinate(x, y, z))
+                    self._nodes.append(node)
+                    nid += 1
+
+        # generate faces
+        fid = 0
+        for k in range(self._nz):
+            # faces in x-direction
+            for i in range(self._nx):
+                if k >= self._nz - 1:
+                    continue
+                for j in range(self._ny - 1):
+                    n_ll = k * self._nx * self._ny + i * self._ny + j
+                    n_rl = k * self._nx * self._ny + i * self._ny + j + 1
+                    n_ru = (k + 1) * self._nx * self._ny + i * self._ny + j + 1
+                    n_lu = (k + 1) * self._nx * self._ny + i * self._ny + j
+                    nodes = [n_ll, n_rl, n_ru, n_lu]
+                    center = 0.5 * (
+                        self._nodes[n_ll].coordinate
+                        + self._nodes[n_rl].coordinate
+                        + self._nodes[n_ru].coordinate
+                        + self._nodes[n_lu].coordinate
+                    )
+                    perimeter = 2 * dy + 2 * dz
+                    area = dy * dz
+                    normal = Vector(1, 0, 0)
+                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    self._faces.append(face)
+                    fid += 1
+
+            # faces in y-direction
+            for j in range(self._ny):
+                if k >= self._nz - 1:
+                    continue
+                for i in range(self._nx - 1):
+                    n_ll = k * self._nx * self._ny + i * self._ny + j
+                    n_lr = k * self._nx * self._ny + (i + 1) * self._ny + j
+                    n_ur = (k + 1) * self._nx * self._ny + (i + 1) * self._ny + j
+                    n_ul = (k + 1) * self._nx * self._ny + i * self._ny + j
+                    nodes = [n_ll, n_lr, n_ur, n_ul]
+                    center = 0.5 * (
+                        self._nodes[n_ll].coordinate
+                        + self._nodes[n_lr].coordinate
+                        + self._nodes[n_ur].coordinate
+                        + self._nodes[n_ul].coordinate
+                    )
+                    perimeter = 2 * dx + 2 * dz
+                    area = dx * dz
+                    normal = Vector(0, 1, 0)
+                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    self._faces.append(face)
+                    fid += 1
+
+            # faces in z-direction
+            for i in range(self._nx - 1):
+                for j in range(self._ny - 1):
+                    n_ll = k * self._nx * self._ny + i * self._ny + j
+                    n_lr = k * self._nx * self._ny + (i + 1) * self._ny + j
+                    n_ur = k * self._nx * self._ny + (i + 1) * self._ny + j + 1
+                    n_ul = k * self._nx * self._ny + i * self._ny + j + 1
+                    nodes = [n_ll, n_lr, n_ur, n_ul]
+                    center = 0.5 * (
+                        self._nodes[n_ll].coordinate
+                        + self._nodes[n_lr].coordinate
+                        + self._nodes[n_ur].coordinate
+                        + self._nodes[n_ul].coordinate
+                    )
+                    perimeter = 2 * dx + 2 * dy
+                    area = dx * dy
+                    normal = Vector(0, 0, 1)
+                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    self._faces.append(face)
+                    fid += 1
+
+        # generate cells
+        cid = 0
+        faces_per_layer = (
+            (self._nx - 1) * (self._ny - 1)
+            + self._nx * (self._ny - 1)
+            + self._ny * (self._nx - 1)
+        )
+        faces_along_x = self._nx * (self._ny - 1)
+        faces_along_y = self._ny * (self._nx - 1)
+        for k in range(self._nz - 1):
+            for i in range(self._nx - 1):
+                for j in range(self._ny - 1):
+                    f_s = k * faces_per_layer + i * (self._ny - 1) + j
+                    f_n = k * faces_per_layer + (i + 1) * (self._ny - 1) + j
+                    f_w = k * faces_per_layer + faces_along_x + i + j * (self._nx - 1)
+                    f_e = (
+                        k * faces_per_layer
+                        + faces_along_x
+                        + i
+                        + (j + 1) * (self._nx - 1)
+                    )
+                    f_b = (
+                        k * faces_per_layer
+                        + faces_along_x
+                        + faces_along_y
+                        + i * (self._ny - 1)
+                        + j
+                    )
+                    f_t = (k + 1) * faces_per_layer + i * (self._ny - 1) + j
+                    faces = [f_s, f_n, f_w, f_e, f_b, f_t]
+                    center = 0.125 * (
+                        self._faces[f_s].coordinate
+                        + self._faces[f_n].coordinate
+                        + self._faces[f_w].coordinate
+                        + self._faces[f_e].coordinate
+                        + self._faces[f_b].coordinate
+                        + self._faces[f_t].coordinate
+                    )
+                    surface = 2 * dx * dy + 2 * dy * dz + 2 * dx * dz
+                    volume = dx * dy * dz
+                    cell = Cell(cid, faces, center, surface, volume)
+                    self._cells.append(cell)
+                    cid += 1
 
     @property
     def domain(self) -> str:
-        pass
+        return "3d"
 
     @property
     def nx(self) -> int:
@@ -388,14 +528,70 @@ class Grid3D(Grid):
     def relax_cell(self, index: int):
         pass
 
-    def match_node(self, i: int, j: int, k: int = None) -> int:
-        pass
+    def match_node(self, i: int, j: int, k: int) -> int:
+        return k * self._nx * self._ny + i * self._ny + j
 
-    def match_cell(self, i: int, j: int, k: int = None) -> int:
-        pass
+    def match_cell(self, i: int, j: int, k: int) -> int:
+        return k * (self._nx - 1) * (self._ny - 1) + i * (self._ny - 1) + j
 
     def retrieve_node_neighborhoods(self, index: int) -> tuple:
-        pass
+        k = index // (self._nx * self._ny)
+        i = (index % (self._nx * self._ny)) // self._ny
+        j = (index % (self._nx * self._ny)) % self._ny
+
+        north = k * self._nx * self._ny + (i - 1) * self._ny + j if i > 0 else None
+        south = (
+            k * self._nx * self._ny + (i + 1) * self._ny + j
+            if i < self._nx - 1
+            else None
+        )
+        west = k * self._nx * self._ny + i * self._ny + (j - 1) if j > 0 else None
+        east = (
+            k * self._nx * self._ny + i * self._ny + (j + 1)
+            if j < self._ny - 1
+            else None
+        )
+        down = (k - 1) * self._nx * self._ny + i * self._ny + j if k > 0 else None
+        up = (
+            (k + 1) * self._nx * self._ny + i * self._ny + j
+            if k < self._nz - 1
+            else None
+        )
+        return north, south, east, west, down, up
 
     def retrieve_cell_neighborhoods(self, index: int) -> tuple:
-        pass
+        k = index // ((self._nx - 1) * (self._ny - 1))
+        i = (index % ((self._nx - 1) * (self._ny - 1))) // (self._ny - 1)
+        j = (index % ((self._nx - 1) * (self._ny - 1))) % (self._ny - 1)
+
+        north = (
+            k * ((self._nx - 1) * (self._ny - 1)) + (i - 1) * (self._ny - 1) + j
+            if i > 0
+            else None
+        )
+        south = (
+            k * ((self._nx - 1) * (self._ny - 1)) + (i + 1) * (self._ny - 1) + j
+            if i < self._nx - 2
+            else None
+        )
+        west = (
+            k * ((self._nx - 1) * (self._ny - 1)) + i * (self._ny - 1) + (j - 1)
+            if j > 0
+            else None
+        )
+        east = (
+            k * ((self._nx - 1) * (self._ny - 1)) + i * (self._ny - 1) + (j + 1)
+            if j < self._ny - 2
+            else None
+        )
+        down = (
+            k * ((self._nx - 1) * (self._ny - 1)) + (i - 1) * (self._ny - 1) + (j - 1)
+            if i > 0 and j > 0
+            else None
+        )
+        up = (
+            k * ((self._nx - 1) * (self._ny - 1)) + (i + 1) * (self._ny - 1) + (j + 1)
+            if i < self._nx - 2 and j < self._ny - 2
+            else None
+        )
+        return north, south, east, west, down, up
