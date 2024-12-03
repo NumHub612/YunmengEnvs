@@ -104,7 +104,8 @@ def plot_data_series(
 
 def plot_mesh(
     points_coordinates: np.ndarray,
-    polygons: np.ndarray,
+    cells: np.ndarray,
+    mesh_type: str,
     *,
     title: str = "Mesh",
     figsize: tuple = (8, 6),
@@ -117,7 +118,8 @@ def plot_mesh(
 
     Args:
         points_coordinates: List of coordinates of points.
-        polygons: Polygons of the mesh.
+        cells: Polygons or polyhedrons of the mesh.
+        mesh_type: Type of the mesh, options: "2d", "3d".
         title: Title of the plot.
         figsize: Figure size.
         save_dir: Directory to save the plot.
@@ -129,15 +131,11 @@ def plot_mesh(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
+    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_POLYHEDRON
+    types = np.array([mtype] * len(cells))
+    cells = np.concatenate(cells)
 
-    faces, types = [], []
-    for polygon in polygons:
-        faces.append([len(polygon)] + polygon)
-        types.append(vtk.VTK_POLYGON)
-    faces = np.concatenate(faces)
-    types = np.array(types)
-
-    mesh = pv.UnstructuredGrid(faces, types, points)
+    mesh = pv.UnstructuredGrid(cells, types, points)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -161,7 +159,8 @@ def plot_mesh(
 
 def plot_mesh_cloudmap(
     points_coordinates: np.ndarray,
-    polygons: np.ndarray,
+    cells: np.ndarray,
+    mesh_type: str,
     scalars: np.ndarray,
     domain: str,
     *,
@@ -178,9 +177,10 @@ def plot_mesh_cloudmap(
 
     Args:
         points_coordinates: List of coordinates of points.
-        polygons: Polygons of the mesh.
+        cells: Polygons or polyhedrons of the mesh.
+        mesh_type: Type of the mesh, options: "2d", "3d".
         scalars: Scalar values.
-        domain: Domain of the values bounded, options: "point", "polygon".
+        domain: Domain of the values bounded, options: "point", "cell".
         title: Title of the plot.
         label: Label of the values.
         figsize: Figure size.
@@ -194,15 +194,11 @@ def plot_mesh_cloudmap(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
+    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_QUAD
+    types = np.array([mtype] * len(cells))
+    cells = np.concatenate(cells)
 
-    faces, types = [], []
-    for polygon in polygons:
-        faces.append([len(polygon)] + polygon)
-        types.append(vtk.VTK_POLYGON)
-    faces = np.concatenate(faces)
-    types = np.array(types)
-
-    mesh = pv.UnstructuredGrid(faces, types, points)
+    mesh = pv.UnstructuredGrid(cells, types, points)
 
     # Set values to the mesh
     domain = domain.lower()
@@ -233,7 +229,8 @@ def plot_mesh_cloudmap(
 
 def plot_mesh_streamplot(
     points_coordinates: np.ndarray,
-    polygons: np.ndarray,
+    cells: np.ndarray,
+    mesh_type: str,
     vectors: np.ndarray,
     domain: str,
     *,
@@ -251,9 +248,10 @@ def plot_mesh_streamplot(
 
     Args:
         points_coordinates: List of coordinates of points.
-        polygons: Polygons of the mesh.
+        cells: Polygons or polyhedrons of the mesh.
+        mesh_type: Type of the mesh, options: "2d", "3d".
         vectors: Vector values.
-        domain: Domain of the values bounded, options: "point", "polygon".
+        domain: Domain of the values bounded, options: "point", "cell".
         title: Title of the plot.
         label: Label of the values.
         figsize: Figure size.
@@ -268,15 +266,11 @@ def plot_mesh_streamplot(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
+    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_QUAD
+    types = np.array([mtype] * len(cells))
+    cells = np.concatenate(cells)
 
-    faces, types = [], []
-    for polygon in polygons:
-        faces.append([len(polygon)] + polygon)
-        types.append(vtk.VTK_POLYGON)
-    faces = np.concatenate(faces)
-    types = np.array(types)
-
-    mesh = pv.UnstructuredGrid(faces, types, points)
+    mesh = pv.UnstructuredGrid(cells, types, points)
 
     # Set values to the mesh
     domain = domain.lower()
@@ -362,71 +356,3 @@ def plot_mesh_scatters(
     if show:
         plotter.show()
     plotter.close()
-
-
-if __name__ == "__main__":
-    from core.numerics.mesh import Coordinate, Grid2D, MeshTopo
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    # set mesh
-    low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
-    nx, ny = 41, 41
-    grid = Grid2D(low_left, upper_right, nx, ny)
-    topo = MeshTopo(grid)
-
-    scalar_field_n = np.array([np.random.rand(1) for i in range(grid.node_count)])
-    vector_field_n = np.random.rand(grid.node_count, 3)
-    vector_field_n[:, 2] = 0.0
-
-    scalar_field_c = np.array([np.random.rand(1) for i in range(grid.cell_count)])
-    vector_field_c = np.random.rand(grid.cell_count, 3)
-    vector_field_c[:, 2] = 0.0
-
-    # get points
-    points = []
-    for n in grid.nodes:
-        arr = n.coordinate.to_np().tolist()
-        arr[2] = np.random.rand(1)[0] * 0.1
-        points.append(arr)
-    points = np.array(points).astype(float)
-
-    # get faces
-    cells = []
-    for i in range(grid.cell_count):
-        nodes = topo.collect_cell_nodes(i)
-        cells.append(nodes)
-
-    plot_mesh_cloudmap(
-        points,
-        cells,
-        scalar_field_c,
-        "cell",
-        title="2D Cloudmap",
-        show=True,
-    )
-
-    plot_mesh_streamplot(
-        points,
-        cells,
-        vector_field_n,
-        "point",
-        title="2D Streamplot",
-        show=True,
-    )
-
-    plot_mesh_streamplot(
-        points,
-        cells,
-        vector_field_c,
-        "cell",
-        title="2D Streamplot",
-        show=True,
-    )
-
-    plot_mesh_scatters(
-        points,
-        scalar_field_n,
-        title="2D Scatters",
-        show=True,
-    )

@@ -301,12 +301,6 @@ class MeshTopo:
                     for nid in self._mesh.faces[fid].nodes:
                         cell_nodes[cell.id].append(nid)
             cell_nodes = [list(set(nodes)) for nodes in cell_nodes]
-
-            for i, ids in enumerate(cell_nodes):
-                coords = [self._mesh.nodes[nid].coordinate for nid in ids]
-                sorted_nodes = MeshGeom.sort_anticlockwise(dict(zip(ids, coords)))
-                cell_nodes[i] = sorted_nodes
-
             self._cell_nodes = cell_nodes
         return self._cell_nodes[cell_index]
 

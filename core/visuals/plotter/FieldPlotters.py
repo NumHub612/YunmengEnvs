@@ -38,7 +38,7 @@ def plot_scalar_field(
         kwargs: Other arguments for rendering.
 
     Notes:
-        - 3d mesh is always a scatter plot;1d is always a line chart.
+        - 1d is always a line chart.
         - For line chart, `kwargs` can be used to specify
           the line style, e.g. 'color', 'marker', etc.
         - For cloudmap, `kwargs` can be used to specify
@@ -65,30 +65,34 @@ def plot_scalar_field(
         )
         return
 
-    # plot 3d mesh special case
-    if mesh.domain == "3d":
-        PlotKits.plot_mesh_scatters(
-            points,
-            field.to_np(),
-            save_dir=save_dir,
-            show=show,
-            title=title,
-            figsize=figsize,
-            label=label,
-            **kwargs,
-        )
-        return
-
     # plot 2d/3d mesh
     topo = MeshTopo(mesh)
-    domain = "point" if field.etype == "node" else "polygon"
-    polygons = [topo.collect_cell_nodes(i) for i in range(mesh.cell_count)]
+    domain = "point" if field.etype == "node" else "cell"
+
+    cells = []
+    if mesh.domain == "2d":
+        for cell in mesh.cells:
+            nodes = topo.collect_cell_nodes(cell.id)
+            coors = [mesh.nodes[i].coordinate for i in nodes]
+            indexes = geom.sort_anticlockwise(dict(zip(nodes, coors)))
+            cells.append([len(indexes)] + indexes)
+    else:
+        for cell in mesh.cells:
+            nodes = []
+            for fid in cell.faces:
+                coors = [mesh.nodes[i].coordinate for i in mesh.faces[fid].nodes]
+                indexes = geom.sort_anticlockwise(
+                    dict(zip(mesh.faces[fid].nodes, coors))
+                )
+                nodes.extend(indexes)
+            cells.append([len(nodes)] + nodes)
 
     style = style.lower()
     if style == "cloudmap":
         PlotKits.plot_mesh_cloudmap(
             points,
-            polygons,
+            cells,
+            mesh.domain,
             field.to_np(),
             domain,
             save_dir=save_dir,
@@ -180,30 +184,34 @@ def plot_vector_field(
         )
         return
 
-    # plot 3d mesh special case
-    if mesh.domain == "3d":
-        PlotKits.plot_mesh_scatters(
-            points,
-            data_map.get(dimension),
-            save_dir=save_dir,
-            show=show,
-            title=title,
-            figsize=figsize,
-            label=label,
-            **kwargs,
-        )
-        return
-
     # plot 2d mesh
     topo = MeshTopo(mesh)
-    polygons = [topo.collect_cell_nodes(i) for i in range(mesh.cell_count)]
-    domain = "point" if field.etype == "node" else "polygon"
+    domain = "point" if field.etype == "node" else "cell"
+
+    cells = []
+    if mesh.domain == "2d":
+        for cell in mesh.cells:
+            nodes = topo.collect_cell_nodes(cell.id)
+            coors = [mesh.nodes[i].coordinate for i in nodes]
+            indexes = geom.sort_anticlockwise(dict(zip(nodes, coors)))
+            cells.append([len(indexes)] + indexes)
+    else:
+        for cell in mesh.cells:
+            nodes = []
+            for fid in cell.faces:
+                coors = [mesh.nodes[i].coordinate for i in mesh.faces[fid].nodes]
+                indexes = geom.sort_anticlockwise(
+                    dict(zip(mesh.faces[fid].nodes, coors))
+                )
+                nodes.extend(indexes)
+            cells.append([len(nodes)] + nodes)
 
     style = style.lower()
     if style == "cloudmap":
         PlotKits.plot_mesh_cloudmap(
             points,
-            polygons,
+            cells,
+            mesh.domain,
             data_map.get(dimension),
             domain,
             save_dir=save_dir,
@@ -227,7 +235,8 @@ def plot_vector_field(
     elif style == "streamplot":
         PlotKits.plot_mesh_streamplot(
             points,
-            polygons,
+            cells,
+            mesh.domain,
             values,
             domain,
             save_dir=save_dir,
@@ -245,7 +254,7 @@ if __name__ == "__main__":
 
     # set 3d mesh
     low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
-    nx, ny, nz = 41, 41, 41
+    nx, ny, nz = 11, 11, 11
     grid = Grid3D(low_left, upper_right, nx, ny, nz)
 
     scalar_values_n = np.array([[i % 100] for i in range(grid.node_count)])
@@ -260,6 +269,16 @@ if __name__ == "__main__":
         show=True,
     )
 
+    plot_scalar_field(
+        scalar_field,
+        grid,
+        title="3D Scalar Field",
+        label="value",
+        style="scatter",
+        save_dir=None,
+        show=True,
+    )
+
     vector_values_n = np.random.rand(grid.node_count, 3)
     vector_field = Field.from_np(vector_values_n, "node")
 
@@ -268,6 +287,7 @@ if __name__ == "__main__":
         grid,
         title="3D Vector Field",
         label="u",
+        style="cloudmap",
         save_dir=None,
         show=True,
         dimension="x",
