@@ -194,7 +194,7 @@ def plot_mesh_cloudmap(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_QUAD
+    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 
@@ -266,7 +266,7 @@ def plot_mesh_streamplot(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_QUAD
+    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 

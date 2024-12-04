@@ -78,14 +78,17 @@ def plot_scalar_field(
             cells.append([len(indexes)] + indexes)
     else:
         for cell in mesh.cells:
-            nodes = []
-            for fid in cell.faces:
-                coors = [mesh.nodes[i].coordinate for i in mesh.faces[fid].nodes]
-                indexes = geom.sort_anticlockwise(
-                    dict(zip(mesh.faces[fid].nodes, coors))
-                )
-                nodes.extend(indexes)
-            cells.append([len(nodes)] + nodes)
+            # Here we assume that the cell faces sorted as [north, south, east, west, bottom, top]
+            nodes1 = mesh.faces[cell.faces[-1]].nodes
+            coors1 = [mesh.nodes[i].coordinate for i in nodes1]
+            nodes2 = mesh.faces[cell.faces[-2]].nodes
+            coors2 = [mesh.nodes[i].coordinate for i in nodes2]
+
+            # Points need to be sorted.
+            points1 = geom.sort_anticlockwise(dict(zip(nodes1, coors1)))
+            points2 = geom.sort_anticlockwise(dict(zip(nodes2, coors2)))
+            cell = points1 + points2
+            cells.append([len(cell)] + cell)
 
     style = style.lower()
     if style == "cloudmap":
@@ -197,14 +200,17 @@ def plot_vector_field(
             cells.append([len(indexes)] + indexes)
     else:
         for cell in mesh.cells:
-            nodes = []
-            for fid in cell.faces:
-                coors = [mesh.nodes[i].coordinate for i in mesh.faces[fid].nodes]
-                indexes = geom.sort_anticlockwise(
-                    dict(zip(mesh.faces[fid].nodes, coors))
-                )
-                nodes.extend(indexes)
-            cells.append([len(nodes)] + nodes)
+            # Here we assume that the cell faces sorted as [north, south, east, west, bottom, top]
+            nodes1 = mesh.faces[cell.faces[-1]].nodes
+            coors1 = [mesh.nodes[i].coordinate for i in nodes1]
+            nodes2 = mesh.faces[cell.faces[-2]].nodes
+            coors2 = [mesh.nodes[i].coordinate for i in nodes2]
+
+            # Points need to be sorted.
+            points1 = geom.sort_anticlockwise(dict(zip(nodes1, coors1)))
+            points2 = geom.sort_anticlockwise(dict(zip(nodes2, coors2)))
+            cell = points1 + points2
+            cells.append([len(cell)] + cell)
 
     style = style.lower()
     if style == "cloudmap":
@@ -254,7 +260,7 @@ if __name__ == "__main__":
 
     # set 3d mesh
     low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
-    nx, ny, nz = 11, 11, 11
+    nx, ny, nz = 3, 4, 5
     grid = Grid3D(low_left, upper_right, nx, ny, nz)
 
     scalar_values_n = np.array([[i % 100] for i in range(grid.node_count)])
