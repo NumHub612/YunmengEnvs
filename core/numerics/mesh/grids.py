@@ -102,7 +102,7 @@ class Grid(Mesh):
             index: The global cell index at center.
 
         Returns:
-            The neighborhood cell global indexes sorted in the following order:
+            - The neighborhood cell global indexes sorted in the following order:
                 - the north neighbor index.
                 - the south neighbor index.
                 - the east neighbor index.

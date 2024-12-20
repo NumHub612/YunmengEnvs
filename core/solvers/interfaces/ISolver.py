@@ -100,7 +100,7 @@ class ISolver(ABC):
     @abstractmethod
     def optimize(self, **kwargs):
         """
-        Optimize the solver with data to calibrate the parameters.
+        Optimize the solver with data to calibrate its parameters.
         """
         pass
 
@@ -110,7 +110,7 @@ class ISolver(ABC):
         Inference the solver to get the solutions.
 
         Returns:
-            A tuple of (is_done, is_terminated, status) resutls.
+            A tuple of results with (is_done, is_terminated, status).
         """
         pass
 
