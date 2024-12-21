@@ -98,6 +98,13 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
+    def assimilate(self, **kwargs):
+        """
+        Assimilate the solver with extra data to improve its accuracy.
+        """
+        pass
+
+    @abstractmethod
     def optimize(self, **kwargs):
         """
         Optimize the solver with data to calibrate its parameters.
@@ -201,6 +208,9 @@ class BaseSolver(ISolver):
         raise NotImplementedError()
 
     def terminate(self, **kwargs):
+        raise NotImplementedError()
+
+    def assimilate(self, **kwargs):
         raise NotImplementedError()
 
     def optimize(self, **kwargs):

@@ -19,6 +19,176 @@ class ILinkableComponent(IIdentifiable):
     """class for linkable modules connection and data transfer."""
 
     @abstractmethod
+    def has_attribute(self, attribute_name: str) -> bool:
+        """Checks if the component has the specified attribute.
+
+        Args:
+            attribute_name: The name of the attribute to check.
+
+        Returns:
+            bool: True if the component has the attribute, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_attribute(self, attribute_name: str) -> object:
+        """Gets the value of the specified attribute.
+
+        Args:
+            attribute_name: The name of the attribute to get.
+
+        Returns:
+            object: The value of the attribute.
+        """
+        pass
+
+    @abstractmethod
+    def set_attribute(self, attribute_name: str, attribute_value: object):
+        """Sets the value of the specified attribute.
+
+        Args:
+            attribute_name: The name of the attribute to set.
+            attribute_value: The value of the attribute to set.
+        """
+        pass
+
+    @abstractmethod
+    def has_state(self, state_name: str, **kwargs) -> bool:
+        """Checks if the component has the specified state.
+
+        Args:
+            state_name: The name of the state to check.
+
+        Returns:
+            bool: True if the component has the state, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_state(self, state_name: str, **kwargs) -> object:
+        """Gets the value of the specified state.
+
+        Args:
+            state_name: The name of the state to get.
+
+        Returns:
+            object: The value of the state.
+        """
+        pass
+
+    @abstractmethod
+    def set_state(self, state_name: str, state_value: object, **kwargs):
+        """Sets the value of the specified state.
+
+        Args:
+            state_name: The name of the state to set.
+            state_value: The value of the state to set.
+        """
+        pass
+
+    @abstractmethod
+    def has_data(self, data_name: str, **kwargs) -> bool:
+        """Checks if the component has the specified data.
+
+        Args:
+            data_name: The name of the data to check.
+
+        Returns:
+            bool: True if the component has the data, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_data(self, data_name: str, **kwargs) -> object:
+        """Gets the value of the specified data.
+
+        Args:
+            data_name: The name of the data to get.
+
+        Returns:
+            object: The value of the data.
+        """
+        pass
+
+    @abstractmethod
+    def has_algorithm(self, algorithm_name: str, **kwargs) -> bool:
+        """Checks if the component has the specified algorithm.
+
+        Args:
+            algorithm_name: The name of the algorithm to check.
+
+        Returns:
+            bool: True if the component has the algorithm, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_algorithm(self, algorithm_name: str, **kwargs) -> object:
+        """Gets the value of the specified algorithm.
+
+        Args:
+            algorithm_name: The name of the algorithm to get.
+
+        Returns:
+            object: The value of the algorithm.
+        """
+        pass
+
+    @abstractmethod
+    def set_algorithm(self, algorithm_name: str, algorithm_value: object, **kwargs):
+        """Sets the value of the specified algorithm.
+
+        Args:
+            algorithm_name: The name of the algorithm to set.
+            algorithm_value: The value of the algorithm to set.
+        """
+        pass
+
+    @abstractmethod
+    def has_element(self, element_name: str, **kwargs) -> bool:
+        """Checks if the component has the specified element.
+
+        Args:
+            element_name: The name of the element to check.
+
+        Returns:
+            bool: True if the component has the element, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_element(self, element_name: str, **kwargs) -> object:
+        """Gets the value of the specified element.
+
+        Args:
+            element_name: The name of the element to get.
+
+        Returns:
+            object: The value of the element.
+        """
+        pass
+
+    @abstractmethod
+    def set_element(self, element_name: str, element_value: object, **kwargs):
+        """Sets the value of the specified element.
+
+        Args:
+            element_name: The name of the element to set.
+            element_value: The value of the element to set.
+        """
+        pass
+
+    @abstractmethod
+    def add_element(self, element_name: str, element_value: object, **kwargs):
+        """Adds the specified element to the component. If the element already exists, it will be replaced.
+
+        Args:
+            element_name: The name of the element to add.
+            element_value: The value of the element to add.
+        """
+        pass
+
+    @abstractmethod
     def initialize(self):
         """Initializes the component.
 
