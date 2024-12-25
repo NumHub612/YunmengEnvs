@@ -20,6 +20,9 @@ jobs:
         os:
           - ubuntu-22.04
           - windows-2022
+    
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -51,6 +54,8 @@ jobs:
 
       - name: mkdocs
         if: ${{ matrix.os == 'ubuntu-22.04'}}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd ${{ github.workspace }}
           pip install mkdocs
