@@ -60,8 +60,8 @@ jobs:
           pip install mkdocstrings[python]
           pip install mkdocs-material
           mkdocs gh-deploy --clean     
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}               
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}               
         shell: bash  
       
       # - name: deploy docs
