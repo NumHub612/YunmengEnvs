@@ -54,15 +54,19 @@ jobs:
 
       - name: mkdocs
         if: ${{ matrix.os == 'ubuntu-22.04'}}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd ${{ github.workspace }}
           pip install mkdocs
           pip install mkdocstrings[python]
           pip install mkdocs-material
-          mkdocs gh-deploy --clean
         shell: bash  
+      
+      - name: deploy docs
+        if: ${{ matrix.os == 'ubuntu-22.04'}}
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
   
       - name: Build package
         run: |
