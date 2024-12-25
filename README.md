@@ -1,40 +1,45 @@
-<a href="https://github.com/NumHub612/YunmengEnvs">
+<!-- <a href="https://github.com/NumHub612/YunmengEnvs"> -->
+<a>
     <img src="./docs/assets/logo.png" alt="YunmengEnvs" />
 </a>
 
 ---------------------------------------------------------------------------------
 
-## 这是个什么项目？
+## 🎉 什么是 YunmengEnvs？
+
+<!-- [![](https://img.shields.io/badge/license-Apache--2.0-red)](./LICENSE)[![](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/)[![codecov](https://codecov.io/gh/NumHub612/YunMengEnv/graph/badge.svg?token=MP9A5GAI9Z)](https://codecov.io/gh/NumHub612/YunMengEnv)[![](https://img.shields.io/badge/Docs-YunMengHome-blue?logo=markdown)](https://modelscope.github.io/agentscope/) -->
 
 [简体中文](README.md) | [English](README.md)
 
-当前，数字孪生、人工智能技术（AI）不断发展，传统水务水利行业的智能化转型趋势愈发明显。但是，想法和方案的实际落地，以及真正为用户提供价值的过程，仍然存在很多挑战。
+
+
 
 **YunmengEnvs**，云梦环境，作为一个融合 CFD 和 AI 技术的环境流体力学模拟和耦合框架，希望能帮助理解专业概念、数值方法和现实数据；希望能提供一个标准化的平台来尝试新想法、新技术和新方案。  
 
 
+**What's New !**
+
+
+- 🔥🔥🔥 **[2024-12-25]**: 项目正式发布。
+
 ---------------------------------------------------------------------------------
 
-## 如何使用？
-
-
----------------------------------------------------------------------------------
-
-## 加入我们！  
-
-我们希望能够做出一些有趣的尝试和成果，希望能够将这些想法和经验分享给整个社区。
-
-如果你对这个项目感兴趣，欢迎加入我们！  
-你的加入将是对我们最大的鼓励！ 
+## 🎯 如何使用？
 
 
 ---------------------------------------------------------------------------------
 
-## 更多
+## 👋 加入我们！  
 
-项目开发过程中受到启发和帮助的项目：
+我们希望能够做出一些有趣的尝试和成果，能够将这些想法和经验分享给整个社区。
 
-- [JAXFLUIDS](https://github.com/tumaer/JAXFLUIDS)
+如果你对这个项目感兴趣，欢迎加入我们！   
 
+感谢我们的贡献者:
+
+<!-- <a href="https://github.com/modelscope/agentscope/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=modelscope/agentscope&max=999&columns=12&anon=1" />
+</a> -->
 
 ---------------------------------------------------------------------------------
+
