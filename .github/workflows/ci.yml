@@ -58,10 +58,7 @@ jobs:
           cd ${{ github.workspace }}
           pip install mkdocs
           pip install mkdocstrings[python]
-          pip install mkdocs-material
-          mkdocs gh-deploy --clean  --force  
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}               
+          pip install mkdocs-material             
         shell: bash  
       
       - name: deploy docs
