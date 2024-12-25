@@ -20,7 +20,7 @@ jobs:
         os:
           - ubuntu-22.04
           - windows-2022
-    
+
     permissions:
       contents: write
 
@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r ${{ github.workspace }}/requirements.txt     
+          pip install -r ${{ github.workspace }}/requirements.txt
 
       - name: Run unittest tests
         run: |
@@ -49,32 +49,35 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-22.04'}}
         uses: codecov/codecov-action@v5
         with:
-          files: ./codecov.yml
-          token: ${{ secrets.CODECOV_TOKEN }}      
+          files: ./coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: mkdocs
+      - name: Build and deploy docs
         if: ${{ matrix.os == 'ubuntu-22.04'}}
         run: |
           cd ${{ github.workspace }}
           pip install mkdocs
           pip install mkdocstrings[python]
-          pip install mkdocs-material             
-        shell: bash  
-      
-      - name: deploy docs
+          pip install mkdocs-material
+          mkdocs build --site-dir site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+
+      - name: Deploy docs to GitHub Pages
         if: ${{ matrix.os == 'ubuntu-22.04'}}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
-  
+
       - name: Build package
         run: |
           pip install setuptools wheel twine
           python setup.py sdist bdist_wheel
-    
+
       # - name: Upload to PyPI
       #   env:
       #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
       #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      #   run: twine upload dist/*          
+      #   run: twine upload dist/*
