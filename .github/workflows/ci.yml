@@ -50,6 +50,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}      
 
       - name: mkdocs
+        if: ${{ matrix.os == 'ubuntu-22.04'}}
         run: |
           cd ${{ github.workspace }}
           pip install mkdocs
