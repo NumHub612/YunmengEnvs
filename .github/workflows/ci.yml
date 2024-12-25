@@ -47,7 +47,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.os == 'ubuntu-22.04'}}
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v5
         with:
           files: ./codecov.yml
           token: ${{ secrets.CODECOV_TOKEN }}      
@@ -59,14 +59,17 @@ jobs:
           pip install mkdocs
           pip install mkdocstrings[python]
           pip install mkdocs-material
+          mkdocs gh-deploy --clean     
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}               
         shell: bash  
       
-      - name: deploy docs
-        if: ${{ matrix.os == 'ubuntu-22.04'}}
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+      # - name: deploy docs
+      #   if: ${{ matrix.os == 'ubuntu-22.04'}}
+      #   uses: peaceiris/actions-gh-pages@v3
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     publish_dir: ./site
   
       - name: Build package
         run: |
