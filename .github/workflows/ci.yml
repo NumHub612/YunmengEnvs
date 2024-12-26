@@ -52,7 +52,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Build and deploy docs
-        if: ${{ matrix.os == 'ubuntu-22.04'}}
+        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/dev'}}
         run: |
           cd ${{ github.workspace }}
           pip install mkdocs
@@ -64,11 +64,12 @@ jobs:
         shell: bash
 
       - name: Deploy docs to GitHub Pages
-        if: ${{ matrix.os == 'ubuntu-22.04'}}
-        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/dev'}}
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
+          enable_jekyll: true
 
       - name: Build package
         run: |
