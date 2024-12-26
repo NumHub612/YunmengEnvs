@@ -1,40 +1,41 @@
-<a href="https://github.com/NumHub612/YunmengEnvs">
-    <img src="./docs/assets/logo.png" alt="YunmengEnvs" />
-</a>
+<p align="center">
+  <a href="https://github.com/NumHub612/YunmengEnvs">
+    <img src="./docs/assets/logo.jpg" alt="YunmengEnvs" width="560" height="360" />
+  </a>
+</p>
 
 ---------------------------------------------------------------------------------
 
-## 这是个什么项目？
+## 什么是 YunmengEnvs？
+
+[![](https://img.shields.io/badge/license-Apache--2.0-red)](./LICENSE) [![](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/) [![codecov](https://codecov.io/gh/NumHub612/YunMengEnvs/graph/badge.svg?token=MP9A5GAI9Z)](https://codecov.io/gh/NumHub612/YunMengEnvs) [![](https://img.shields.io/badge/Docs-YunMengHome-blue?logo=markdown)](https://NumHub612.github.io/YunmengEnvs/)
 
 [简体中文](README.md) | [English](README.md)
 
-当前，数字孪生、人工智能技术（AI）不断发展，传统水务水利行业的智能化转型趋势愈发明显。但是，想法和方案的实际落地，以及真正为用户提供价值的过程，仍然存在很多挑战。
+**YunmengEnvs 云梦环境**，是一个尝试将计算流体力学（CFD）与人工智能（AI）技术深度融合的环境流体力学模型框架。我们的目标是为理解流体力学概念、分析现实数据和解决工程问题提供一个集成平台，希望这个平台能够成为一个试验场，帮助研究者和开发者更容易地尝试新的想法、技术和解决方案。
 
-**YunmengEnvs**，云梦环境，作为一个融合 CFD 和 AI 技术的环境流体力学模拟和耦合框架，希望能帮助理解专业概念、数值方法和现实数据；希望能提供一个标准化的平台来尝试新想法、新技术和新方案。  
+**What's News!**
 
+- 🔥🔥🔥 **[2024-12-25]**: 项目处于开发验证阶段，欢迎大家参与测试和贡献！
 
 ---------------------------------------------------------------------------------
 
 ## 如何使用？
 
 
+
 ---------------------------------------------------------------------------------
 
 ## 加入我们！  
 
-我们希望能够做出一些有趣的尝试和成果，希望能够将这些想法和经验分享给整个社区。
+我们希望能够做出一些有趣的尝试和成果，能够将这些想法和经验分享给整个社区。
 
-如果你对这个项目感兴趣，欢迎加入我们！  
-你的加入将是对我们最大的鼓励！ 
+如果你对这个项目感兴趣，欢迎加入我们！   
 
+感谢我们的贡献者:
 
----------------------------------------------------------------------------------
-
-## 更多
-
-项目开发过程中受到启发和帮助的项目：
-
-- [JAXFLUIDS](https://github.com/tumaer/JAXFLUIDS)
-
+<a href="https://github.com/NumHub612/YunmengEnvs/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=NumHub612/YunmengEnvs" />
+</a>
 
 ---------------------------------------------------------------------------------

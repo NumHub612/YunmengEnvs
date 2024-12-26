@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 Interfaces for boundary conditions at faces of a mesh.
 """

@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 Node, face, and cell classes for the mesh.
 """
@@ -55,7 +55,8 @@ class Coordinate:
         """
         return np.array([self.x, self.y, self.z])
 
-    def from_np(self, arr: np.ndarray) -> "Coordinate":
+    @staticmethod
+    def from_np(arr: np.ndarray) -> "Coordinate":
         """
         Convert from numpy array.
         """

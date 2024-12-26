@@ -1,16 +1,16 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.GeoMethods import sort_coordinates_anticlockwise
 from core.numerics.mesh import Coordinate
 from core.numerics.fields import Vector
 from configs.settings import logger
 
 from abc import ABC, abstractmethod
 import numpy as np
+import math
 
 
 class Mesh(ABC):
@@ -301,12 +301,6 @@ class MeshTopo:
                     for nid in self._mesh.faces[fid].nodes:
                         cell_nodes[cell.id].append(nid)
             cell_nodes = [list(set(nodes)) for nodes in cell_nodes]
-
-            for i, ids in enumerate(cell_nodes):
-                coords = [self._mesh.nodes[nid].coordinate for nid in ids]
-                sorted_nodes = sort_coordinates_anticlockwise(dict(zip(ids, coords)))
-                cell_nodes[i] = sorted_nodes
-
             self._cell_nodes = cell_nodes
         return self._cell_nodes[cell_index]
 
@@ -343,7 +337,7 @@ class MeshTopo:
         min_dist = float("inf")
         min_cell_index = -1
         for cell in self._mesh.cells:
-            dist = np.linalg.norm(cell.center.to_np() - coord.to_np())
+            dist = np.linalg.norm(cell.coordinate.to_np() - coord.to_np())
             if dist <= max_dist and dist < min_dist:
                 min_dist = dist
                 min_cell_index = cell.id
@@ -354,7 +348,7 @@ class MeshTopo:
         min_dist = float("inf")
         min_face_index = -1
         for face in self._mesh.faces:
-            dist = np.linalg.norm(face.center.to_np() - coord.to_np())
+            dist = np.linalg.norm(face.coordinate.to_np() - coord.to_np())
             if dist <= max_dist and dist < min_dist:
                 min_dist = dist
                 min_face_index = face.id
@@ -368,9 +362,9 @@ class MeshTopo:
         """Generate the projection of the given coordinate on the given face."""
         face = self._mesh.faces[face_index]
         normal = face.normal
-        vec_np = (coord - face.center).to_np()
+        vec_np = (coord - face.coordinate).to_np()
         proj_np = np.dot(vec_np, normal.to_np()) * normal.to_np()
-        proj_coord = Coordinate.from_np(proj_np + face.center.to_np())
+        proj_coord = Coordinate.from_np(proj_np + face.coordinate.to_np())
         return proj_coord
 
 
@@ -398,6 +392,57 @@ class MeshGeom:
     def get_mesh(self) -> Mesh:
         """Return the bounded mesh."""
         return self._mesh
+
+    # -----------------------------------------------
+    # --- static methods ---
+    # -----------------------------------------------
+
+    @staticmethod
+    def calculate_distance(coord1: Coordinate, coord2: Coordinate) -> float:
+        """Calculate the distance between two coordinates."""
+        return np.linalg.norm(coord1.to_np() - coord2.to_np())
+
+    @staticmethod
+    def calculate_center(coords: list) -> Coordinate:
+        """Calculate the center of the given coordinates."""
+        return Coordinate.from_np(np.mean([coord.to_np() for coord in coords], axis=0))
+
+    @staticmethod
+    def sort_anticlockwise(coords: dict, ignored_axis: str = "z") -> list:
+        """Sort the coordinates in anticlockwise order.
+
+        Args:
+            coordinates: Coodinates with id as key.
+            ignored_axis: The axis to be folded.
+
+        Returns:
+            Ids of sorted coordinates.
+        """
+        # Calculate the center of the coordinates
+        center = MeshGeom.calculate_center(coords.values())
+
+        # Sort the coordinates by their angle with the center
+        ignored_axis = ignored_axis.lower()
+        if ignored_axis == "z":
+            sorted_coords = sorted(
+                coords.items(),
+                key=lambda x: math.atan2(x[1].y - center.y, x[1].x - center.x),
+            )
+        elif ignored_axis == "y":
+            sorted_coords = sorted(
+                coords.items(),
+                key=lambda x: math.atan2(x[1].z - center.z, x[1].x - center.x),
+            )
+        elif ignored_axis == "x":
+            sorted_coords = sorted(
+                coords.items(),
+                key=lambda x: math.atan2(x[1].y - center.y, x[1].z - center.z),
+            )
+        else:
+            raise ValueError("Invalid ignored_axis: {}".format(ignored_axis))
+
+        # Return the ids of the sorted coordinates
+        return [coord_id for coord_id, _ in sorted_coords]
 
     # -----------------------------------------------
     # --- statistics methods ---
@@ -461,9 +506,8 @@ class MeshGeom:
             topos = MeshTopo(self._mesh)
             for i in range(cell_num):
                 for j in topos.collect_cell_neighbours(i):
-                    dist = np.linalg.norm(
-                        self._mesh.cells[i].center.to_np()
-                        - self._mesh.cells[j].center.to_np()
+                    dist = self.calculate_distance(
+                        self._mesh.cells[i].coordinate, self._mesh.cells[j].coordinate
                     )
                     cell_dists[i][j] = dist
                     cell_dists[j][i] = dist
@@ -482,7 +526,7 @@ class MeshGeom:
             cell_face_dists = [{} for _ in range(cell_num)]
             for cell in self._mesh.cells:
                 for face in cell.faces:
-                    dist = np.linalg.norm(cell.center.to_np() - face.center.to_np())
+                    dist = self.calculate_distance(cell.coordinate, face.coordinate)
                     cell_face_dists[cell.id][face.id] = dist
 
             self._cell_to_face_dists = cell_face_dists
@@ -501,9 +545,8 @@ class MeshGeom:
             topos = MeshTopo(self._mesh)
             for i in range(cell_num):
                 for j in topos.collect_cell_nodes(i):
-                    dist = np.linalg.norm(
-                        self._mesh.cells[i].center.to_np()
-                        - self._mesh.nodes[j].coordinate.to_np()
+                    dist = self.calculate_distance(
+                        self._mesh.cells[i].coordinate, self._mesh.nodes[j].coordinate
                     )
                     cell_node_dists[i][j] = dist
 
@@ -523,9 +566,8 @@ class MeshGeom:
             topos = MeshTopo(self._mesh)
             for i in range(node_num):
                 for j in topos.collect_node_neighbours(i):
-                    dist = np.linalg.norm(
-                        self._mesh.nodes[i].coordinate.to_np()
-                        - self._mesh.nodes[j].coordinate.to_np()
+                    dist = self.calculate_distance(
+                        self._mesh.nodes[i].coordinate, self._mesh.nodes[j].coordinate
                     )
                     node_dists[i][j] = dist
                     node_dists[j][i] = dist
@@ -536,6 +578,53 @@ class MeshGeom:
             return self._node_to_node_dists[node1][node2]
         else:
             return None
+
+    # -----------------------------------------------
+    # --- generation methods ---
+    # -----------------------------------------------
+
+    def extract_coordinates_separated(
+        self, element_type: str, dims: str = "xyz"
+    ) -> tuple:
+        """Extract the coordinates of each element separatedly."""
+        etype = element_type.lower()
+        if etype not in ["node", "cell", "face"]:
+            raise ValueError(f"Invalid element type: {etype}.")
+
+        dims = dims.lower()
+        if dims not in ["xyz", "xy", "xz", "yz", "x", "y", "z"]:
+            raise ValueError(f"Invalid dimension: {dims}.")
+
+        elements_map = {
+            "node": self._mesh.nodes,
+            "cell": self._mesh.cells,
+            "face": self._mesh.faces,
+        }
+        elements = elements_map.get(etype)
+
+        xs = np.array([e.coordinate.x for e in elements])
+        ys = np.array([e.coordinate.y for e in elements])
+        zs = np.array([e.coordinate.z for e in elements])
+
+        coordinate_map = {"x": xs, "y": ys, "z": zs}
+        coordinates = [coordinate_map.get(d) for d in dims]
+        return tuple(coordinates)
+
+    def extract_coordinates(self, element_type: str) -> np.ndarray:
+        """Extract the coordinates of all elements."""
+        etype = element_type.lower()
+        if etype not in ["node", "cell", "face"]:
+            raise ValueError(f"Invalid element type: {etype}.")
+
+        elements_map = {
+            "node": self._mesh.nodes,
+            "cell": self._mesh.cells,
+            "face": self._mesh.faces,
+        }
+        elements = elements_map.get(etype)
+
+        coordinates = np.array([e.coordinate.to_np() for e in elements])
+        return coordinates
 
     # -----------------------------------------------
     # --- vector methods ---
@@ -555,7 +644,7 @@ class MeshGeom:
             for i in range(cell_num):
                 for j in topos.collect_cell_neighbours(i):
                     vec_np = (
-                        self._mesh.cells[i].center - self._mesh.cells[j].center
+                        self._mesh.cells[i].coordinate - self._mesh.cells[j].coordinate
                     ).to_np()
                     vec = Vector.from_np(vec_np).unit()
                     cell_vecs[i][j] = vec
@@ -575,7 +664,7 @@ class MeshGeom:
             cell_face_vecs = [{} for _ in range(cell_num)]
             for cell in self._mesh.cells:
                 for face in cell.faces:
-                    vec_np = (cell.center - face.center).to_np()
+                    vec_np = (cell.coordinate - face.coordinate).to_np()
                     vec = Vector.from_np(vec_np).unit()
                     cell_face_vecs[cell.id][face.id] = vec
 

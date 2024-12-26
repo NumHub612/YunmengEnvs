@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 Simulation solution for surface water modeling.
 """
@@ -16,9 +16,9 @@ from core.solvers import (
 from configs.settings import logger
 
 
-class SurfaceWaterSimulation(ILinkableComponent):
+class ShallowWaterSimulation(ILinkableComponent):
     """
-    Surface water simulation component.
+    Shallow water simulation component.
     """
 
     def __init__(self, name: str, input_component: IInput, output_component: IOutput):

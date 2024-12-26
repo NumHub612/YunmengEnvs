@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 1d/2d/2d structured grids.
 """
-from core.numerics.mesh import Mesh, Coordinate, Node, Face, Cell
+from core.numerics.mesh import Mesh, MeshGeom, Coordinate, Node, Face, Cell
 from core.numerics.fields import Vector
 from configs.settings import logger
 
@@ -75,40 +75,36 @@ class Grid(Mesh):
         pass
 
     @abstractmethod
-    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+    def retrieve_node_neighborhoods(self, index: int) -> list:
         """
         Get the neighborhood node indexes of the given node.
 
         Args:
-            index: The global node index at center.
+            index: The global node index.
 
         Returns:
-            The neighborhood node global indexes sorted in the following order:
-                - the north neighbor index.
-                - the south neighbor index.
-                - the east neighbor index.
-                - the west neighbor index.
-                - the top neighbor index.
-                - the bottom neighbor index.
+            - The neighborhood node global indexes sorted in the following order:
+                - [north, south, east, west, top, bottom]
+
+        Notes:
+            - The north, east, and top directions are the x-, y-, and z-axes.
         """
         pass
 
     @abstractmethod
-    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
         """
         Get the neighborhood cell indexes of the given cell.
 
         Args:
-            index: The global cell index at center.
+            index: The global cell index.
 
         Returns:
-            The neighborhood cell global indexes sorted in the following order:
-                - the north neighbor index.
-                - the south neighbor index.
-                - the east neighbor index.
-                - the west neighbor index.
-                - the top neighbor index.
-                - the bottom neighbor index.
+            - The neighborhood cell global indexes sorted in the following order:
+                - [north, south, east, west, top, bottom]
+
+        Notes:
+            - The north, east, and top directions are the x-, y-, and z-axes.
         """
         pass
 
@@ -116,10 +112,12 @@ class Grid(Mesh):
 class Grid1D(Grid):
     """1D uniform structured grid in x-direction.
 
-    The 1d grid is a special case of mesh, somehow it is viered.
+    Notes:
+        - The 1d grid is a special case, somehow it's viered.
+        - All nodes y- ans z-coordinates are set to 0.
     """
 
-    def __init__(self, start_coord: Coordinate, end_coord: Coordinate, num: int):
+    def __init__(self, start: Coordinate, end: Coordinate, num: int):
         """
         Initialize a 1D uniform structured grid.
 
@@ -131,18 +129,14 @@ class Grid1D(Grid):
         super().__init__()
         self._nx = num
 
-        self._generate(start_coord, end_coord, num)
+        self._generate(start, end, num)
 
     def _generate(self, start, end, num):
         # generate nodes
         dx = (end.x - start.x) / (num - 1)
-        dy = (end.y - start.y) / (num - 1)
-        dz = (end.z - start.z) / (num - 1)
         for i in range(num):
             x = start.x + i * dx
-            y = start.y + i * dy
-            z = start.z + i * dz
-            node = Node(i, Coordinate(x, y, z))
+            node = Node(i, Coordinate(x))
             self._nodes.append(node)
 
         # generate mesh
@@ -191,19 +185,23 @@ class Grid1D(Grid):
     def match_cell(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
-    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+    def retrieve_node_neighborhoods(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
-        return None, None, east, west, None, None
+        return [None, None, east, west, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
-        return None, None, east, west, None, None
+        return [None, None, east, west, None, None]
 
 
 class Grid2D(Grid):
-    """2D structured grid in x-y plane."""
+    """2D structured grid in x-y plane.
+
+    Notes:
+        - All nodes z-coordinate are set to 0.
+    """
 
     def __init__(
         self, lower_left: Coordinate, upper_right: Coordinate, num_x: int, num_y: int
@@ -282,11 +280,8 @@ class Grid2D(Grid):
                     f_e = (i + 1) * (2 * (self._ny - 1) + 1) + j
 
                 faces = [f_n, f_w, f_s, f_e]
-                center = 0.25 * (
-                    self._faces[f_w].coordinate
-                    + self._faces[f_e].coordinate
-                    + self._faces[f_s].coordinate
-                    + self._faces[f_n].coordinate
+                center = MeshGeom.calculate_center(
+                    [self._faces[id].coordinate for id in faces]
                 )
                 surface = dx * dy
                 volume = surface
@@ -317,48 +312,266 @@ class Grid2D(Grid):
         pass
 
     def match_node(self, i: int, j: int, k: int = None) -> int:
-        return i * self._ny + j
+        if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
+            return None
+
+        nid = i * self._ny + j
+        return nid if 0 <= nid < self.node_count else None
 
     def match_cell(self, i: int, j: int, k: int = None) -> int:
-        return i * (self._ny - 1) + j
+        if i < 0 or i >= self._nx - 1 or j < 0 or j >= self._ny - 1:
+            return None
 
-    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+        cid = i * (self._ny - 1) + j
+        return cid if 0 <= cid < self.cell_count else None
+
+    def retrieve_node_neighborhoods(self, index: int) -> list:
         i = index // self._ny
         j = index % self._ny
 
-        north = i * self._ny + j - 1 if j > 0 else None
-        south = i * self._ny + j + 1 if j < self._ny - 1 else None
-        west = (i - 1) * self._ny + j if i > 0 else None
-        east = (i + 1) * self._ny + j if i < self._nx - 1 else None
-        return north, south, east, west, None, None
+        north = self.match_node(i, j + 1)
+        south = self.match_node(i, j - 1)
+        west = self.match_node(i - 1, j)
+        east = self.match_node(i + 1, j)
+        return [north, south, east, west, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
         i = index // (self._ny - 1)
         j = index % (self._ny - 1)
 
-        north = i * (self._ny - 1) + j - 1 if j > 0 else None
-        south = i * (self._ny - 1) + j + 1 if j < self._ny - 2 else None
-        west = (i - 1) * (self._ny - 1) + j if i > 0 else None
-        east = (i + 1) * (self._ny - 1) + j if i < self._nx - 2 else None
-        return north, south, east, west, None, None
+        north = self.match_cell(i, j + 1)
+        south = self.match_cell(i, j - 1)
+        west = self.match_cell(i - 1, j)
+        east = self.match_cell(i + 1, j)
+        return [north, south, east, west, None, None]
 
 
-class Grid3D(Mesh):
+class Grid3D(Grid):
     """3D structured grid."""
 
-    def __init__(self, start, end, num):
-        pass
+    def __init__(
+        self,
+        lower_left_front: Coordinate,
+        upper_right_back: Coordinate,
+        num_x: int,
+        num_y: int,
+        num_z: int,
+    ):
+        """
+        Initialize a 3D structured grid.
+
+        Args:
+            lower_left_front: The lower left front corner of the grid.
+            upper_right_back: The upper right back corner of the grid.
+            num_x: The number of nodes in the x-direction.
+            num_y: The number of nodes in the y-direction.
+            num_z: The number of nodes in the z-direction.
+        """
+        super().__init__()
+        self._ll = lower_left_front
+        self._ur = upper_right_back
+        self._nx = num_x
+        self._ny = num_y
+        self._nz = num_z
+
+        self._generate()
+
+    def _generate(self):
+        dx = (self._ur.x - self._ll.x) / (self._nx - 1)
+        dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        dz = (self._ur.z - self._ll.z) / (self._nz - 1)
+
+        # generate nodes
+        nid = 0
+        for k in range(self._nz):
+            z = self._ll.z + k * dz
+            for j in range(self._ny):
+                y = self._ll.y + j * dy
+                for i in range(self._nx):
+                    x = self._ll.x + i * dx
+                    node = Node(nid, Coordinate(x, y, z))
+                    self._nodes.append(node)
+                    nid += 1
+
+        # generate faces
+        fid = 0
+        for k in range(self._nz):
+            # faces in x-direction
+            for j in range(self._ny - 1):
+                if k >= self._nz - 1:
+                    continue
+                for i in range(self._nx):
+                    n_ll = k * self._nx * self._ny + j * self._nx + i
+                    n_rl = k * self._nx * self._ny + (j + 1) * self._nx + i
+                    n_ru = (k + 1) * self._nx * self._ny + (j + 1) * self._nx + i
+                    n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i
+                    nodes = [n_ll, n_rl, n_ru, n_lu]
+
+                    center = MeshGeom.calculate_center(
+                        [self._nodes[id].coordinate for id in nodes]
+                    )
+                    perimeter = 2 * dy + 2 * dz
+                    area = dy * dz
+                    normal = Vector(1, 0, 0)
+                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    self._faces.append(face)
+                    fid += 1
+
+            # faces in y-direction
+            for i in range(self._nx - 1):
+                if k >= self._nz - 1:
+                    continue
+                for j in range(self._ny):
+                    n_rl = k * self._nx * self._ny + j * self._nx + i
+                    n_ru = (k + 1) * self._nx * self._ny + j * self._nx + i
+                    n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i + 1
+                    n_ll = k * self._nx * self._ny + j * self._nx + i + 1
+                    nodes = [n_rl, n_ru, n_lu, n_ll]
+
+                    center = MeshGeom.calculate_center(
+                        [self._nodes[id].coordinate for id in nodes]
+                    )
+                    perimeter = 2 * dx + 2 * dz
+                    area = dx * dz
+                    normal = Vector(0, 1, 0)
+                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    self._faces.append(face)
+                    fid += 1
+
+            # faces in z-direction
+            for j in range(self._ny - 1):
+                for i in range(self._nx - 1):
+                    n_lu = k * self._nx * self._ny + j * self._nx + i
+                    n_ll = k * self._nx * self._ny + j * self._nx + i + 1
+                    n_ul = k * self._nx * self._ny + (j + 1) * self._nx + i + 1
+                    n_lr = k * self._nx * self._ny + (j + 1) * self._nx + i
+                    nodes = [n_lu, n_ll, n_ul, n_lr]
+
+                    center = MeshGeom.calculate_center(
+                        [self._nodes[id].coordinate for id in nodes]
+                    )
+                    perimeter = 2 * dx + 2 * dy
+                    area = dx * dy
+                    normal = Vector(0, 0, 1)
+                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    self._faces.append(face)
+                    fid += 1
+
+        # generate cells
+        cid = 0
+        faces_along_x = self._nx * (self._ny - 1)
+        faces_along_y = self._ny * (self._nx - 1)
+        faces_along_z = (self._nx - 1) * (self._ny - 1)
+        faces_per_layer = (
+            (self._nx - 1) * (self._ny - 1)
+            + self._nx * (self._ny - 1)
+            + self._ny * (self._nx - 1)
+        )
+        for k in range(self._nz - 1):
+            for j in range(self._ny - 1):
+                for i in range(self._nx - 1):
+                    f_n = k * faces_per_layer + j * self._nx + i
+                    f_s = k * faces_per_layer + j * self._nx + i + 1
+                    f_w = k * faces_per_layer + faces_along_x + i * self._ny + j
+                    f_e = k * faces_per_layer + faces_along_x + i * self._ny + j + 1
+                    f_d = (
+                        k * faces_per_layer
+                        + faces_along_x
+                        + faces_along_y
+                        + j * (self._nx - 1)
+                        + i
+                    )
+                    if k < self._nz - 2:
+                        f_u = (
+                            (k + 1) * faces_per_layer
+                            + faces_along_x
+                            + faces_along_y
+                            + j * (self._nx - 1)
+                            + i
+                        )
+                    else:
+                        f_u = (
+                            k * faces_per_layer
+                            + faces_along_z
+                            + faces_along_x
+                            + faces_along_y
+                            + j * (self._nx - 1)
+                            + i
+                        )
+                    faces = [f_n, f_s, f_w, f_e, f_d, f_u]
+
+                    center = MeshGeom.calculate_center(
+                        [self._faces[id].coordinate for id in faces]
+                    )
+                    surface = 2 * dx * dy + 2 * dy * dz + 2 * dx * dz
+                    volume = dx * dy * dz
+                    cell = Cell(cid, faces, center, surface, volume)
+                    self._cells.append(cell)
+                    cid += 1
 
     @property
     def domain(self) -> str:
-        pass
+        return "3d"
 
     @property
-    def extents(self) -> list:
-        pass
+    def nx(self) -> int:
+        return self._nx
+
+    @property
+    def ny(self) -> int:
+        return self._ny
+
+    @property
+    def nz(self) -> int:
+        return self._nz
 
     def refine_cell(self, index: int):
         pass
 
     def relax_cell(self, index: int):
         pass
+
+    def match_node(self, i: int, j: int, k: int) -> int:
+        if i < 0 or i >= self._nx or j < 0 or j >= self._ny or k < 0 or k >= self._nz:
+            return None
+
+        return k * self._nx * self._ny + j * self._nx + i
+
+    def match_cell(self, i: int, j: int, k: int) -> int:
+        if (
+            i < 0
+            or i >= self._nx - 1
+            or j < 0
+            or j >= self._ny - 1
+            or k < 0
+            or k >= self._nz - 1
+        ):
+            return None
+
+        return k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i
+
+    def retrieve_node_neighborhoods(self, index: int) -> list:
+        k = index // (self._nx * self._ny)
+        j = (index - k * self._nx * self._ny) // self._nx
+        i = index % self._nx
+
+        north = self.match_node(i, j + 1, k)
+        south = self.match_node(i, j - 1, k)
+        west = self.match_node(i - 1, j, k)
+        east = self.match_node(i + 1, j, k)
+        down = self.match_node(i, j, k - 1)
+        up = self.match_node(i, j, k + 1)
+        return [north, south, east, west, up, down]
+
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
+        k = index // ((self._nx - 1) * (self._ny - 1))
+        j = (index - k * (self._nx - 1) * (self._ny - 1)) // (self._nx - 1)
+        i = (index - k * (self._nx - 1) * (self._ny - 1)) % (self._nx - 1)
+
+        north = self.match_cell(i, j + 1, k)
+        south = self.match_cell(i, j - 1, k)
+        west = self.match_cell(i - 1, j, k)
+        east = self.match_cell(i + 1, j, k)
+        down = self.match_cell(i, j, k - 1)
+        up = self.match_cell(i, j, k + 1)
+        return [north, south, east, west, up, down]

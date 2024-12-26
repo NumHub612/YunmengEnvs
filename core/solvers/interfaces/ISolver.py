@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 Interfaces for fluid equations solvers.
 """
@@ -98,9 +98,20 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
+    def assimilate(self, **kwargs):
+        """
+        Assimilate the solver with extra data to improve its accuracy.
+
+        Run by steps.
+        """
+        pass
+
+    @abstractmethod
     def optimize(self, **kwargs):
         """
-        Optimize the solver with data to calibrate the parameters.
+        Optimize the solver with data to calibrate its parameters.
+
+        Run by steps or in a batch.
         """
         pass
 
@@ -108,9 +119,10 @@ class ISolver(ABC):
     def inference(self, **kwargs) -> tuple[bool, bool, dict]:
         """
         Inference the solver to get the solutions.
+        Run by steps.
 
         Returns:
-            A tuple of (is_done, is_terminated, status) resutls.
+            A tuple of results with (is_done, is_terminated, status).
         """
         pass
 
@@ -201,6 +213,9 @@ class BaseSolver(ISolver):
         raise NotImplementedError()
 
     def terminate(self, **kwargs):
+        raise NotImplementedError()
+
+    def assimilate(self, **kwargs):
         raise NotImplementedError()
 
     def optimize(self, **kwargs):

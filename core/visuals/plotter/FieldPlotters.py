@@ -1,13 +1,12 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, for you talents!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 Plotters for visualizing the fluid fields.
 """
-from core.visuals.plotter import PlotKits
+from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
 from core.numerics.fields import Field
-from core.numerics.mesh import Mesh, MeshTopo
-from core.numerics import GeoMethods
+from core.visuals.plotter import PlotKits
 
 import numpy as np
 
@@ -39,20 +38,21 @@ def plot_scalar_field(
         kwargs: Other arguments for rendering.
 
     Notes:
-        - 3d mesh is always a scatter plot;1d is always a line chart.
+        - 1d is always a line chart.
         - For line chart, `kwargs` can be used to specify
           the line style, e.g. 'color', 'marker', etc.
         - For cloudmap, `kwargs` can be used to specify
           the colormap, e.g. "cmap", "show_edges", etc.
-        - For streamplot, `kwargs` can be used to specify
-          the vector, e.g. "color", "mag", etc.
     """
     if field.dtype != "scalar":
         raise ValueError("Field must be a scalar field.")
 
+    geom = MeshGeom(mesh)
+    points = geom.extract_coordinates("node")
+
     # plot 1d mesh special case
     if mesh.domain == "1d":
-        x = GeoMethods.extract_coordinates_separated(mesh, field.etype, dim="x")[0]
+        x = geom.extract_coordinates_separated(field.etype, dims="x")[0]
         y = {label: {"values": field.to_np(), **kwargs}}
 
         PlotKits.plot_data_series(
@@ -65,32 +65,37 @@ def plot_scalar_field(
         )
         return
 
-    # perpare the geometric data
-    points = GeoMethods.extract_coordinates(mesh, "node")
-
-    # plot 3d mesh special case
-    if mesh.domain == "3d":
-        PlotKits.plot_mesh_scatters(
-            points,
-            field.to_np(),
-            save_dir=save_dir,
-            show=show,
-            title=title,
-            figsize=figsize,
-            label=label,
-        )
-        return
-
-    # plot 2d mesh
+    # plot 2d/3d mesh
     topo = MeshTopo(mesh)
-    polygons = [topo.collect_cell_nodes(i) for i in range(mesh.cell_count)]
-    domain = "point" if field.etype == "node" else "polygon"
+    domain = "point" if field.etype == "node" else "cell"
+
+    cells = []
+    if mesh.domain == "2d":
+        for cell in mesh.cells:
+            nodes = topo.collect_cell_nodes(cell.id)
+            coors = [mesh.nodes[i].coordinate for i in nodes]
+            indexes = geom.sort_anticlockwise(dict(zip(nodes, coors)))
+            cells.append([len(indexes)] + indexes)
+    else:
+        for cell in mesh.cells:
+            # Here we assume that the cell faces sorted as [north, south, east, west, bottom, top]
+            nodes1 = mesh.faces[cell.faces[-1]].nodes
+            coors1 = [mesh.nodes[i].coordinate for i in nodes1]
+            nodes2 = mesh.faces[cell.faces[-2]].nodes
+            coors2 = [mesh.nodes[i].coordinate for i in nodes2]
+
+            # Points need to be sorted.
+            points1 = geom.sort_anticlockwise(dict(zip(nodes1, coors1)))
+            points2 = geom.sort_anticlockwise(dict(zip(nodes2, coors2)))
+            cell = points1 + points2
+            cells.append([len(cell)] + cell)
 
     style = style.lower()
     if style == "cloudmap":
         PlotKits.plot_mesh_cloudmap(
             points,
-            polygons,
+            cells,
+            mesh.domain,
             field.to_np(),
             domain,
             save_dir=save_dir,
@@ -109,6 +114,7 @@ def plot_scalar_field(
             title=title,
             figsize=figsize,
             label=label,
+            **kwargs,
         )
     else:
         raise ValueError(f"Unsupported style: {style}")
@@ -155,6 +161,9 @@ def plot_vector_field(
     if field.dtype != "vector":
         raise ValueError("Field must be a vector field.")
 
+    geom = MeshGeom(mesh)
+    points = geom.extract_coordinates("node")
+
     # split the vector field into components
     values = field.to_np()
     us = values[:, 0]
@@ -165,7 +174,7 @@ def plot_vector_field(
 
     # plot 1d mesh special case
     if mesh.domain == "1d":
-        x = GeoMethods.extract_coordinates_separated(mesh, field.etype, dim="x")[0]
+        x = geom.extract_coordinates_separated(field.etype, dims="x")[0]
         y = {f"{label}_x": {"values": data_map.get(dimension), **kwargs}}
 
         PlotKits.plot_data_series(
@@ -178,33 +187,37 @@ def plot_vector_field(
         )
         return
 
-    # perpare the geometric data
-    points = GeoMethods.extract_coordinates(mesh, "node")
-
-    # plot 3d mesh special case
-    if mesh.domain == "3d":
-        PlotKits.plot_mesh_scatters(
-            points,
-            data_map.get(dimension),
-            save_dir=save_dir,
-            show=show,
-            title=title,
-            figsize=figsize,
-            label=label,
-            **kwargs,
-        )
-        return
-
     # plot 2d mesh
     topo = MeshTopo(mesh)
-    polygons = [topo.collect_cell_nodes(i) for i in range(mesh.cell_count)]
-    domain = "point" if field.etype == "node" else "polygon"
+    domain = "point" if field.etype == "node" else "cell"
+
+    cells = []
+    if mesh.domain == "2d":
+        for cell in mesh.cells:
+            nodes = topo.collect_cell_nodes(cell.id)
+            coors = [mesh.nodes[i].coordinate for i in nodes]
+            indexes = geom.sort_anticlockwise(dict(zip(nodes, coors)))
+            cells.append([len(indexes)] + indexes)
+    else:
+        for cell in mesh.cells:
+            # Here we assume that the cell faces sorted as [north, south, east, west, bottom, top]
+            nodes1 = mesh.faces[cell.faces[-1]].nodes
+            coors1 = [mesh.nodes[i].coordinate for i in nodes1]
+            nodes2 = mesh.faces[cell.faces[-2]].nodes
+            coors2 = [mesh.nodes[i].coordinate for i in nodes2]
+
+            # Points need to be sorted.
+            points1 = geom.sort_anticlockwise(dict(zip(nodes1, coors1)))
+            points2 = geom.sort_anticlockwise(dict(zip(nodes2, coors2)))
+            cell = points1 + points2
+            cells.append([len(cell)] + cell)
 
     style = style.lower()
     if style == "cloudmap":
         PlotKits.plot_mesh_cloudmap(
             points,
-            polygons,
+            cells,
+            mesh.domain,
             data_map.get(dimension),
             domain,
             save_dir=save_dir,
@@ -228,7 +241,8 @@ def plot_vector_field(
     elif style == "streamplot":
         PlotKits.plot_mesh_streamplot(
             points,
-            polygons,
+            cells,
+            mesh.domain,
             values,
             domain,
             save_dir=save_dir,
@@ -242,7 +256,48 @@ def plot_vector_field(
 
 
 if __name__ == "__main__":
-    from core.numerics.mesh import Coordinate, Grid2D, Grid1D
+    from core.numerics.mesh import Coordinate, Grid3D, Grid2D, Grid1D
+
+    # set 3d mesh
+    low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
+    nx, ny, nz = 3, 4, 5
+    grid = Grid3D(low_left, upper_right, nx, ny, nz)
+
+    scalar_values_n = np.array([[i % 100] for i in range(grid.node_count)])
+    scalar_field = Field.from_np(scalar_values_n, "node")
+
+    plot_scalar_field(
+        scalar_field,
+        grid,
+        title="3D Scalar Field",
+        label="value",
+        save_dir=None,
+        show=True,
+    )
+
+    plot_scalar_field(
+        scalar_field,
+        grid,
+        title="3D Scalar Field",
+        label="value",
+        style="scatter",
+        save_dir=None,
+        show=True,
+    )
+
+    vector_values_n = np.random.rand(grid.node_count, 3)
+    vector_field = Field.from_np(vector_values_n, "node")
+
+    plot_vector_field(
+        vector_field,
+        grid,
+        title="3D Vector Field",
+        label="u",
+        style="cloudmap",
+        save_dir=None,
+        show=True,
+        dimension="x",
+    )
 
     # set 2d mesh
     low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)

@@ -2,37 +2,38 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
-Solving the 2D Burgers equation using finite difference method.
+Solving the 3D Burgers equation using finite difference method.
 """
 from core.solvers.interfaces import BaseSolver
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.fields import NodeField, Vector
-from core.numerics.mesh import Grid2D
+from core.numerics.fields import NodeField
+from core.numerics.mesh import Grid3D
 from configs.settings import logger
 
 import copy
 
 
-class Burgers2D(BaseSolver):
+class Burgers3D(BaseSolver):
     """
-    The 2D Burgers equation solver.
+    The 3D Burgers equation solver.
     """
 
     @classmethod
     def get_name(cls) -> str:
-        return "burgers2d"
+        return "burgers3d"
 
     @classmethod
     def get_meta(cls) -> dict:
         metas = super().get_meta()
         metas.update(
             {
-                "description": "Test solver of the 2D Burgers equation.",
+                "description": "Test solver of the 3D Burgers equation.",
                 "type": "fdm",
                 "equation": "Burgers' Equation",
-                "equation_expr": "u_t + u*u_x + v*u_y = nu*(u_xx + u_yy),\
-                    v_t + u*v_x + v*v_y = nu*(v_xx + v_yy)",
-                "domain": "2D",
+                "equation_expr": "u_t + u*u_x + v*u_y + w*u_z = nu*(u_xx + u_yy + u_zz),\
+                    v_t + u*v_x + v*v_y + w*v_z = nu*(v_xx + v_yy + v_zz),\
+                    w_t + u*w_x + v*w_y + w*w_z = nu*(w_xx + w_yy + w_zz)",
+                "domain": "3D",
                 "default_ic": "none",
                 "default_bc": "none",
             }
@@ -60,8 +61,8 @@ class Burgers2D(BaseSolver):
         """
         super().__init__(id, mesh)
 
-        if not isinstance(mesh, Grid2D):
-            raise ValueError("The mesh domain must be 2D grid.")
+        if not isinstance(mesh, Grid3D):
+            raise ValueError("The mesh domain must be 3D grid.")
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
@@ -74,6 +75,7 @@ class Burgers2D(BaseSolver):
 
         self._dx = None
         self._dy = None
+        self._dz = None
 
     def initialize(self, time_steps: int, nu: float = 0.01, sigma=0.2):
         """
@@ -102,8 +104,10 @@ class Burgers2D(BaseSolver):
 
         min_x, max_x, _ = self._geom.statistics_node_attribute("x")
         min_y, max_y, _ = self._geom.statistics_node_attribute("y")
+        min_z, max_z, _ = self._geom.statistics_node_attribute("z")
         self._dx = (max_x - min_x) / self._mesh.nx
         self._dy = (max_y - min_y) / self._mesh.ny
+        self._dz = (max_z - min_z) / self._mesh.nz
 
         self._dt = sigma * self._dx
         self._total_time = time_steps * self._dt
@@ -139,22 +143,25 @@ class Burgers2D(BaseSolver):
 
         # Update interior nodes
         for node in self._topo.interior_nodes_indexes:
-            nid, sid, eid, wid, _, _ = self._mesh.retrieve_node_neighborhoods(node)
-            # eid, wid, nid, sid = self._calc_grid_indexes(node)
+            nid, sid, eid, wid, tid, bid = self._mesh.retrieve_node_neighborhoods(node)
             p = u[node]
-            e, w, n, s = u[eid], u[wid], u[nid], u[sid]
+            e, w, n, s, t, b = u[eid], u[wid], u[nid], u[sid], u[tid], u[bid]
 
             k1x = -p.x * self._dt / self._dx  # non-linear coefficent
             k1y = -p.y * self._dt / self._dy
+            k1z = -p.z * self._dt / self._dz
             k2x = self._nu * self._dt / self._dx**2
             k2y = self._nu * self._dt / self._dy**2
+            k2z = self._nu * self._dt / self._dz**2
 
             new_u[node] = (
                 p
                 + k1x * (p - w)
                 + k1y * (p - s)
+                + k1z * (p - b)
                 + k2x * (e - 2 * p + w)
                 + k2y * (n - 2 * p + s)
+                + k2z * (t - 2 * p + b)
             )
 
         # Update solution
@@ -165,21 +172,3 @@ class Burgers2D(BaseSolver):
             callback.on_step(self._fields, self._t)
 
         return self._t >= self._total_time, False, self.status
-
-    def _calc_grid_indexes(self, nid: int):
-        i = nid // self._mesh.ny
-        j = nid % self._mesh.ny
-
-        e_node = (i + 1) * self._mesh.ny + j
-        e_node = min(self._mesh.node_count - 1, e_node)
-
-        w_node = (i - 1) * self._mesh.ny + j
-        w_node = max(0, w_node)
-
-        n_node = i * self._mesh.ny + (j + 1)
-        n_node = min(self._mesh.node_count - 1, n_node)
-
-        s_node = i * self._mesh.ny + (j - 1)
-        s_node = max(0, s_node)
-
-        return e_node, w_node, n_node, s_node
