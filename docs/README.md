@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/NumHub612/YunmengEnvs">
-    <img src="./assets/logo.jpg" alt="YunmengEnvs" width="560" height="360" />
+    <img src="./assets/logo.jpg" alt="YunmengEnvs" />
   </a>
 </p>
 

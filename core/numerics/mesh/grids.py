@@ -75,40 +75,30 @@ class Grid(Mesh):
         pass
 
     @abstractmethod
-    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+    def retrieve_node_neighborhoods(self, index: int) -> list:
         """
         Get the neighborhood node indexes of the given node.
 
         Args:
-            index: The global node index at center.
+            index: The global node index.
 
         Returns:
-            The neighborhood node global indexes sorted in the following order:
-                - the north neighbor index.
-                - the south neighbor index.
-                - the east neighbor index.
-                - the west neighbor index.
-                - the top neighbor index.
-                - the bottom neighbor index.
+            - The neighborhood node global indexes sorted in the following order:
+                - [north, south, east, west, top, bottom]
         """
         pass
 
     @abstractmethod
-    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
         """
         Get the neighborhood cell indexes of the given cell.
 
         Args:
-            index: The global cell index at center.
+            index: The global cell index.
 
         Returns:
             - The neighborhood cell global indexes sorted in the following order:
-                - the north neighbor index.
-                - the south neighbor index.
-                - the east neighbor index.
-                - the west neighbor index.
-                - the top neighbor index.
-                - the bottom neighbor index.
+                - [north, south, east, west, top, bottom]
         """
         pass
 
@@ -189,15 +179,15 @@ class Grid1D(Grid):
     def match_cell(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
-    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+    def retrieve_node_neighborhoods(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
-        return None, None, east, west, None, None
+        return [None, None, east, west, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
-        return None, None, east, west, None, None
+        return [None, None, east, west, None, None]
 
 
 class Grid2D(Grid):
@@ -316,30 +306,38 @@ class Grid2D(Grid):
         pass
 
     def match_node(self, i: int, j: int, k: int = None) -> int:
-        return i * self._ny + j
+        if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
+            return None
+
+        nid = i * self._ny + j
+        return nid if 0 <= nid < self.node_count else None
 
     def match_cell(self, i: int, j: int, k: int = None) -> int:
-        return i * (self._ny - 1) + j
+        if i < 0 or i >= self._nx - 1 or j < 0 or j >= self._ny - 1:
+            return None
 
-    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+        cid = i * (self._ny - 1) + j
+        return cid if 0 <= cid < self.cell_count else None
+
+    def retrieve_node_neighborhoods(self, index: int) -> list:
         i = index // self._ny
         j = index % self._ny
 
-        north = i * self._ny + j - 1 if j > 0 else None
-        south = i * self._ny + j + 1 if j < self._ny - 1 else None
-        west = (i - 1) * self._ny + j if i > 0 else None
-        east = (i + 1) * self._ny + j if i < self._nx - 1 else None
-        return north, south, east, west, None, None
+        north = self.match_node(i, j + 1)
+        south = self.match_node(i, j - 1)
+        west = self.match_node(i - 1, j)
+        east = self.match_node(i + 1, j)
+        return [north, south, east, west, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
         i = index // (self._ny - 1)
         j = index % (self._ny - 1)
 
-        north = i * (self._ny - 1) + j - 1 if j > 0 else None
-        south = i * (self._ny - 1) + j + 1 if j < self._ny - 2 else None
-        west = (i - 1) * (self._ny - 1) + j if i > 0 else None
-        east = (i + 1) * (self._ny - 1) + j if i < self._nx - 2 else None
-        return north, south, east, west, None, None
+        north = self.match_cell(i, j + 1)
+        south = self.match_cell(i, j - 1)
+        west = self.match_cell(i - 1, j)
+        east = self.match_cell(i + 1, j)
+        return [north, south, east, west, None, None]
 
 
 class Grid3D(Grid):
@@ -533,7 +531,7 @@ class Grid3D(Grid):
     def match_cell(self, i: int, j: int, k: int) -> int:
         return k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i
 
-    def retrieve_node_neighborhoods(self, index: int) -> tuple:
+    def retrieve_node_neighborhoods(self, index: int) -> list:
         k = index // (self._nx * self._ny)
         j = (index - k * self._nx * self._ny) // self._nx
         i = index % self._nx
@@ -554,9 +552,9 @@ class Grid3D(Grid):
             if k < self._nz - 1
             else None
         )
-        return north, south, east, west, down, up
+        return [north, south, east, west, down, up]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> tuple:
+    def retrieve_cell_neighborhoods(self, index: int) -> list:
         k = index // ((self._nx - 1) * (self._ny - 1))
         j = (index - k * (self._nx - 1) * (self._ny - 1)) // (self._nx - 1)
         i = (index - k * (self._nx - 1) * (self._ny - 1)) % (self._nx - 1)
@@ -591,4 +589,4 @@ class Grid3D(Grid):
             if k < self._nz - 2
             else None
         )
-        return north, south, east, west, down, up
+        return [north, south, east, west, down, up]

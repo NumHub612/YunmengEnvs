@@ -101,6 +101,8 @@ class ISolver(ABC):
     def assimilate(self, **kwargs):
         """
         Assimilate the solver with extra data to improve its accuracy.
+
+        Run by steps.
         """
         pass
 
@@ -108,6 +110,8 @@ class ISolver(ABC):
     def optimize(self, **kwargs):
         """
         Optimize the solver with data to calibrate its parameters.
+
+        Run by steps or in a batch.
         """
         pass
 
@@ -115,6 +119,7 @@ class ISolver(ABC):
     def inference(self, **kwargs) -> tuple[bool, bool, dict]:
         """
         Inference the solver to get the solutions.
+        Run by steps.
 
         Returns:
             A tuple of results with (is_done, is_terminated, status).
