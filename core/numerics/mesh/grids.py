@@ -85,6 +85,9 @@ class Grid(Mesh):
         Returns:
             - The neighborhood node global indexes sorted in the following order:
                 - [north, south, east, west, top, bottom]
+
+        Notes:
+            - The north, east, and top directions are the x-, y-, and z-axes.
         """
         pass
 
@@ -99,6 +102,9 @@ class Grid(Mesh):
         Returns:
             - The neighborhood cell global indexes sorted in the following order:
                 - [north, south, east, west, top, bottom]
+
+        Notes:
+            - The north, east, and top directions are the x-, y-, and z-axes.
         """
         pass
 
@@ -526,9 +532,22 @@ class Grid3D(Grid):
         pass
 
     def match_node(self, i: int, j: int, k: int) -> int:
+        if i < 0 or i >= self._nx or j < 0 or j >= self._ny or k < 0 or k >= self._nz:
+            return None
+
         return k * self._nx * self._ny + j * self._nx + i
 
     def match_cell(self, i: int, j: int, k: int) -> int:
+        if (
+            i < 0
+            or i >= self._nx - 1
+            or j < 0
+            or j >= self._ny - 1
+            or k < 0
+            or k >= self._nz - 1
+        ):
+            return None
+
         return k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i
 
     def retrieve_node_neighborhoods(self, index: int) -> list:
@@ -536,57 +555,23 @@ class Grid3D(Grid):
         j = (index - k * self._nx * self._ny) // self._nx
         i = index % self._nx
 
-        north = k * self._nx * self._ny + (j - 1) * self._nx + i if j > 0 else None
-        south = (
-            k * self._nx * self._ny + (j + 1) * self._nx + i
-            if j < self._ny - 1
-            else None
-        )
-        west = k * self._nx * self._ny + j * self._nx + i - 1 if i > 0 else None
-        east = (
-            k * self._nx * self._ny + j * self._nx + i + 1 if i < self._nx - 1 else None
-        )
-        down = (k - 1) * self._nx * self._ny + j * self._nx + i if k > 0 else None
-        up = (
-            (k + 1) * self._nx * self._ny + j * self._nx + i
-            if k < self._nz - 1
-            else None
-        )
-        return [north, south, east, west, down, up]
+        north = self.match_node(i, j + 1, k)
+        south = self.match_node(i, j - 1, k)
+        west = self.match_node(i - 1, j, k)
+        east = self.match_node(i + 1, j, k)
+        down = self.match_node(i, j, k - 1)
+        up = self.match_node(i, j, k + 1)
+        return [north, south, east, west, up, down]
 
     def retrieve_cell_neighborhoods(self, index: int) -> list:
         k = index // ((self._nx - 1) * (self._ny - 1))
         j = (index - k * (self._nx - 1) * (self._ny - 1)) // (self._nx - 1)
         i = (index - k * (self._nx - 1) * (self._ny - 1)) % (self._nx - 1)
 
-        north = (
-            k * (self._nx - 1) * (self._ny - 1) + (j - 1) * (self._nx - 1) + i
-            if j > 0
-            else None
-        )
-        south = (
-            k * (self._nx - 1) * (self._ny - 1) + (j + 1) * (self._nx - 1) + i
-            if j < self._ny - 2
-            else None
-        )
-        west = (
-            k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i - 1
-            if i > 0
-            else None
-        )
-        east = (
-            k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i + 1
-            if i < self._nx - 2
-            else None
-        )
-        down = (
-            k * (self._nx - 1) * (self._ny - 1) + (j - 1) * (self._nx - 1) + i
-            if k > 0
-            else None
-        )
-        up = (
-            k * (self._nx - 1) * (self._ny - 1) + (j + 1) * (self._nx - 1) + i
-            if k < self._nz - 2
-            else None
-        )
-        return [north, south, east, west, down, up]
+        north = self.match_cell(i, j + 1, k)
+        south = self.match_cell(i, j - 1, k)
+        west = self.match_cell(i - 1, j, k)
+        east = self.match_cell(i + 1, j, k)
+        down = self.match_cell(i, j, k - 1)
+        up = self.match_cell(i, j, k + 1)
+        return [north, south, east, west, up, down]

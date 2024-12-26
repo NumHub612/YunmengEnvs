@@ -68,6 +68,42 @@ class TestGrids(unittest.TestCase):
 
     def test_grid3d(self):
         """test Grid3D"""
+        low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
+        nx, ny, nz = 3, 3, 3
+        grid = Grid3D(low_left, upper_right, nx, ny, nz)
+
+        self.assertEqual(grid.cell_count, 8)
+        self.assertEqual(grid.face_count, 36)
+        self.assertEqual(grid.node_count, 27)
+
+        self.assertEqual(grid.match_node(1, 1, 0), 4)
+        self.assertEqual(grid.match_node(1, 1, 1), 13)
+        self.assertEqual(grid.match_node(1, 2, 1), 16)
+        self.assertEqual(grid.match_node(2, 2, 2), 26)
+        self.assertEqual(grid.match_node(2, 1, 2), 23)
+
+        self.assertEqual(
+            grid.retrieve_node_neighborhoods(2), [5, None, None, 1, 11, None]
+        )
+        self.assertEqual(grid.retrieve_node_neighborhoods(4), [7, 1, 5, 3, 13, None])
+        self.assertEqual(grid.retrieve_node_neighborhoods(13), [16, 10, 14, 12, 22, 4])
+        self.assertEqual(
+            grid.retrieve_node_neighborhoods(25), [None, 22, 26, 24, None, 16]
+        )
+
+        self.assertEqual(grid.match_cell(0, 1, 0), 2)
+        self.assertEqual(grid.match_cell(1, 1, 0), 3)
+        self.assertEqual(grid.match_cell(1, 0, 1), 5)
+        self.assertEqual(grid.match_cell(0, 1, 1), 6)
+        self.assertEqual(grid.match_cell(1, 1, 1), 7)
+
+        self.assertEqual(
+            grid.retrieve_cell_neighborhoods(1), [3, None, None, 0, 5, None]
+        )
+        self.assertEqual(
+            grid.retrieve_cell_neighborhoods(6), [None, 4, 7, None, None, 2]
+        )
+
         return True
 
 
@@ -75,6 +111,7 @@ if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
         suit.addTest(TestGrids("test_grid2d"))
+        suit.addTest(TestGrids("test_grid3d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)
