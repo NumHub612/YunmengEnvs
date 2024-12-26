@@ -23,9 +23,9 @@ class TestDemo(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # 在项目根目录下测试
+    # 项目根目录下测试
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
-        # 逐次加载测试
+        # 方式二：逐次加载测试用例
         suit = unittest.TestSuite()
         suit.addTest(TestDemo("test_demo"))
 
