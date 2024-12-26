@@ -523,7 +523,7 @@ class Grid3D(Grid):
 
     @property
     def nz(self) -> int:
-        return None
+        return self._nz
 
     def refine_cell(self, index: int):
         pass
