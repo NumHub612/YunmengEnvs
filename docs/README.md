@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/NumHub612/YunmengEnvs">
-    <img src="./assets/logo.jpg" alt="YunmengEnvs" />
+    <img src="./assets/logo.jpg" alt="YunmengEnvs"  width="560" height="360" />
   </a>
 </p>
 
@@ -16,9 +16,18 @@
 
 ---------------------------------------------------------------------------------
 
-## 如何使用？
+## 文档大纲
 
-
++ [关于YunmengEnvs]()
++ [安装]()
++ [快速开始]()
++ [解决方案]()
++ [集成]()
++ [求解器]()
++ [回调]()
++ [可视化]()
++ [基准]()
++ [开发者]()
 
 ---------------------------------------------------------------------------------
 
@@ -26,12 +35,22 @@
 
 我们希望能够做出一些有趣的尝试和成果，能够将这些想法和经验分享给整个社区。
 
-如果你对这个项目感兴趣，欢迎加入我们！   
+如果你对这个项目感兴趣，欢迎加入我们！ 
+
++ [加入社区]()
++ [参与贡献]()
 
 感谢我们的贡献者:
 
 <a href="https://github.com/NumHub612/YunmengEnvs/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=NumHub612/YunmengEnvs" />
 </a>
+
+---------------------------------------------------------------------------------
+
+## YunmengEnvs API 文档
+
++ [yunmengenvs.solutions package]()
++ [yunmengenvs.solvers package]()
 
 ---------------------------------------------------------------------------------

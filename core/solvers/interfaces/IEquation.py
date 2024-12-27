@@ -13,3 +13,11 @@ class IEquation(ABC):
     """
 
     pass
+
+
+class IOperator(ABC):
+    """
+    Interface for describing and discretizing pde operators.
+    """
+
+    pass
