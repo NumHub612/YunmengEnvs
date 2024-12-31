@@ -30,7 +30,6 @@ class IBoundaryCondition(ABC):
         Args:
             time: The current time, in seconds.
             elem: The element to be evaluated.
-            kwargs: Additional arguments.
 
         Returns:
             A tuple of two values: flux and value.

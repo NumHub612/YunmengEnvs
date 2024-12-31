@@ -4,9 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Interfaces for initializing the firield variables.
 """
-from abc import ABC, abstractmethod
-
 from core.numerics.fields import Field
+
+from abc import ABC, abstractmethod
 
 
 class IInitCondition(ABC):
@@ -29,6 +29,5 @@ class IInitCondition(ABC):
 
         Args:
             field: Field to be initialized.
-            kwargs: Additional arguments.
         """
         pass

@@ -19,13 +19,31 @@ class ISolver(ABC):
     Interface for fluid dynamic equations solvers.
     """
 
-    @property
+    @classmethod
     @abstractmethod
-    def status(self) -> dict:
+    def get_meta(cls) -> dict:
         """
-        The current status of the solver, not including the solution.
+        The accessiable fields and other meta infomations of solver.
+
+        Returns:
+            - A dictionary containing the meta information of the solver with the following keys:
+                - description (str): A brief description of the solver.
+                - type (str): The type of the solver, e.g. FDM, FVM, etc.
+                - equation (str): The equation solved by the solver, e.g. Navier-Stokes, etc.
+                - equation_expr (str): The mathematical expression of the equation.
+                - domain (str): The domain of the solver, e.g. 2D, etc.
+                - default_ic (str): The default initial condition.
+                - default_bc (str): The default boundary condition.
+                - fields (List[Dict[str, str]]): The list of fields solved by the solver.
+
+        Notes:
+            - The `fields` contains all the avaiable fields from the solver, following the format:
+                - name (str): The name of the field.
+                - description (str): A brief description of the field.
+                - dtype (str): The data type of the field, e.g. scalar, vector, tensor.
+                - etype (str): The element type, e.g. node, face, cell, etc.
         """
-        pass
+        return {}
 
     @classmethod
     @abstractmethod
@@ -35,13 +53,21 @@ class ISolver(ABC):
         """
         pass
 
-    @classmethod
+    @property
     @abstractmethod
-    def get_meta(cls) -> dict:
+    def status(self) -> dict:
         """
-        The accessiable fields and other meta infomations of solver.
+        The current status of the solver, not including the solution.
+
+        Returns:
+            - A dictionary containing the current status of the solver with the following keys:
+                - iteration (int): The current iteration number.
+                - time_step (float): The current time step.
+                - current_time (float): The total elapsed time.
+                - convergence (bool): Whether the solver has converged.
+                - error (str): Any error messages or warnings.
         """
-        return {}
+        pass
 
     @abstractmethod
     def get_solution(self, field_name: str) -> Field:
@@ -65,13 +91,13 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def set_bc(self, var: str, elems: list, bc: IBoundaryCondition):
+    def set_bc(self, var: str, elements: list, bc: IBoundaryCondition):
         """
         Set the boundary condition for the solver.
 
         Args:
             var: Name of the variable to set the boundary condition.
-            elems: The list of elements to set on.
+            elements: The list of elements to set on.
             bc: The boundary condition.
         """
         pass
@@ -98,18 +124,20 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def assimilate(self, **kwargs):
+    def assimilate(self, data: dict, **kwargs):
         """
         Assimilate the solver with extra data to improve its accuracy.
-
         Run by steps.
+
+        Args:
+            data: The extra data to assimilate.
         """
         pass
 
     @abstractmethod
     def optimize(self, **kwargs):
         """
-        Optimize the solver with data to calibrate its parameters.
+        Optimize the solver arguments to improve its accuracy, etc.
 
         Run by steps or in a batch.
         """
@@ -141,12 +169,15 @@ class BaseSolver(ISolver):
             mesh: The mesh of the problem.
         """
         self._id = id
+
+        if not isinstance(mesh, Mesh):
+            raise ValueError(f"Invalid mesh: {mesh}")
         self._mesh = mesh
 
         self._callbacks = []
         self._fields = {}
 
-        self._default_init = None
+        self._default_ic = None
         self._ics = {}
 
         self._default_bc = None
@@ -179,11 +210,11 @@ class BaseSolver(ISolver):
 
         self._ics[var] = ic
 
-    def set_bc(self, var: str, elems: list, bc: IBoundaryCondition):
+    def set_bc(self, var: str, elements: list, bc: IBoundaryCondition):
         if not isinstance(bc, IBoundaryCondition):
             raise ValueError(f"Invalid boundary condition: {bc}")
 
-        for elem in elems:
+        for elem in elements:
             if not isinstance(elem, (Node, Face, Cell)):
                 raise ValueError(f"Invalid element: {elem}")
             if isinstance(elem, Node):

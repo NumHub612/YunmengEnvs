@@ -21,9 +21,9 @@ class ISolverCallback(ABC):
         pass
 
     @abstractmethod
-    def setup(self, solver_meta: dict, mesh: object):
+    def setup(self, solver: "ISolver", mesh: "Mesh"):
         """
-        Sets the solver metadata.
+        Set the solver and mesh for the callback.
         """
         pass
 
