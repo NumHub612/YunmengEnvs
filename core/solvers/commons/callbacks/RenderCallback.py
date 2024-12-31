@@ -52,6 +52,8 @@ class RenderCallback(ISolverCallback):
                 continue
 
             field_dir = os.path.join(self._output_dir, fname)
+            if os.path.exists(field_dir):
+                os.rmdir(field_dir)
             os.makedirs(field_dir, exist_ok=True)
 
             self._field_dirs[fname] = field_dir

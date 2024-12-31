@@ -4,9 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Solving the 2D Burgers equation using finite difference method.
 """
-from core.solvers.interfaces import BaseSolver
+from core.solvers.commons import BaseSolver
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.fields import NodeField, Vector
+from core.numerics.fields import NodeField
 from core.numerics.mesh import Grid2D
 from configs.settings import logger
 
@@ -40,7 +40,12 @@ class Burgers2D(BaseSolver):
         metas.update(
             {
                 "fields": [
-                    {"name": "vel", "etype": "node", "dtype": "vector"},
+                    {
+                        "name": "vel",
+                        "description": "Velocity field",
+                        "etype": "node",
+                        "dtype": "vector",
+                    },
                 ],
             }
         )
@@ -49,9 +54,11 @@ class Burgers2D(BaseSolver):
     @property
     def status(self) -> dict:
         return {
-            "curr_time": self._t,
-            "dt": self._dt,
-            "end_time": self._total_time,
+            "iteration": 1,
+            "current_time": self._t,
+            "time_step": self._dt,
+            "convergence": True,
+            "error": "",
         }
 
     def __init__(self, id: str, mesh: Mesh):
@@ -111,7 +118,7 @@ class Burgers2D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_task_begin(self._fields, self._t)
+            callback.on_task_begin()
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -140,7 +147,6 @@ class Burgers2D(BaseSolver):
         # Update interior nodes
         for node in self._topo.interior_nodes_indexes:
             nid, sid, eid, wid, _, _ = self._mesh.retrieve_node_neighborhoods(node)
-            # eid, wid, nid, sid = self._calc_grid_indexes(node)
             p = u[node]
             e, w, n, s = u[eid], u[wid], u[nid], u[sid]
 
@@ -162,24 +168,6 @@ class Burgers2D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step(self._fields, self._t)
+            callback.on_step()
 
         return self._t >= self._total_time, False, self.status
-
-    def _calc_grid_indexes(self, nid: int):
-        i = nid // self._mesh.ny
-        j = nid % self._mesh.ny
-
-        e_node = (i + 1) * self._mesh.ny + j
-        e_node = min(self._mesh.node_count - 1, e_node)
-
-        w_node = (i - 1) * self._mesh.ny + j
-        w_node = max(0, w_node)
-
-        n_node = i * self._mesh.ny + (j + 1)
-        n_node = min(self._mesh.node_count - 1, n_node)
-
-        s_node = i * self._mesh.ny + (j - 1)
-        s_node = max(0, s_node)
-
-        return e_node, w_node, n_node, s_node
