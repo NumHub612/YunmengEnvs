@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Solving the 3D Burgers equation using finite difference method.
 """
-from core.solvers.interfaces import BaseSolver
+from core.solvers.commons import BaseSolver
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
 from core.numerics.fields import NodeField
 from core.numerics.mesh import Grid3D
@@ -41,7 +41,12 @@ class Burgers3D(BaseSolver):
         metas.update(
             {
                 "fields": [
-                    {"name": "vel", "etype": "node", "dtype": "vector"},
+                    {
+                        "name": "vel",
+                        "description": "velocity field",
+                        "etype": "node",
+                        "dtype": "vector",
+                    },
                 ],
             }
         )
@@ -50,12 +55,14 @@ class Burgers3D(BaseSolver):
     @property
     def status(self) -> dict:
         return {
-            "curr_time": self._t,
-            "dt": self._dt,
-            "end_time": self._total_time,
+            "iteration": 1,
+            "current_time": self._t,
+            "time_step": self._dt,
+            "convergence": True,
+            "error": "",
         }
 
-    def __init__(self, id: str, mesh: Mesh):
+    def __init__(self, id: str, mesh: Grid3D):
         """
         Initialize the solver.
         """
@@ -115,7 +122,7 @@ class Burgers3D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_task_begin(self._fields, self._t)
+            callback.on_task_begin()
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -169,6 +176,6 @@ class Burgers3D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step(self._fields, self._t)
+            callback.on_step()
 
         return self._t >= self._total_time, False, self.status

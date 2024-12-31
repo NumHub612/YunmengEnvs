@@ -84,7 +84,7 @@ if __name__ == "__main__":
     is_done = False
     while not is_done:
         is_done, _, status = solver.inference(dt)
-        print(f"Step {status['curr_time']}")
+        print(f"Step {status['current_time']}")
 
     # get solution
     u_simu = solver.get_solution("vel")

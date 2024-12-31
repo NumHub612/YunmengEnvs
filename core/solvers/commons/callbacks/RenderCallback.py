@@ -8,6 +8,7 @@ from core.solvers.interfaces import ISolverCallback, ISolver
 from core.visuals.plotter import plot_scalar_field, plot_vector_field
 
 import os
+import shutil
 
 
 class RenderCallback(ISolverCallback):
@@ -53,7 +54,7 @@ class RenderCallback(ISolverCallback):
 
             field_dir = os.path.join(self._output_dir, fname)
             if os.path.exists(field_dir):
-                os.rmdir(field_dir)
+                shutil.rmtree(field_dir)
             os.makedirs(field_dir, exist_ok=True)
 
             self._field_dirs[fname] = field_dir
