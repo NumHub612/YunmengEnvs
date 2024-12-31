@@ -56,7 +56,7 @@ class BaseSolver(ISolver):
         if not isinstance(callback, ISolverCallback):
             raise ValueError(f"Invalid callback: {callback}")
 
-        callback.setup(self.get_meta(), self._mesh)
+        callback.setup(self, self._mesh)
         self._callbacks.append(callback)
 
     def set_ic(self, var: str, ic: IInitCondition):

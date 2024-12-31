@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Callback for rendering the solver solutions.
 """
-from core.solvers.interfaces import ISolverCallback
+from core.solvers.interfaces import ISolverCallback, ISolver
 from core.visuals.plotter import plot_scalar_field, plot_vector_field
 
 import os
@@ -35,30 +35,39 @@ class RenderCallback(ISolverCallback):
         if not os.path.exists(self._output_dir):
             os.makedirs(self._output_dir)
 
+        self._solver = None
+
         self._fields = fields
         self._mesh = None
         self._field_dirs = {}
         self._frame = 0
 
-    def setup(self, solver_meta: dict, mesh: object):
+    def setup(self, solver: ISolver, mesh: object):
         self._mesh = mesh
+        self._solver = solver
 
-        for field in solver_meta["fields"]:
+        for field in solver.get_meta()["fields"]:
             fname = field["name"]
             if self._fields is not None and fname not in self._fields:
                 continue
 
             field_dir = os.path.join(self._output_dir, fname)
             os.makedirs(field_dir, exist_ok=True)
+
             self._field_dirs[fname] = field_dir
 
-    def on_task_begin(self, solutions: dict, time: float = None):
-        self._plot_field(solutions, time)
+    def on_task_begin(self):
+        self._plot_field()
 
-    def on_step(self, solutions: dict, time: float = None):
-        self._plot_field(solutions, time)
+    def on_step(self):
+        self._plot_field()
 
-    def _plot_field(self, solutions: dict, time: float = None):
+    def _plot_field(self):
+        solutions = {}
+        for fname in self._field_dirs.keys():
+            solutions[fname] = self._solver.get_solution(fname)
+
+        time = self._solver.status.get("current_time")
         for fname, field in solutions.items():
             if fname not in self._field_dirs:
                 continue
