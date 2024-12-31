@@ -10,7 +10,7 @@ from core.solvers.interfaces import (
     IBoundaryCondition,
     ISolverCallback,
 )
-from core.solvers.extensions.inits import UniformInitialization
+from core.solvers.commons.inits import UniformInitialization
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, Node
 from core.numerics.fields import Field, NodeField, Scalar
 

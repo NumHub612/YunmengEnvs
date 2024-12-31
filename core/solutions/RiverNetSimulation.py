@@ -7,7 +7,7 @@ Simulation solution for 1d river network problem.
 from core.solutions.standards import ILinkableComponent, IOutput, IInput
 from core.numerics.mesh import Grid1D, Coordinate, Node, Mesh
 from core.numerics.fields import NodeField, Scalar
-from core.solvers.extensions import boundaries, inits, callbacks
+from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fdm
 from core.solvers import (
     solver_routines,
