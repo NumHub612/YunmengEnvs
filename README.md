@@ -8,11 +8,11 @@
 
 ## 什么是 YunmengEnvs？
 
-[![](https://img.shields.io/badge/license-Apache--2.0-red)](./LICENSE) [![](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/) [![codecov](https://codecov.io/gh/NumHub612/YunMengEnvs/graph/badge.svg?token=MP9A5GAI9Z)](https://codecov.io/gh/NumHub612/YunMengEnvs) [![](https://img.shields.io/badge/Docs-YunMengHome-blue?logo=markdown)](https://NumHub612.github.io/YunmengEnvs/)
+[![](https://img.shields.io/badge/license-Apache--2.0-red)](./LICENSE) [![](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/) [![codecov](https://codecov.io/gh/NumHub612/YunMengEnvs/graph/badge.svg?token=MP9A5GAI9Z)](https://codecov.io/gh/NumHub612/YunMengEnvs) [![](https://img.shields.io/badge/Docs-YunmengHome-blue?logo=markdown)](https://NumHub612.github.io/YunmengEnvs/)
 
 [简体中文](README.md) | [English](README.md)
 
-**YunmengEnvs 云梦环境**，是一个尝试将计算流体力学（CFD）与人工智能（AI）技术深度融合的环境流体力学模型框架。我们的目标是为理解流体力学概念、分析现实数据和解决工程问题提供一个集成平台，希望这个平台能够成为一个试验场，帮助研究者和开发者更容易地尝试新的想法、技术和解决方案。
+**YunmengEnvs 云梦环境**，是一个尝试将计算流体力学（CFD）与人工智能（AI）技术深度融合的环境流体力学模型开发框架。我们的目标是为理解流体力学概念、分析现实数据和解决专业问题提供一个集成平台，希望这个平台能够成为一个试验场，帮助研究者和开发者更容易地尝试新的想法、技术和解决方案。
 
 **What's News!**
 
