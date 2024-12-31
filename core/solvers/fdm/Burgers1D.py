@@ -10,6 +10,7 @@ from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
 from core.numerics.fields import NodeField, Scalar
 
 import copy
+import time
 
 
 class Burgers1D(BaseSolver):
@@ -68,10 +69,14 @@ class Burgers1D(BaseSolver):
         self._t = 0.0
         self._nu = 0.07
 
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
+
     @property
     def status(self) -> dict:
         return {
             "iteration": 1,
+            "elapsed_time": (self._now_time - self._start_time) * 1000,
             "current_time": self._t,
             "time_step": self._dt,
             "convergence": True,
@@ -97,6 +102,8 @@ class Burgers1D(BaseSolver):
         self._dt = nu * min_dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         # run callbacks
         for callback in self._callbacks:
@@ -113,6 +120,7 @@ class Burgers1D(BaseSolver):
             Tuple of results with (is_done, is_terminated, status).
         """
         self._dt = max(dt, 0.0)
+        self._now_time = time.perf_counter()
 
         u = self._fields["u"]
         new_u = copy.deepcopy(u)
@@ -145,6 +153,7 @@ class Burgers1D(BaseSolver):
         # Update solution
         self._fields["u"] = new_u
         self._t += self._dt
+        self._now_time = time.perf_counter()
 
         # Call callbacks
         for callback in self._callbacks:

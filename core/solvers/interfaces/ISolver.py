@@ -58,9 +58,10 @@ class ISolver(ABC):
 
         Returns:
             - A dictionary containing the current status of the solver with the following keys:
+                - elapsed_time (float): The elapsed time since the start of the solver.
                 - iteration (int): The current iteration number.
                 - time_step (float): The current time step.
-                - current_time (float): The total elapsed time.
+                - current_time (float): The current time.
                 - convergence (bool): Whether the solver has converged.
                 - error (str): Any error messages or warnings.
         """

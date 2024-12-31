@@ -11,6 +11,7 @@ from core.numerics.mesh import Grid3D
 from configs.settings import logger
 
 import copy
+import time
 
 
 class Burgers3D(BaseSolver):
@@ -56,6 +57,7 @@ class Burgers3D(BaseSolver):
     def status(self) -> dict:
         return {
             "iteration": 1,
+            "elapsed_time": (self._now_time - self._start_time) * 1000,
             "current_time": self._t,
             "time_step": self._dt,
             "convergence": True,
@@ -79,6 +81,8 @@ class Burgers3D(BaseSolver):
         self._t = 0.0
         self._nu = 0.01
         self._sigma = 0.2
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         self._dx = None
         self._dy = None
@@ -119,6 +123,8 @@ class Burgers3D(BaseSolver):
         self._dt = sigma * self._dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         # Call callbacks
         for callback in self._callbacks:
@@ -135,7 +141,7 @@ class Burgers3D(BaseSolver):
             A tuple of (is_done, is_terminated, status).
         """
         self._dt = max(dt, 0.0)
-        self._t += self._dt
+        self._now_time = time.perf_counter()
 
         u = self._fields["vel"]
         new_u = copy.deepcopy(u)
@@ -173,6 +179,8 @@ class Burgers3D(BaseSolver):
 
         # Update solution
         self._fields["vel"] = new_u
+        self._t += self._dt
+        self._now_time = time.perf_counter()
 
         # Call callbacks
         for callback in self._callbacks:
