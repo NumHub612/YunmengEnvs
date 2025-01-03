@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Constant boundary condition.
 """
 from core.solvers.interfaces import IBoundaryCondition
-from core.numerics.mesh import Node, Face, Cell
+from core.numerics.mesh import Element
 from core.numerics.fields import Variable
 from configs.settings import logger
 
@@ -44,5 +44,5 @@ class ConstantBoundary(IBoundaryCondition):
                 time {time} with value {value} and flux {flux}."
         )
 
-    def evaluate(self, time: float, element: Node | Face | Cell) -> tuple:
+    def evaluate(self, time: float, element: Element) -> tuple:
         return self._flux, self._value

@@ -145,7 +145,7 @@ class Grid1D(Grid):
             normal = Vector(0, 1)
 
             # face
-            face1 = Face(i, [i], node1.coordinate, 1, 1, normal)
+            face1 = Face(i, node1.coordinate, [i], 1, 1, normal)
             self._faces.append(face1)
 
             # cell
@@ -154,7 +154,7 @@ class Grid1D(Grid):
             node2 = self._nodes[i + 1]
             length = abs(node2.coordinate.x - node1.coordinate.x)
             center = 0.5 * (node1.coordinate + node2.coordinate)
-            cell = Cell(i, [i, i + 1], center, length, length)
+            cell = Cell(i, center, [i, i + 1], length, length)
             self._cells.append(cell)
 
     @property
@@ -251,7 +251,7 @@ class Grid2D(Grid):
                     perimeter = abs(n_ru.coordinate.x - n_lu.coordinate.x)
                     area = perimeter
                     normal = Vector(0, 1)
-                    face1 = Face(fid, nodes, center, perimeter, area, normal)
+                    face1 = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face1)
                     fid += 1
 
@@ -263,7 +263,7 @@ class Grid2D(Grid):
                     perimeter = abs(n_ld.coordinate.y - n_lu.coordinate.y)
                     area = perimeter
                     normal = Vector(1, 0)
-                    face2 = Face(fid, nodes, center, perimeter, area, normal)
+                    face2 = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face2)
                     fid += 1
 
@@ -285,7 +285,7 @@ class Grid2D(Grid):
                 )
                 surface = dx * dy
                 volume = surface
-                cell = Cell(cid, faces, center, surface, volume)
+                cell = Cell(cid, center, faces, surface, volume)
                 self._cells.append(cell)
                 cid += 1
 
@@ -413,7 +413,7 @@ class Grid3D(Grid):
                     perimeter = 2 * dy + 2 * dz
                     area = dy * dz
                     normal = Vector(1, 0, 0)
-                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    face = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face)
                     fid += 1
 
@@ -434,7 +434,7 @@ class Grid3D(Grid):
                     perimeter = 2 * dx + 2 * dz
                     area = dx * dz
                     normal = Vector(0, 1, 0)
-                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    face = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face)
                     fid += 1
 
@@ -453,7 +453,7 @@ class Grid3D(Grid):
                     perimeter = 2 * dx + 2 * dy
                     area = dx * dy
                     normal = Vector(0, 0, 1)
-                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    face = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face)
                     fid += 1
 
@@ -505,7 +505,7 @@ class Grid3D(Grid):
                     )
                     surface = 2 * dx * dy + 2 * dy * dz + 2 * dx * dz
                     volume = dx * dy * dz
-                    cell = Cell(cid, faces, center, surface, volume)
+                    cell = Cell(cid, center, faces, surface, volume)
                     self._cells.append(cell)
                     cid += 1
 

@@ -64,9 +64,9 @@ class Coordinate:
 
 
 @dataclass
-class Node:
+class Element:
     """
-    Node element for the mesh.
+    Element base class.
     """
 
     id: int
@@ -74,27 +74,32 @@ class Node:
 
 
 @dataclass
-class Face:
+class Node(Element):
+    """
+    Node element for the mesh.
+    """
+
+    pass
+
+
+@dataclass
+class Face(Element):
     """
     Face element for the mesh.
     """
 
-    id: int
     nodes: list
-    coordinate: Coordinate
     perimeter: float
     area: float
     normal: Vector
 
 
 @dataclass
-class Cell:
+class Cell(Element):
     """
     Cell element for the mesh.
     """
 
-    id: int
     faces: list
-    coordinate: Coordinate
     surface: float
     volume: float

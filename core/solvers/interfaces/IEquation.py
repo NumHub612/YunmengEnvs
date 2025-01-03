@@ -69,7 +69,7 @@ class IEquation(ABC):
     @abstractmethod
     def update_interior(
         self,
-        element: "Node | Face | Cell",
+        element: "Element",
         neighbors: list,
         **kwargs,
     ) -> "Variable":
@@ -88,7 +88,7 @@ class IEquation(ABC):
     @abstractmethod
     def update_boundary(
         self,
-        element: "Node | Face | Cell",
+        element: "Element",
         boundary_conditions: tuple,
         neighbors: list,
         **kwargs,
