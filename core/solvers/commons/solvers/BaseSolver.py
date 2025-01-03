@@ -5,6 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Base class for all solvers.
 """
 from core.solvers.interfaces import (
+    IEquation,
     ISolver,
     ISolverCallback,
     IInitCondition,
@@ -52,14 +53,14 @@ class BaseSolver(ISolver):
 
         return self._fields[field_name]
 
-    def set_callback(self, callback: ISolverCallback):
+    def add_callback(self, callback: ISolverCallback):
         if not isinstance(callback, ISolverCallback):
             raise ValueError(f"Invalid callback: {callback}")
 
         callback.setup(self, self._mesh)
         self._callbacks.append(callback)
 
-    def set_ic(self, var: str, ic: IInitCondition):
+    def add_ic(self, var: str, ic: IInitCondition):
         if not isinstance(ic, IInitCondition):
             raise ValueError(f"Invalid initial condition: {ic}")
 
@@ -70,7 +71,7 @@ class BaseSolver(ISolver):
 
         self._ics[var] = ic
 
-    def set_bc(self, var: str, elements: list, bc: IBoundaryCondition):
+    def add_bc(self, var: str, elements: list, bc: IBoundaryCondition):
         if not isinstance(bc, IBoundaryCondition):
             raise ValueError(f"Invalid boundary condition: {bc}")
 
@@ -96,6 +97,9 @@ class BaseSolver(ISolver):
                 )
 
             self._bcs[elem.id][var] = bc
+
+    def set_problems(self, equations: list[IEquation]):
+        raise NotImplementedError()
 
     def initialize(self, **kwargs):
         raise NotImplementedError()

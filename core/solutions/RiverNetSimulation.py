@@ -99,9 +99,9 @@ if __name__ == "__main__":
 
     # set solver
     solver = fdm.Burgers1D("solver1", grid)
-    solver.set_callback(cb)
-    solver.set_ic("u", ic)
-    solver.set_bc("u", group1, bc)
+    solver.add_callback(cb)
+    solver.add_ic("u", ic)
+    solver.add_bc("u", group1, bc)
 
     nb_steps = 100
     solver.initialize(nb_steps)

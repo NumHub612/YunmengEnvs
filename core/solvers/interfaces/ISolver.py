@@ -7,6 +7,7 @@ Interfaces for fluid equations solvers.
 from core.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from core.solvers.interfaces.IInitCondition import IInitCondition
 from core.solvers.interfaces.ISolverCallback import ISolverCallback
+from core.solvers.interfaces.IEquation import IEquation
 
 from abc import ABC, abstractmethod
 
@@ -75,23 +76,30 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def set_callback(self, callback: ISolverCallback):
+    def set_problems(self, equations: list[IEquation]):
         """
-        Set the callback to be called during the solving process.
-        """
-        pass
-
-    @abstractmethod
-    def set_ic(self, var: str, ic: IInitCondition):
-        """
-        Set the initial condition.
+        Set the equations to be solved by the solver.
         """
         pass
 
     @abstractmethod
-    def set_bc(self, var: str, elements: list, bc: IBoundaryCondition):
+    def add_callback(self, callback: ISolverCallback):
         """
-        Set the boundary condition for the solver.
+        Add a callback to be called during the solver.
+        """
+        pass
+
+    @abstractmethod
+    def add_ic(self, var: str, ic: IInitCondition):
+        """
+        Add the initial condition.
+        """
+        pass
+
+    @abstractmethod
+    def add_bc(self, var: str, elements: list, bc: IBoundaryCondition):
+        """
+        Add the boundary condition for the solver.
 
         Args:
             var: Name of the variable to set the boundary condition.
