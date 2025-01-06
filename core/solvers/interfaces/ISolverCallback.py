@@ -28,35 +28,35 @@ class ISolverCallback(ABC):
         pass
 
     @abstractmethod
-    def on_task_begin(self, **kwargs):
+    def on_task_begin(self):
         """
         Callback function called at the beginning of task.
         """
         pass
 
     @abstractmethod
-    def on_task_end(self, **kwargs):
+    def on_task_end(self):
         """
         Callback function called at the end of task.
         """
         pass
 
     @abstractmethod
-    def on_step_begin(self, **kwargs):
+    def on_step_begin(self):
         """
         Callback function called at the beginning of each step.
         """
         pass
 
     @abstractmethod
-    def on_step(self, **kwargs):
+    def on_step(self):
         """
         Callback function called at each step.
         """
         pass
 
     @abstractmethod
-    def on_step_end(self, **kwargs):
+    def on_step_end(self):
         """
         Callback function called at the end of each step.
         """

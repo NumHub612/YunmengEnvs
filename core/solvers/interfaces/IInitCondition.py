@@ -21,7 +21,7 @@ class IInitCondition(ABC):
         pass
 
     @abstractmethod
-    def apply(self, field: "Field", **kwargs) -> None:
+    def apply(self, field: "Field") -> None:
         """
         Initializes the field variables.
 

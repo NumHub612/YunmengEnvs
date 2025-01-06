@@ -109,28 +109,28 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def initialize(self, **kwargs):
+    def initialize(self):
         """
         Initialize the solver.
         """
         pass
 
     @abstractmethod
-    def reset(self, **kwargs):
+    def reset(self):
         """
         Reset the solver.
         """
         pass
 
     @abstractmethod
-    def terminate(self, **kwargs):
+    def terminate(self):
         """
         Terminate the solver.
         """
         pass
 
     @abstractmethod
-    def assimilate(self, data: dict, **kwargs):
+    def assimilate(self, data: dict):
         """
         Assimilate the solver with extra data to improve its accuracy.
         Run by steps.
@@ -141,7 +141,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def optimize(self, **kwargs):
+    def optimize(self):
         """
         Optimize the solver arguments to improve its accuracy, etc.
 
@@ -150,7 +150,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def inference(self, **kwargs) -> tuple[bool, bool, dict]:
+    def inference(self) -> tuple[bool, bool, dict]:
         """
         Inference the solver to get the solutions.
         Run by steps.

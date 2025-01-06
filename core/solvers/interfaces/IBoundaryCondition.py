@@ -21,7 +21,7 @@ class IBoundaryCondition(ABC):
         pass
 
     @abstractmethod
-    def update(self, time: float, **kwargs):
+    def update(self, time: float):
         """
         Update the boundary condition parameters.
         Used for running online.
@@ -32,7 +32,7 @@ class IBoundaryCondition(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, time: float, element: "Element", **kwargs) -> tuple:
+    def evaluate(self, time: float, element: "Element") -> tuple:
         """
         Evaluate the boundary condition.
 
@@ -41,6 +41,7 @@ class IBoundaryCondition(ABC):
             element: The mesh element to be evaluated.
 
         Returns:
-            Tuple of boundary values, formated as: (flux, value, *extras).
+            Tuple of boundary values, where:
+            (flux, value, *extras).
         """
         pass
