@@ -2,7 +2,7 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Join us, share your ideas!  
 
-Matrix.
+Matrix and linear equations.
 """
 from core.numerics.fields import Variable
 import numpy as np
@@ -57,6 +57,14 @@ class Matrix:
         return np.linalg.norm(self.data)
 
     @property
+    def trace(self) -> float:
+        return np.trace(self.data)
+
+    @property
+    def determinant(self) -> float:
+        return np.linalg.det(self.data)
+
+    @property
     def dtype(self) -> str:
         elem = self.data[0] if len(self.shape) == 1 else self.data[0][0]
 
@@ -73,55 +81,49 @@ class Matrix:
     def __setitem__(self, index: tuple, value: Variable):
         self.data[index] = value
 
-    def __add__(self, other: "Matrix" | Variable):
+    def __add__(self, other):
         if isinstance(other, Variable):
             return Matrix(self.data + other)
         return Matrix(self.data + other.data)
 
-    def __sub__(self, other: "Matrix" | Variable):
+    def __sub__(self, other):
         if isinstance(other, Variable):
             return Matrix(self.data - other)
         return Matrix(self.data - other.data)
 
-    def __mul__(self, other: "Matrix" | Variable):
+    def __mul__(self, other):
         if isinstance(other, Variable):
             return Matrix(self.data * other)
         return Matrix(self.data * other.data)
 
-    def __truediv__(self, other: Variable):
+    def __truediv__(self, other):
         return Matrix(self.data / other)
 
-    def __rtruediv__(self, other: Variable):
+    def __rtruediv__(self, other):
         return Matrix(other / self.data)
 
-    def __rmul__(self, other: Variable):
+    def __rmul__(self, other):
         return Matrix(other * self.data)
 
-    def __radd__(self, other: Variable):
+    def __radd__(self, other):
         return Matrix(other + self.data)
 
-    def __rsub__(self, other: Variable):
+    def __rsub__(self, other):
         return Matrix(other - self.data)
 
-    def transpose(self):
+    def transpose(self) -> "Matrix":
         return Matrix(self.data.transpose())
 
-    def dot(self, other: "Matrix"):
+    def dot(self, other: "Matrix") -> "Matrix":
         return Matrix(np.dot(self.data, other.data))
 
-    def trace(self):
-        return np.trace(self.data)
-
-    def determinant(self):
-        return np.linalg.det(self.data)
-
-    def inverse(self):
+    def inverse(self) -> "Matrix":
         return Matrix(np.linalg.inv(self.data))
 
-    def flatten(self):
+    def flatten(self) -> "Matrix":
         return Matrix(self.data.flatten())
 
-    def abs(self):
+    def abs(self) -> "Matrix":
         return Matrix(np.abs(self.data))
 
 

@@ -6,8 +6,7 @@ Fields definition.
 """
 from core.numerics.fields.variables import Variable, Scalar, Vector, Tensor
 
-from abc import abstractmethod
-from typing import Callable, Union, List
+from typing import Callable
 import numpy as np
 
 
@@ -41,8 +40,8 @@ class Field:
             raise ValueError(f"Invalid data type: {data_type}")
         self._dtype = data_type
 
-        if default and default.rank != self._dtype:
-            raise ValueError(f"Conflicting default value type: {default.rank}")
+        if default and default.type != self._dtype:
+            raise ValueError(f"Conflicting default value type: {default.type}")
         if default is None:
             type_map = {"scalar": Scalar, "vector": Vector, "tensor": Tensor}
             default = type_map[data_type]()
@@ -107,7 +106,7 @@ class Field:
         """
         return np.array([v.to_np().flatten() for v in self._values])
 
-    def filter(self, func: Callable) -> List[int]:
+    def filter(self, func: Callable) -> list[int]:
         """
         Filter the field by a given function.
 
@@ -143,7 +142,7 @@ class Field:
             if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
 
-    def at(self, indexes: List[int], func: Callable):
+    def at(self, indexes: list[int], func: Callable):
         """
         Apply a function to a variable of the field at given position.
 
@@ -164,7 +163,7 @@ class Field:
             if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
 
-    def assign(self, other: Union["Field", "Variable"]):
+    def assign(self, other: "Field | Variable"):
         """
         Assign the values of another field or a variable to the current field.
 
@@ -208,9 +207,9 @@ class Field:
         if index < 0 or index >= self._values.size:
             raise IndexError(f"Index out of range: {index}")
 
-        if value.rank != self._default.rank:
+        if value.type != self._default.type:
             raise TypeError(
-                f"Invalid value type: {value.rank} (expected {self._default.rank})"
+                f"Invalid value type: {value.type} (expected {self._default.type})"
             )
 
         self._values[index] = value
@@ -245,7 +244,7 @@ class Field:
         if self.etype != other.etype:
             raise TypeError("Fields must have the same element type")
 
-    def __add__(self, other: Union["Field", "Variable"]) -> "Field":
+    def __add__(self, other) -> "Field":
         """
         Add two fields or a field and a constant element-wise.
         """
@@ -261,9 +260,9 @@ class Field:
             result._values += other._values
             return result
         elif isinstance(other, Variable):
-            if other.rank != self._default.rank:
+            if other.type != self._default.type:
                 raise TypeError(
-                    f"Invalid value type: {other.rank} (expected {self._default.rank})"
+                    f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
             result = self.__class__(
@@ -274,13 +273,13 @@ class Field:
         else:
             raise TypeError(f"Cannot add {type(other)} to field")
 
-    def __radd__(self, other: Union["Field", "Variable"]) -> "Field":
+    def __radd__(self, other) -> "Field":
         """
         Add two fields or a field and a constant element-wise.
         """
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Field", "Variable"]) -> "Field":
+    def __sub__(self, other) -> "Field":
         """
         Subtract two fields or a field and a constant element-wise.
         """
@@ -296,9 +295,9 @@ class Field:
             result._values -= other._values
             return result
         elif isinstance(other, Variable):
-            if other.rank != self._default.rank:
+            if other.type != self._default.type:
                 raise TypeError(
-                    f"Invalid value type: {other.rank} (expected {self._default.rank})"
+                    f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
             result = self.__class__(
@@ -309,7 +308,7 @@ class Field:
         else:
             raise TypeError(f"Cannot subtract {type(other)} from field")
 
-    def __rsub__(self, other: Union["Field", "Variable"]) -> "Field":
+    def __rsub__(self, other) -> "Field":
         """
         Subtract two fields or a field and a constant element-wise.
         """
@@ -325,9 +324,9 @@ class Field:
             result._values = other._values - self._values
             return result
         elif isinstance(other, Variable):
-            if other.rank != self._default.rank:
+            if other.type != self._default.type:
                 raise TypeError(
-                    f"Invalid value type: {other.rank} (expected {self._default.rank})"
+                    f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
             result = self.__class__(

@@ -101,20 +101,20 @@ class BaseSolver(ISolver):
     def set_problems(self, equations: list[IEquation]):
         raise NotImplementedError()
 
-    def initialize(self, **kwargs):
+    def initialize(self):
         raise NotImplementedError()
 
-    def reset(self, **kwargs):
+    def reset(self):
         raise NotImplementedError()
 
-    def terminate(self, **kwargs):
+    def terminate(self):
         raise NotImplementedError()
 
-    def assimilate(self, **kwargs):
+    def assimilate(self):
         raise NotImplementedError()
 
-    def optimize(self, **kwargs):
+    def optimize(self):
         raise NotImplementedError()
 
-    def inference(self, **kwargs):
+    def inference(self):
         raise NotImplementedError()

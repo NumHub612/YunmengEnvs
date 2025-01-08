@@ -33,8 +33,9 @@ class IEquation(ABC):
 
         Notes:
             - `symbols` discribe the variables as:
-                - description (str): Brief description of the variable.
-                - output (bool): Whether to output the variable.
+                - description (str): A brief description.
+                - type (str): Type of the variable, e.g. "scalar", "vector", "tensor"
+                - coefficent (bool): Whether the variable is coefficient.
                 - bounds (tuple): Bounds of the variable.
         """
         pass
@@ -45,7 +46,27 @@ class IEquation(ABC):
         Set the coefficients for the equations.
 
         Args:
-            coefficients: Dictionary of coefficients fields.
+            coefficients: Coefficients for the equations.
+        """
+        pass
+
+    @abstractmethod
+    def set_fields(self, fields: dict):
+        """
+        Set the variable fields.
+
+        Args:
+            fields: Dictionary of the fields.
+        """
+        pass
+
+    @abstractmethod
+    def set_mesh(self, mesh: "Mesh"):
+        """
+        Set the domain mesh.
+
+        Args:
+            mesh: The domain mesh.
         """
         pass
 
@@ -57,73 +78,41 @@ class IEquation(ABC):
         pass
 
     @abstractmethod
-    def discretize(self, mesh: "Mesh", **kwargs):
+    def discretize(self) -> "LinearEqs":
         """
         Discretize the equation system.
 
-        Args:
-            mesh: The domain mesh.
-        """
-        pass
-
-    @abstractmethod
-    def update_interior(
-        self,
-        element: "Element",
-        neighbors: list,
-        **kwargs,
-    ) -> "Variable":
-        """
-        Update the interior element at the domain.
-
-        Args:
-            element: The interior element to be updated.
-            neighbors: The neighboring elements.
-
         Returns:
-            The updated element variable.
-        """
-        pass
-
-    @abstractmethod
-    def update_boundary(
-        self,
-        element: "Element",
-        boundary_conditions: tuple,
-        neighbors: list,
-        **kwargs,
-    ) -> "Variable":
-        """
-        Update the boundary element at the domain.
-
-        Args:
-            element: The boundary element to be updated.
-            boundary_conditions: Boundary conditions.
-            neighbors: The neighboring elements.
-
-        Returns:
-            The updated element variable.
-        """
-        pass
-
-    @abstractmethod
-    def update(self, boundary_conditions: dict, **kwargs) -> dict:
-        """
-        Update the fields of the equations.
-
-        Args:
-            boundary_conditions: Boundary conditions.
-
-        Returns:
-            The updated fields.
+            The discretized result.
         """
         pass
 
 
 class IOperator(ABC):
     """
-    Interface for discretizing pde item to a numerical form.
+    Interface for discretizing pde term to a numerical form.
     """
+
+    @abstractmethod
+    def prepare(self, mesh: "Mesh", coefficents: dict):
+        """
+        Prepare the operator for running.
+        """
+        pass
+
+    @abstractmethod
+    def run(self, element: int, neighbors: list[int]) -> "Variable | LinearEqs":
+        """
+        Run the operator on a given element.
+
+        Args:
+            element: The element id.
+            neighbors: The ids of the neighboring elements.
+
+        Returns:
+            The result of the operator.
+        """
+        pass
 
     @property
     @abstractmethod
@@ -133,41 +122,10 @@ class IOperator(ABC):
         """
         pass
 
+    @property
     @abstractmethod
-    def prepare(
-        self,
-        mesh: "Mesh",
-        field: "Field",
-        coefficents: "Variable | Field",
-        **kwargs,
-    ):
+    def scheme(self) -> str:
         """
-        Discretize the operator.
-
-        Args:
-            mesh: The domain mesh.
-            field: The field to be discretized.
-            coefficents: The coefficients of the operator.
-        """
-        pass
-
-    @abstractmethod
-    def run(self, element: int, neighbors: list, **kwargs) -> "Variable":
-        """
-        Run the operator.
-
-        Args:
-            element: The id of the element to be updated.
-            neighbors: Ids of the neighboring elements.
-
-        Returns:
-            The operator result at the element.
-        """
-        pass
-
-    @abstractmethod
-    def get_result(self) -> "Field":
-        """
-        Get the operator result.
+        The operator scheme.
         """
         pass
