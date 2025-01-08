@@ -12,6 +12,7 @@ from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
 from core.numerics.fields import Variable, Scalar, Vector, Tensor
 from core.numerics.fields import Field, NodeField
 from core.numerics.matrix import LinearEqs, Matrix
+from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import re
 
@@ -102,7 +103,12 @@ class BaseEquation(IEquation):
                     continue
 
                 if in_right and term:
-                    term = self._to_negative(term)
+                    if term[0] == "-":
+                        term = term[1:]
+                    elif term[0] == "+":
+                        term = f"-{term[1:]}"
+                    else:
+                        term = f"-{term}"
                 if term:
                     terms.append(term)
                 if char == "=":
@@ -157,20 +163,10 @@ class BaseEquation(IEquation):
                 coe = self.parse_coefficient(it)
                 terms.append(coe)
             else:
-                op = {"type": None, "content": it}
+                op = {"type": None, "name": it}
                 terms.append(op)
 
         return terms
-
-    def _to_negative(self, term: str) -> str:
-        """Convert a term into negative."""
-        if not term or term is None:
-            return ""
-        if term[0] == "-":
-            return term[1:]
-        if term[0] == "+":
-            return f"-{term[1:]}"
-        return f"-{term}"
 
     def is_operator(self, token: str) -> bool:
         """
@@ -227,8 +223,8 @@ class BaseEquation(IEquation):
             raise ValueError(f"Un-initialized variable: {token}.")
         return {
             "type": "variable",
-            "variable_name": token,
-            "variable_field": self._fields.get(token),
+            "name": token,
+            "value": self._fields.get(token),
         }
 
     def is_coefficient(self, token: str) -> bool:
@@ -246,41 +242,139 @@ class BaseEquation(IEquation):
             raise ValueError(f"Un-setted coefficient: {token}.")
         return {
             "type": "coefficient",
-            "coefficient_name": token,
-            "coefficient_value": coeff_value,
+            "name": token,
+            "value": coeff_value,
         }
 
 
 class SimpleEquation(BaseEquation):
+    """Simple single pde equation class."""
+
     def __init__(self, name: str, operators: dict[str, IOperator]):
         super().__init__(name, operators)
         self._defualt_ops = {
             "GRAD": "grad01",
-            "LAPLACIAN": "lap02",
+            "LAPLACIAN": "lap01",
             "DDT": "ddt01",
-            "D2DT2": "d2dt2",
+            "D2DT2": "d2dt01",
             "FUNC": "func",
-            "DIV": "div03",
-            "CURL": "curl04",
+            "DIV": "div01",
+            "CURL": "curl01",
         }
         self._operators = {
             "grad01": Operator("grad01", {"u": "vector"}),
-            "lap02": Operator("lap02", {"u": "vector"}),
+            "lap01": Operator("lap02", {"u": "vector"}),
             "ddt01": Operator("ddt01", {"u": "vector"}),
-            "d2dt2": Operator("d2dt2", {"u": "vector"}),
+            "d2dt01": Operator("d2dt2", {"u": "vector"}),
             "func": Operator("func", {"u": "vector"}),
-            "div03": Operator("div03", {"u": "vector"}),
-            "curl04": Operator("curl04", {"u": "vector"}),
+            "div01": Operator("div03", {"u": "vector"}),
+            "curl01": Operator("curl04", {"u": "vector"}),
         }
+        self._op_terms = None
+        self._dt = None
 
-    def discretize(self, **kwargs) -> list[LinearEqs]:
-        pass
+    def discretize(self, dt: float) -> LinearEqs:
+        self._dt = dt
+        # parse the equation
+        if self._op_terms is None:
+            eq_terms = self.parse_equation(self._equations[0])
+            self._op_terms = []
+            for it in eq_terms:
+                self._op_terms.append(self.parse_term(it))
+
+        # discretization
+        var = list(self.get_variables().keys())[0]
+        total_eqs = LinearEqs.zeros(var, self._mesh.node_count)
+        for terms in self._op_terms:
+            op, term_result = "+", None
+            for it in terms:
+                curr = None
+                if it["type"] is None:
+                    op = it["name"]
+                    continue
+                elif it["type"] == "operator":
+                    if it["operator_type"] != "FUNC":
+                        curr = self.run_operator(it["operator_name"], it["args"])
+                    else:
+                        curr = self.run_func(it["operator_name"], it["args"])
+                elif it["type"] == "coefficient":
+                    curr = it["value"]
+                elif it["type"] == "variable":
+                    curr = it["value"]
+                else:
+                    raise ValueError(f"Unsupported term: {it}.")
+
+                if op and term_result:
+                    term_result = self.operate(op, term_result, curr)
+                elif op:
+                    term_result = self.operate(op, None, curr)
+                else:
+                    term_result = curr
+                op = ""
+            if term_result:
+                total_eqs += term_result
+        return total_eqs
+
+    def operate(self, op: str, left, right):
+        """Run the operator on the left and right operands."""
+        if op == "-" and left is None:
+            return -right
+
+        if op == "*":
+            return left * right
+        elif op == "/":
+            return left / right
+        elif op == "+":
+            return left + right
+        elif op == "-":
+            return left - right
+        else:
+            raise ValueError(f"Unsupported operator: {op}.")
+
+    def run_operator(self, op_name: str, op_args: list):
+        """Run the operator with the given arguments."""
+        # prepare the target variable
+        if len(op_args) == 1:
+            field = op_args[0]["value"]
+        else:
+            field = self.run_func("", op_args)
+
+        # perpare the operator
+        op = self._operators.get(op_name)
+        op.prepare(
+            field,
+            self._mesh.get_topo_assistant(),
+            self._mesh.get_geom_assistant(),
+        )
+
+        # run the operator
+        var = list(self.get_variables().keys())[0]
+        total_eqs = LinearEqs.zeros(var, self._mesh.node_count)
+        for node in self._mesh.nodes:
+            curr = op.run(node.id)
+            if isinstance(curr, LinearEqs):
+                total_eqs += curr
+            else:
+                total_eqs.rhs[node.id] = curr
+        return total_eqs
+
+    def run_func(self, func_name: str, func_args: list):
+        """Run the elementary function with the given arguments."""
+        args_expr = "".join([f"{arg['name']}" for arg in func_args])
+        func_expr = f"{func_name}({args_expr})"
+        symbols = [arg["name"] for arg in func_args if arg["type"]]
+        func = lambdify_numexpr(func_expr, symbols)
+
+        inputs = [arg["value"] for arg in func_args if arg["type"]]
+        result = func(*inputs)
+        return result
 
 
 class Operator(IOperator):
     def __init__(self, name: str, variables: dict):
         self._name = name
         self._variables = variables
+        self._mesh = None
 
     @property
     def type(self) -> str:
@@ -290,81 +384,106 @@ class Operator(IOperator):
     def scheme(self) -> str:
         return "custom"
 
-    def prepare(self, mesh: Mesh, coefficents: dict):
-        pass
+    def prepare(
+        self,
+        field: Field,
+        mesh_topo: MeshTopo,
+        mesh_geom: MeshGeom,
+    ):
+        self._mesh = mesh_topo.get_mesh()
 
-    def run(self, element: int, neighbors: list[int], **kwargs) -> Variable | LinearEqs:
-        pass
+    def run(self, element: int) -> Variable | LinearEqs:
+        return LinearEqs.zeros("u", self._mesh.node_count)
 
 
 if __name__ == "__main__":
-    foo = SimpleEquation("foo", fdm_operators)
-    foo.set_equations(
-        [
-            "k*u*grad(rho*u+p) - ddt::ddt01(u) + nu == -nu*laplacian(u)*div(u) + curl(p) + k"
-        ],
-        {
-            "k": {
-                "description": "diffusion coefficient",
-                "type": "vector",
-                "coefficient": True,
-                "bounds": (0, None),
-            },
-            "u": {
-                "description": "velocity",
-                "type": "vector",
-                "coefficient": False,
-                "bounds": (None, None),
-            },
-            "rho": {
-                "description": "density",
-                "type": "scalar",
-                "coefficient": True,
-                "bounds": (0, None),
-            },
-            "p": {
-                "description": "pressure",
-                "type": "vector",
-                "coefficient": False,
-                "bounds": (0, None),
-            },
-            "nu": {
-                "description": "viscosity",
-                "type": "scalar",
-                "coefficient": True,
-                "bounds": (0, None),
-            },
+    from core.numerics.mesh import Grid2D, Coordinate
+    from core.solvers.commons import inits, boundaries, callbacks
+    from core.visuals.animator import ImageSetPlayer
+    import numpy as np
+
+    # set mesh
+    low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
+    nx, ny = 41, 41
+    grid = Grid2D(low_left, upper_right, nx, ny)
+    x = np.linspace(0, 2, nx)
+    y = np.linspace(0, 2, ny)
+    dx = 2 / (nx - 1)
+    dy = 2 / (ny - 1)
+
+    start_x, end_x = int(0.5 / dx), int(1.0 / dx) + 1
+    start_y, end_y = int(0.5 / dy), int(1.0 / dy) + 1
+    init_groups = []
+    for i in range(start_x, end_x):
+        for j in range(start_y, end_y):
+            index = i * ny + j
+            init_groups.append(index)
+
+    topo = MeshTopo(grid)
+    bc_groups = []
+    for i in topo.boundary_nodes_indexes:
+        bc_groups.append(grid.nodes[i])
+
+    # set initial condition
+    node_num = grid.node_count
+    init_field = NodeField(node_num, "vector", Vector(1, 1))
+    for i in init_groups:
+        init_field[i] = Vector(2, 2)
+
+    ic = inits.HotstartInitialization("ic1", init_field)
+
+    # set boundary condition
+    bc_value = Vector(1, 1)
+    bc = boundaries.ConstantBoundary("bc1", bc_value, None)
+
+    # set callback
+    output_dir = "./tests/results"
+    confs = {"vel": {"style": "cloudmap", "dimension": "x"}}
+    cb = callbacks.RenderCallback(output_dir, confs)
+
+    # set equations
+    equation_expr = "ddt::ddt01(u) + u*grad::grad01(u) == nu*laplacian::lap01(u)"
+    symbols = {
+        "u": {
+            "description": "velocity",
+            "coefficient": False,
+            "type": "vector",
+            "bounds": (None, None),
         },
-    )
-    foo.set_coefficients(
-        {
-            "k": Vector(1.0, 1.0),
-            "nu": Scalar(0.1),
-            "rho": Scalar(1.0),
-        }
-    )
-    foo.set_fields(
-        {
-            "u": NodeField(100, "vector"),
-            "p": NodeField(100, "vector"),
-        }
-    )
-
-    result = foo.parse_equation(
-        "k*u*grad(rho*u+p) - ddt::ddt01(u) + nu == -nu*laplacian(u)*div(u) + curl(p) + k"
-    )
-    print(result)
-
-    vars = foo.get_variables()
-    print(vars)
-
-    for term in result:
-        print(f"\nTerm: {term}, splited: \n{foo.parse_term(term)}")
-
-    equation_expr = "ddt::default(u) + u*grad(u) == nu*laplacian(u)"
-    variables = {
-        "u": {"description": "velocity", "type": "vector", "bounds": (None, None)},
-        "nu": {"description": "viscosity", "type": "scalar", "bounds": (0, None)},
+        "nu": {
+            "description": "viscosity",
+            "coefficient": True,
+            "type": "scalar",
+            "bounds": (0, None),
+        },
     }
-    nu = 0.1
-    equation = BaseEquation("burgers2d")
+    coefficients = {"nu": Scalar(0.1)}
+    variables = {"u": init_field}
+
+    problem = SimpleEquation("burgers2d", fdm_operators)
+    problem.set_equations(equation_expr, symbols)
+    problem.set_coefficients(coefficients)
+    problem.set_fields(variables)
+    problem.set_mesh(grid)
+
+    # discretize and solve
+    sigma = 0.2
+    dt = sigma * dx
+    steps = 1
+    while steps > 0:
+        eqs = problem.discretize(dt)
+        solution = eqs.solve()
+
+        # update boundary condition
+        var_field = NodeField.from_np(solution, "vector")
+        for node in grid.boundary_nodes_indexes:
+            _, val = bc.evaluate(None, None)
+            var_field[node] = val
+
+        problem.set_fields({"u": var_field})
+        steps -= 1
+
+    # results player
+    results_dir = f"{output_dir}/u"
+    player = ImageSetPlayer(results_dir)
+    player.play()

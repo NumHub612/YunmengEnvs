@@ -13,17 +13,16 @@ class Matrix:
     Matrix class.
     """
 
-    def __init__(self, data: np.ndarray | list, shape: tuple):
+    def __init__(self, data: np.ndarray | list, shape: tuple = None):
         """Matrix class.
 
         Args:
             data: The data of the matrix.
             shape: The matrix shape.
         """
-        if len(shape) > 2:
-            raise ValueError(f"Invalid shape {shape}.")
-
-        self.data = np.array(data).reshape(shape)
+        self.data = np.array(data)
+        if shape is not None:
+            self.data = self.data.reshape(shape)
 
     @staticmethod
     def zeros(shape: tuple) -> "Matrix":
@@ -45,7 +44,7 @@ class Matrix:
         return self.data.shape
 
     @property
-    def data(self) -> np.ndarray:
+    def raw(self) -> np.ndarray:
         return self.data
 
     @property
@@ -132,65 +131,128 @@ class LinearEqs:
     Linear equations solver.
     """
 
-    def __init__(self, variable: str, mat: Matrix, rhs: Matrix, algo: str = "numpy"):
+    def __init__(self, variable: str, mat: Matrix, rhs: Matrix):
         """Linear equations solver.
 
         Args:
             variable: The target variable.
             mat: The cooefficient matrix of the linear equations.
             rhs: The right-hand side of the linear equations.
-            algo: The algorithm to solve the linear equations.
+            algo: The algorithm to solve.
         """
-        self.variable = variable
-        self.algo = algo
-        self.mat = mat
-        self.rhs = rhs
+        self._var = variable
+        self._mat = mat
+        self._rhs = rhs
+
+    @staticmethod
+    def zeros(variable: str, size: int) -> "LinearEqs":
+        """Create a linear equations with all elements set to zero."""
+        mat = Matrix.zeros((size, size))
+        rhs = Matrix.zeros((size, 1))
+        return LinearEqs(variable, mat, rhs)
 
     @property
     def size(self) -> int:
         """The size of the linear equations."""
-        return self.mat.shape[0]
+        return self._mat.shape[0]
 
     @property
     def variable(self) -> str:
         """The target variable."""
-        return self.variable
+        return self._var
 
     @property
     def matrix(self) -> Matrix:
         """The cooefficient matrix."""
-        return self.mat
+        return self._mat
 
     @property
     def rhs(self) -> Matrix:
         """The right-hand side."""
-        return self.rhs
+        return self._rhs
 
-    def __add__(self, other: "LinearEqs"):
-        return LinearEqs(self.mat + other.mat, self.rhs + other.rhs, self.algo)
+    def __add__(self, other):
+        self._check_variable(other)
+        if isinstance(other, (Variable, int, float)):
+            return LinearEqs(
+                self.variable,
+                self._mat + other,
+                self._rhs + other,
+            )
+        if isinstance(other, LinearEqs):
+            return LinearEqs(
+                self.variable,
+                self._mat + other.mat,
+                self._rhs + other.rhs,
+            )
+        raise ValueError(f"Invalid LinearEqs operation.")
 
-    def __sub__(self, other: "LinearEqs"):
-        return LinearEqs(self.mat - other.mat, self.rhs - other.rhs, self.algo)
+    def __sub__(self, other):
+        return self.__add__(-other)
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __rsub__(self, other):
+        return other + (-self)
+
+    def __mul__(self, other):
+        self._check_variable(other)
+        self._valid_multiple(other)
+        return LinearEqs(
+            self.variable,
+            self._mat * other,
+            self._rhs * other,
+        )
+
+    def __rmul__(self, other):
+        self._check_variable(other)
+        self._valid_multiple(other)
+        return LinearEqs(
+            self.variable,
+            other * self._mat,
+            other * self._rhs,
+        )
+
+    def __truediv__(self, other):
+        self._check_variable(other)
+        self._valid_multiple(other)
+        return LinearEqs(
+            self.variable,
+            self._mat / other,
+            self._rhs / other,
+        )
+
+    def _check_variable(self, other):
+        if other.variable != self.variable:
+            raise ValueError(
+                f"Cannot add equations with different variables: \
+                    {self.variable}, {other.variable}."
+            )
+
+    def _valid_multiple(self, other):
+        if not isinstance(other, (Variable, int, float)):
+            raise ValueError(f"Cannot multiply equations with {type(other)}.")
 
     def scalarize(self) -> list["LinearEqs"]:
         """Scalarize the vector equations."""
-        if self.mat.dtype == "float":
+        if self._mat.dtype == "float":
             return [self]
 
-        if self.mat.dtype == "scalar":
+        if self._mat.dtype == "scalar":
             pass
-        elif self.mat.dtype == "vector":
+        elif self._mat.dtype == "vector":
             pass
         else:
-            raise ValueError(f"Unsupported matrix dtype {self.mat.dtype}.")
+            raise ValueError(f"Unsupported matrix dtype {self._mat.dtype}.")
 
-    def solve(self) -> np.ndarray:
+    def solve(self, method: str = "numpy") -> np.ndarray:
         """Solve the linear equations."""
         results = []
         for eq in self.scalarize():
-            if eq.algo == "numpy":
-                results.append(np.linalg.solve(eq.mat.data, eq.rhs.data))
+            if method == "numpy":
+                results.append(np.linalg.solve(eq.matrix.data, eq.rhs.data))
             else:
-                raise ValueError(f"Unsupported algorithm {eq.algo}.")
+                raise ValueError(f"Unsupported algorithm {method}.")
 
         return np.array(results)

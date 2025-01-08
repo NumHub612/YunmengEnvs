@@ -3,6 +3,12 @@
 Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
 
 Interface for describing and discretizing pde equations.
+
+The functionality of `Equation` overlaps with that of `Solver`. The former  
+is used for users customize problems and 
+provide standardized, configurable numerical discretization schemes, which 
+are also driven by the `Solver`. 
+For known problems, more efficient solver can be directly developed.
 """
 from abc import ABC, abstractmethod
 
@@ -80,10 +86,7 @@ class IEquation(ABC):
     @abstractmethod
     def discretize(self) -> "LinearEqs":
         """
-        Discretize the equation system.
-
-        Returns:
-            The discretized result.
+        Discretize the equations system.
         """
         pass
 
@@ -93,39 +96,38 @@ class IOperator(ABC):
     Interface for discretizing pde term to a numerical form.
     """
 
+    @property
     @abstractmethod
-    def prepare(self, mesh: "Mesh", coefficents: dict):
+    def type(self) -> str:
+        """The type of the operator."""
+        pass
+
+    @abstractmethod
+    def prepare(
+        self,
+        field: "Field",
+        mesh_topo: "MeshTopo",
+        mesh_geom: "MeshGeom",
+    ):
         """
-        Prepare the operator for running.
+        Prepare the operator for running discretization.
+
+        Args:
+            field: The vairable field.
+            mesh_topo: Mesh topology.
+            mesh_geom: Mesh geometry.
         """
         pass
 
     @abstractmethod
-    def run(self, element: int, neighbors: list[int]) -> "Variable | LinearEqs":
+    def run(self, element: int) -> "Variable | LinearEqs":
         """
         Run the operator on a given element.
 
         Args:
-            element: The element id.
-            neighbors: The ids of the neighboring elements.
+            element: Element id.
 
         Returns:
             The result of the operator.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def type(self) -> str:
-        """
-        The type of the operator.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def scheme(self) -> str:
-        """
-        The operator scheme.
         """
         pass
