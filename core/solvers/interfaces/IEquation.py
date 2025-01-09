@@ -25,6 +25,7 @@ class IEquation(ABC):
         "CURL",
         "DDT",
         "D2DT2",
+        "SRC",
         "FUNC",
     ]
 

@@ -4,6 +4,7 @@ from core.solvers.fdm.operators.laplacians import *
 from core.solvers.fdm.operators.grads import *
 from core.solvers.fdm.operators.d2dt2s import *
 from core.solvers.fdm.operators.ddts import *
+from core.solvers.fdm.operators.srcs import *
 
 
 # register all the fdm operators
