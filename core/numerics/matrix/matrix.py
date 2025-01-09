@@ -218,10 +218,10 @@ class LinearEqs:
     # -----------------------------------------------
 
     @staticmethod
-    def zeros(variable: str, size: int) -> "LinearEqs":
+    def zeros(variable: str, size: int, type: str = "float") -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
-        mat = Matrix.zeros((size, size))
-        rhs = Matrix.zeros((size, 1))
+        mat = Matrix.zeros((size, size), type)
+        rhs = Matrix.zeros((size, 1), type)
         return LinearEqs(variable, mat, rhs)
 
     # -----------------------------------------------
@@ -352,6 +352,5 @@ class LinearEqs:
                     results.append(np.zeros(eq.size))
             else:
                 raise ValueError(f"Unsupported algorithm {method}.")
-
         solution = np.array(results).T
         return solution

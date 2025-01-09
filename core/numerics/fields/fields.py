@@ -96,7 +96,7 @@ class Field:
         else:
             raise ValueError(f"Invalid data shape: {values.shape}")
 
-        field = cls(values.size, element_type, dtype)
+        field = cls(values.size, dtype)
         field._values = data
         return field
 

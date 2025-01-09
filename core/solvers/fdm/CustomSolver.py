@@ -14,8 +14,6 @@ from core.numerics.fields import Field, NodeField
 from core.numerics.matrix import LinearEqs, Matrix
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
-import re
-
 
 class CustomSolver(BaseSolver):
     def __init__(self, id: str, mesh: Mesh):
@@ -253,28 +251,40 @@ class SimpleEquation(BaseEquation):
     def __init__(self, name: str, operators: dict[str, IOperator]):
         super().__init__(name, operators)
         self._defualt_ops = {
-            "GRAD": "grad01",
-            "LAPLACIAN": "lap01",
-            "DDT": "ddt01",
-            "D2DT2": "d2dt01",
-            "FUNC": "func",
-            "DIV": "div01",
-            "CURL": "curl01",
+            "GRAD": "Grad01",
+            "LAPLACIAN": "Lap01",
+            "DDT": "Ddt01",
+            "D2DT2": "D2dt01",
+            "SRC": "Src01",
+            "DIV": "Div01",
+            "CURL": "Curl01",
         }
-        self._operators = {
-            "grad01": Operator("grad01", {"u": "vector"}),
-            "lap01": Operator("lap02", {"u": "vector"}),
-            "ddt01": Operator("ddt01", {"u": "vector"}),
-            "d2dt01": Operator("d2dt2", {"u": "vector"}),
-            "func": Operator("func", {"u": "vector"}),
-            "div01": Operator("div03", {"u": "vector"}),
-            "curl01": Operator("curl04", {"u": "vector"}),
-        }
+        self._operators.update(
+            {
+                "Grad01": Operator("grad01", {"u": "vector"}),
+                "Lap01": Operator("lap02", {"u": "vector"}),
+                "D2dt01": Operator("d2dt2", {"u": "vector"}),
+                "Ddt01": Operator("d2dt2", {"u": "vector"}),
+                "Func": Operator("func", {"u": "vector"}),
+            }
+        )
         self._op_terms = None
         self._dt = None
 
+    def _get_equation_info(self):
+        """
+        Get the equation information, variable name and type,
+        and total number of equations.
+        """
+        var_name = list(self.get_variables().keys())[0]
+        var = self._symbols.get(var_name)
+        var_type = var.get("type")
+        eq_num = self._mesh.node_count
+        return var_name, var_type, eq_num
+
     def discretize(self, dt: float) -> LinearEqs:
         self._dt = dt
+
         # parse the equation
         if self._op_terms is None:
             eq_terms = self.parse_equation(self._equations[0])
@@ -283,8 +293,8 @@ class SimpleEquation(BaseEquation):
                 self._op_terms.append(self.parse_term(it))
 
         # discretization
-        var = list(self.get_variables().keys())[0]
-        total_eqs = LinearEqs.zeros(var, self._mesh.node_count)
+        var_name, var_type, eq_num = self._get_equation_info()
+        final_eq = LinearEqs.zeros(var_name, eq_num, var_type)
         for terms in self._op_terms:
             op, term_result = "+", None
             for it in terms:
@@ -312,8 +322,8 @@ class SimpleEquation(BaseEquation):
                     term_result = curr
                 op = ""
             if term_result:
-                total_eqs += term_result
-        return total_eqs
+                final_eq += term_result
+        return final_eq
 
     def operate(self, op: str, left, right):
         """Run the operator on the left and right operands."""
@@ -348,15 +358,15 @@ class SimpleEquation(BaseEquation):
         )
 
         # run the operator
-        var = list(self.get_variables().keys())[0]
-        total_eqs = LinearEqs.zeros(var, self._mesh.node_count)
+        var_name, var_type, eq_num = self._get_equation_info()
+        final_eq = LinearEqs.zeros(var_name, eq_num, var_type)
         for node in self._mesh.nodes:
             curr = op.run(node.id)
             if isinstance(curr, LinearEqs):
-                total_eqs += curr
+                final_eq += curr
             else:
-                total_eqs.rhs[node.id] = curr
-        return total_eqs
+                final_eq.rhs[node.id] = curr
+        return final_eq
 
     def run_func(self, func_name: str, func_args: list):
         """Run the elementary function with the given arguments."""
@@ -393,13 +403,14 @@ class Operator(IOperator):
         self._mesh = mesh_topo.get_mesh()
 
     def run(self, element: int) -> Variable | LinearEqs:
-        return LinearEqs.zeros("u", self._mesh.node_count)
+        return LinearEqs.zeros("u", self._mesh.node_count, "vector")
 
 
 if __name__ == "__main__":
     from core.numerics.mesh import Grid2D, Coordinate
     from core.solvers.commons import inits, boundaries, callbacks
     from core.visuals.animator import ImageSetPlayer
+    from core.visuals.plotter import plot_vector_field
     import numpy as np
 
     # set mesh
@@ -438,11 +449,12 @@ if __name__ == "__main__":
 
     # set callback
     output_dir = "./tests/results"
-    confs = {"vel": {"style": "cloudmap", "dimension": "x"}}
+    results_dir = f"{output_dir}/u"
+    confs = {"u": {"style": "cloudmap", "dimension": "x"}}
     cb = callbacks.RenderCallback(output_dir, confs)
 
     # set equations
-    equation_expr = "ddt::ddt01(u) + u*grad::grad01(u) == nu*laplacian::lap01(u)"
+    equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
     symbols = {
         "u": {
             "description": "velocity",
@@ -471,19 +483,31 @@ if __name__ == "__main__":
     dt = sigma * dx
     steps = 1
     while steps > 0:
+        # solve
         eqs = problem.discretize(dt)
         solution = eqs.solve()
+        print(solution.shape)
+
+        # plot solution
+        var_field = NodeField.from_np(solution, "node")
+        print(var_field.dtype)
+        plot_vector_field(
+            var_field,
+            grid,
+            save_dir=results_dir,
+            style="cloudmap",
+            dimension="x",
+        )
 
         # update boundary condition
-        var_field = NodeField.from_np(solution, "vector")
-        for node in grid.boundary_nodes_indexes:
+        for node in grid.get_topo_assistant().boundary_nodes_indexes:
             _, val = bc.evaluate(None, None)
             var_field[node] = val
 
+        # update initial condition
         problem.set_fields({"u": var_field})
         steps -= 1
 
     # results player
-    results_dir = f"{output_dir}/u"
     player = ImageSetPlayer(results_dir)
     player.play()
