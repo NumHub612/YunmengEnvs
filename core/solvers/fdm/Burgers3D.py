@@ -156,7 +156,7 @@ class Burgers3D(BaseSolver):
 
         # Update interior nodes
         for node in self._topo.interior_nodes_indexes:
-            nid, sid, eid, wid, tid, bid = self._mesh.retrieve_node_neighborhoods(node)
+            eid, wid, nid, sid, tid, bid = self._mesh.retrieve_node_neighborhoods(node)
             p = u[node]
             e, w, n, s, t, b = u[eid], u[wid], u[nid], u[sid], u[tid], u[bid]
 
