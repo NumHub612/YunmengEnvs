@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Matrix and linear equations.
 """
-from core.numerics.fields import Variable
+from core.numerics.fields import Variable, Scalar, Vector, Tensor
 import numpy as np
 
 
@@ -20,110 +20,177 @@ class Matrix:
             data: The data of the matrix.
             shape: The matrix shape.
         """
-        self.data = np.array(data)
+        self._data = np.array(data)
+        if self.type == "unknown":
+            raise ValueError(f"Unsupported matrix type.")
+
         if shape is not None:
-            self.data = self.data.reshape(shape)
+            self._data = self._data.reshape(shape)
+
+    # -----------------------------------------------
+    # --- static methods ---
+    # -----------------------------------------------
 
     @staticmethod
-    def zeros(shape: tuple) -> "Matrix":
+    def zeros(shape: tuple, type: str = "float") -> "Matrix":
         """Create a matrix with all elements set to zero."""
-        return Matrix(np.zeros(shape), shape)
+        if type == "float":
+            return Matrix(np.zeros(shape), shape)
+
+        if type == "scalar":
+            zero = Scalar().zero
+        elif type == "vector":
+            zero = Vector().zero
+        elif type == "tensor":
+            zero = Tensor().zero
+        else:
+            raise ValueError(f"Invalid matrix type {type}.")
+
+        return Matrix(np.full(shape, zero), shape)
 
     @staticmethod
-    def ones(shape: tuple) -> "Matrix":
+    def ones(shape: tuple, type: str = "float") -> "Matrix":
         """Create a matrix with all elements set to one."""
-        return Matrix(np.ones(shape), shape)
+        if type == "float":
+            return Matrix(np.ones(shape), shape)
+
+        if type == "scalar":
+            one = Scalar().unit
+        elif type == "vector":
+            one = Vector().unit
+        elif type == "tensor":
+            one = Tensor().unit
+        else:
+            raise ValueError(f"Invalid matrix type {type}.")
+
+        return Matrix(np.full(shape, one), shape)
 
     @staticmethod
-    def unit(shape: tuple) -> "Matrix":
+    def unit(shape: tuple, type: str = "float") -> "Matrix":
         """Create a Identity Matrix."""
-        return Matrix(np.identity(shape[0]), shape)
+        if len(shape) == 2 and shape[0] != shape[1]:
+            raise ValueError("Unit matrix must be squared.")
+
+        if type == "float":
+            return Matrix(np.identity(shape[0]), shape)
+
+        if type == "scalar":
+            one = Scalar().unit
+        elif type == "vector":
+            one = Vector().unit
+        elif type == "tensor":
+            one = Tensor().unit
+        else:
+            raise ValueError(f"Invalid matrix type {type}.")
+
+        return Matrix(np.identity(shape[0]) * one, shape)
+
+    # -----------------------------------------------
+    # --- properties ---
+    # -----------------------------------------------
 
     @property
     def shape(self) -> tuple:
-        return self.data.shape
+        return self._data.shape
 
     @property
-    def raw(self) -> np.ndarray:
-        return self.data
+    def data(self) -> np.ndarray:
+        return self._data
 
     @property
-    def rank(self) -> int:
-        return np.linalg.matrix_rank(self.data)
+    def type(self) -> str:
+        """The matrix data type, e.g. float, scalar, vector, tensor, etc."""
+        if len(self.shape) == 2:
+            elem = self._data[0][0]
+        else:
+            elem = self._data[0]
 
-    @property
-    def magnitude(self) -> float:
-        return np.linalg.norm(self.data)
-
-    @property
-    def trace(self) -> float:
-        return np.trace(self.data)
-
-    @property
-    def determinant(self) -> float:
-        return np.linalg.det(self.data)
-
-    @property
-    def dtype(self) -> str:
-        elem = self.data[0] if len(self.shape) == 1 else self.data[0][0]
-
-        if isinstance(elem, Variable):
-            return elem.type
-        elif isinstance(elem, (int, float)):
+        if isinstance(elem, (int, float)):
             return "float"
+        elif isinstance(elem, Variable):
+            return elem.type
         else:
             return "unknown"
 
+    # -----------------------------------------------
+    # --- overload methods ---
+    # -----------------------------------------------
+
     def __getitem__(self, index: tuple):
-        return self.data[index]
+        return self._data[index]
 
     def __setitem__(self, index: tuple, value: Variable):
-        self.data[index] = value
+        self._data[index] = value
 
     def __add__(self, other):
         if isinstance(other, Variable):
-            return Matrix(self.data + other)
-        return Matrix(self.data + other.data)
+            return Matrix(self._data + other)
+        return Matrix(self._data + other.data)
 
     def __sub__(self, other):
         if isinstance(other, Variable):
-            return Matrix(self.data - other)
-        return Matrix(self.data - other.data)
+            return Matrix(self._data - other)
+        return Matrix(self._data - other.data)
 
     def __mul__(self, other):
         if isinstance(other, Variable):
-            return Matrix(self.data * other)
-        return Matrix(self.data * other.data)
+            return Matrix(self._data * other)
+        return Matrix(self._data * other.data)
 
     def __truediv__(self, other):
-        return Matrix(self.data / other)
+        return Matrix(self._data / other)
 
     def __rtruediv__(self, other):
-        return Matrix(other / self.data)
+        return Matrix(other / self._data)
 
     def __rmul__(self, other):
-        return Matrix(other * self.data)
+        return Matrix(other * self._data)
 
     def __radd__(self, other):
-        return Matrix(other + self.data)
+        return Matrix(other + self._data)
 
     def __rsub__(self, other):
-        return Matrix(other - self.data)
+        return Matrix(other - self._data)
+
+    # -----------------------------------------------
+    # --- matrix methods ---
+    # -----------------------------------------------
 
     def transpose(self) -> "Matrix":
-        return Matrix(self.data.transpose())
-
-    def dot(self, other: "Matrix") -> "Matrix":
-        return Matrix(np.dot(self.data, other.data))
+        return Matrix(self._data.transpose())
 
     def inverse(self) -> "Matrix":
-        return Matrix(np.linalg.inv(self.data))
+        return Matrix(np.linalg.inv(self._data))
 
     def flatten(self) -> "Matrix":
-        return Matrix(self.data.flatten())
+        return Matrix(self._data.flatten())
 
     def abs(self) -> "Matrix":
-        return Matrix(np.abs(self.data))
+        return Matrix(np.abs(self._data))
+
+    # -----------------------------------------------
+    # --- extended methods ---
+    # -----------------------------------------------
+
+    def scalarize(self) -> list["Matrix"]:
+        """Scalarize the vector equations."""
+        if self.type == "unknown":
+            raise ValueError(f"Cannot scalarize unknown matrix.")
+
+        if self.type == "float":
+            return [self]
+
+        type_dims = {"scalar": 1, "vector": 3, "tensor": 9}
+        dim = type_dims[self.type]
+
+        mats = [self.zeros(self.shape) for _ in range(dim)]
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                arr = self._data[i][j].to_np()
+                for k in range(dim):
+                    mats[k][i][j] = arr[k]
+
+        return mats
 
 
 class LinearEqs:
@@ -136,13 +203,19 @@ class LinearEqs:
 
         Args:
             variable: The target variable.
-            mat: The cooefficient matrix of the linear equations.
+            mat: The coefficient matrix of the linear equations.
             rhs: The right-hand side of the linear equations.
-            algo: The algorithm to solve.
         """
+        if mat.type != rhs.type:
+            raise ValueError(f"Matrix and right-hand side must have the same type.")
+
         self._var = variable
         self._mat = mat
         self._rhs = rhs
+
+    # -----------------------------------------------
+    # --- static methods ---
+    # -----------------------------------------------
 
     @staticmethod
     def zeros(variable: str, size: int) -> "LinearEqs":
@@ -150,6 +223,10 @@ class LinearEqs:
         mat = Matrix.zeros((size, size))
         rhs = Matrix.zeros((size, 1))
         return LinearEqs(variable, mat, rhs)
+
+    # -----------------------------------------------
+    # --- properties ---
+    # -----------------------------------------------
 
     @property
     def size(self) -> int:
@@ -171,6 +248,10 @@ class LinearEqs:
         """The right-hand side."""
         return self._rhs
 
+    # -----------------------------------------------
+    # --- overload methods ---
+    # -----------------------------------------------
+
     def __add__(self, other):
         self._check_variable(other)
         if isinstance(other, (Variable, int, float)):
@@ -182,7 +263,7 @@ class LinearEqs:
         if isinstance(other, LinearEqs):
             return LinearEqs(
                 self.variable,
-                self._mat + other.mat,
+                self._mat + other.matrix,
                 self._rhs + other.rhs,
             )
         raise ValueError(f"Invalid LinearEqs operation.")
@@ -224,35 +305,53 @@ class LinearEqs:
         )
 
     def _check_variable(self, other):
-        if other.variable != self.variable:
+        if isinstance(other, LinearEqs) and other.variable != self.variable:
             raise ValueError(
                 f"Cannot add equations with different variables: \
                     {self.variable}, {other.variable}."
             )
+        if isinstance(other, Variable):
+            if other.type != self.matrix.type:
+                raise ValueError(
+                    f"Cannot add variable with different type: \
+                        {self.matrix.type}, {other.type}."
+                )
 
     def _valid_multiple(self, other):
         if not isinstance(other, (Variable, int, float)):
             raise ValueError(f"Cannot multiply equations with {type(other)}.")
 
+    # -----------------------------------------------
+    # --- linear equations methods ---
+    # -----------------------------------------------
+
     def scalarize(self) -> list["LinearEqs"]:
         """Scalarize the vector equations."""
-        if self._mat.dtype == "float":
+        if self.matrix.type == "unknown":
+            raise ValueError(f"Cannot scalarize unknown matrix.")
+
+        if self._mat.type == "float":
             return [self]
 
-        if self._mat.dtype == "scalar":
-            pass
-        elif self._mat.dtype == "vector":
-            pass
-        else:
-            raise ValueError(f"Unsupported matrix dtype {self._mat.dtype}.")
+        mats = self._mat.scalarize()
+        rhss = self._rhs.scalarize()
+        eqs = []
+        for mat, rhs in zip(mats, rhss):
+            eqs.append(LinearEqs(self.variable, mat, rhs))
+
+        return eqs
 
     def solve(self, method: str = "numpy") -> np.ndarray:
         """Solve the linear equations."""
         results = []
         for eq in self.scalarize():
             if method == "numpy":
-                results.append(np.linalg.solve(eq.matrix.data, eq.rhs.data))
+                try:
+                    results.append(np.linalg.solve(eq.matrix.data, eq.rhs.data))
+                except:
+                    results.append(np.zeros(eq.size))
             else:
                 raise ValueError(f"Unsupported algorithm {method}.")
 
-        return np.array(results)
+        solution = np.array(results).T
+        return solution

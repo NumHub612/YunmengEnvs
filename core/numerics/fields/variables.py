@@ -73,6 +73,14 @@ class Variable:
         """
         raise NotImplementedError()
 
+    @property
+    @abstractmethod
+    def data(self) -> np.ndarray:
+        """
+        Get the data of the variable.
+        """
+        raise NotImplementedError()
+
     @abstractmethod
     def __str__(self):
         """
@@ -214,7 +222,7 @@ class Vector(Variable):
     @property
     def unit(self) -> "Vector":
         length = self.magnitude
-        if length < self._tol:
+        if length < NUMERIC_TOLERANCE:
             return Vector(1.0, 1.0, 1.0)
         else:
             return self / length
@@ -222,6 +230,10 @@ class Vector(Variable):
     @property
     def zero(self) -> "Vector":
         return Vector(0.0, 0.0, 0.0)
+
+    @property
+    def data(self) -> np.ndarray:
+        return self._value
 
     @property
     def x(self) -> float:
@@ -294,7 +306,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < self._tol:
+            if other.value < NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Vector.from_np(self.to_np() / other.value)
         else:
@@ -324,7 +336,6 @@ class Scalar(Variable):
 
     def __init__(self, value: float = 0.0):
         self._value = value
-        self._tol = NUMERIC_TOLERANCE
 
     # -----------------------------------------------
     # --- override methods ---
@@ -369,6 +380,10 @@ class Scalar(Variable):
     @property
     def zero(self) -> "Scalar":
         return Scalar(0.0)
+
+    @property
+    def data(self) -> np.ndarray:
+        return np.array([self._value])
 
     @property
     def value(self) -> float:
@@ -441,7 +456,7 @@ class Scalar(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < self._tol:
+            if other.value < NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Scalar(self.value / other.value)
         else:
@@ -455,9 +470,9 @@ class Scalar(Variable):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Scalar):
-            return abs(self.value - other.value) < self._tol
+            return abs(self.value - other.value) < NUMERIC_TOLERANCE
         elif isinstance(other, (int, float)):
-            return abs(self.value - other) < self._tol
+            return abs(self.value - other) < NUMERIC_TOLERANCE
         else:
             return False
 
@@ -531,7 +546,7 @@ class Tensor(Variable):
     @property
     def unit(self) -> "Tensor":
         length = self.magnitude
-        if length < self._tol:
+        if length < NUMERIC_TOLERANCE:
             return Tensor(1, 0, 0, 0, 1, 0, 0, 0, 1)
         else:
             return self / length
@@ -539,6 +554,10 @@ class Tensor(Variable):
     @property
     def zero(self) -> "Tensor":
         return Tensor(0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+    @property
+    def data(self) -> np.ndarray:
+        return self._value
 
     @property
     def xx(self) -> float:
@@ -633,7 +652,7 @@ class Tensor(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < self._tol:
+            if other.value < NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Tensor.from_np(self.to_np() / other.value)
         else:
