@@ -34,12 +34,33 @@ class Variable:
         """
         raise NotImplementedError()
 
+    @classmethod
     @abstractmethod
     def from_var(cls, var: "Variable") -> "Variable":
         """
         Set a variable by another variable.
         """
         raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def unit(self) -> "Variable":
+        """
+        Get the unit of the variable.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def zero(self) -> "Variable":
+        """
+        Get the zero value of the variable.
+        """
+        raise NotImplementedError()
+
+    # -----------------------------------------------
+    # --- properties ---
+    # -----------------------------------------------
 
     @property
     @abstractmethod
@@ -59,27 +80,15 @@ class Variable:
 
     @property
     @abstractmethod
-    def unit(self) -> "Variable":
-        """
-        Get the unit of the variable.
-        """
-        raise NotImplementedError()
-
-    @property
-    @abstractmethod
-    def zero(self) -> "Variable":
-        """
-        Get the zero value of the variable.
-        """
-        raise NotImplementedError()
-
-    @property
-    @abstractmethod
     def data(self) -> np.ndarray:
         """
         Get the data of the variable.
         """
         raise NotImplementedError()
+
+    # -----------------------------------------------
+    # --- reload arithmetic operations ---
+    # -----------------------------------------------
 
     @abstractmethod
     def __str__(self):
@@ -87,10 +96,6 @@ class Variable:
         Get the string representation of the variable.
         """
         raise NotImplementedError()
-
-    # -----------------------------------------------
-    # --- reload arithmetic operations ---
-    # -----------------------------------------------
 
     @abstractmethod
     def __add__(self, other) -> "Variable":
@@ -206,6 +211,14 @@ class Vector(Variable):
     def __str__(self):
         return f"Vector({self.x}, {self.y}, {self.z})"
 
+    @classmethod
+    def unit(self) -> "Vector":
+        return Vector(1.0, 1.0, 1.0)
+
+    @classmethod
+    def zero(self) -> "Vector":
+        return Vector(0.0, 0.0, 0.0)
+
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
@@ -218,18 +231,6 @@ class Vector(Variable):
     def magnitude(self) -> float:
         length = np.sqrt(self.x**2 + self.y**2 + self.z**2)
         return length
-
-    @property
-    def unit(self) -> "Vector":
-        length = self.magnitude
-        if length < NUMERIC_TOLERANCE:
-            return Vector(1.0, 1.0, 1.0)
-        else:
-            return self / length
-
-    @property
-    def zero(self) -> "Vector":
-        return Vector(0.0, 0.0, 0.0)
 
     @property
     def data(self) -> np.ndarray:
@@ -252,38 +253,14 @@ class Vector(Variable):
     # -----------------------------------------------
 
     def __add__(self, other) -> "Vector":
-        if isinstance(other, (int, float)):
-            other = Scalar(other)
-
         if isinstance(other, Vector):
             return Vector.from_np(self.to_np() + other.to_np())
-        elif isinstance(other, Scalar):
-            return Vector.from_np(self.to_np() + other.value)
         else:
             raise TypeError("Invalid type for Vector add().")
 
-    def __radd__(self, other) -> "Vector":
-        return self.__add__(other)
-
     def __sub__(self, other) -> "Vector":
-        if isinstance(other, (int, float)):
-            other = Scalar(other)
-
         if isinstance(other, Vector):
             return Vector.from_np(self.to_np() - other.to_np())
-        elif isinstance(other, Scalar):
-            return Vector.from_np(self.to_np() - other.value)
-        else:
-            raise TypeError("Invalid type for Vector sub().")
-
-    def __rsub__(self, other) -> "Vector":
-        if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Vector):
-            return Vector.from_np(other.to_np() - self.to_np())
-        elif isinstance(other, Scalar):
-            return Vector.from_np(other.value - self.to_np())
         else:
             raise TypeError("Invalid type for Vector sub().")
 
@@ -295,11 +272,17 @@ class Vector(Variable):
             return Scalar.from_np(np.dot(self.to_np(), other.to_np()))
         elif isinstance(other, Scalar):
             return Vector.from_np(self.to_np() * other.value)
+        elif isinstance(other, Tensor):
+            lf = self.to_np()
+            rhs = other.to_np().reshape(3, 3)
+            result = [np.dot(lf, rhs[:, i]) for i in range(3)]
+            return Vector.from_np(np.array(result))
         else:
             raise TypeError("Invalid type for Vector mul().")
 
     def __rmul__(self, other) -> "Variable":
-        return self.__mul__(other)
+        if isinstance(other, (int, float, Scalar)):
+            return self.__mul__(other)
 
     def __truediv__(self, other) -> "Vector":
         if isinstance(other, (int, float)):
@@ -313,10 +296,10 @@ class Vector(Variable):
             raise TypeError("Invalid type for Vector div().")
 
     def __neg__(self) -> "Vector":
-        return Vector(-self.x, -self.y, -self.z)
+        return Vector(-self._value)
 
     def __abs__(self) -> "Vector":
-        return Vector(abs(self.x), abs(self.y), abs(self.z))
+        return Vector(np.abs(self._value))
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Vector):
@@ -361,6 +344,14 @@ class Scalar(Variable):
     def __str__(self):
         return f"Scalar({self.value})"
 
+    @classmethod
+    def unit(self) -> "Scalar":
+        return Scalar(1.0)
+
+    @classmethod
+    def zero(self) -> "Scalar":
+        return Scalar(0.0)
+
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
@@ -372,14 +363,6 @@ class Scalar(Variable):
     @property
     def magnitude(self) -> float:
         return abs(self.value)
-
-    @property
-    def unit(self) -> "Scalar":
-        return Scalar(1.0)
-
-    @property
-    def zero(self) -> "Scalar":
-        return Scalar(0.0)
 
     @property
     def data(self) -> np.ndarray:
@@ -399,10 +382,6 @@ class Scalar(Variable):
 
         if isinstance(other, Scalar):
             return Scalar(self.value + other.value)
-        elif isinstance(other, Vector):
-            return Vector.from_np(self.value + other.to_np())
-        elif isinstance(other, Tensor):
-            return Tensor.from_np(self.value + other.to_np())
         else:
             raise TypeError("Invalid type for Scalar add().")
 
@@ -415,10 +394,6 @@ class Scalar(Variable):
 
         if isinstance(other, Scalar):
             return Scalar(self.value - other.value)
-        elif isinstance(other, Vector):
-            return Vector.from_np(self.value - other.to_np())
-        elif isinstance(other, Tensor):
-            return Tensor.from_np(self.value - other.to_np())
         else:
             raise TypeError("Invalid type for Scalar sub().")
 
@@ -428,12 +403,8 @@ class Scalar(Variable):
 
         if isinstance(other, Scalar):
             return Scalar(other.value - self.value)
-        elif isinstance(other, Vector):
-            return Vector.from_np(other.to_np() - self.value)
-        elif isinstance(other, Tensor):
-            return Tensor.from_np(other.to_np() - self.value)
         else:
-            raise TypeError("Invalid type for Scalar sub().")
+            raise TypeError("Invalid type for Scalar rsub().")
 
     def __mul__(self, other) -> "Variable":
         if isinstance(other, (int, float)):
@@ -461,6 +432,17 @@ class Scalar(Variable):
             return Scalar(self.value / other.value)
         else:
             raise TypeError("Invalid type for Scalar div().")
+
+    def __rtruediv__(self, other) -> "Variable":
+        if isinstance(other, (int, float)):
+            other = Scalar(other)
+
+        if isinstance(other, Scalar):
+            if self.value < NUMERIC_TOLERANCE:
+                raise ZeroDivisionError("Division by zero.")
+            return Scalar(other.value / self.value)
+        else:
+            raise TypeError("Invalid type for Scalar rdiv().")
 
     def __neg__(self) -> "Scalar":
         return Scalar(-self.value)
@@ -530,6 +512,14 @@ class Tensor(Variable):
     def __str__(self):
         return f"Tensor({self._value})"
 
+    @classmethod
+    def unit(self) -> "Tensor":
+        return Tensor(1, 0, 0, 0, 1, 0, 0, 0, 1)
+
+    @classmethod
+    def zero(self) -> "Tensor":
+        return Tensor(0, 0, 0, 0, 0, 0, 0, 0, 0)
+
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
@@ -542,18 +532,6 @@ class Tensor(Variable):
     def magnitude(self) -> float:
         length = np.linalg.norm(self.to_np())
         return length
-
-    @property
-    def unit(self) -> "Tensor":
-        length = self.magnitude
-        if length < NUMERIC_TOLERANCE:
-            return Tensor(1, 0, 0, 0, 1, 0, 0, 0, 1)
-        else:
-            return self / length
-
-    @property
-    def zero(self) -> "Tensor":
-        return Tensor(0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     @property
     def data(self) -> np.ndarray:
@@ -600,38 +578,14 @@ class Tensor(Variable):
     # -----------------------------------------------
 
     def __add__(self, other) -> "Tensor":
-        if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Scalar):
-            return Tensor.from_np(self.to_np() + other.value)
-        elif isinstance(other, Tensor):
+        if isinstance(other, Tensor):
             return Tensor.from_np(self.to_np() + other.to_np())
         else:
             raise TypeError("Invalid type for Tensor add().")
 
-    def __radd__(self, other) -> "Tensor":
-        return self.__add__(other)
-
     def __sub__(self, other) -> "Tensor":
-        if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Scalar):
-            return Tensor.from_np(self.to_np() - other.value)
-        elif isinstance(other, Tensor):
+        if isinstance(other, Tensor):
             return Tensor.from_np(self.to_np() - other.to_np())
-        else:
-            raise TypeError("Invalid type for Tensor sub().")
-
-    def __rsub__(self, other) -> "Tensor":
-        if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Scalar):
-            return Tensor.from_np(other.value - self.to_np())
-        elif isinstance(other, Tensor):
-            return Tensor.from_np(other.to_np() - self.to_np())
         else:
             raise TypeError("Invalid type for Tensor sub().")
 
@@ -641,11 +595,24 @@ class Tensor(Variable):
 
         if isinstance(other, Scalar):
             return Tensor.from_np(self.to_np() * other.value)
+        elif isinstance(other, Vector):
+            rh = other.to_np().reshape(3, 1)
+            result = [np.dot(self._value[i], rh) for i in range(3)]
+            return Vector.from_np(np.array(result))
+        elif isinstance(other, Tensor):
+            results = []
+            for i in range(3):
+                row = []
+                for j in range(3):
+                    row.append(np.dot(self._value[i], other._value[:, j]))
+                results.append(row)
+            return Tensor.from_np(np.array(results))
         else:
             raise TypeError("Invalid type for Tensor mul().")
 
-    def __rmul__(self, other) -> "Tensor":
-        return self.__mul__(other)
+    def __rmul__(self, other):
+        if isinstance(other, (int, float, Scalar)):
+            return self.__rmul__(other)
 
     def __truediv__(self, other) -> "Tensor":
         if isinstance(other, (int, float)):
@@ -659,12 +626,10 @@ class Tensor(Variable):
             raise TypeError("Invalid type for Tensor div().")
 
     def __neg__(self) -> "Tensor":
-        value = -self.to_np()
-        return Tensor.from_np(value)
+        return Tensor.from_np(-self.to_np())
 
     def __abs__(self) -> "Tensor":
-        value = np.abs(self.to_np())
-        return Tensor.from_np(value)
+        return Tensor.from_np(np.abs(self._value))
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Tensor):

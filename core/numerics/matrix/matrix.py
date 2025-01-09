@@ -38,11 +38,11 @@ class Matrix:
             return Matrix(np.zeros(shape), shape)
 
         if type == "scalar":
-            zero = Scalar().zero
+            zero = Scalar().zero()
         elif type == "vector":
-            zero = Vector().zero
+            zero = Vector().zero()
         elif type == "tensor":
-            zero = Tensor().zero
+            zero = Tensor().zero()
         else:
             raise ValueError(f"Invalid matrix type {type}.")
 
@@ -55,11 +55,11 @@ class Matrix:
             return Matrix(np.ones(shape), shape)
 
         if type == "scalar":
-            one = Scalar().unit
+            one = Scalar().unit()
         elif type == "vector":
-            one = Vector().unit
+            one = Vector().unit()
         elif type == "tensor":
-            one = Tensor().unit
+            one = Tensor().unit()
         else:
             raise ValueError(f"Invalid matrix type {type}.")
 
@@ -75,11 +75,11 @@ class Matrix:
             return Matrix(np.identity(shape[0]), shape)
 
         if type == "scalar":
-            one = Scalar().unit
+            one = Scalar().unit()
         elif type == "vector":
-            one = Vector().unit
+            one = Vector().unit()
         elif type == "tensor":
-            one = Tensor().unit
+            one = Tensor().unit()
         else:
             raise ValueError(f"Invalid matrix type {type}.")
 

@@ -259,17 +259,9 @@ class SimpleEquation(BaseEquation):
             "DIV": "Div01",
             "CURL": "Curl01",
         }
-        self._operators.update(
-            {
-                "Grad01": Operator("grad01", {"u": "vector"}),
-                "Lap01": Operator("lap02", {"u": "vector"}),
-                "D2dt01": Operator("d2dt2", {"u": "vector"}),
-                "Ddt01": Operator("d2dt2", {"u": "vector"}),
-                "Func": Operator("func", {"u": "vector"}),
-            }
-        )
+
         self._op_terms = None
-        self._dt = None
+        self._configs = {}
 
     def _get_equation_info(self):
         """
@@ -283,7 +275,8 @@ class SimpleEquation(BaseEquation):
         return var_name, var_type, eq_num
 
     def discretize(self, dt: float) -> LinearEqs:
-        self._dt = dt
+        # update configurations
+        self._configs["dt"] = dt
 
         # parse the equation
         if self._op_terms is None:
@@ -355,6 +348,7 @@ class SimpleEquation(BaseEquation):
             field,
             self._mesh.get_topo_assistant(),
             self._mesh.get_geom_assistant(),
+            **self._configs,
         )
 
         # run the operator
@@ -378,32 +372,6 @@ class SimpleEquation(BaseEquation):
         inputs = [arg["value"] for arg in func_args if arg["type"]]
         result = func(*inputs)
         return result
-
-
-class Operator(IOperator):
-    def __init__(self, name: str, variables: dict):
-        self._name = name
-        self._variables = variables
-        self._mesh = None
-
-    @property
-    def type(self) -> str:
-        return "custom"
-
-    @property
-    def scheme(self) -> str:
-        return "custom"
-
-    def prepare(
-        self,
-        field: Field,
-        mesh_topo: MeshTopo,
-        mesh_geom: MeshGeom,
-    ):
-        self._mesh = mesh_topo.get_mesh()
-
-    def run(self, element: int) -> Variable | LinearEqs:
-        return LinearEqs.zeros("u", self._mesh.node_count, "vector")
 
 
 if __name__ == "__main__":
@@ -437,7 +405,7 @@ if __name__ == "__main__":
 
     # set initial condition
     node_num = grid.node_count
-    init_field = NodeField(node_num, "vector", Vector(1, 1))
+    init_field = NodeField(node_num, "vector", Vector(1, 1), "u")
     for i in init_groups:
         init_field[i] = Vector(2, 2)
 
@@ -489,7 +457,7 @@ if __name__ == "__main__":
         print(solution.shape)
 
         # plot solution
-        var_field = NodeField.from_np(solution, "node")
+        var_field = NodeField.from_np(solution, "node", "u")
         print(var_field.dtype)
         plot_vector_field(
             var_field,

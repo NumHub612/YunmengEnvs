@@ -107,16 +107,16 @@ class IOperator(ABC):
     def prepare(
         self,
         field: "Field",
-        mesh_topo: "MeshTopo",
-        mesh_geom: "MeshGeom",
+        topo: "MeshTopo",
+        geom: "MeshGeom",
     ):
         """
         Prepare the operator for running discretization.
 
         Args:
             field: The vairable field.
-            mesh_topo: Mesh topology.
-            mesh_geom: Mesh geometry.
+            topo: Mesh topology.
+            geom: Mesh geometry.
         """
         pass
 

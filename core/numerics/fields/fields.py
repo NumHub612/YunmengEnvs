@@ -21,6 +21,7 @@ class Field:
         element_type: str,
         data_type: str,
         default: Scalar | Vector | Tensor = None,
+        variable: str = "none",
     ):
         """
         Initialize the field with a given number of variables and a default value.
@@ -29,6 +30,8 @@ class Field:
             variable_num: The number of variables in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             element_type: The element type, e.g. "cell", "face", "node".
+            default: The default value of the field.
+            variable: The variable name.
         """
         element_type = element_type.lower()
         if element_type not in ["cell", "face", "node"]:
@@ -46,12 +49,27 @@ class Field:
             type_map = {"scalar": Scalar, "vector": Vector, "tensor": Tensor}
             default = type_map[data_type]()
         self._default = default
-
         self._values = np.full(variable_num, default)
+
+        self._variable = variable
 
     # -----------------------------------------------
     # --- Properties and auxiliary methods ---
     # -----------------------------------------------
+
+    @property
+    def variable(self) -> str:
+        """
+        Get the variable name of the field.
+        """
+        return self._variable
+
+    @property
+    def size(self) -> int:
+        """
+        Get the field size.
+        """
+        return self._values.size
 
     @property
     def dtype(self) -> str:
@@ -68,7 +86,12 @@ class Field:
         return self._etype
 
     @classmethod
-    def from_np(cls, values: np.ndarray, element_type: str) -> "Field":
+    def from_np(
+        cls,
+        values: np.ndarray,
+        element_type: str,
+        variable: str = "none",
+    ) -> "Field":
         """
         Create a field from a numpy array.
 
@@ -77,12 +100,12 @@ class Field:
             - If values.shape[1] == 3, the field is a vector field.
             - If values.shape[1] == 9, the field is a tensor field
         """
+        if values.ndim != 2:
+            raise ValueError(f"Invalid data shape: {values.shape}")
+
         element_type = element_type.lower()
         if element_type not in ["cell", "face", "node"]:
             raise ValueError(f"Invalid element type: {element_type}")
-
-        if values.ndim != 2:
-            raise ValueError(f"Invalid data shape: {values.shape}")
 
         if values.shape[1] == 1:
             data = np.array([Scalar.from_np(v) for v in values])
@@ -96,7 +119,7 @@ class Field:
         else:
             raise ValueError(f"Invalid data shape: {values.shape}")
 
-        field = cls(values.size, dtype)
+        field = cls(values.size, dtype, None, variable)
         field._values = data
         return field
 
@@ -137,7 +160,7 @@ class Field:
         if not callable(func):
             raise TypeError(f"Invalid function type: {type(func)}")
 
-        for i in range(self._values.size):
+        for i in range(self.size):
             res = func(self._values[i])
             if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
@@ -155,7 +178,7 @@ class Field:
 
         min_index = min(indexes)
         max_index = max(indexes)
-        if min_index < 0 or max_index >= self._values.size:
+        if min_index < 0 or max_index >= self.size:
             raise IndexError(f"Index out of range: {min_index}/{max_index}")
 
         for i in indexes:
@@ -183,7 +206,7 @@ class Field:
                     f"Invalid value type: {other.dtype} (expected {self.dtype})"
                 )
 
-            self._values = np.full(self._values.size, other)
+            self._values = np.full(self.size, other)
         else:
             raise TypeError(f"Can't assign {type(other)} to field")
 
@@ -195,7 +218,7 @@ class Field:
         """
         Get the value of the field at a given position.
         """
-        if index < 0 or index >= self._values.size:
+        if index < 0 or index >= self.size:
             raise IndexError(f"Index out of range: {index}")
 
         return self._values[index]
@@ -204,7 +227,7 @@ class Field:
         """
         Set the value of the field at a given position.
         """
-        if index < 0 or index >= self._values.size:
+        if index < 0 or index >= self.size:
             raise IndexError(f"Index out of range: {index}")
 
         if value.type != self._default.type:
@@ -224,7 +247,7 @@ class Field:
         """
         Iterate over the variables in the field.
         """
-        for i in range(self._values.size):
+        for i in range(self.size):
             yield self._values[i]
 
     # -----------------------------------------------
@@ -235,7 +258,7 @@ class Field:
         """
         Check if two fields are compatible for arithmetic operations.
         """
-        if self._values.size != other._values.size:
+        if self.size != other.size:
             raise ValueError("Fields must have the same number of variables")
 
         if self.dtype != other.dtype:
@@ -243,6 +266,9 @@ class Field:
 
         if self.etype != other.etype:
             raise TypeError("Fields must have the same element type")
+
+        # if self.variable != other.variable:
+        #     raise TypeError("Fields must have the same variable")
 
     def __add__(self, other) -> "Field":
         """
@@ -254,8 +280,8 @@ class Field:
             except (ValueError, TypeError) as e:
                 raise TypeError(f"Cannot add fields: {e}")
 
-            result = self.__class__(
-                self._values.size, self.etype, self.dtype, self._default
+            result = Field(
+                self.size, self.etype, self.dtype, self._default, self.variable
             )
             result._values += other._values
             return result
@@ -265,8 +291,8 @@ class Field:
                     f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
-            result = self.__class__(
-                self._values.size, self.etype, self.dtype, self._default
+            result = Field(
+                self.size, self.etype, self.dtype, self._default, self.variable
             )
             result._values += other
             return result
@@ -289,8 +315,8 @@ class Field:
             except (ValueError, TypeError) as e:
                 raise TypeError(f"Cannot subtract fields: {e}")
 
-            result = self.__class__(
-                self._values.size, self.etype, self.dtype, self._default
+            result = Field(
+                self.size, self.etype, self.dtype, self._default, self.variable
             )
             result._values -= other._values
             return result
@@ -300,8 +326,8 @@ class Field:
                     f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
-            result = self.__class__(
-                self._values.size, self.etype, self.dtype, self._default
+            result = Field(
+                self.size, self.etype, self.dtype, self._default, self.variable
             )
             result._values -= other
             return result
@@ -318,8 +344,8 @@ class Field:
             except (ValueError, TypeError) as e:
                 raise TypeError(f"Cannot subtract fields: {e}")
 
-            result = self.__class__(
-                self._values.size, self.etype, self.dtype, self._default
+            result = Field(
+                self.size, self.etype, self.dtype, self._default, self.variable
             )
             result._values = other._values - self._values
             return result
@@ -329,8 +355,8 @@ class Field:
                     f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
-            result = self.__class__(
-                self._values.size, self.etype, self.dtype, self._default
+            result = Field(
+                self.size, self.etype, self.dtype, self._default, self.variable
             )
             result._values = other - self._values
             return result
@@ -344,9 +370,7 @@ class Field:
         if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
-        result = self.__class__(
-            self._values.size, self.etype, self.dtype, self._default
-        )
+        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
         result._values = self._values * other
         return result
 
@@ -363,9 +387,7 @@ class Field:
         if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
 
-        result = self.__class__(
-            self._values.size, self.etype, self.dtype, self._default
-        )
+        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
         result._values = self._values / other
         return result
 
@@ -373,9 +395,7 @@ class Field:
         """
         Negate the field element-wise.
         """
-        result = self.__class__(
-            self._values.size, self.etype, self.dtype, self._default
-        )
+        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
         result._values = -self._values
         return result
 
@@ -383,9 +403,7 @@ class Field:
         """
         Take the absolute value of the field element-wise.
         """
-        result = self.__class__(
-            self._values.size, self.etype, self.dtype, self._default
-        )
+        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
         result._values = np.abs(self._values)
         return result
 
@@ -397,7 +415,13 @@ class CellField(Field):
     Default at each cell center.
     """
 
-    def __init__(self, num_cells: int, data_type: str, default: Variable = None):
+    def __init__(
+        self,
+        num_cells: int,
+        data_type: str,
+        default: Variable = None,
+        varialbe: str = "none",
+    ):
         """
         Initialize the cell field.
 
@@ -406,7 +430,13 @@ class CellField(Field):
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each cell.
         """
-        super().__init__(num_cells, "cell", data_type, default)
+        super().__init__(
+            num_cells,
+            "cell",
+            data_type,
+            default,
+            varialbe,
+        )
 
 
 class FaceField(Field):
@@ -416,7 +446,13 @@ class FaceField(Field):
     Default at each face center.
     """
 
-    def __init__(self, num_faces: int, data_type: str, default: Variable = None):
+    def __init__(
+        self,
+        num_faces: int,
+        data_type: str,
+        default: Variable = None,
+        varialbe: str = "none",
+    ):
         """
         Initialize the face field.
 
@@ -425,7 +461,13 @@ class FaceField(Field):
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each face.
         """
-        super().__init__(num_faces, "face", data_type, default)
+        super().__init__(
+            num_faces,
+            "face",
+            data_type,
+            default,
+            varialbe,
+        )
 
 
 class NodeField(Field):
@@ -433,7 +475,13 @@ class NodeField(Field):
     Node field which represents statues of nodes.
     """
 
-    def __init__(self, num_nodes: int, data_type: str, default: Variable = None):
+    def __init__(
+        self,
+        num_nodes: int,
+        data_type: str,
+        default: Variable = None,
+        varialbe: str = "none",
+    ):
         """
         Initialize the node field.
 
@@ -442,4 +490,10 @@ class NodeField(Field):
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each node.
         """
-        super().__init__(num_nodes, "node", data_type, default)
+        super().__init__(
+            num_nodes,
+            "node",
+            data_type,
+            default,
+            varialbe,
+        )
