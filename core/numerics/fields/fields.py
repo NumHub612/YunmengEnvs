@@ -100,21 +100,21 @@ class Field:
             - If values.shape[1] == 3, the field is a vector field.
             - If values.shape[1] == 9, the field is a tensor field
         """
-        if values.ndim != 2:
-            raise ValueError(f"Invalid data shape: {values.shape}")
-
         element_type = element_type.lower()
         if element_type not in ["cell", "face", "node"]:
             raise ValueError(f"Invalid element type: {element_type}")
 
-        if values.shape[1] == 1:
+        if values.ndim == 2 and values.shape[1] == 1:
             data = np.array([Scalar.from_np(v) for v in values])
             dtype = "scalar"
-        elif values.shape[1] == 3:
+        elif values.ndim == 2 and values.shape[1] == 3:
             data = np.array([Vector.from_np(v) for v in values])
             dtype = "vector"
-        elif values.shape[1] == 9:
+        elif values.ndim == 2 and values.shape[1] == 9:
             data = np.array([Tensor.from_np(v.reshape(3, 3)) for v in values])
+            dtype = "tensor"
+        elif values.ndim == 3:
+            data = np.array([Tensor.from_np(v) for v in values])
             dtype = "tensor"
         else:
             raise ValueError(f"Invalid data shape: {values.shape}")
@@ -275,27 +275,18 @@ class Field:
         Add two fields or a field and a constant element-wise.
         """
         if isinstance(other, Field):
-            try:
-                self._check_fields_compatible(other)
-            except (ValueError, TypeError) as e:
-                raise TypeError(f"Cannot add fields: {e}")
+            self._check_fields_compatible(other)
 
-            result = Field(
-                self.size, self.etype, self.dtype, self._default, self.variable
-            )
-            result._values += other._values
-            return result
+            data = self.to_np() + other.to_np()
+            return Field.from_np(data, self.etype, self.variable)
         elif isinstance(other, Variable):
             if other.type != self._default.type:
                 raise TypeError(
                     f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
-            result = Field(
-                self.size, self.etype, self.dtype, self._default, self.variable
-            )
-            result._values += other
-            return result
+            data = self.to_np() + other.data
+            return Field.from_np(data, self.etype, self.variable)
         else:
             raise TypeError(f"Cannot add {type(other)} to field")
 
@@ -310,27 +301,18 @@ class Field:
         Subtract two fields or a field and a constant element-wise.
         """
         if isinstance(other, Field):
-            try:
-                self._check_fields_compatible(other)
-            except (ValueError, TypeError) as e:
-                raise TypeError(f"Cannot subtract fields: {e}")
+            self._check_fields_compatible(other)
 
-            result = Field(
-                self.size, self.etype, self.dtype, self._default, self.variable
-            )
-            result._values -= other._values
-            return result
+            data = self.to_np() - other.to_np()
+            return Field.from_np(data, self.etype, self.variable)
         elif isinstance(other, Variable):
             if other.type != self._default.type:
                 raise TypeError(
                     f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
-            result = Field(
-                self.size, self.etype, self.dtype, self._default, self.variable
-            )
-            result._values -= other
-            return result
+            data = self.to_np() - other.data
+            return Field.from_np(data, self.etype, self.variable)
         else:
             raise TypeError(f"Cannot subtract {type(other)} from field")
 
@@ -339,57 +321,57 @@ class Field:
         Subtract two fields or a field and a constant element-wise.
         """
         if isinstance(other, Field):
-            try:
-                self._check_fields_compatible(other)
-            except (ValueError, TypeError) as e:
-                raise TypeError(f"Cannot subtract fields: {e}")
+            self._check_fields_compatible(other)
 
-            result = Field(
-                self.size, self.etype, self.dtype, self._default, self.variable
-            )
-            result._values = other._values - self._values
-            return result
+            data = other.to_np() - self.to_np()
+            return Field.from_np(data, self.etype, self.variable)
         elif isinstance(other, Variable):
             if other.type != self._default.type:
                 raise TypeError(
                     f"Invalid value type: {other.type} (expected {self._default.type})"
                 )
 
-            result = Field(
-                self.size, self.etype, self.dtype, self._default, self.variable
-            )
-            result._values = other - self._values
-            return result
+            data = other.data - self.to_np()
+            return Field.from_np(data, self.etype, self.variable)
         else:
             raise TypeError(f"Cannot subtract {type(other)} from field")
 
-    def __mul__(self, other: Scalar | float | int) -> "Field":
+    def __mul__(self, other) -> "Field":
         """
         Multiply the field by a scalar element-wise.
         """
-        if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
+        if isinstance(other, (int, float, Scalar)):
+            if isinstance(other, Scalar):
+                other = other.value
+
+            data = self._values * other
+            return Field.from_np(data, self.etype, self.variable)
+        elif isinstance(other, Field):
+            if other.size != self.size:
+                raise TypeError(
+                    f"Cannot multiply fields of different sizes: {self.size} and {other.size}"
+                )
+
+            data = self.to_np() * other.to_np()
+            return Field.from_np(data, self.etype, self.variable)
+        else:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
-        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
-        result._values = self._values * other
-        return result
-
-    def __rmul__(self, other: Scalar | float | int) -> "Field":
+    def __rmul__(self, other) -> "Field":
         """
         Multiply the field by a scalar element-wise.
         """
         return self.__mul__(other)
 
-    def __truediv__(self, other: Scalar | float | int) -> "Field":
+    def __truediv__(self, other) -> "Field":
         """
         Divide the field by a scalar element-wise.
         """
-        if not isinstance(other, Scalar) and not isinstance(other, (int, float)):
+        if not isinstance(other, (Scalar, int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
 
-        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
-        result._values = self._values / other
-        return result
+        data = self._values / other
+        return Field.from_np(data, self.etype, self.variable)
 
     def __neg__(self) -> "Field":
         """

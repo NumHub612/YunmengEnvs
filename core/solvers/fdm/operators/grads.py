@@ -69,17 +69,13 @@ class Grad01(IOperator):
         east, west, north, south, top, bot = neighbours
         results = []
 
-        dx = self._geom.calucate_node_to_node_distance(element, west)
-        x_part = self._field[element] - self._field[west]
-        results.append(x_part / dx)
-
-        dy = self._geom.calucate_node_to_node_distance(element, south)
-        y_part = self._field[element] - self._field[south]
-        results.append(y_part / dy)
-
-        dz = self._geom.calucate_node_to_node_distance(element, bot)
-        z_part = self._field[element] - self._field[bot]
-        results.append(z_part / dz)
+        for nb in [west, south, bot]:
+            if nb is not None:
+                ds = self._geom.calucate_node_to_node_distance(element, nb)
+                grad = (self._field[element] - self._field[nb]) / ds
+                results.append(grad)
+            else:
+                results.append(0.0)
 
         return Vector(*results)
 
@@ -95,27 +91,23 @@ class Grad01(IOperator):
         east, west, north, south, top, bot = neighbours
         results = []
 
-        dx = self._geom.calucate_node_to_node_distance(element, west)
-        dy = self._geom.calucate_node_to_node_distance(element, south)
-        dz = self._geom.calucate_node_to_node_distance(element, bot)
+        ds, vecs = [], []
+        for nb in [west, south, bot]:
+            if nb is not None:
+                ds.append(self._geom.calucate_node_to_node_distance(element, nb))
+                vecs.append(self._field[nb].to_np())
+            else:
+                ds.append(None)
+                vecs.append(None)
 
         elem_vec = self._field[element].to_np()
-        west_vec = self._field[west].to_np()
-        north_vec = self._field[south].to_np()
-        bot_vec = self._field[bot].to_np()
-
         for i in range(3):
             row = []
-
-            x_part = elem_vec[i] - west_vec[i]
-            row.append(x_part / dx)
-
-            y_part = elem_vec[i] - north_vec[i]
-            row.append(y_part / dy)
-
-            z_part = elem_vec[i] - bot_vec[i]
-            row.append(z_part / dz)
-
+            for vec, d in zip(vecs, ds):
+                if d is not None:
+                    row.append((elem_vec[i] - vec[i]) / d)
+                else:
+                    row.append(0.0)
             results.append(row)
 
         results = np.array(results).T

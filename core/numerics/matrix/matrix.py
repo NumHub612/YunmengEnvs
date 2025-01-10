@@ -100,7 +100,9 @@ class Matrix:
     @property
     def type(self) -> str:
         """The matrix data type, e.g. float, scalar, vector, tensor, etc."""
-        if len(self.shape) == 2:
+        # TODO: check all elements are of the same type.
+
+        if len(self.shape) == 2 and self.shape[1] > 0:
             elem = self._data[0][0]
         else:
             elem = self._data[0]
@@ -184,11 +186,17 @@ class Matrix:
         dim = type_dims[self.type]
 
         mats = [self.zeros(self.shape) for _ in range(dim)]
-        for i in range(self.shape[0]):
-            for j in range(self.shape[1]):
-                arr = self._data[i][j].to_np()
+        if len(self.shape) == 1:
+            for i in range(self.shape[0]):
+                arr = self._data[i].to_np().flatten()
                 for k in range(dim):
-                    mats[k][i][j] = arr[k]
+                    mats[k][(i,)] = arr[k]
+        else:
+            for i in range(self.shape[0]):
+                for j in range(self.shape[1]):
+                    arr = self._data[(i, j)].to_np().flatten()
+                    for k in range(dim):
+                        mats[k][(i, j)] = arr[k]
 
         return mats
 
@@ -206,9 +214,6 @@ class LinearEqs:
             mat: The coefficient matrix of the linear equations.
             rhs: The right-hand side of the linear equations.
         """
-        if mat.type != rhs.type:
-            raise ValueError(f"Matrix and right-hand side must have the same type.")
-
         self._var = variable
         self._mat = mat
         self._rhs = rhs
@@ -221,7 +226,7 @@ class LinearEqs:
     def zeros(variable: str, size: int, type: str = "float") -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
         mat = Matrix.zeros((size, size), type)
-        rhs = Matrix.zeros((size, 1), type)
+        rhs = Matrix.zeros((size,), type)
         return LinearEqs(variable, mat, rhs)
 
     # -----------------------------------------------
@@ -347,8 +352,15 @@ class LinearEqs:
         for eq in self.scalarize():
             if method == "numpy":
                 try:
-                    results.append(np.linalg.solve(eq.matrix.data, eq.rhs.data))
+                    # If the matrix is all zeros, the solution is the right-hand side.
+                    if np.all(eq.matrix.data == 0):
+                        results.append(eq.rhs.flatten().data)
+                    # Solve the linear equations using numpy.
+                    results.append(
+                        np.linalg.solve(eq.matrix.data, eq.rhs.flatten().data)
+                    )
                 except:
+                    # If the matrix is singular, the solution is all zeros.
                     results.append(np.zeros(eq.size))
             else:
                 raise ValueError(f"Unsupported algorithm {method}.")

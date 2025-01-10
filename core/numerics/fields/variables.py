@@ -274,11 +274,11 @@ class Vector(Variable):
             return Vector.from_np(self.to_np() * other.value)
         elif isinstance(other, Tensor):
             lf = self.to_np()
-            rhs = other.to_np().reshape(3, 3)
-            result = [np.dot(lf, rhs[:, i]) for i in range(3)]
+            rhs = other.to_np()
+            result = [np.dot(lf, rhs[i]) for i in range(3)]
             return Vector.from_np(np.array(result))
         else:
-            raise TypeError("Invalid type for Vector mul().")
+            raise TypeError(f"Invalid type for Vector mul() with {type(other)}.")
 
     def __rmul__(self, other) -> "Variable":
         if isinstance(other, (int, float, Scalar)):
@@ -417,7 +417,7 @@ class Scalar(Variable):
         elif isinstance(other, Tensor):
             return Tensor.from_np(self.value * other.to_np())
         else:
-            raise TypeError("Invalid type for Scalar mul().")
+            raise TypeError(f"Invalid type for Scalar mul() with {type(other)}.")
 
     def __rmul__(self, other) -> "Variable":
         return self.__mul__(other)
@@ -487,15 +487,22 @@ class Tensor(Variable):
 
     @classmethod
     def from_np(cls, np_array: np.ndarray) -> "Tensor":
-        if len(np_array.shape) != 2:
+        if np_array.ndim == 1 and np_array.shape[0] == 9:
+            return Tensor(*np_array)
+        elif np_array.ndim == 2:
+            if np_array.shape[0] == 3 and np_array.shape[1] == 3:
+                return Tensor(*np_array.reshape(9))
+            if np_array.shape[0] == 2 and np_array.shape[1] == 2:
+                return Tensor(
+                    np_array[0, 0],
+                    np_array[0, 1],
+                    0.0,
+                    np_array[1, 0],
+                    np_array[1, 1],
+                    0.0,
+                )
+        else:
             raise ValueError("Invalid numpy array shape for Tensor.")
-
-        if np_array.shape[0] not in [2, 3] or np_array.shape[1] not in [2, 3]:
-            raise ValueError("Invalid numpy array shape for Tensor.")
-
-        tensor = Tensor()
-        tensor._value = np_array.copy()
-        return tensor
 
     def to_np(self) -> np.ndarray:
         return self._value

@@ -61,43 +61,27 @@ class Lap01(IOperator):
         self,
         element: int,
         neighbours: list[int],
-    ) -> Vector:
+    ) -> Scalar:
         """Excute laplacian operator on scalar field."""
         if element in self._topo.boundary_nodes_indexes:
             return Scalar.zero()
 
-        south, north, east, west, top, bot = neighbours
+        east, west, north, south, top, bot = neighbours
         results = []
 
-        dx2 = self._geom.calucate_node_to_node_distance(element, west)
-        x_part2 = self._field[element] - self._field[west]
+        for indexes in [(east, west), (north, south), (top, bot)]:
+            forward, backward = indexes
+            if forward is None:
+                results.append(0.0)
+            else:
+                ds1 = self._geom.calucate_node_to_node_distance(element, forward)
+                part1 = (self._field[forward] - self._field[element]) / ds1
 
-        dx1 = self._geom.calucate_node_to_node_distance(element, east)
-        x_part1 = self._field[east] - self._field[element]
+                ds2 = self._geom.calucate_node_to_node_distance(element, backward)
+                part2 = (self._field[element] - self._field[backward]) / ds2
 
-        dx = 0.5 * (dx1 + dx2)
-        x_part = x_part1 - x_part2
-        results.append(x_part / dx)
-
-        dy2 = self._geom.calucate_node_to_node_distance(element, south)
-        y_part2 = self._field[element] - self._field[south]
-
-        dy1 = self._geom.calucate_node_to_node_distance(element, north)
-        y_part1 = self._field[north] - self._field[element]
-
-        dy = 0.5 * (dy1 + dy2)
-        y_part = y_part1 - y_part2
-        results.append(y_part / dy)
-
-        dz2 = self._geom.calucate_node_to_node_distance(element, bot)
-        z_part2 = self._field[element] - self._field[bot]
-
-        dz1 = self._geom.calucate_node_to_node_distance(element, top)
-        z_part1 = self._field[top] - self._field[element]
-
-        dz = 0.5 * (dz1 + dz2)
-        z_part = z_part1 - z_part2
-        results.append(z_part / dz)
+                ds = 0.5 * (ds1 + ds2)
+                results.append((part1 - part2) / ds)
 
         return Scalar(sum(results))
 
@@ -110,39 +94,37 @@ class Lap01(IOperator):
         if element in self._topo.boundary_nodes_indexes:
             return Vector.zero()
 
-        south, north, east, west, top, bot = neighbours
+        east, west, north, south, top, bot = neighbours
+        dists, values = [], []
+        for indexes in [(east, west), (north, south), (top, bot)]:
+            forward, backward = indexes
+            if forward is None:
+                dists.append((None, None, None))
+                values.append((None, None))
+            else:
+                ds1 = self._geom.calucate_node_to_node_distance(element, forward)
+                ds2 = self._geom.calucate_node_to_node_distance(element, backward)
+                ds = 0.5 * (ds1 + ds2)
+                dists.append((ds1, ds2, ds))
+
+                values.append(
+                    (self._field[forward].to_np(), self._field[backward].to_np())
+                )
+
+        elem_value = self._field[element].to_np()
         results = []
-
-        dx1 = self._geom.calucate_node_to_node_distance(element, east)
-        dx2 = self._geom.calucate_node_to_node_distance(element, west)
-        dx = 0.5 * (dx1 + dx2)
-
-        dy1 = self._geom.calucate_node_to_node_distance(element, north)
-        dy2 = self._geom.calucate_node_to_node_distance(element, south)
-        dy = 0.5 * (dy1 + dy2)
-
-        dz1 = self._geom.calucate_node_to_node_distance(element, top)
-        dz2 = self._geom.calucate_node_to_node_distance(element, bot)
-        dz = 0.5 * (dz1 + dz2)
-
-        elem_vec = self._field[element].to_np()
-        west_vec = self._field[west].to_np()
-        east_vec = self._field[east].to_np()
-        north_vec = self._field[north].to_np()
-        south_vec = self._field[south].to_np()
-        bot_vec = self._field[bot].to_np()
-        top_vec = self._field[top].to_np()
-
         for i in range(3):
-            x_part = (east_vec[i] - elem_vec[i]) / dx1 - (
-                elem_vec[i] - west_vec[i]
-            ) / dx2
+            result = []
+            for dist, value in zip(dists, values):
+                ds1, ds2, ds = dist
+                if ds1 is None:
+                    result.append(0.0)
+                else:
+                    forward, backward = value
+                    part1 = (forward[i] - elem_value[i]) / ds1
+                    part2 = (elem_value[i] - backward[i]) / ds2
+                    result.append((part1 - part2) / ds)
 
-            y_part = (north_vec[i] - elem_vec[i]) / dy1 - (
-                elem_vec[i] - south_vec[i]
-            ) / dy2
-
-            z_part = (top_vec[i] - elem_vec[i]) / dz1 - (elem_vec[i] - bot_vec[i]) / dz2
-            results.append(x_part / dx + y_part / dy + z_part / dz)
+            results.append(sum(result))
 
         return Vector(*results)

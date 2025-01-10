@@ -6,7 +6,7 @@ DDt operators for the finite difference method.
 """
 from core.solvers.interfaces.IEquation import IOperator
 from core.numerics.matrix import LinearEqs, Matrix
-from core.numerics.fields import Field, Variable
+from core.numerics.fields import Field, Variable, Vector, Scalar, Tensor
 from core.numerics.mesh import MeshGeom, MeshTopo
 
 
@@ -34,13 +34,20 @@ class Ddt01(IOperator):
         type = self._field.dtype
 
         # create matrix
-        coef = 1.0 / self._dt
+        coef_val = 1.0 / self._dt
+        if type == "scalar":
+            coef = Scalar.unit() * coef_val
+        elif type == "vector":
+            coef = Vector.unit() * coef_val
+        else:
+            coef = Tensor.unit() * coef_val
+
         mat = Matrix.zeros((size, size), type)
         mat[element, element] = coef
 
         # create rhs
-        src = self._field.at(element) * coef
-        rhs = Matrix.zeros((size, 1), type)
-        rhs[element, 0] = src
+        src = self._field[element] * coef_val
+        rhs = Matrix.zeros((size,), type)
+        rhs[element] = src
 
         return LinearEqs(var, mat, rhs)

@@ -36,7 +36,6 @@ class BaseEquation(IEquation):
     Notes:
         - Don't support nested operators; if necessary, use intermediate variables.
         - Don't use float numbers directly, define coefficients for them.
-        - Mark elementary function under `func` flag.
     """
 
     def __init__(self, name: str, operators: dict[str, IOperator]):
@@ -99,6 +98,8 @@ class BaseEquation(IEquation):
             if char in ["+", "-", "=", "&"] and not in_brackets:
                 if char == "=" and in_right:
                     continue
+                if term == "0":
+                    continue
 
                 if in_right and term:
                     if term[0] == "-":
@@ -107,6 +108,7 @@ class BaseEquation(IEquation):
                         term = f"-{term[1:]}"
                     else:
                         term = f"-{term}"
+
                 if term:
                     terms.append(term)
                 if char == "=":
@@ -320,11 +322,24 @@ class SimpleEquation(BaseEquation):
 
     def operate(self, op: str, left, right):
         """Run the operator on the left and right operands."""
-        if op == "-" and left is None:
-            return -right
+        if left is None:
+            return -right if op == "-" else right
 
         if op == "*":
-            return left * right
+            if isinstance(left, Field) and isinstance(right, LinearEqs):
+                rhs = [left[i] * right.rhs[i] for i in range(left.size)]
+                rhs = np.array(rhs)
+                return LinearEqs(right.variable, right.matrix, rhs)
+            elif isinstance(right, Field) and isinstance(left, LinearEqs):
+                rhs = [left.rhs[i] * right[i] for i in range(right.size)]
+                rhs = np.array(rhs)
+                return LinearEqs(left.variable, left.matrix, rhs)
+            elif isinstance(left, Variable) and isinstance(right, LinearEqs):
+                rhs = [left * right.rhs[i] for i in range(right.size)]
+                rhs = np.array(rhs)
+                return LinearEqs(right.variable, right.matrix, rhs)
+            else:
+                return left * right
         elif op == "/":
             return left / right
         elif op == "+":
@@ -343,7 +358,7 @@ class SimpleEquation(BaseEquation):
             field = self.run_func("", op_args)
 
         # perpare the operator
-        op = self._operators.get(op_name)
+        op = self._operators.get(op_name)()
         op.prepare(
             field,
             self._mesh.get_topo_assistant(),
@@ -360,6 +375,7 @@ class SimpleEquation(BaseEquation):
                 final_eq += curr
             else:
                 final_eq.rhs[node.id] = curr
+
         return final_eq
 
     def run_func(self, func_name: str, func_args: list):
@@ -380,10 +396,12 @@ if __name__ == "__main__":
     from core.visuals.animator import ImageSetPlayer
     from core.visuals.plotter import plot_vector_field
     import numpy as np
+    import os
+    import shutil
 
     # set mesh
     low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
-    nx, ny = 41, 41
+    nx, ny = 11, 11
     grid = Grid2D(low_left, upper_right, nx, ny)
     x = np.linspace(0, 2, nx)
     y = np.linspace(0, 2, ny)
@@ -418,11 +436,16 @@ if __name__ == "__main__":
     # set callback
     output_dir = "./tests/results"
     results_dir = f"{output_dir}/u"
+    if os.path.exists(results_dir):
+        shutil.rmtree(results_dir)
+    os.makedirs(results_dir)
+
     confs = {"u": {"style": "cloudmap", "dimension": "x"}}
     cb = callbacks.RenderCallback(output_dir, confs)
 
     # set equations
-    equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
+    # equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
+    equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) - nu*laplacian::Lap01(u) == 0"
     symbols = {
         "u": {
             "description": "velocity",
@@ -441,27 +464,49 @@ if __name__ == "__main__":
     variables = {"u": init_field}
 
     problem = SimpleEquation("burgers2d", fdm_operators)
-    problem.set_equations(equation_expr, symbols)
+    problem.set_equations([equation_expr], symbols)
     problem.set_coefficients(coefficients)
     problem.set_fields(variables)
     problem.set_mesh(grid)
 
+    frame = 0
+    plot_vector_field(
+        init_field,
+        grid,
+        title=f"u-{frame}",
+        save_dir=results_dir,
+        style="cloudmap",
+        dimension="x",
+    )
+
+    def print_matrix(mat: Matrix, num_rows=10):
+        print(f"shape: {mat.shape}")
+        for i in range(mat.shape[0]):
+            if i >= num_rows:
+                break
+
+            if len(mat.shape) == 2:
+                print(f"{i}-{mat[(i, j)]}", end=", ")
+            else:
+                print(f"{i}-{mat[i]}", end=", ")
+        print()
+
     # discretize and solve
     sigma = 0.2
     dt = sigma * dx
-    steps = 1
+    steps = 20
     while steps > 0:
         # solve
         eqs = problem.discretize(dt)
         solution = eqs.solve()
-        print(solution.shape)
 
         # plot solution
         var_field = NodeField.from_np(solution, "node", "u")
-        print(var_field.dtype)
+        frame += 1
         plot_vector_field(
             var_field,
             grid,
+            title=f"u-{frame}",
             save_dir=results_dir,
             style="cloudmap",
             dimension="x",
