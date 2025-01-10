@@ -4,17 +4,13 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Solving the 1D Burgers equation using finite difference method.
 """
-from core.solvers.interfaces import (
-    BaseSolver,
-    IInitCondition,
-    IBoundaryCondition,
-    ISolverCallback,
-)
-from core.solvers.extensions.inits import UniformInitialization
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, Node
-from core.numerics.fields import Field, NodeField, Scalar
+from core.solvers.commons import BaseSolver
+from core.solvers.commons import inits
+from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
+from core.numerics.fields import NodeField, Scalar
 
 import copy
+import time
 
 
 class Burgers1D(BaseSolver):
@@ -33,16 +29,22 @@ class Burgers1D(BaseSolver):
             {
                 "description": "Test solver of the 1D Burgers equation using finite difference method.",
                 "type": "fdm",
-                "equation": "Burgers' Equation",
+                "equation": "1D Burgers' Equation",
                 "equation_expr": "u_t + u*u_x = nu*u_xx",
                 "domain": "1D",
-                "default_ic": "none",
+                "default_ic": "uniform",
                 "default_bc": "none",
             }
         )
         metas.update(
             {
-                "fields": [{"name": "u", "etype": "node", "dtype": "scalar"}],
+                "fields": {
+                    "u": {
+                        "description": "Velocity field",
+                        "etype": "node",
+                        "dtype": "scalar",
+                    }
+                },
             }
         )
         return metas
@@ -58,7 +60,7 @@ class Burgers1D(BaseSolver):
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
 
-        self._default_init = UniformInitialization("default", Scalar(0.0))
+        self._default_ic = inits.UniformInitialization("default", Scalar(0.0))
         self._fields = {"u": NodeField(mesh.node_count, "scalar")}
 
         self._total_time = 0.0
@@ -66,25 +68,19 @@ class Burgers1D(BaseSolver):
         self._t = 0.0
         self._nu = 0.07
 
-    @property
-    def id(self) -> str:
-        return self._id
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
     @property
     def status(self) -> dict:
         return {
-            "curr_time": self._t,
-            "dt": self._dt,
-            "total_time": self._total_time,
+            "iteration": 1,
+            "elapsed_time": (self._now_time - self._start_time) * 1000,
+            "current_time": self._t,
+            "time_step": self._dt,
+            "convergence": True,
+            "error": "",
         }
-
-    @property
-    def current_time(self) -> float:
-        return self._t
-
-    @property
-    def total_time(self) -> float:
-        return self._total_time
 
     def initialize(self, time_steps: int, nu: float = 0.07):
         """
@@ -105,10 +101,12 @@ class Burgers1D(BaseSolver):
         self._dt = nu * min_dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         # run callbacks
         for callback in self._callbacks:
-            callback.on_task_begin(self._fields)
+            callback.on_task_begin(self.status, self._fields)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -116,15 +114,19 @@ class Burgers1D(BaseSolver):
 
         Args:
             dt: Specified time step used for updating to next step.
+
+        Returns:
+            Tuple of results with (is_done, is_terminated, status).
         """
         self._dt = max(dt, 0.0)
+        self._now_time = time.perf_counter()
 
         u = self._fields["u"]
         new_u = copy.deepcopy(u)
 
         # Apply boundary conditions
         for node in self._topo.boundary_nodes_indexes:
-            for var, bc in self._bcs.get(node, {"u": self._default_bc}).items():
+            for var, bc in self._bcs.get(node, {"u": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
                 _, val = bc.evaluate(self._t, self._mesh.nodes[node])
@@ -150,9 +152,10 @@ class Burgers1D(BaseSolver):
         # Update solution
         self._fields["u"] = new_u
         self._t += self._dt
+        self._now_time = time.perf_counter()
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step(self._fields)
+            callback.on_step(self.status, self._fields)
 
         return self._t >= self._total_time, False, self.status

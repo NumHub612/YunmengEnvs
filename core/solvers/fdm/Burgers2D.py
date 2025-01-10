@@ -4,13 +4,14 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Solving the 2D Burgers equation using finite difference method.
 """
-from core.solvers.interfaces import BaseSolver
+from core.solvers.commons import BaseSolver
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.fields import NodeField, Vector
+from core.numerics.fields import NodeField
 from core.numerics.mesh import Grid2D
 from configs.settings import logger
 
 import copy
+import time
 
 
 class Burgers2D(BaseSolver):
@@ -33,15 +34,19 @@ class Burgers2D(BaseSolver):
                 "equation_expr": "u_t + u*u_x + v*u_y = nu*(u_xx + u_yy),\
                     v_t + u*v_x + v*v_y = nu*(v_xx + v_yy)",
                 "domain": "2D",
-                "default_ic": "none",
-                "default_bc": "none",
+                "default_ics": "none",
+                "default_bcs": "none",
             }
         )
         metas.update(
             {
-                "fields": [
-                    {"name": "vel", "etype": "node", "dtype": "vector"},
-                ],
+                "fields": {
+                    "vel": {
+                        "description": "Velocity field",
+                        "etype": "node",
+                        "dtype": "vector",
+                    },
+                },
             }
         )
         return metas
@@ -49,9 +54,12 @@ class Burgers2D(BaseSolver):
     @property
     def status(self) -> dict:
         return {
-            "curr_time": self._t,
-            "dt": self._dt,
-            "end_time": self._total_time,
+            "iteration": 1,
+            "elapsed_time": (self._now_time - self._start_time) * 1000,
+            "current_time": self._t,
+            "time_step": self._dt,
+            "convergence": True,
+            "error": "",
         }
 
     def __init__(self, id: str, mesh: Mesh):
@@ -65,6 +73,9 @@ class Burgers2D(BaseSolver):
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
+
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         self._total_time = 0.0
         self._dt = 0.0
@@ -108,10 +119,12 @@ class Burgers2D(BaseSolver):
         self._dt = sigma * self._dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_task_begin(self._fields, self._t)
+            callback.on_task_begin(self.status, self._fields)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -124,14 +137,14 @@ class Burgers2D(BaseSolver):
             A tuple of (is_done, is_terminated, status).
         """
         self._dt = max(dt, 0.0)
-        self._t += self._dt
+        self._now_time = time.perf_counter()
 
         u = self._fields["vel"]
         new_u = copy.deepcopy(u)
 
         # Apply boundary conditions
         for node in self._topo.boundary_nodes_indexes:
-            for var, bc in self._bcs.get(node, {"vel": self._default_bc}).items():
+            for var, bc in self._bcs.get(node, {"vel": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
                 _, val = bc.evaluate(self._t, self._mesh.nodes[node])
@@ -139,8 +152,7 @@ class Burgers2D(BaseSolver):
 
         # Update interior nodes
         for node in self._topo.interior_nodes_indexes:
-            nid, sid, eid, wid, _, _ = self._mesh.retrieve_node_neighborhoods(node)
-            # eid, wid, nid, sid = self._calc_grid_indexes(node)
+            eid, wid, nid, sid, _, _ = self._mesh.retrieve_node_neighborhoods(node)
             p = u[node]
             e, w, n, s = u[eid], u[wid], u[nid], u[sid]
 
@@ -159,27 +171,11 @@ class Burgers2D(BaseSolver):
 
         # Update solution
         self._fields["vel"] = new_u
+        self._t += self._dt
+        self._now_time = time.perf_counter()
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step(self._fields, self._t)
+            callback.on_step(self.status, self._fields)
 
         return self._t >= self._total_time, False, self.status
-
-    def _calc_grid_indexes(self, nid: int):
-        i = nid // self._mesh.ny
-        j = nid % self._mesh.ny
-
-        e_node = (i + 1) * self._mesh.ny + j
-        e_node = min(self._mesh.node_count - 1, e_node)
-
-        w_node = (i - 1) * self._mesh.ny + j
-        w_node = max(0, w_node)
-
-        n_node = i * self._mesh.ny + (j + 1)
-        n_node = min(self._mesh.node_count - 1, n_node)
-
-        s_node = i * self._mesh.ny + (j - 1)
-        s_node = max(0, s_node)
-
-        return e_node, w_node, n_node, s_node

@@ -5,7 +5,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Custom defined boundary condition.
 """
 from core.solvers.interfaces import IBoundaryCondition
-from core.numerics.mesh import Node, Face, Cell
+from core.numerics.mesh import Element
+from configs.settings import logger
 
 from typing import Callable
 
@@ -34,6 +35,16 @@ class CustomBoundary(IBoundaryCondition):
     def id(self) -> str:
         return self._id
 
-    def evaluate(self, t: float, elem: Node | Face | Cell) -> tuple:
-        flux, value = self._bc_func(t, elem)
+    def update(self, time: float, bc_func: Callable):
+        """
+        Update the boundary condition function.
+
+        Args:
+            bc_func: The new function.
+        """
+        self._bc_func = bc_func
+        logger.info(f"Boundary condition {self._id} updated at time {time}.")
+
+    def evaluate(self, time: float, element: Element) -> tuple:
+        flux, value = self._bc_func(time, element)
         return flux, value

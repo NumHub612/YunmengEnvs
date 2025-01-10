@@ -69,9 +69,9 @@ if __name__ == "__main__":
 
     # set solver
     solver = solver_routines["fdm"]["burgers3d"]("solver1", grid)
-    solver.set_callback(cb)
-    solver.set_ic("vel", ic)
-    solver.set_bc("vel", bc_node_groups, bc)
+    solver.add_callback(cb)
+    solver.add_ic("vel", ic)
+    solver.add_bc("vel", bc_node_groups, bc)
 
     sigma = 0.2
     nu = 0.02
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     is_done = False
     while not is_done:
         is_done, _, status = solver.inference(dt)
-        print(f"Step {status['curr_time']}")
+        print(f"Step {status['current_time']}")
 
     # get solution
     u_simu = solver.get_solution("vel")

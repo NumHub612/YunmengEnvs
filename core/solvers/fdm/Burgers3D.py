@@ -4,13 +4,14 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Solving the 3D Burgers equation using finite difference method.
 """
-from core.solvers.interfaces import BaseSolver
+from core.solvers.commons import BaseSolver
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
 from core.numerics.fields import NodeField
 from core.numerics.mesh import Grid3D
 from configs.settings import logger
 
 import copy
+import time
 
 
 class Burgers3D(BaseSolver):
@@ -34,15 +35,19 @@ class Burgers3D(BaseSolver):
                     v_t + u*v_x + v*v_y + w*v_z = nu*(v_xx + v_yy + v_zz),\
                     w_t + u*w_x + v*w_y + w*w_z = nu*(w_xx + w_yy + w_zz)",
                 "domain": "3D",
-                "default_ic": "none",
-                "default_bc": "none",
+                "default_ics": "none",
+                "default_bcs": "none",
             }
         )
         metas.update(
             {
-                "fields": [
-                    {"name": "vel", "etype": "node", "dtype": "vector"},
-                ],
+                "fields": {
+                    "vel": {
+                        "description": "velocity field",
+                        "etype": "node",
+                        "dtype": "vector",
+                    },
+                },
             }
         )
         return metas
@@ -50,12 +55,15 @@ class Burgers3D(BaseSolver):
     @property
     def status(self) -> dict:
         return {
-            "curr_time": self._t,
-            "dt": self._dt,
-            "end_time": self._total_time,
+            "iteration": 1,
+            "elapsed_time": (self._now_time - self._start_time) * 1000,
+            "current_time": self._t,
+            "time_step": self._dt,
+            "convergence": True,
+            "error": "",
         }
 
-    def __init__(self, id: str, mesh: Mesh):
+    def __init__(self, id: str, mesh: Grid3D):
         """
         Initialize the solver.
         """
@@ -72,6 +80,8 @@ class Burgers3D(BaseSolver):
         self._t = 0.0
         self._nu = 0.01
         self._sigma = 0.2
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         self._dx = None
         self._dy = None
@@ -112,10 +122,12 @@ class Burgers3D(BaseSolver):
         self._dt = sigma * self._dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
+        self._start_time = time.perf_counter()
+        self._now_time = self._start_time
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_task_begin(self._fields, self._t)
+            callback.on_task_begin(self.status, self._fields)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -128,14 +140,14 @@ class Burgers3D(BaseSolver):
             A tuple of (is_done, is_terminated, status).
         """
         self._dt = max(dt, 0.0)
-        self._t += self._dt
+        self._now_time = time.perf_counter()
 
         u = self._fields["vel"]
         new_u = copy.deepcopy(u)
 
         # Apply boundary conditions
         for node in self._topo.boundary_nodes_indexes:
-            for var, bc in self._bcs.get(node, {"vel": self._default_bc}).items():
+            for var, bc in self._bcs.get(node, {"vel": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
                 _, val = bc.evaluate(self._t, self._mesh.nodes[node])
@@ -143,7 +155,7 @@ class Burgers3D(BaseSolver):
 
         # Update interior nodes
         for node in self._topo.interior_nodes_indexes:
-            nid, sid, eid, wid, tid, bid = self._mesh.retrieve_node_neighborhoods(node)
+            eid, wid, nid, sid, tid, bid = self._mesh.retrieve_node_neighborhoods(node)
             p = u[node]
             e, w, n, s, t, b = u[eid], u[wid], u[nid], u[sid], u[tid], u[bid]
 
@@ -166,9 +178,11 @@ class Burgers3D(BaseSolver):
 
         # Update solution
         self._fields["vel"] = new_u
+        self._t += self._dt
+        self._now_time = time.perf_counter()
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step(self._fields, self._t)
+            callback.on_step(self.status, self._fields)
 
         return self._t >= self._total_time, False, self.status

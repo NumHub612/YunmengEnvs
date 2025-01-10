@@ -84,10 +84,10 @@ class Grid(Mesh):
 
         Returns:
             - The neighborhood node global indexes sorted in the following order:
-                - [north, south, east, west, top, bottom]
+                - [east, west, north, south, top, bottom]
 
         Notes:
-            - The north, east, and top directions are the x-, y-, and z-axes.
+            - The east, north and top directions are the x-, y- and z-axes.
         """
         pass
 
@@ -101,10 +101,10 @@ class Grid(Mesh):
 
         Returns:
             - The neighborhood cell global indexes sorted in the following order:
-                - [north, south, east, west, top, bottom]
+                - [east, west, north, south, top, bottom]
 
         Notes:
-            - The north, east, and top directions are the x-, y-, and z-axes.
+            - The east, north and top directions are the x-, y-, and z-axes.
         """
         pass
 
@@ -145,7 +145,7 @@ class Grid1D(Grid):
             normal = Vector(0, 1)
 
             # face
-            face1 = Face(i, [i], node1.coordinate, 1, 1, normal)
+            face1 = Face(i, node1.coordinate, [i], 1, 1, normal)
             self._faces.append(face1)
 
             # cell
@@ -154,7 +154,7 @@ class Grid1D(Grid):
             node2 = self._nodes[i + 1]
             length = abs(node2.coordinate.x - node1.coordinate.x)
             center = 0.5 * (node1.coordinate + node2.coordinate)
-            cell = Cell(i, [i, i + 1], center, length, length)
+            cell = Cell(i, center, [i, i + 1], length, length)
             self._cells.append(cell)
 
     @property
@@ -188,12 +188,12 @@ class Grid1D(Grid):
     def retrieve_node_neighborhoods(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
-        return [None, None, east, west, None, None]
+        return [east, west, None, None, None, None]
 
     def retrieve_cell_neighborhoods(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
-        return [None, None, east, west, None, None]
+        return [east, west, None, None, None, None]
 
 
 class Grid2D(Grid):
@@ -251,7 +251,7 @@ class Grid2D(Grid):
                     perimeter = abs(n_ru.coordinate.x - n_lu.coordinate.x)
                     area = perimeter
                     normal = Vector(0, 1)
-                    face1 = Face(fid, nodes, center, perimeter, area, normal)
+                    face1 = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face1)
                     fid += 1
 
@@ -263,7 +263,7 @@ class Grid2D(Grid):
                     perimeter = abs(n_ld.coordinate.y - n_lu.coordinate.y)
                     area = perimeter
                     normal = Vector(1, 0)
-                    face2 = Face(fid, nodes, center, perimeter, area, normal)
+                    face2 = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face2)
                     fid += 1
 
@@ -285,7 +285,7 @@ class Grid2D(Grid):
                 )
                 surface = dx * dy
                 volume = surface
-                cell = Cell(cid, faces, center, surface, volume)
+                cell = Cell(cid, center, faces, surface, volume)
                 self._cells.append(cell)
                 cid += 1
 
@@ -333,7 +333,7 @@ class Grid2D(Grid):
         south = self.match_node(i, j - 1)
         west = self.match_node(i - 1, j)
         east = self.match_node(i + 1, j)
-        return [north, south, east, west, None, None]
+        return [east, west, north, south, None, None]
 
     def retrieve_cell_neighborhoods(self, index: int) -> list:
         i = index // (self._ny - 1)
@@ -343,7 +343,7 @@ class Grid2D(Grid):
         south = self.match_cell(i, j - 1)
         west = self.match_cell(i - 1, j)
         east = self.match_cell(i + 1, j)
-        return [north, south, east, west, None, None]
+        return [east, west, north, south, None, None]
 
 
 class Grid3D(Grid):
@@ -413,7 +413,7 @@ class Grid3D(Grid):
                     perimeter = 2 * dy + 2 * dz
                     area = dy * dz
                     normal = Vector(1, 0, 0)
-                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    face = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face)
                     fid += 1
 
@@ -434,7 +434,7 @@ class Grid3D(Grid):
                     perimeter = 2 * dx + 2 * dz
                     area = dx * dz
                     normal = Vector(0, 1, 0)
-                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    face = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face)
                     fid += 1
 
@@ -453,7 +453,7 @@ class Grid3D(Grid):
                     perimeter = 2 * dx + 2 * dy
                     area = dx * dy
                     normal = Vector(0, 0, 1)
-                    face = Face(fid, nodes, center, perimeter, area, normal)
+                    face = Face(fid, center, nodes, perimeter, area, normal)
                     self._faces.append(face)
                     fid += 1
 
@@ -505,7 +505,7 @@ class Grid3D(Grid):
                     )
                     surface = 2 * dx * dy + 2 * dy * dz + 2 * dx * dz
                     volume = dx * dy * dz
-                    cell = Cell(cid, faces, center, surface, volume)
+                    cell = Cell(cid, center, faces, surface, volume)
                     self._cells.append(cell)
                     cid += 1
 
@@ -561,7 +561,7 @@ class Grid3D(Grid):
         east = self.match_node(i + 1, j, k)
         down = self.match_node(i, j, k - 1)
         up = self.match_node(i, j, k + 1)
-        return [north, south, east, west, up, down]
+        return [east, west, north, south, up, down]
 
     def retrieve_cell_neighborhoods(self, index: int) -> list:
         k = index // ((self._nx - 1) * (self._ny - 1))
@@ -574,4 +574,4 @@ class Grid3D(Grid):
         east = self.match_cell(i + 1, j, k)
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
-        return [north, south, east, west, up, down]
+        return [east, west, north, south, up, down]

@@ -7,7 +7,7 @@ Simulation solution for 1d river network problem.
 from core.solutions.standards import ILinkableComponent, IOutput, IInput
 from core.numerics.mesh import Grid1D, Coordinate, Node, Mesh
 from core.numerics.fields import NodeField, Scalar
-from core.solvers.extensions import boundaries, inits, callbacks
+from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fdm
 from core.solvers import (
     solver_routines,
@@ -99,9 +99,9 @@ if __name__ == "__main__":
 
     # set solver
     solver = fdm.Burgers1D("solver1", grid)
-    solver.set_callback(cb)
-    solver.set_ic("u", ic)
-    solver.set_bc("u", group1, bc)
+    solver.add_callback(cb)
+    solver.add_ic("u", ic)
+    solver.add_bc("u", group1, bc)
 
     nb_steps = 100
     solver.initialize(nb_steps)
@@ -113,6 +113,8 @@ if __name__ == "__main__":
     dx = 2 * np.pi / (nx - 1)
     nu = 0.07
     dt = dx * nu
+
+    total_time = nb_steps * dt
 
     def analytical_solution(u):
         un = u.copy()
@@ -134,13 +136,14 @@ if __name__ == "__main__":
         return u
 
     # run solver
-    while solver.current_time < solver.total_time:
-        solver.inference(dt)
+    is_done = False
+    while not is_done:
+        is_done, _, _ = solver.inference(dt)
 
     # get solution
     u_simu = solver.get_solution("u")
     u_simu = np.asarray([var.value for var in u_simu])
-    u_real = np.asarray([func(solver.total_time, x, nu) for x in xs])
+    u_real = np.asarray([func(total_time, x, nu) for x in xs])
 
     # results player
     from core.visuals.animator import ImageSetPlayer
@@ -150,18 +153,18 @@ if __name__ == "__main__":
     player.play()
 
     # plot results
-    # plt.figure(figsize=(11, 7), dpi=100)
-    # plt.plot(xs, u_simu, color="blue", linewidth=2, marker="o", label="Computational")
-    # plt.plot(xs, u_real, color="red", linewidth=2, label="Analytical")
-    # plt.xlabel("x", fontsize=16)
-    # plt.ylabel("u", fontsize=16)
-    # plt.title("Comparison of computational and analytical results", fontsize=18)
+    plt.figure(figsize=(11, 7), dpi=100)
+    plt.plot(xs, u_simu, color="blue", linewidth=2, marker="o", label="Computational")
+    plt.plot(xs, u_real, color="red", linewidth=2, label="Analytical")
+    plt.xlabel("x", fontsize=16)
+    plt.ylabel("u", fontsize=16)
+    plt.title("Comparison of computational and analytical results", fontsize=18)
 
-    # plt.grid(True)
-    # plt.legend(loc="upper right")
-    # plt.xlim([0, 2 * np.pi])
-    # plt.ylim([0, 10])
+    plt.grid(True)
+    plt.legend(loc="upper right")
+    plt.xlim([0, 2 * np.pi])
+    plt.ylim([0, 10])
 
-    # plt.xticks(np.arange(0, 2 * np.pi, 1))
-    # plt.yticks(np.arange(0, 10, 1))
-    # plt.show()
+    plt.xticks(np.arange(0, 2 * np.pi, 1))
+    plt.yticks(np.arange(0, 10, 1))
+    plt.show()

@@ -1,4 +1,4 @@
-from core.solvers.extensions.callbacks.RenderCallback import *
+from core.solvers.commons.callbacks.RenderCallback import *
 
 
 # register all solver callbacks here

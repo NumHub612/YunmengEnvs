@@ -111,40 +111,6 @@ class ILinkableComponent(IIdentifiable):
         pass
 
     @abstractmethod
-    def has_algorithm(self, algorithm_name: str, **kwargs) -> bool:
-        """Checks if the component has the specified algorithm.
-
-        Args:
-            algorithm_name: The name of the algorithm to check.
-
-        Returns:
-            bool: True if the component has the algorithm, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def get_algorithm(self, algorithm_name: str, **kwargs) -> object:
-        """Gets the value of the specified algorithm.
-
-        Args:
-            algorithm_name: The name of the algorithm to get.
-
-        Returns:
-            object: The value of the algorithm.
-        """
-        pass
-
-    @abstractmethod
-    def set_algorithm(self, algorithm_name: str, algorithm_value: object, **kwargs):
-        """Sets the value of the specified algorithm.
-
-        Args:
-            algorithm_name: The name of the algorithm to set.
-            algorithm_value: The value of the algorithm to set.
-        """
-        pass
-
-    @abstractmethod
     def has_element(self, element_name: str, **kwargs) -> bool:
         """Checks if the component has the specified element.
 
@@ -153,38 +119,6 @@ class ILinkableComponent(IIdentifiable):
 
         Returns:
             bool: True if the component has the element, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def get_element(self, element_name: str, **kwargs) -> object:
-        """Gets the value of the specified element.
-
-        Args:
-            element_name: The name of the element to get.
-
-        Returns:
-            object: The value of the element.
-        """
-        pass
-
-    @abstractmethod
-    def set_element(self, element_name: str, element_value: object, **kwargs):
-        """Sets the value of the specified element.
-
-        Args:
-            element_name: The name of the element to set.
-            element_value: The value of the element to set.
-        """
-        pass
-
-    @abstractmethod
-    def add_element(self, element_name: str, element_value: object, **kwargs):
-        """Adds the specified element to the component. If the element already exists, it will be replaced.
-
-        Args:
-            element_name: The name of the element to add.
-            element_value: The value of the element to add.
         """
         pass
 

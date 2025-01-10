@@ -4,8 +4,6 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Interfaces for boundary conditions at faces of a mesh.
 """
-from core.numerics.mesh import Node, Face, Cell
-
 from abc import ABC, abstractmethod
 
 
@@ -23,16 +21,27 @@ class IBoundaryCondition(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, time: float, elem: Node | Face | Cell, **kwargs) -> tuple:
+    def update(self, time: float):
+        """
+        Update the boundary condition parameters.
+        Used for running online.
+
+        Args:
+            time: The current time.
+        """
+        pass
+
+    @abstractmethod
+    def evaluate(self, time: float, element: "Element") -> tuple:
         """
         Evaluate the boundary condition.
 
         Args:
-            time: The current time, in seconds.
-            elem: The element to be evaluated.
-            kwargs: Additional arguments.
+            time: The current time.
+            element: The mesh element to be evaluated.
 
         Returns:
-            A tuple of two values: flux and value.
+            Tuple of boundary values, where:
+            (flux, value, *extras).
         """
         pass

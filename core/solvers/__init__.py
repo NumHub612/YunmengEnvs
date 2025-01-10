@@ -1,10 +1,10 @@
-from core.solvers.extensions import boundaries
-from core.solvers.extensions import inits
-from core.solvers.extensions import callbacks
+from core.solvers.commons import boundaries
+from core.solvers.commons import inits
+from core.solvers.commons import callbacks
 
-from core.solvers.extensions.boundaries import boundary_conditions
-from core.solvers.extensions.inits import init_methods
-from core.solvers.extensions.callbacks import callback_handlers
+from core.solvers.commons.boundaries import boundary_conditions
+from core.solvers.commons.inits import init_methods
+from core.solvers.commons.callbacks import callback_handlers
 
 from core.solvers.fdm import fdm_solvers
 

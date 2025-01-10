@@ -5,10 +5,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Constant boundary condition.
 """
 from core.solvers.interfaces import IBoundaryCondition
-from core.numerics.mesh import Node, Face, Cell
+from core.numerics.mesh import Element
 from core.numerics.fields import Variable
-
-from typing import Callable
+from configs.settings import logger
 
 
 class ConstantBoundary(IBoundaryCondition):
@@ -37,5 +36,13 @@ class ConstantBoundary(IBoundaryCondition):
     def id(self) -> str:
         return self._id
 
-    def evaluate(self, t: float, elem: Node | Face | Cell) -> tuple:
+    def update(self, time: float, value: Variable, flux: Variable):
+        self._value = value
+        self._flux = flux
+        logger.info(
+            f"Constant boundary condition {self.id} updated at \
+                time {time} with value {value} and flux {flux}."
+        )
+
+    def evaluate(self, time: float, element: Element) -> tuple:
         return self._flux, self._value

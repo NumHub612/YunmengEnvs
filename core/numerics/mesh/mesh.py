@@ -28,6 +28,9 @@ class Mesh(ABC):
         self._cells = []
         self._groups = {}
 
+        self._topo = None
+        self._geom = None
+
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
@@ -135,6 +138,22 @@ class Mesh(ABC):
             return self._groups[group_name]
         else:
             return None
+
+    # -----------------------------------------------
+    # --- extension methods ---
+    # -----------------------------------------------
+
+    def get_topo_assistant(self) -> "MeshTopo":
+        """Return the mesh topology assistant."""
+        if self._topo is None:
+            self._topo = MeshTopo(self)
+        return self._topo
+
+    def get_geom_assistant(self) -> "MeshGeom":
+        """Return the mesh geometry assistant."""
+        if self._geom is None:
+            self._geom = MeshGeom(self)
+        return self._geom
 
 
 class MeshTopo:
