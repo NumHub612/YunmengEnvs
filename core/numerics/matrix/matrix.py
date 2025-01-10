@@ -355,10 +355,11 @@ class LinearEqs:
                     # If the matrix is all zeros, the solution is the right-hand side.
                     if np.all(eq.matrix.data == 0):
                         results.append(eq.rhs.flatten().data)
-                    # Solve the linear equations using numpy.
-                    results.append(
-                        np.linalg.solve(eq.matrix.data, eq.rhs.flatten().data)
-                    )
+                    else:
+                        # Solve the linear equations using numpy.
+                        results.append(
+                            np.linalg.solve(eq.matrix.data, eq.rhs.flatten().data)
+                        )
                 except:
                     # If the matrix is singular, the solution is all zeros.
                     results.append(np.zeros(eq.size))
