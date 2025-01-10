@@ -2,32 +2,12 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Join us, share your ideas!  
 
-Solver for user customized pde equations.
+Basic and simple equation class for user customized pde equations.
 """
 from core.solvers.interfaces import IEquation, IOperator
-from core.solvers.fdm.operators import fdm_operators
-
-from core.solvers.commons import inits, boundaries, callbacks, BaseSolver
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.fields import Variable, Scalar, Vector, Tensor
-from core.numerics.fields import Field, NodeField
-from core.numerics.matrix import LinearEqs, Matrix
+from core.numerics.fields import Variable, Field
+from core.numerics.matrix import LinearEqs
 from core.utils.SympifyNumExpr import lambdify_numexpr
-
-
-class CustomSolver(BaseSolver):
-    def __init__(self, id: str, mesh: Mesh):
-        super().__init__(id, mesh)
-        self._equations = []
-
-    def set_problems(self, equations: list[IEquation]):
-        self._equations = equations
-
-    def initialize(self, **kwargs):
-        pass
-
-    def inference(self, **kwargs):
-        pass
 
 
 class BaseEquation(IEquation):
@@ -391,10 +371,13 @@ class SimpleEquation(BaseEquation):
 
 
 if __name__ == "__main__":
-    from core.numerics.mesh import Grid2D, Coordinate
+    from core.numerics.mesh import Grid2D, Coordinate, MeshTopo
+    from core.solvers.fdm.operators import fdm_operators
     from core.solvers.commons import inits, boundaries, callbacks
+    from core.numerics.matrix import Matrix
     from core.visuals.animator import ImageSetPlayer
     from core.visuals.plotter import plot_vector_field
+    from core.numerics.fields import NodeField, Vector, Scalar
     import numpy as np
     import os
     import shutil
@@ -444,8 +427,8 @@ if __name__ == "__main__":
     cb = callbacks.RenderCallback(output_dir, confs)
 
     # set equations
-    # equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
-    equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) - nu*laplacian::Lap01(u) == 0"
+    equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
+    # equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) - nu*laplacian::Lap01(u) == 0"
     symbols = {
         "u": {
             "description": "velocity",
@@ -479,25 +462,35 @@ if __name__ == "__main__":
         dimension="x",
     )
 
-    def print_matrix(mat: Matrix, num_rows=10):
-        print(f"shape: {mat.shape}")
+    def write_matrix(mat: Matrix):
+        mat_str = ""
         for i in range(mat.shape[0]):
-            if i >= num_rows:
-                break
-
             if len(mat.shape) == 2:
-                print(f"{i}-{mat[(i, j)]}", end=", ")
+                for j in range(mat.shape[1]):
+                    mat_str += f"{mat[(i, j)]} "
+                mat_str += "\n"
             else:
-                print(f"{i}-{mat[i]}", end=", ")
-        print()
+                mat_str += f"{mat[i]} "
+        return mat_str
+
+    def write_eqs(eqs: LinearEqs, output_file: str = "eqs.txt"):
+        with open(output_file, "w") as f:
+            for eq in eqs.scalarize():
+                mat_str = write_matrix(eq.matrix)
+                f.write(f"matrix:\n{mat_str}\n")
+
+                rhs_str = write_matrix(eq.rhs)
+                f.write(f"rhs:\n{rhs_str}\n")
+                f.write("\n\n")
 
     # discretize and solve
     sigma = 0.2
     dt = sigma * dx
-    steps = 20
+    steps = 10
     while steps > 0:
         # solve
         eqs = problem.discretize(dt)
+        write_eqs(eqs)
         solution = eqs.solve()
 
         # plot solution
