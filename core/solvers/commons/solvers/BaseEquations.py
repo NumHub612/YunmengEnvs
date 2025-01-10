@@ -199,12 +199,11 @@ class BaseEquation(IEquation):
         """
         Parse the variable name.
         """
-        if token not in self._fields:
-            raise ValueError(f"Un-initialized variable: {token}.")
+        if token not in self._symbols:
+            raise ValueError(f"Un-defined variable: {token}.")
         return {
             "type": "variable",
             "name": token,
-            "value": self._fields.get(token),
         }
 
     def is_coefficient(self, token: str) -> bool:
@@ -217,13 +216,11 @@ class BaseEquation(IEquation):
         """
         Parse the coefficient value.
         """
-        coeff_value = self._coefficients.get(token)
-        if coeff_value is None:
-            raise ValueError(f"Un-setted coefficient: {token}.")
+        if token not in self._symbols:
+            raise ValueError(f"Un-defined coefficient: {token}.")
         return {
             "type": "coefficient",
             "name": token,
-            "value": coeff_value,
         }
 
 
@@ -283,9 +280,9 @@ class SimpleEquation(BaseEquation):
                     else:
                         curr = self.run_func(it["operator_name"], it["args"])
                 elif it["type"] == "coefficient":
-                    curr = it["value"]
+                    curr = self._coefficients.get(it["name"])
                 elif it["type"] == "variable":
-                    curr = it["value"]
+                    curr = self._fields.get(it["name"])
                 else:
                     raise ValueError(f"Unsupported term: {it}.")
 
@@ -333,7 +330,7 @@ class SimpleEquation(BaseEquation):
         """Run the operator with the given arguments."""
         # prepare the target variable
         if len(op_args) == 1:
-            field = op_args[0]["value"]
+            field = self._fields.get(op_args[0]["name"])
         else:
             field = self.run_func("", op_args)
 
@@ -365,7 +362,15 @@ class SimpleEquation(BaseEquation):
         symbols = [arg["name"] for arg in func_args if arg["type"]]
         func = lambdify_numexpr(func_expr, symbols)
 
-        inputs = [arg["value"] for arg in func_args if arg["type"]]
+        inputs = []
+        for arg in func_args:
+            if arg["type"] == "coefficient":
+                inputs.append(self._coefficients.get(arg["name"]))
+            elif arg["type"] == "variable":
+                inputs.append(self._fields.get(arg["name"]))
+            else:
+                raise ValueError(f"Unsupported argument: {arg}.")
+
         result = func(*inputs)
         return result
 
@@ -468,29 +473,26 @@ if __name__ == "__main__":
             if len(mat.shape) == 2:
                 for j in range(mat.shape[1]):
                     mat_str += f"{mat[(i, j)]} "
-                mat_str += "\n"
             else:
                 mat_str += f"{mat[i]} "
+            mat_str += "\n"
         return mat_str
 
     def write_eqs(eqs: LinearEqs, output_file: str = "eqs.txt"):
         with open(output_file, "w") as f:
-            for eq in eqs.scalarize():
-                mat_str = write_matrix(eq.matrix)
-                f.write(f"matrix:\n{mat_str}\n")
-
-                rhs_str = write_matrix(eq.rhs)
-                f.write(f"rhs:\n{rhs_str}\n")
-                f.write("\n\n")
+            rhs_str = write_matrix(eqs.rhs)
+            f.write(f"rhs:\n{rhs_str}\n")
+            f.write("\n\n")
 
     # discretize and solve
     sigma = 0.2
     dt = sigma * dx
     steps = 10
     while steps > 0:
+        print(f"--- step: {10 - steps}")
         # solve
         eqs = problem.discretize(dt)
-        write_eqs(eqs)
+        write_eqs(eqs, output_file=f"{results_dir}/eqs-{frame}.txt")
         solution = eqs.solve()
 
         # plot solution
