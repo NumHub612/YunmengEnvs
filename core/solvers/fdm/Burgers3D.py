@@ -35,20 +35,19 @@ class Burgers3D(BaseSolver):
                     v_t + u*v_x + v*v_y + w*v_z = nu*(v_xx + v_yy + v_zz),\
                     w_t + u*w_x + v*w_y + w*w_z = nu*(w_xx + w_yy + w_zz)",
                 "domain": "3D",
-                "default_ic": "none",
-                "default_bc": "none",
+                "default_ics": "none",
+                "default_bcs": "none",
             }
         )
         metas.update(
             {
-                "fields": [
-                    {
-                        "name": "vel",
+                "fields": {
+                    "vel": {
                         "description": "velocity field",
                         "etype": "node",
                         "dtype": "vector",
                     },
-                ],
+                },
             }
         )
         return metas
@@ -128,7 +127,7 @@ class Burgers3D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_task_begin()
+            callback.on_task_begin(self.status, self._fields)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -148,7 +147,7 @@ class Burgers3D(BaseSolver):
 
         # Apply boundary conditions
         for node in self._topo.boundary_nodes_indexes:
-            for var, bc in self._bcs.get(node, {"vel": self._default_bc}).items():
+            for var, bc in self._bcs.get(node, {"vel": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
                 _, val = bc.evaluate(self._t, self._mesh.nodes[node])
@@ -184,6 +183,6 @@ class Burgers3D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step()
+            callback.on_step(self.status, self._fields)
 
         return self._t >= self._total_time, False, self.status

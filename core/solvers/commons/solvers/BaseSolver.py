@@ -38,10 +38,10 @@ class BaseSolver(ISolver):
         self._callbacks = []
         self._fields = {}
 
-        self._default_ic = None
+        self._default_ics = None
         self._ics = {}
 
-        self._default_bc = None
+        self._default_bcs = None
         self._bcs = {}
 
     def get_solution(self, field_name: str) -> Field:
@@ -57,7 +57,7 @@ class BaseSolver(ISolver):
         if not isinstance(callback, ISolverCallback):
             raise ValueError(f"Invalid callback: {callback}")
 
-        callback.setup(self, self._mesh)
+        callback.setup(self.get_meta(), self._mesh)
         self._callbacks.append(callback)
 
     def add_ic(self, var: str, ic: IInitCondition):

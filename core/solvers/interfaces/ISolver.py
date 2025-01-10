@@ -30,16 +30,15 @@ class ISolver(ABC):
                 - equation (str): The equation solved by the solver, e.g. Navier-Stokes, etc.
                 - equation_expr (str): The mathematical expression of the equation.
                 - domain (str): The domain of the solver, e.g. 2D, etc.
-                - default_ic (str): The default initial condition.
-                - default_bc (str): The default boundary condition.
-                - fields (List[Dict[str, str]]): The list of fields solved by the solver.
+                - default_ics (dict): The default initialization conditions.
+                - default_bcs (dict): The default boundary conditions.
+                - fields (dict): The dictionary of available fields solved by the solver.
 
         Notes:
             - The `fields` contains all the avaiable fields from the solver, following the format:
-                - name (str): The name of the field.
-                - description (str): A brief description of the field.
-                - dtype (str): The data type of the field, e.g. scalar, vector, tensor.
-                - etype (str): The element type, e.g. node, face, cell, etc.
+                - description (str): A brief description.
+                - dtype (str): The data type, e.g. scalar, vector, tensor.
+                - etype (str): The element type of the field, e.g. node, face, cell.
         """
         return {}
 

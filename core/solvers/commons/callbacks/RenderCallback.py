@@ -36,45 +36,51 @@ class RenderCallback(ISolverCallback):
         if not os.path.exists(self._output_dir):
             os.makedirs(self._output_dir)
 
-        self._solver = None
-
         self._fields = fields
         self._mesh = None
         self._field_dirs = {}
         self._frame = 0
 
-    def setup(self, solver: ISolver, mesh: object):
+    def setup(self, solver_meta: dict, mesh: object, **kwargs):
         self._mesh = mesh
-        self._solver = solver
 
-        for field in solver.get_meta()["fields"]:
-            fname = field["name"]
-            if self._fields is not None and fname not in self._fields:
+        if solver_meta.get("fields"):
+            self._init_output_dirs(solver_meta["fields"])
+
+    def _init_output_dirs(self, available_fields: dict):
+        # prevent multiple initializations of output directories
+        if self._field_dirs:
+            return
+
+        # check outputed fields
+        if self._fields is None or not self._fields:
+            self._fields = {fname: {} for fname in available_fields.keys()}
+
+        # create output directories for each field
+        for fname in available_fields.keys():
+            if fname not in self._fields:
                 continue
 
-            field_dir = os.path.join(self._output_dir, fname)
-            if os.path.exists(field_dir):
-                shutil.rmtree(field_dir)
-            os.makedirs(field_dir, exist_ok=True)
+            dir = os.path.join(self._output_dir, fname)
+            if os.path.exists(dir):
+                shutil.rmtree(dir)
+            os.makedirs(dir)
+            self._field_dirs[fname] = dir
 
-            self._field_dirs[fname] = field_dir
+    def on_task_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):
+        self._init_output_dirs(solver_solutions)
+        self._plot_field(solver_status, solver_solutions)
 
-    def on_task_begin(self):
-        self._plot_field()
+    def on_step(self, solver_status: dict, solver_solutions: dict, **kwargs):
+        self._plot_field(solver_status, solver_solutions)
 
-    def on_step(self):
-        self._plot_field()
-
-    def _plot_field(self):
+    def _plot_field(self, solver_status: dict, solver_solutions: dict):
         solutions = {}
         for fname in self._field_dirs.keys():
-            solutions[fname] = self._solver.get_solution(fname)
+            solutions[fname] = solver_solutions.get(fname)
 
-        time = self._solver.status.get("current_time")
+        time = solver_status.get("current_time")
         for fname, field in solutions.items():
-            if fname not in self._field_dirs:
-                continue
-
             code = self._frame if time is None else round(time, 6)
             title = f"{fname}-{code}"
 
@@ -104,11 +110,11 @@ class RenderCallback(ISolverCallback):
                 )
         self._frame += 1
 
-    def on_step_end(self, **kwargs):
+    def on_task_end(self, solver_status: dict, solver_solutions: dict, **kwargs):
         pass
 
-    def on_task_end(self):
+    def on_step_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):
         pass
 
-    def on_step_begin(self):
+    def on_step_end(self, solver_status: dict, solver_solutions: dict, **kwargs):
         pass

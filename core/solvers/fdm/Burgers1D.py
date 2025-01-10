@@ -38,14 +38,13 @@ class Burgers1D(BaseSolver):
         )
         metas.update(
             {
-                "fields": [
-                    {
-                        "name": "u",
+                "fields": {
+                    "u": {
                         "description": "Velocity field",
                         "etype": "node",
                         "dtype": "scalar",
                     }
-                ],
+                },
             }
         )
         return metas
@@ -107,7 +106,7 @@ class Burgers1D(BaseSolver):
 
         # run callbacks
         for callback in self._callbacks:
-            callback.on_task_begin()
+            callback.on_task_begin(self.status, self._fields)
 
     def inference(self, dt: float) -> tuple[bool, bool, dict]:
         """
@@ -127,7 +126,7 @@ class Burgers1D(BaseSolver):
 
         # Apply boundary conditions
         for node in self._topo.boundary_nodes_indexes:
-            for var, bc in self._bcs.get(node, {"u": self._default_bc}).items():
+            for var, bc in self._bcs.get(node, {"u": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
                 _, val = bc.evaluate(self._t, self._mesh.nodes[node])
@@ -157,6 +156,6 @@ class Burgers1D(BaseSolver):
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step()
+            callback.on_step(self.status, self._fields)
 
         return self._t >= self._total_time, False, self.status
