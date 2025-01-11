@@ -9,13 +9,16 @@ from core.numerics.fields import Variable, Field
 from core.numerics.matrix import LinearEqs
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
+import numpy as np
+
 
 class BaseEquation(IEquation):
     """Base class for user customized pde equations.
 
     Notes:
+        - Don't support nested brackets.
         - Don't support nested operators; if necessary, use intermediate variables.
-        - Don't use float numbers directly, define coefficients for them.
+        - Don't use float directly(except `0`), define coefficient for them.
     """
 
     def __init__(self, name: str, operators: dict[str, IOperator]):
@@ -199,12 +202,11 @@ class BaseEquation(IEquation):
         """
         Parse the variable name.
         """
-        if token not in self._fields:
-            raise ValueError(f"Un-initialized variable: {token}.")
+        if token not in self._symbols:
+            raise ValueError(f"Un-defined variable: {token}.")
         return {
             "type": "variable",
             "name": token,
-            "value": self._fields.get(token),
         }
 
     def is_coefficient(self, token: str) -> bool:
@@ -217,13 +219,11 @@ class BaseEquation(IEquation):
         """
         Parse the coefficient value.
         """
-        coeff_value = self._coefficients.get(token)
-        if coeff_value is None:
-            raise ValueError(f"Un-setted coefficient: {token}.")
+        if token not in self._symbols:
+            raise ValueError(f"Un-defined coefficient: {token}.")
         return {
             "type": "coefficient",
             "name": token,
-            "value": coeff_value,
         }
 
 
@@ -283,9 +283,9 @@ class SimpleEquation(BaseEquation):
                     else:
                         curr = self.run_func(it["operator_name"], it["args"])
                 elif it["type"] == "coefficient":
-                    curr = it["value"]
+                    curr = self._coefficients.get(it["name"])
                 elif it["type"] == "variable":
-                    curr = it["value"]
+                    curr = self._fields.get(it["name"])
                 else:
                     raise ValueError(f"Unsupported term: {it}.")
 
@@ -333,7 +333,7 @@ class SimpleEquation(BaseEquation):
         """Run the operator with the given arguments."""
         # prepare the target variable
         if len(op_args) == 1:
-            field = op_args[0]["value"]
+            field = self._fields.get(op_args[0]["name"])
         else:
             field = self.run_func("", op_args)
 
@@ -354,7 +354,7 @@ class SimpleEquation(BaseEquation):
             if isinstance(curr, LinearEqs):
                 final_eq += curr
             else:
-                final_eq.rhs[node.id] = curr
+                final_eq.rhs[node.id] = -curr
 
         return final_eq
 
@@ -365,155 +365,14 @@ class SimpleEquation(BaseEquation):
         symbols = [arg["name"] for arg in func_args if arg["type"]]
         func = lambdify_numexpr(func_expr, symbols)
 
-        inputs = [arg["value"] for arg in func_args if arg["type"]]
+        inputs = []
+        for arg in func_args:
+            if arg["type"] == "coefficient":
+                inputs.append(self._coefficients.get(arg["name"]))
+            elif arg["type"] == "variable":
+                inputs.append(self._fields.get(arg["name"]))
+            else:
+                raise ValueError(f"Unsupported argument: {arg}.")
+
         result = func(*inputs)
         return result
-
-
-if __name__ == "__main__":
-    from core.numerics.mesh import Grid2D, Coordinate, MeshTopo
-    from core.solvers.fdm.operators import fdm_operators
-    from core.solvers.commons import inits, boundaries, callbacks
-    from core.numerics.matrix import Matrix
-    from core.visuals.animator import ImageSetPlayer
-    from core.visuals.plotter import plot_vector_field
-    from core.numerics.fields import NodeField, Vector, Scalar
-    import numpy as np
-    import os
-    import shutil
-
-    # set mesh
-    low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
-    nx, ny = 11, 11
-    grid = Grid2D(low_left, upper_right, nx, ny)
-    x = np.linspace(0, 2, nx)
-    y = np.linspace(0, 2, ny)
-    dx = 2 / (nx - 1)
-    dy = 2 / (ny - 1)
-
-    start_x, end_x = int(0.5 / dx), int(1.0 / dx) + 1
-    start_y, end_y = int(0.5 / dy), int(1.0 / dy) + 1
-    init_groups = []
-    for i in range(start_x, end_x):
-        for j in range(start_y, end_y):
-            index = i * ny + j
-            init_groups.append(index)
-
-    topo = MeshTopo(grid)
-    bc_groups = []
-    for i in topo.boundary_nodes_indexes:
-        bc_groups.append(grid.nodes[i])
-
-    # set initial condition
-    node_num = grid.node_count
-    init_field = NodeField(node_num, "vector", Vector(1, 1), "u")
-    for i in init_groups:
-        init_field[i] = Vector(2, 2)
-
-    ic = inits.HotstartInitialization("ic1", init_field)
-
-    # set boundary condition
-    bc_value = Vector(1, 1)
-    bc = boundaries.ConstantBoundary("bc1", bc_value, None)
-
-    # set callback
-    output_dir = "./tests/results"
-    results_dir = f"{output_dir}/u"
-    if os.path.exists(results_dir):
-        shutil.rmtree(results_dir)
-    os.makedirs(results_dir)
-
-    confs = {"u": {"style": "cloudmap", "dimension": "x"}}
-    cb = callbacks.RenderCallback(output_dir, confs)
-
-    # set equations
-    equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
-    # equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) - nu*laplacian::Lap01(u) == 0"
-    symbols = {
-        "u": {
-            "description": "velocity",
-            "coefficient": False,
-            "type": "vector",
-            "bounds": (None, None),
-        },
-        "nu": {
-            "description": "viscosity",
-            "coefficient": True,
-            "type": "scalar",
-            "bounds": (0, None),
-        },
-    }
-    coefficients = {"nu": Scalar(0.1)}
-    variables = {"u": init_field}
-
-    problem = SimpleEquation("burgers2d", fdm_operators)
-    problem.set_equations([equation_expr], symbols)
-    problem.set_coefficients(coefficients)
-    problem.set_fields(variables)
-    problem.set_mesh(grid)
-
-    frame = 0
-    plot_vector_field(
-        init_field,
-        grid,
-        title=f"u-{frame}",
-        save_dir=results_dir,
-        style="cloudmap",
-        dimension="x",
-    )
-
-    def write_matrix(mat: Matrix):
-        mat_str = ""
-        for i in range(mat.shape[0]):
-            if len(mat.shape) == 2:
-                for j in range(mat.shape[1]):
-                    mat_str += f"{mat[(i, j)]} "
-                mat_str += "\n"
-            else:
-                mat_str += f"{mat[i]} "
-        return mat_str
-
-    def write_eqs(eqs: LinearEqs, output_file: str = "eqs.txt"):
-        with open(output_file, "w") as f:
-            for eq in eqs.scalarize():
-                mat_str = write_matrix(eq.matrix)
-                f.write(f"matrix:\n{mat_str}\n")
-
-                rhs_str = write_matrix(eq.rhs)
-                f.write(f"rhs:\n{rhs_str}\n")
-                f.write("\n\n")
-
-    # discretize and solve
-    sigma = 0.2
-    dt = sigma * dx
-    steps = 10
-    while steps > 0:
-        # solve
-        eqs = problem.discretize(dt)
-        write_eqs(eqs)
-        solution = eqs.solve()
-
-        # plot solution
-        var_field = NodeField.from_np(solution, "node", "u")
-        frame += 1
-        plot_vector_field(
-            var_field,
-            grid,
-            title=f"u-{frame}",
-            save_dir=results_dir,
-            style="cloudmap",
-            dimension="x",
-        )
-
-        # update boundary condition
-        for node in grid.get_topo_assistant().boundary_nodes_indexes:
-            _, val = bc.evaluate(None, None)
-            var_field[node] = val
-
-        # update initial condition
-        problem.set_fields({"u": var_field})
-        steps -= 1
-
-    # results player
-    player = ImageSetPlayer(results_dir)
-    player.play()

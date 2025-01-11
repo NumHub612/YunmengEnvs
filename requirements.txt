@@ -1,1 +1,10 @@
+imageio
+# jax==0.4.31
+matplotlib
+numba
 numpy
+pyvista
+PyYAML
+setuptools
+sympy
+vtk
