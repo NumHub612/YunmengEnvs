@@ -14,8 +14,9 @@ class BaseEquation(IEquation):
     """Base class for user customized pde equations.
 
     Notes:
+        - Don't support nested brackets.
         - Don't support nested operators; if necessary, use intermediate variables.
-        - Don't use float numbers directly, define coefficients for them.
+        - Don't use float directly(except `0`), define coefficient for them.
     """
 
     def __init__(self, name: str, operators: dict[str, IOperator]):
@@ -351,7 +352,7 @@ class SimpleEquation(BaseEquation):
             if isinstance(curr, LinearEqs):
                 final_eq += curr
             else:
-                final_eq.rhs[node.id] = curr
+                final_eq.rhs[node.id] = -curr
 
         return final_eq
 
@@ -432,6 +433,11 @@ if __name__ == "__main__":
     cb = callbacks.RenderCallback(output_dir, confs)
 
     # set equations
+    # equation_expr = "0 == nu*laplacian::Lap01(u)"
+    # equation_expr = "u*grad::Grad01(u) == 0"
+    # equation_expr = "ddt::Ddt01(u) == nu*laplacian::Lap01(u)"
+    # equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == 0"
+    # equation_expr = "ddt::Ddt01(u) == 0"
     equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
     # equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) - nu*laplacian::Lap01(u) == 0"
     symbols = {

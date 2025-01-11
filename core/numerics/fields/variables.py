@@ -256,13 +256,13 @@ class Vector(Variable):
         if isinstance(other, Vector):
             return Vector.from_np(self.to_np() + other.to_np())
         else:
-            raise TypeError("Invalid type for Vector add().")
+            raise TypeError(f"Invalid type for Vector add(): {type(other)}.")
 
     def __sub__(self, other) -> "Vector":
         if isinstance(other, Vector):
             return Vector.from_np(self.to_np() - other.to_np())
         else:
-            raise TypeError("Invalid type for Vector sub().")
+            raise TypeError(f"Invalid type for Vector sub(): {type(other)}.")
 
     def __mul__(self, other) -> "Variable":
         if isinstance(other, (int, float)):
@@ -275,7 +275,7 @@ class Vector(Variable):
         elif isinstance(other, Tensor):
             lf = self.to_np()
             rhs = other.to_np()
-            result = [np.dot(lf, rhs[i]) for i in range(3)]
+            result = [np.dot(lf, rhs[:, i]) for i in range(3)]
             return Vector.from_np(np.array(result))
         else:
             raise TypeError(f"Invalid type for Vector mul() with {type(other)}.")
@@ -293,13 +293,13 @@ class Vector(Variable):
                 raise ZeroDivisionError("Division by zero.")
             return Vector.from_np(self.to_np() / other.value)
         else:
-            raise TypeError("Invalid type for Vector div().")
+            raise TypeError(f"Invalid type for Vector div(): {type(other)}.")
 
     def __neg__(self) -> "Vector":
-        return Vector(-self._value)
+        return Vector.from_np(-self._value)
 
     def __abs__(self) -> "Vector":
-        return Vector(np.abs(self._value))
+        return Vector.from_np(np.abs(self._value))
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Vector):
@@ -603,7 +603,7 @@ class Tensor(Variable):
         if isinstance(other, Scalar):
             return Tensor.from_np(self.to_np() * other.value)
         elif isinstance(other, Vector):
-            rh = other.to_np().reshape(3, 1)
+            rh = other.to_np()
             result = [np.dot(self._value[i], rh) for i in range(3)]
             return Vector.from_np(np.array(result))
         elif isinstance(other, Tensor):
