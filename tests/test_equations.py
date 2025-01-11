@@ -2,9 +2,6 @@
 from core.numerics.mesh import Grid2D, Coordinate, MeshTopo
 from core.solvers.fdm.operators import fdm_operators
 from core.solvers.commons import inits, boundaries, SimpleEquation
-from core.numerics.matrix import Matrix
-from core.visuals.animator import ImageSetPlayer
-from core.visuals.plotter import plot_vector_field
 from core.numerics.fields import NodeField, Vector, Scalar
 import numpy as np
 import os
@@ -67,13 +64,6 @@ class TestSimpleEquations(unittest.TestCase):
     def test_full_burgers2d(self):
         """test full burgers equation"""
         print("Testing full burgers equation...")
-        # visualize field
-        output_dir = "./tests/results"
-        results_dir = f"{output_dir}/u1"
-        if os.path.exists(results_dir):
-            shutil.rmtree(results_dir)
-        os.makedirs(results_dir)
-
         # set equations
         equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
         symbols = {
@@ -101,7 +91,7 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        eqs, solution = self._run(problem, results_dir, show=True)
+        eqs, solution = self._run(problem)
 
         diags = eqs.matrix.diag
         coef = 1 / self._dt
@@ -234,20 +224,9 @@ class TestSimpleEquations(unittest.TestCase):
         for i in range(len(solution)):
             self.assertTrue(np.allclose(solution[i] * coef, validates[i].data))
 
-        # results player
-        # player = ImageSetPlayer(results_dir)
-        # player.play()
-
     def test_grad_burgers2d(self):
         """test burgers equation without laplacian term"""
         print("Testing burgers equation without laplacian term...")
-        # visualize field
-        output_dir = "./tests/results"
-        results_dir = f"{output_dir}/u2"
-        if os.path.exists(results_dir):
-            shutil.rmtree(results_dir)
-        os.makedirs(results_dir)
-
         # set equations
         equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == 0"
         symbols = {
@@ -275,22 +254,10 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        self._run(problem, results_dir, show=True)
-
-        # results player
-        # player = ImageSetPlayer(results_dir)
-        # player.play()
+        self._run(problem)
 
     def test_lap_burgers2d(self):
         """test burgers equation without grad term"""
-        print("Testing burgers equation without grad term...")
-        # visualize field
-        output_dir = "./tests/results"
-        results_dir = f"{output_dir}/u3"
-        if os.path.exists(results_dir):
-            shutil.rmtree(results_dir)
-        os.makedirs(results_dir)
-
         # set equations
         equation_expr = "ddt::Ddt01(u) == nu*laplacian::Lap01(u)"
         symbols = {
@@ -318,11 +285,7 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        self._run(problem, results_dir, show=True)
-
-        # results player
-        # player = ImageSetPlayer(results_dir)
-        # player.play()
+        self._run(problem)
 
     def test_ddt(self):
         """test ddt equation"""
@@ -348,7 +311,7 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        self._run(problem, None)
+        self._run(problem)
 
     def test_grad(self):
         """test grad equation"""
@@ -374,7 +337,7 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        self._run(problem, None)
+        self._run(problem)
 
     def test_laplacian(self):
         """test laplacian equation"""
@@ -406,9 +369,9 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        self._run(problem, None)
+        self._run(problem)
 
-    def _run(self, problem, results_dir, show=False):
+    def _run(self, problem):
         # set solving parameters
         steps = 10
         i = 0
@@ -416,17 +379,6 @@ class TestSimpleEquations(unittest.TestCase):
         # solve
         eqs, solution = None, None
         while i < steps:
-            # draw field
-            if show:
-                plot_vector_field(
-                    self._var_field,
-                    self._grid,
-                    title=f"u-{i}",
-                    save_dir=results_dir,
-                    style="cloudmap",
-                    dimension="x",
-                )
-
             # solve linear equation
             eqs = problem.discretize(self._dt)
             solution = eqs.solve()
