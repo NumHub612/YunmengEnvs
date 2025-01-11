@@ -1,10 +1,10 @@
-imageio==2.36.0
+imageio
 # jax==0.4.31
-matplotlib==3.5.1
-numba==0.60.0
-numpy==1.20.2
-pyvista==0.44.2
-PyYAML==6.0.2
-setuptools==72.1.0
-sympy==1.13.2
-vtk==9.3.1
+matplotlib
+numba
+numpy
+pyvista
+PyYAML
+setuptools
+sympy
+vtk

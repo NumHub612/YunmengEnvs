@@ -235,8 +235,8 @@ class TestSimpleEquations(unittest.TestCase):
             self.assertTrue(np.allclose(solution[i] * coef, validates[i].data))
 
         # results player
-        player = ImageSetPlayer(results_dir)
-        player.play()
+        # player = ImageSetPlayer(results_dir)
+        # player.play()
 
     def test_grad_burgers2d(self):
         """test burgers equation without laplacian term"""
@@ -278,8 +278,8 @@ class TestSimpleEquations(unittest.TestCase):
         self._run(problem, results_dir, show=True)
 
         # results player
-        player = ImageSetPlayer(results_dir)
-        player.play()
+        # player = ImageSetPlayer(results_dir)
+        # player.play()
 
     def test_lap_burgers2d(self):
         """test burgers equation without grad term"""
@@ -321,8 +321,8 @@ class TestSimpleEquations(unittest.TestCase):
         self._run(problem, results_dir, show=True)
 
         # results player
-        player = ImageSetPlayer(results_dir)
-        player.play()
+        # player = ImageSetPlayer(results_dir)
+        # player.play()
 
     def test_ddt(self):
         """test ddt equation"""
