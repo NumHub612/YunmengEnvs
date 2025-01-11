@@ -98,6 +98,10 @@ class Matrix:
         return self._data
 
     @property
+    def diag(self) -> np.ndarray:
+        return np.diag(self._data)
+
+    @property
     def type(self) -> str:
         """The matrix data type, e.g. float, scalar, vector, tensor, etc."""
         # TODO: check all elements are of the same type.
