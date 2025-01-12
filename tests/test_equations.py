@@ -3,10 +3,11 @@ from core.numerics.mesh import Grid2D, Coordinate, MeshTopo
 from core.solvers.fdm.operators import fdm_operators
 from core.solvers.commons import inits, boundaries, SimpleEquation
 from core.numerics.fields import NodeField, Vector, Scalar
+from core.visuals.plotter import plot_vector_field
+from core.visuals.animator import ImageSetPlayer
 import numpy as np
 import os
 import shutil
-
 import unittest
 
 
@@ -64,6 +65,12 @@ class TestSimpleEquations(unittest.TestCase):
     def test_full_burgers2d(self):
         """test full burgers equation"""
         print("Testing full burgers equation...")
+        # set result output path
+        save_dir = "./tests/results/u"
+        if os.path.exists(save_dir):
+            shutil.rmtree(save_dir)
+        os.makedirs(save_dir)
+
         # set equations
         equation_expr = "ddt::Ddt01(u) + u*grad::Grad01(u) == nu*laplacian::Lap01(u)"
         symbols = {
@@ -91,7 +98,7 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        eqs, solution = self._run(problem)
+        eqs, solution = self._run(problem, save_dir, True)
 
         diags = eqs.matrix.diag
         coef = 1 / self._dt
@@ -223,6 +230,11 @@ class TestSimpleEquations(unittest.TestCase):
         self.assertEqual(len(solution), len(validates))
         for i in range(len(solution)):
             self.assertTrue(np.allclose(solution[i] * coef, validates[i].data))
+
+        # play the images
+        if __name__ == "__main__":
+            ani = ImageSetPlayer(save_dir)
+            ani.play()
 
     def test_grad_burgers2d(self):
         """test burgers equation without laplacian term"""
@@ -371,7 +383,7 @@ class TestSimpleEquations(unittest.TestCase):
         # discretize and solve
         self._run(problem)
 
-    def _run(self, problem):
+    def _run(self, problem, result_dir=None, show=False):
         # set solving parameters
         steps = 10
         i = 0
@@ -383,6 +395,18 @@ class TestSimpleEquations(unittest.TestCase):
             eqs = problem.discretize(self._dt)
             solution = eqs.solve()
             self._var_field = NodeField.from_np(solution, "node", "u")
+
+            # show solution
+            if __name__ == "__main__":
+                if show and result_dir:
+                    plot_vector_field(
+                        self._var_field,
+                        self._grid,
+                        title=f"u-{i}",
+                        style="cloudmap",
+                        dimension="x",
+                        save_dir=result_dir,
+                    )
 
             # update boundary condition
             for node in self._topo.boundary_nodes_indexes:

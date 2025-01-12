@@ -39,6 +39,7 @@ jobs:
 
       - name: Run unittest tests
         run: |
+          export PYTHONPATH=$PYTHONPATH:${{ github.workspace }}
           pip install pytest pytest-cov
           pytest --cov-branch --cov-report=xml
 
