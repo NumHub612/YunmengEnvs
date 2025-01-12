@@ -18,7 +18,6 @@ jobs:
       matrix:
         os:
           - ubuntu-22.04
-          - windows-2022
 
     permissions:
       contents: write
