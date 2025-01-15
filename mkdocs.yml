@@ -4,8 +4,20 @@ site_name: YunmengEnvs
 docs_dir: 'docs'
 nav:
   - Home: 
-    - 'Introduction': README.md 
-    - 'Getting Started': getting_started.md 
+    - '关于YunmengEnvs': README.md 
+    - '安装': Install.md 
+    - '快速开始': QuickStart.md 
+    - '解决方案': Solutions.md
+    - '集成': Integrate.md
+    - '求解器': Solvers.md
+    - '回调': Callbacks.md
+    - '可视化': Visualizers.md
+    - '基准': Benchmarks.md
+    - '开发者': Developer.md 
+  - More: 
+    - 'yunmeng.solutions': ./apis/solutions.md
+    - 'yunmeng.solvers': ./apis/solvers.md
+    - 'yunmeng.numerics': ./apis/numerics.md
 
 
 theme:
@@ -31,3 +43,30 @@ plugins:
             heading_level: 3  
             show_signature_annotations: true
             modernize_annotations: true  
+
+markdown_extensions:
+  - admonition 
+  - footnotes 
+  - meta 
+  - pymdownx.caret  
+  - pymdownx.tilde  
+  - pymdownx.critic  
+  - pymdownx.details 
+  - pymdownx.inlinehilite 
+  - pymdownx.mark 
+  - pymdownx.smartsymbols  
+  - pymdownx.superfences  
+  - codehilite:   
+      guess_lang: false
+      linenums: true
+  - toc:  
+      permalink: true
+  - pymdownx.betterem:  
+      smart_enable: all
+  - pymdownx.emoji:  
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - pymdownx.magiclink  
+  - pymdownx.tasklist: 
+      custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
