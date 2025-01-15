@@ -104,7 +104,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="developer-guide">Developer Guide</h1>
+                <h1 id="developer-guide">Developer Guide<a class="headerlink" href="#developer-guide" title="Permanent link">&para;</a></h1>
 <p>云梦环境项目旨在用于学术以及教学用途，因此在设计各种算法和方案的实现细节时，编码的清晰度是重中之重。<br />
 尽管如此，它的所有数值和算法在很多方面都与面向工业的 CFD 代码中使用的数值和算法相似，并鼓励详尽的文档说明。</p>
 <ul>
@@ -113,19 +113,19 @@
 <li><a href="#关于项目的编码风格">Tip3-关于项目的编码风格</a></li>
 </ul>
 <hr />
-<h2 id="_1">关于模型开发过程和文档：一些待完善的建议</h2>
+<h2 id="_1">关于模型开发过程和文档：一些待完善的建议<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>一个模型的开发过程可能会经历以下几个阶段：</p>
-<p><strong>1st: 第一阶段</strong></p>
+<p><strong>1<sup>st</sup>: 第一阶段</strong></p>
 <p>提出模型想法，说明开发目的或意义，提供一些基础开发资料、方向或思路；通常来说，<code>1st</code>仍处于前期讨论阶段，可以在项目仓库、知乎、课题小组或者其他平台提出，<br />
 作为一个 <code>issue</code>、一个 <code>提问</code>、一个 <code>报告</code>、一个 <code>动态</code> 发布。</p>
-<p><strong>2nd: 第二阶段</strong></p>
+<p><strong>2<sup>nd</sup>: 第二阶段</strong></p>
 <p>设计模型算法，解释理论依据，提供算法详细设计（计算链路闭环）。</p>
 <p>这个阶段可能主要聚焦在如何使想法落地，怎么样来设计一个完整的计算逻辑或计算链路？<br />
 这个阶段可能还需要初步的原型实现，敲代码和推公式交织进行。</p>
-<p><strong>3rd: 第三阶段</strong></p>
+<p><strong>3<sup>rd</sup>: 第三阶段</strong></p>
 <p>实施开发方案，定义模型数据和接口，完成模块开发和单元测试。</p>
 <p>进入 <code>3rd</code> 阶段通常表明模型的算法已经基本稳定，开始工程项目开发。一般的建议是，着手编码前梳理功能模块关系，确定模块集成接口，设计数据结构；同时，在开发过程中遵循一套代码规范和格式化方案，并及时完成单元测试、集成测试，注意代码覆盖度。</p>
-<p><strong>4th: 第四阶段</strong></p>
+<p><strong>4<sup>th</sup>: 第四阶段</strong></p>
 <p>通过模型评估方案，测试模型准确性和稳定性，测试参数敏感性。</p>
 <p>在可靠的单元测试基础上，进一步地进行相对充分的模型用例测试(需要覆盖可预见的常见场景和部分极端场景)，测试模块的稳定性、适用性，分析模块的参数敏感性，进一步地测试模块的准确性及性能表现。</p>
 <p><strong>模型文档</strong></p>
@@ -139,7 +139,7 @@
 <p>聚焦于模块的可靠性，<code>测试评估报告</code>中应该包括模型与现实的一致性、参数及前提假设的影响、参数真值以及其分布的影响分析，提供模型校核报告、参数敏感性评估报告、网格相关性评估报告，数值算法稳定性评估报告，模型性能评估报告。</p>
 <p><a href="#developer-guide"><i class="fa fa-home"></i></a></p>
 <hr />
-<h2 id="_2">关于项目的发布流程</h2>
+<h2 id="_2">关于项目的发布流程<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>项目暂定发布在 GitHub；采用 Git 作为协作开发和版本控制工具；采用 Git Flow 开发模式；版本号采用 <code>year.month.patch</code> 格式。  </p>
 <p><strong>功能提交</strong></p>
 <ul>
@@ -180,7 +180,7 @@
 <p>通过 github projects 进行开发计划和进度管理，控制版本发布 。</p>
 <p><a href="#developer-guide"><i class="fa fa-home"></i></a></p>
 <hr />
-<h2 id="_3">关于项目的编码风格</h2>
+<h2 id="_3">关于项目的编码风格<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>在开发过程中培养代码工程素养，对代码 “有讲究”，有助于我们开发更可靠和好维护的模型模块：</p>
 <ul>
 <li>统一的命名逻辑、良好的封装隔离、清晰的数据流，能帮助控制代码的复杂度。</li>

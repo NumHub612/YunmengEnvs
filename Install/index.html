@@ -98,34 +98,34 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="install">Install</h1>
+                <h1 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h1>
 <p><code>YunmengEnvs</code> 基于 <strong>Python3.10.14 + CUDA12.4</strong> 环境开发，建议python/cuda环境版本保持一致。</p>
 <p>（<em>以下操作均位于项目根目录下。</em>）</p>
 <ol>
 <li>创建 Conda 环境：</li>
 </ol>
-<pre><code>conda create -n yun python=3.10.14
+<div class="highlight"><pre><span></span><code>conda create -n yun python=3.10.14
 conda activate yun
-</code></pre>
+</code></pre></div>
 <ol>
 <li>安装依赖包：</li>
 </ol>
-<pre><code>pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-</code></pre>
+<div class="highlight"><pre><span></span><code>pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+</code></pre></div>
 <ol>
 <li>运行案例集：</li>
 </ol>
-<pre><code>none
-</code></pre>
+<div class="highlight"><pre><span></span><code>none
+</code></pre></div>
 <ol>
 <li>运行测试集：</li>
 </ol>
-<pre><code>&gt;&gt;&gt; python -m unittest discover -s ./tests -p &quot;test_*.py&quot;  # 运行所有test_开头的测试脚本
+<div class="highlight"><pre><span></span><code>&gt;&gt;&gt; python -m unittest discover -s ./tests -p &quot;test_*.py&quot;  # 运行所有test_开头的测试脚本
 
 &gt;&gt;&gt; python -m unittest -v tests.test_xxx  # 运行指定测试脚本
 
 &gt;&gt;&gt; python -m unittest -v tests.test_xxx.TestXxx.test_xxx  # 运行指定测试对象的测试方法 
-</code></pre>
+</code></pre></div>
 <hr />
               
             </div>
