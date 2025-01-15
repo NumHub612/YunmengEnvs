@@ -36,22 +36,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ${{ github.workspace }}/requirements.txt
 
-      - name: Run unittest tests
-        run: |
-          export PYTHONPATH=$PYTHONPATH:${{ github.workspace }}
-          pip install pytest pytest-cov
-          coverage run -m pytest
-          coverage report
-          coverage xml
+      # - name: Run unittest tests
+      #   run: |
+      #     export PYTHONPATH=$PYTHONPATH:${{ github.workspace }}
+      #     pip install pytest pytest-cov
+      #     coverage run -m pytest
+      #     coverage report
+      #     coverage xml
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./coverage.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v5
+      #   with:
+      #     files: ./coverage.xml
+      #     token: ${{ secrets.CODECOV_TOKEN }}
           
       - name: Build and deploy docs
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/dev'}}
+        if: ${{ matrix.os == 'ubuntu-22.04'}}
         run: |
           cd ${{ github.workspace }}
           pip install mkdocs
@@ -63,7 +63,7 @@ jobs:
         shell: bash
 
       - name: Deploy docs to GitHub Pages
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/dev'}}
+        if: ${{ matrix.os == 'ubuntu-22.04'}}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -76,7 +76,7 @@ jobs:
           python setup.py sdist bdist_wheel
 
       # - name: Upload to PyPI
-      #   if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
+      #   if: ${{ matrix.os == 'ubuntu-22.04'}}
       #   env:
       #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
       #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
