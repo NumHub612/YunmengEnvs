@@ -45,34 +45,28 @@ plugins:
             modernize_annotations: true  
 
 markdown_extensions:
-  - markdown.extensions.fenced_code
-  - pymdownx.highlight
-  - pymdownx.superfences
-  - pymdownx.inlinehilite
-  - pymdownx.tabbed
-  - pymdownx.details
-  - pymdownx.emoji:
-      emoji_index: !!python/name:pymdownx.emoji.gemoji
+  - admonition 
+  - footnotes 
+  - meta 
+  - pymdownx.caret  
+  - pymdownx.tilde  
+  - pymdownx.critic  
+  - pymdownx.details 
+  - pymdownx.inlinehilite 
+  - pymdownx.mark 
+  - pymdownx.smartsymbols  
+  - pymdownx.superfences  
+  - codehilite:   
+      guess_lang: false
+      linenums: true
+  - toc:  
+      permalink: true
+  - pymdownx.betterem:  
+      smart_enable: all
+  - pymdownx.emoji:  
       emoji_generator: !!python/name:pymdownx.emoji.to_svg
-  - pymdownx.magiclink
-  - pymdownx.tasklist:
+  - pymdownx.magiclink  
+  - pymdownx.tasklist: 
       custom_checkbox: true
-  - pymdownx.tilde
   - pymdownx.arithmatex:
       generic: true
-  - pymdownx.betterem:
-      smart_enable: all
-  - pymdownx.caret
-  - pymdownx.keys
-  - pymdownx.mark
-  - pymdownx.progressbar
-  - pymdownx.saneheaders
-  - pymdownx.smartsymbols
-  - pymdownx.striphtml
-  - pymdownx.escapeall:
-      hardbreak: true
-      ampersand: true
-  - pymdownx.keypress
-  - pymdownx.snippets
-  - pymdownx.tabbed
-  - pymdownx.tilde

@@ -71,12 +71,13 @@ jobs:
           enable_jekyll: true
 
       - name: Build package
+        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main' }}
         run: |
           pip install setuptools wheel twine
           python setup.py sdist bdist_wheel
 
       # - name: Upload to PyPI
-      #   if: ${{ matrix.os == 'ubuntu-22.04'}}
+      #   if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main' }}
       #   env:
       #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
       #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
