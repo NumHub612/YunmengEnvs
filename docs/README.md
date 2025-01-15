@@ -18,16 +18,15 @@
 
 ## 文档大纲
 
-+ [关于YunmengEnvs]()
-+ [安装]()
-+ [快速开始]()
-+ [解决方案]()
-+ [集成]()
-+ [求解器]()
-+ [回调]()
-+ [可视化]()
-+ [基准]()
-+ [开发者]()
++ [关于YunmengEnvs](README.md)
++ [安装](Install.md)
++ [快速开始](QuickStart.md)
++ [解决方案](Solutions.md)
++ [集成](Integrate.md)
++ [求解器](Solvers.md)
++ [回调](Callbacks.md)
++ [可视化](Visualizers.md)
++ [基准](Benchmarks.md)
 
 ---------------------------------------------------------------------------------
 
@@ -37,8 +36,8 @@
 
 如果你对这个项目感兴趣，欢迎加入我们！ 
 
-+ [加入社区]()
-+ [参与项目]()
++ [加入社区](Developer.md#developer-guide)
++ [参与项目](Developer.md#关于模型开发过程和文档一些待完善的建议)
 
 感谢我们的贡献者:
 
@@ -50,7 +49,8 @@
 
 ## YunmengEnvs API 文档
 
-+ [yunmengenvs.solutions package]()
-+ [yunmengenvs.solvers package]()
++ [yunmeng.solutions package](./apis/solutions.md)
++ [yunmeng.solvers package](./apis/solvers.md)
++ [yunmeng.numerics package](./apis/numerics.md)
 
 ---------------------------------------------------------------------------------
