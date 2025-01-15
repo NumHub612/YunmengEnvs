@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>开发者 - YunmengEnvs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u5f00\u53d1\u8005";
+        var mkdocs_page_input_path = "Developer.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> YunmengEnvs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="..">关于YunmengEnvs</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Install/">安装</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../QuickStart/">快速开始</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Solutions/">解决方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Integrate/">集成</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Solvers/">求解器</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Callbacks/">回调</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Visualizers/">可视化</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Benchmarks/">基准</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">开发者</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#_1">关于模型开发过程和文档：一些待完善的建议</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_2">关于项目的发布流程</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_3">关于项目的编码风格</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">More</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../apis/solutions/">yunmeng.solutions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../apis/solvers/">yunmeng.solvers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../apis/numerics/">yunmeng.numerics</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">YunmengEnvs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Home</li>
+      <li class="breadcrumb-item active">开发者</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="developer-guide">Developer Guide</h1>
+<p>云梦环境项目旨在用于学术以及教学用途，因此在设计各种算法和方案的实现细节时，编码的清晰度是重中之重。<br />
+尽管如此，它的所有数值和算法在很多方面都与面向工业的 CFD 代码中使用的数值和算法相似，并鼓励详尽的文档说明。</p>
+<ul>
+<li><a href="#关于模型开发过程和文档一些待完善的建议">Tip1-关于模型开发过程和文档：一个待完善的开发建议</a></li>
+<li><a href="#关于项目的发布流程">Tip2-关于项目的发布流程</a></li>
+<li><a href="#关于项目的编码风格">Tip3-关于项目的编码风格</a></li>
+</ul>
+<hr />
+<h2 id="_1">关于模型开发过程和文档：一些待完善的建议</h2>
+<p>一个模型的开发过程可能会经历以下几个阶段：</p>
+<p><strong>1st: 第一阶段</strong></p>
+<p>提出模型想法，说明开发目的或意义，提供一些基础开发资料、方向或思路；通常来说，<code>1st</code>仍处于前期讨论阶段，可以在项目仓库、知乎、课题小组或者其他平台提出，<br />
+作为一个 <code>issue</code>、一个 <code>提问</code>、一个 <code>报告</code>、一个 <code>动态</code> 发布。</p>
+<p><strong>2nd: 第二阶段</strong></p>
+<p>设计模型算法，解释理论依据，提供算法详细设计（计算链路闭环）。</p>
+<p>这个阶段可能主要聚焦在如何使想法落地，怎么样来设计一个完整的计算逻辑或计算链路？<br />
+这个阶段可能还需要初步的原型实现，敲代码和推公式交织进行。</p>
+<p><strong>3rd: 第三阶段</strong></p>
+<p>实施开发方案，定义模型数据和接口，完成模块开发和单元测试。</p>
+<p>进入 <code>3rd</code> 阶段通常表明模型的算法已经基本稳定，开始工程项目开发。一般的建议是，着手编码前梳理功能模块关系，确定模块集成接口，设计数据结构；同时，在开发过程中遵循一套代码规范和格式化方案，并及时完成单元测试、集成测试，注意代码覆盖度。</p>
+<p><strong>4th: 第四阶段</strong></p>
+<p>通过模型评估方案，测试模型准确性和稳定性，测试参数敏感性。</p>
+<p>在可靠的单元测试基础上，进一步地进行相对充分的模型用例测试(需要覆盖可预见的常见场景和部分极端场景)，测试模块的稳定性、适用性，分析模块的参数敏感性，进一步地测试模块的准确性及性能表现。</p>
+<p><strong>模型文档</strong></p>
+<p>为了提高模型和项目的可靠性和可维护性，一个模型组件的文档建议包含：</p>
+<ul>
+<li><code>算法详细设计</code>，说明算法原理和前提假设，提供完整的计算过程以及涉及的变量定义；</li>
+<li><code>模型接口说明</code>，说明组件接口，包括接口参数、接口功能和可能的异常等；</li>
+<li><code>测试评估报告</code>，提供各类测试结果分析报告；</li>
+<li><code>模型操作手册</code>，说明模型的输入输出格式，演示常见场景下组件使用。</li>
+</ul>
+<p>聚焦于模块的可靠性，<code>测试评估报告</code>中应该包括模型与现实的一致性、参数及前提假设的影响、参数真值以及其分布的影响分析，提供模型校核报告、参数敏感性评估报告、网格相关性评估报告，数值算法稳定性评估报告，模型性能评估报告。</p>
+<p><a href="#developer-guide"><i class="fa fa-home"></i></a></p>
+<hr />
+<h2 id="_2">关于项目的发布流程</h2>
+<p>项目暂定发布在 GitHub；采用 Git 作为协作开发和版本控制工具；采用 Git Flow 开发模式；版本号采用 <code>year.month.patch</code> 格式。  </p>
+<p><strong>功能提交</strong></p>
+<ul>
+<li>提交频率</li>
+</ul>
+<p>每个提交应该只包含一个逻辑上的更改或修复，这样可以更容易追踪和理解每个提交的意图。
+建议将每个commit用时控制在 3 小时内，鼓励提高提交频率。
+避免将多个不相关的更改混合在一个提交中，以免给代码审查和版本控制带来困扰。</p>
+<ul>
+<li>提交格式</li>
+</ul>
+<p>提交信息的格式通常是：“[类型]: 描述”。</p>
+<p><code>类型</code>指这个提交所属类别，可以是 <code>feat、fix、docs、style、refactor、test、chore</code> 等。<br />
+<code>描述</code>是对提交的简短描述，应尽量清晰明了，突出关键信息。</p>
+<ul>
+<li>提交内容</li>
+</ul>
+<p>提交信息应该描述清楚修改的内容，不要使用模糊的词汇。
+尽量提供一些上下文信息，例如为什么做出这个更改、解决了什么问题、有什么影响等。
+如果有关联的问题（如<code>GitHub Issue</code>等）或任务，可以在提交信息中引用相关的编号。</p>
+<p><strong>Github原生开发</strong></p>
+<ul>
+<li>Actions 和 Security</li>
+</ul>
+<p>通过 github actions 和 security（code scanning）实现 linux、windows 平台下的 ci 方案。</p>
+<ul>
+<li>Issues</li>
+</ul>
+<p>通过 github issues 登记开发工作（保留feat、bug等开发足迹）。</p>
+<ul>
+<li>Discussions</li>
+</ul>
+<p>通过 github discussions 进行团队沟通交流。
+通过 issues 当然也可以讨论，不过更多是已确定的 feat 或 bug。</p>
+<ul>
+<li>Projects</li>
+</ul>
+<p>通过 github projects 进行开发计划和进度管理，控制版本发布 。</p>
+<p><a href="#developer-guide"><i class="fa fa-home"></i></a></p>
+<hr />
+<h2 id="_3">关于项目的编码风格</h2>
+<p>在开发过程中培养代码工程素养，对代码 “有讲究”，有助于我们开发更可靠和好维护的模型模块：</p>
+<ul>
+<li>统一的命名逻辑、良好的封装隔离、清晰的数据流，能帮助控制代码的复杂度。</li>
+<li>美观、符合直觉、直白的代码。</li>
+<li>好的代码读起来有一种韵律感，能让人一天都很开心。</li>
+</ul>
+<p>对于单个概念，定义好其内涵外延；对于多个概念，梳理好其层次关系。映射到代码上，就是不同类的职责清晰划分。</p>
+<p>但需要声明，不同的阶段对讲究程度要求是不一样的，如何抉择呢？这里可以引入一个参考度量：<strong>生命周期</strong>。
+生命周期越长的代码，一定要写的越干净；临时使用代码，比如原型、脚本，就可以不讲究一些。
+反过来，也正是干净的代码才能成就超长的生命周期。</p>
+<p>在软件项目开发中，代码的规范性主要包括几个方面：</p>
+<ul>
+<li>代码重复率；</li>
+<li>命名的规范；</li>
+<li>单元测试的覆盖率；</li>
+<li>日志打印的规范性。</li>
+</ul>
+<p><strong>编码风格</strong></p>
+<p>绿洲项目中主要参考 <a href="https://zh-google-styleguide.readthedocs.io/en/latest/google-python-styleguide/python_style_rules.html">Google Python 风格指南</a>，主要追求：</p>
+<ol>
+<li>
+<p>一致性：遵循统一的编码风格，使得代码易于阅读和理解。</p>
+</li>
+<li>
+<p>易读性：代码应该易于理解，易于维护。</p>
+</li>
+</ol>
+<p><strong>代码注释</strong></p>
+<p>我们完全不介意你的注释是代码的2倍、3倍 ...，你的代码、你的成果，你想说什么、想说多少都可以。</p>
+<p><strong>日志</strong></p>
+<p>良好的系统，可以通过日志进行问题定为。除了在本地代码上复现、调试外，还要能够通过丰富合理的日志信息还原问题现场，发现错误位置和原因。</p>
+<p><em>为什么打日志</em></p>
+<ul>
+<li>跟踪程序的警告和错误，标识程序运行中的危险操作、错误操作；</li>
+<li>跟踪崩溃bug；</li>
+<li>跟踪性能下降的问题范围，通过日志提供的详细执行时间记录找出应用的性能瓶颈；</li>
+<li>跟踪操作流程，获取操作发生的具体环境、操作的结果；</li>
+</ul>
+<p><em>什么时候该打日志？</em></p>
+<ol>
+<li>经常以功能为核心进行开发，应该在提交代码前，可以确定通过日志可以看到整个流程；</li>
+</ol>
+<p><em>日志分级</em></p>
+<ol>
+<li>
+<p><code>ERROR</code>。该级别日志发生时，已经影响了用户的正常使用，通常程序抛错、中止。主要类型有：</p>
+<ul>
+<li>所有第三方对接的异常(包括第三方返回错误码)</li>
+<li>所有影响功能使用的异常</li>
+</ul>
+</li>
+<li>
+<p><code>WARN</code>。该级别日志不应该出现但是不影响程序继续运行的问题。主要类型有：</p>
+<ul>
+<li>异常：不明确异常，只进行了简单的捕获抛出，需要打印这种笼统处理的异常</li>
+<li>有容错机制的时候出现的错误情况</li>
+<li>找不到配置文件，但是系统能自动创建配置文件</li>
+<li>性能即将接近临界值的时候</li>
+<li>非预期执行：为程序在“有可能”执行到的地方打印日志</li>
+</ul>
+</li>
+<li>
+<p><code>INFO</code>。该级别日志主要用于记录系统运行状态、等信息，常用于反馈系统当前状态给用户。主要类型有：</p>
+<ul>
+<li>不符合业务逻辑预期：打印关键的参数</li>
+<li>系统模块的入口与出口处：可以在重要方法级或模块级记录输入与输出    </li>
+<li>对外提供的接口入口处：打印接口的唯一标识和简短描述，并且要将传入的参数原样打印</li>
+<li>调用其它系统接口的前后：打印所调用接口的系统名称/接口名称和传入参数/响应参数</li>
+<li>服务状态变化：程序中重要的状态信息的变化应该记录下来</li>
+<li>一些可能很耗时的业务处理：批处理，IO操作</li>
+</ul>
+</li>
+<li>
+<p><code>DEBUG</code>。该级别日志的主要作用是对系统每一步的运行状态进行精确的记录。(该级别的日志一般用于开发调试或测试环节，不建议在生产环境中开启)，尽量做到：</p>
+<ul>
+<li>开发人员和测试人员都能看懂</li>
+<li>通过阅读DEBUG级别的日志后不需要重现问题，就能准确的定位解决问题</li>
+</ul>
+</li>
+</ol>
+<p><a href="#developer-guide"><i class="fa fa-home"></i></a></p>
+<hr />
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../Benchmarks/" class="btn btn-neutral float-left" title="基准"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../apis/solutions/" class="btn btn-neutral float-right" title="yunmeng.solutions">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../Benchmarks/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../apis/solutions/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
