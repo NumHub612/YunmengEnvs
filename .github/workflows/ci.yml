@@ -62,13 +62,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
 
+      - name: Set up pages
+        if: ${{ matrix.os == 'ubuntu-22.04'}}
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        if: ${{ matrix.os == 'ubuntu-22.04'}}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./docs"
+
       - name: Deploy docs to GitHub Pages
         if: ${{ matrix.os == 'ubuntu-22.04'}}
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/deploy-pages@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-          enable_jekyll: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build package
         if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main' }}
