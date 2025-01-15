@@ -79,6 +79,9 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+        environment:
+          name: github-pages
+          url: ${{ steps.deployment.outputs.page_url }}
 
       - name: Build package
         if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main' }}
