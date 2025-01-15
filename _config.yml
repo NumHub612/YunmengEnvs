@@ -1,0 +1,45 @@
+# 站点设置
+title: YunmengEnvs
+url: "https://https://numhub612.github.io/YunmengEnvs/"
+
+
+# 构建设置
+markdown: kramdown
+highlighter: rouge
+permalink: pretty
+paginate: 5 # 分页设置，每页显示的文章数量
+
+# 主题设置
+theme: minima
+color_scheme: dark
+
+# 导航栏设置
+navigation:
+  - title: 关于YunmengEnvs
+    url: /
+  - title: 安装
+    url: /Install/
+  - title: 快速开始
+    url: /QuickStart/
+  - title: 解决方案
+    url: /Solutions/
+  - title: 集成
+    url: /Integrate/
+  - title: 求解器
+    url: /Solvers/
+  - title: 回调
+    url: /Callbacks/
+  - title: 可视化
+    url: /Visualizers/
+  - title: 基准
+    url: /Benchmarks/
+  - title: 开发者
+    url: /Developer/
+  - title: APIs
+    url: /apis/
+
+# 插件设置
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-paginate
