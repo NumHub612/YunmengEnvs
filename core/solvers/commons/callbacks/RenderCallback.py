@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Callback for rendering the solver solutions.
 """
-from core.solvers.interfaces import ISolverCallback, ISolver
+from core.solvers.interfaces import ISolverCallback
 from core.visuals.plotter import plot_scalar_field, plot_vector_field
 
 import os
@@ -29,7 +29,7 @@ class RenderCallback(ISolverCallback):
 
         Notes:
             - `fields` is a dictionary with the field names as keys
-              and the rendering options as values.
+               and the rendering options as values.
             - `fields` can be None, in which render all fields.
         """
         self._output_dir = os.path.abspath(output_dir)
@@ -111,6 +111,7 @@ class RenderCallback(ISolverCallback):
         self._frame += 1
 
     def on_task_end(self, solver_status: dict, solver_solutions: dict, **kwargs):
+        # TODO: play the animation
         pass
 
     def on_step_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):

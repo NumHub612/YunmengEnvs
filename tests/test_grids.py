@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 from core.numerics.mesh import Coordinate, Grid1D, Grid2D, Grid3D
 import unittest
+import numpy as np
 
 
 class TestGrids(unittest.TestCase):
@@ -21,6 +22,8 @@ class TestGrids(unittest.TestCase):
 
     def test_grid1d(self):
         """test Grid1D"""
+        start, end = Coordinate(0), Coordinate(2 * np.pi)
+        grid = Grid1D(start, end, 401)
         return True
 
     def test_grid2d(self):
