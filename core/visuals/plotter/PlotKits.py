@@ -351,6 +351,7 @@ def _save_plot(
     Save the plot.
     """
     # set plotting style
+    plotter.add_text(title)
     plotter.add_axes()
     plotter.add_bounding_box()
     plotter.view_isometric()
