@@ -60,7 +60,9 @@ class TestSimpleEquations(unittest.TestCase):
         self._bc = boundaries.ConstantBoundary("bc1", bc_value, None)
 
     def tearDown(self):
-        pass
+        if os.path.exists("./tests/results/"):
+            shutil.rmtree("./tests/results/")
+        os.makedirs("./tests/results/")
 
     def test_full_burgers2d(self):
         """test full burgers equation"""
@@ -232,8 +234,8 @@ class TestSimpleEquations(unittest.TestCase):
             self.assertTrue(np.allclose(solution[i] * coef, validates[i].data))
 
         # play the images
+        ani = ImageSetPlayer(save_dir)
         if __name__ == "__main__":
-            ani = ImageSetPlayer(save_dir)
             ani.play()
 
     def test_grad_burgers2d(self):
