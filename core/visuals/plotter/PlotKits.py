@@ -9,6 +9,7 @@ import pyvista as pv
 import vtk
 import numpy as np
 import os
+import copy
 
 plt.rcParams["font.sans-serif"] = ["SimHei"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -332,11 +333,14 @@ def _mesh_slice_set(mesh: pv.UnstructuredGrid, slice_set: dict):
     Set the slice set for the mesh.
     """
     if slice_set and "style" in slice_set:
-        style = slice_set.pop("style")
+        configs = copy.deepcopy(slice_set)
+        style = configs.pop("style")
         if style == "slice_along_axis":
-            mesh = mesh.slice_along_axis(**slice_set)
+            mesh = mesh.slice_along_axis(**configs)
         elif style == "slice_orthogonal":
-            mesh = mesh.slice_orthogonal(**slice_set)
+            mesh = mesh.slice_orthogonal(**configs)
+        elif style == "slice":
+            mesh = mesh.slice(**configs)
     return mesh
 
 

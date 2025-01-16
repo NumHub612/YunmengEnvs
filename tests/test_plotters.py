@@ -241,7 +241,6 @@ class TestPlotters(unittest.TestCase):
             style="scatter",
             save_dir=save_dir,
             show=self.is_show,
-            slice_set={"style": "slice_along_axis", "n": 6, "axis": "y"},
         )
 
         # set vector field
@@ -257,7 +256,7 @@ class TestPlotters(unittest.TestCase):
             save_dir=save_dir,
             show=self.is_show,
             dimension="x",
-            slice_set={"style": "slice_along_axis", "n": 6, "axis": "y"},
+            slice_set={"style": "slice", "normal": [1, 1, 0]},
         )
 
 
