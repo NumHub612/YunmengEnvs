@@ -116,6 +116,7 @@ def plot_mesh_cloudmap(
     show: bool = True,
     cmap: str = "coolwarm",
     show_edges: bool = False,
+    slice_set: dict = None,
 ):
     """
     Plot cloudmap with unstructured mesh.
@@ -133,6 +134,7 @@ def plot_mesh_cloudmap(
         show: Whether to show the plot.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
+        slice_set: Choose slice style and configs.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -151,6 +153,7 @@ def plot_mesh_cloudmap(
         mesh.point_data[label] = scalars
     else:
         mesh.cell_data[label] = scalars
+    mesh = _mesh_slice_set(mesh, slice_set)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -176,6 +179,7 @@ def plot_mesh_streamplot(
     color: str = "red",
     mag: float = 0.1,
     show_edges: bool = False,
+    slice_set: dict = None,
 ):
     """
     Plot streamplot with unstructured mesh.
@@ -194,6 +198,7 @@ def plot_mesh_streamplot(
         color: Color of the arrows.
         mag: Magnitude of the arrows.
         show_edges: Whether to show edges.
+        slice_set: Choose slice style and configs.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -212,6 +217,7 @@ def plot_mesh_streamplot(
         mesh.point_data[label] = vectors
     else:
         mesh.cell_data[label] = vectors
+    mesh = _mesh_slice_set(mesh, slice_set)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -242,12 +248,12 @@ def plot_mesh_scatters(
 
     Args:
         points_coordinates: List of coordinates of points.
-        scalars: Scalar values.
+        scalars: Scalar field values.
         title: Title of the plot.
         label: Label of the values.
         figsize: Figure size.
         save_dir: Directory to save the plot.
-        show: Whether to show the plot.
+        show: Whether to show.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
 
@@ -278,6 +284,7 @@ def plot_mesh_geometry(
     save_dir: str = None,
     show: bool = True,
     show_edges: bool = False,
+    slice_set: dict = None,
     cmap: str = "viridis",
 ):
     """
@@ -309,18 +316,28 @@ def plot_mesh_geometry(
     elevations = points[:, 2]
     label = "elevation"
     mesh.point_data[label] = elevations
+    mesh = _mesh_slice_set(mesh, slice_set)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
-    plotter.add_mesh(mesh, scalars=label, cmap=cmap, show_edges=show_edges)
-
-    # Create a plotter object
-    plotter = pv.Plotter(off_screen=not show, title=title)
-    plotter.add_mesh(mesh, show_edges=show_edges)
+    plotter.add_mesh(mesh, cmap=cmap, show_edges=show_edges)
 
     # Set title and save plot
     _save_plot(plotter, figsize, save_dir, title, show)
     plotter.close()
+
+
+def _mesh_slice_set(mesh: pv.UnstructuredGrid, slice_set: dict):
+    """
+    Set the slice set for the mesh.
+    """
+    if slice_set and "style" in slice_set:
+        style = slice_set.pop("style")
+        if style == "slice_along_axis":
+            mesh = mesh.slice_along_axis(**slice_set)
+        elif style == "slice_orthogonal":
+            mesh = mesh.slice_orthogonal(**slice_set)
+    return mesh
 
 
 def _save_plot(

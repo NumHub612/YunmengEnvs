@@ -48,18 +48,26 @@ class TestPlotters(unittest.TestCase):
             coor.z = np.sin(coor.x) * np.cos(coor.y)
             node.coordinate = coor
 
-        plot_mesh(grid2d, title="2D Mesh", save_dir=self.save_dir, show=self.is_show)
+        plot_mesh(
+            grid2d,
+            title="2D Mesh",
+            save_dir=self.save_dir,
+            show=self.is_show,
+            slice_set={"style": "slice_along_axis", "n": 6, "axis": "y"},
+        )
 
         # set 3d mesh
         low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
         nx, ny, nz = 11, 11, 11
         grid3d = Grid3D(low_left, upper_right, nx, ny, nz)
 
-        plot_mesh(grid3d, title="3D Mesh", save_dir=self.save_dir, show=self.is_show)
-
-    def test_slices(self):
-        """Test plotting mesh slices"""
-        pass
+        plot_mesh(
+            grid3d,
+            title="3D Mesh",
+            save_dir=self.save_dir,
+            show=self.is_show,
+            slice_set={"style": "slice_orthogonal"},
+        )
 
     def test_grid1d(self):
         """Test plotting fields for 1D grid"""
@@ -206,7 +214,7 @@ class TestPlotters(unittest.TestCase):
         """Test plotting fields for 3D grid"""
         # set 3d mesh
         low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
-        nx, ny, nz = 3, 4, 5
+        nx, ny, nz = 11, 11, 11
         grid = Grid3D(low_left, upper_right, nx, ny, nz)
 
         save_dir = os.path.join(self.save_dir, "grid3d")
@@ -222,6 +230,7 @@ class TestPlotters(unittest.TestCase):
             label="value",
             save_dir=save_dir,
             show=self.is_show,
+            slice_set={"style": "slice_along_axis", "n": 6, "axis": "y"},
         )
 
         plot_field(
@@ -232,6 +241,7 @@ class TestPlotters(unittest.TestCase):
             style="scatter",
             save_dir=save_dir,
             show=self.is_show,
+            slice_set={"style": "slice_along_axis", "n": 6, "axis": "y"},
         )
 
         # set vector field
@@ -247,6 +257,7 @@ class TestPlotters(unittest.TestCase):
             save_dir=save_dir,
             show=self.is_show,
             dimension="x",
+            slice_set={"style": "slice_along_axis", "n": 6, "axis": "y"},
         )
 
 
@@ -255,7 +266,7 @@ if __name__ == "__main__":
         # suit = unittest.TestLoader().loadTestsFromTestCase(TestPlotters)
 
         suit = unittest.TestSuite()
-        suit.addTest(TestPlotters("test_mesh"))
+        suit.addTest(TestPlotters("test_grid3d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)

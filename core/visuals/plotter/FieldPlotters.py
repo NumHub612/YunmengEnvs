@@ -16,6 +16,7 @@ def plot_mesh(
     save_dir: str = None,
     show: bool = False,
     show_edges: bool = False,
+    slice_set: dict = None,
     **kwargs,
 ):
     """
@@ -26,6 +27,8 @@ def plot_mesh(
         title: The title of the plot.
         save_dir: The directory to save the plot.
         show: Whether to show the plot.
+        show_edges: Whether to show the edges.
+        slice_set: Slice style and configs.
     """
     cells, points, _ = _extract_mesh_data(mesh)
     mesh_type = mesh.domain
@@ -38,6 +41,7 @@ def plot_mesh(
         show=show,
         title=title,
         show_edges=show_edges,
+        slice_set=slice_set,
         **kwargs,
     )
 
@@ -49,10 +53,11 @@ def plot_field(
     title: str = "FieldPlot",
     label: str = "value",
     figsize: tuple = (10, 6),
-    style: str = "streamplot",
+    style: str = "cloudmap",
     save_dir: str = None,
     show: bool = False,
     dimension: str = "x",
+    slice_set: dict = None,
     **kwargs,
 ):
     """
@@ -68,6 +73,7 @@ def plot_field(
         save_dir: The directory to save the plot.
         show: Whether to show the plot.
         dimension: Dimension to plot, can be "x", "y", or "z".
+        slice_set: Slice style and configs.
         kwargs: Other arguments for rendering.
 
     Notes:
@@ -122,6 +128,7 @@ def plot_field(
             title=title,
             figsize=figsize,
             label=label,
+            slice_set=slice_set,
             **kwargs,
         )
     elif style == "scatter":
@@ -146,6 +153,7 @@ def plot_field(
             show=show,
             title=title,
             figsize=figsize,
+            slice_set=slice_set,
             **kwargs,
         )
     else:
