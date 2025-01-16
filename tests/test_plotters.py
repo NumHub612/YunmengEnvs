@@ -25,7 +25,7 @@ class TestPlotters(unittest.TestCase):
         print("\n---------- Done \n")
 
     def setUp(self):
-        self.is_show = True if __name__ == "__main__" else False
+        self.is_show = False
         self.save_dir = "./tests/results/"
         if os.path.exists(self.save_dir):
             shutil.rmtree(self.save_dir)
@@ -38,6 +38,7 @@ class TestPlotters(unittest.TestCase):
 
     def test_mesh(self):
         """Test plotting mesh"""
+        print("Testing mesh plotting...")
         # set 2d mesh
         low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
         nx, ny = 41, 41
@@ -71,6 +72,7 @@ class TestPlotters(unittest.TestCase):
 
     def test_grid1d(self):
         """Test plotting fields for 1D grid"""
+        print("Testing 1D grid plotting...")
         # set 1d mesh
         start, end = Coordinate(0), Coordinate(2 * np.pi)
         grid = Grid1D(start, end, 401)
@@ -110,6 +112,7 @@ class TestPlotters(unittest.TestCase):
 
     def test_grid2d(self):
         """Test plotting fields for 2D grid"""
+        print("Testing 2D grid plotting...")
         # set 2d mesh
         low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
         nx, ny = 41, 41
@@ -212,6 +215,7 @@ class TestPlotters(unittest.TestCase):
 
     def test_grid3d(self):
         """Test plotting fields for 3D grid"""
+        print("Testing 3D grid plotting...")
         # set 3d mesh
         low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
         nx, ny, nz = 11, 11, 11
@@ -265,7 +269,7 @@ if __name__ == "__main__":
         # suit = unittest.TestLoader().loadTestsFromTestCase(TestPlotters)
 
         suit = unittest.TestSuite()
-        suit.addTest(TestPlotters("test_grid3d"))
+        suit.addTest(TestPlotters("test_grid2d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)
