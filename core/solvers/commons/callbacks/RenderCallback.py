@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Callback for rendering the solver solutions.
 """
 from core.solvers.interfaces import ISolverCallback
-from core.visuals.plotter import plot_scalar_field, plot_vector_field
+from core.visuals.plotter import plot_field
 
 import os
 import shutil
@@ -96,18 +96,7 @@ class RenderCallback(ISolverCallback):
                 }
             )
 
-            if field.dtype == "scalar":
-                plot_scalar_field(
-                    field,
-                    self._mesh,
-                    **options,
-                )
-            elif field.dtype == "vector":
-                plot_vector_field(
-                    field,
-                    self._mesh,
-                    **options,
-                )
+            plot_field(field, self._mesh, **options)
         self._frame += 1
 
     def on_task_end(self, solver_status: dict, solver_solutions: dict, **kwargs):

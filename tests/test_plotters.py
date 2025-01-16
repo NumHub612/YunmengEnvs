@@ -1,8 +1,12 @@
 # -*- encoding: utf-8 -*-
-from core.visuals.plotter import plot_vector_field, plot_scalar_field
-from core.visuals.animator import ImageSetPlayer
+from core.visuals.plotter import plot_field
+from core.visuals.plotter import (
+    plot_mesh,
+    plot_mesh_cloudmap,
+    plot_mesh_scatters,
+    plot_mesh_streamplot,
+)
 from core.numerics.mesh import Coordinate, Grid1D, Grid2D, Grid3D
-from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
 from core.numerics.fields import Field, NodeField
 import unittest
 import numpy as np
@@ -32,6 +36,22 @@ class TestPlotters(unittest.TestCase):
             shutil.rmtree("./tests/results/")
         os.makedirs("./tests/results/")
 
+    def test_mesh(self):
+        """Test plotting mesh"""
+        # set 2d mesh
+        low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
+        nx, ny = 41, 41
+        grid2d = Grid2D(low_left, upper_right, nx, ny)
+
+        # set 3d mesh
+        low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
+        nx, ny, nz = 11, 11, 11
+        grid3d = Grid3D(low_left, upper_right, nx, ny, nz)
+
+    def test_slices(self):
+        """Test plotting mesh slices"""
+        pass
+
     def test_grid1d(self):
         """Test plotting fields for 1D grid"""
         # set 1d mesh
@@ -44,7 +64,7 @@ class TestPlotters(unittest.TestCase):
         scalar_values_n = np.array([np.random.rand(1) for i in range(grid.node_count)])
         scalar_field = Field.from_np(scalar_values_n, "node")
 
-        plot_scalar_field(
+        plot_field(
             scalar_field,
             grid,
             title="1D Scalar Field",
@@ -59,7 +79,7 @@ class TestPlotters(unittest.TestCase):
         vector_values_n = np.random.rand(grid.node_count, 3)
         vector_field = Field.from_np(vector_values_n, "node")
 
-        plot_vector_field(
+        plot_field(
             vector_field,
             grid,
             title="1D Vector Field",
@@ -84,7 +104,7 @@ class TestPlotters(unittest.TestCase):
         scalar_values_n = np.array([np.random.rand(1) for i in range(grid.node_count)])
         scaler_field_n = Field.from_np(scalar_values_n, "node")
 
-        plot_scalar_field(
+        plot_field(
             scaler_field_n,
             grid,
             title="Node-Scalar-cloudmap",
@@ -94,7 +114,7 @@ class TestPlotters(unittest.TestCase):
             show=self.is_show,
         )
 
-        plot_scalar_field(
+        plot_field(
             scaler_field_n,
             grid,
             title="Node-Scalar-scatter",
@@ -109,7 +129,7 @@ class TestPlotters(unittest.TestCase):
         vector_values_n[:, 2] = 0.0
         vector_field_n = Field.from_np(vector_values_n, "node")
 
-        plot_vector_field(
+        plot_field(
             vector_field_n,
             grid,
             title="Node-Vector-cloudmap-x",
@@ -120,7 +140,7 @@ class TestPlotters(unittest.TestCase):
             dimension="x",
         )
 
-        plot_vector_field(
+        plot_field(
             vector_field_n,
             grid,
             title="Node-Vector-scatter-y",
@@ -131,7 +151,7 @@ class TestPlotters(unittest.TestCase):
             dimension="y",
         )
 
-        plot_vector_field(
+        plot_field(
             vector_field_n,
             grid,
             title="Node-Vector-streamplot",
@@ -147,7 +167,7 @@ class TestPlotters(unittest.TestCase):
         scalar_values_c = np.array([np.random.rand(1) for i in range(grid.cell_count)])
         scaler_field_c = Field.from_np(scalar_values_c, "cell", "u")
 
-        plot_scalar_field(
+        plot_field(
             scaler_field_c,
             grid,
             title="Cell-Scalar-Field",
@@ -162,7 +182,7 @@ class TestPlotters(unittest.TestCase):
         vector_values_c[:, 2] = 0.0
         vector_field_c = Field.from_np(vector_values_c, "cell")
 
-        plot_vector_field(
+        plot_field(
             vector_field_c,
             grid,
             title="Cell-Vector-Field",
@@ -186,7 +206,7 @@ class TestPlotters(unittest.TestCase):
         scalar_values_n = np.array([[i % 100] for i in range(grid.node_count)])
         scalar_field = Field.from_np(scalar_values_n, "node", "u")
 
-        plot_scalar_field(
+        plot_field(
             scalar_field,
             grid,
             title="scalar-cloudmap",
@@ -195,7 +215,7 @@ class TestPlotters(unittest.TestCase):
             show=self.is_show,
         )
 
-        plot_scalar_field(
+        plot_field(
             scalar_field,
             grid,
             title="scalar-scatter",
@@ -209,7 +229,7 @@ class TestPlotters(unittest.TestCase):
         vector_values_n = np.random.rand(grid.node_count, 3)
         vector_field = NodeField.from_np(vector_values_n, variable="u")
 
-        plot_vector_field(
+        plot_field(
             vector_field,
             grid,
             title="vector-cloudmap",
@@ -226,7 +246,7 @@ if __name__ == "__main__":
         # suit = unittest.TestLoader().loadTestsFromTestCase(TestPlotters)
 
         suit = unittest.TestSuite()
-        suit.addTest(TestPlotters("test_grid1d"))
+        suit.addTest(TestPlotters("test_grid2d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)

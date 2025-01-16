@@ -3,7 +3,7 @@ from core.numerics.mesh import Grid2D, Coordinate, MeshTopo
 from core.solvers.fdm.operators import fdm_operators
 from core.solvers.commons import inits, boundaries, SimpleEquation
 from core.numerics.fields import NodeField, Vector, Scalar
-from core.visuals.plotter import plot_vector_field
+from core.visuals.plotter import plot_field
 from core.visuals.animator import ImageSetPlayer
 import numpy as np
 import os
@@ -401,7 +401,7 @@ class TestSimpleEquations(unittest.TestCase):
             # show solution
             if __name__ == "__main__":
                 if show and result_dir:
-                    plot_vector_field(
+                    plot_field(
                         self._var_field,
                         self._grid,
                         title=f"u-{i}",
