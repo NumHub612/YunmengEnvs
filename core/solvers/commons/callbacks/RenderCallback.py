@@ -69,6 +69,8 @@ class RenderCallback(ISolverCallback):
 
     def on_task_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):
         self._init_output_dirs(solver_solutions)
+
+        # TODO: ploting the mesh only.
         self._plot_field(solver_status, solver_solutions)
 
     def on_step(self, solver_status: dict, solver_solutions: dict, **kwargs):

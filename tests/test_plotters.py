@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
-from core.visuals.plotter import plot_field
+from core.visuals.plotter import plot_field, plot_mesh
 from core.visuals.plotter import (
-    plot_mesh,
+    plot_mesh_geometry,
     plot_mesh_cloudmap,
     plot_mesh_scatters,
     plot_mesh_streamplot,
@@ -43,10 +43,19 @@ class TestPlotters(unittest.TestCase):
         nx, ny = 41, 41
         grid2d = Grid2D(low_left, upper_right, nx, ny)
 
+        for node in grid2d.nodes:
+            coor = node.coordinate
+            coor.z = np.sin(coor.x) * np.cos(coor.y)
+            node.coordinate = coor
+
+        plot_mesh(grid2d, title="2D Mesh", save_dir=self.save_dir, show=self.is_show)
+
         # set 3d mesh
         low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
         nx, ny, nz = 11, 11, 11
         grid3d = Grid3D(low_left, upper_right, nx, ny, nz)
+
+        plot_mesh(grid3d, title="3D Mesh", save_dir=self.save_dir, show=self.is_show)
 
     def test_slices(self):
         """Test plotting mesh slices"""
@@ -246,7 +255,7 @@ if __name__ == "__main__":
         # suit = unittest.TestLoader().loadTestsFromTestCase(TestPlotters)
 
         suit = unittest.TestSuite()
-        suit.addTest(TestPlotters("test_grid2d"))
+        suit.addTest(TestPlotters("test_mesh"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)

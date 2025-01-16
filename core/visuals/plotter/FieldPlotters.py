@@ -8,7 +8,38 @@ from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
 from core.numerics.fields import Field
 from core.visuals.plotter import PlotKits
 
-import numpy as np
+
+def plot_mesh(
+    mesh: Mesh,
+    *,
+    title: str = "MeshPlot",
+    save_dir: str = None,
+    show: bool = False,
+    show_edges: bool = False,
+    **kwargs,
+):
+    """
+    Plot the mesh.
+
+    Args:
+        mesh: The mesh to be plotted.
+        title: The title of the plot.
+        save_dir: The directory to save the plot.
+        show: Whether to show the plot.
+    """
+    cells, points, _ = _extract_mesh_data(mesh)
+    mesh_type = mesh.domain
+
+    PlotKits.plot_mesh_geometry(
+        points,
+        cells,
+        mesh_type,
+        save_dir=save_dir,
+        show=show,
+        title=title,
+        show_edges=show_edges,
+        **kwargs,
+    )
 
 
 def plot_field(
