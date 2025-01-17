@@ -35,7 +35,7 @@ class Field:
         """
         element_type = element_type.lower()
         if element_type not in ["cell", "face", "node"]:
-            raise ValueError(f"Invalid element type: {element_type}")
+            raise ValueError(f"Invalid element type: {element_type} for Field")
         self._etype = element_type
 
         data_type = data_type.lower()
@@ -89,7 +89,7 @@ class Field:
     def from_np(
         cls,
         values: np.ndarray,
-        element_type: str,
+        element_type: str = "none",
         variable: str = "none",
     ) -> "Field":
         """
@@ -100,9 +100,7 @@ class Field:
             - If values.shape[1] == 3, the field is a vector field.
             - If values.shape[1] == 9, the field is a tensor field
         """
-        element_type = element_type.lower()
-        if element_type not in ["cell", "face", "node"]:
-            raise ValueError(f"Invalid element type: {element_type}")
+        etype = element_type.lower() if element_type else "none"
 
         if values.ndim == 2 and values.shape[1] == 1:
             data = np.array([Scalar.from_np(v) for v in values])
@@ -119,7 +117,14 @@ class Field:
         else:
             raise ValueError(f"Invalid data shape: {values.shape}")
 
-        field = cls(values.size, dtype, None, variable)
+        args = {
+            "variable_num": values.shape[0],
+            "element_type": etype,
+            "data_type": dtype,
+            "default": None,
+            "variable": variable,
+        }
+        field = cls(**args)
         field._values = data
         return field
 
@@ -399,25 +404,31 @@ class CellField(Field):
 
     def __init__(
         self,
-        num_cells: int,
+        variable_num: int,
         data_type: str,
         default: Variable = None,
-        varialbe: str = "none",
+        variable: str = "none",
+        **kwargs,
     ):
         """
         Initialize the cell field.
 
         Args:
-            num_cells: The number of cells in the field.
+            variable_num: The number of cells in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each cell.
+            variable: The variable name.
         """
+        etype = kwargs.get("element_type", "none")
+        if etype != "none" and etype != "cell":
+            raise ValueError(f"Invalid element type: {etype} for CellField")
+
         super().__init__(
-            num_cells,
+            variable_num,
             "cell",
             data_type,
             default,
-            varialbe,
+            variable,
         )
 
 
@@ -430,25 +441,31 @@ class FaceField(Field):
 
     def __init__(
         self,
-        num_faces: int,
+        variable_num: int,
         data_type: str,
         default: Variable = None,
-        varialbe: str = "none",
+        variable: str = "none",
+        **kwargs,
     ):
         """
         Initialize the face field.
 
         Args:
-            num_faces: The number of faces in the field.
+            variable_num: The number of faces in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each face.
+            variable: The variable name.
         """
+        etype = kwargs.get("element_type", "none")
+        if etype != "none" and etype != "face":
+            raise ValueError(f"Invalid element type: {etype} for FaceField")
+
         super().__init__(
-            num_faces,
+            variable_num,
             "face",
             data_type,
             default,
-            varialbe,
+            variable,
         )
 
 
@@ -459,23 +476,29 @@ class NodeField(Field):
 
     def __init__(
         self,
-        num_nodes: int,
+        variable_num: int,
         data_type: str,
         default: Variable = None,
-        varialbe: str = "none",
+        variable: str = "none",
+        **kwargs,
     ):
         """
         Initialize the node field.
 
         Args:
-            num_nodes: The number of nodes in the field.
+            variable_num: The number of nodes in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each node.
+            variable: The variable name.
         """
+        etype = kwargs.get("element_type", "none")
+        if etype != "none" and etype != "node":
+            raise ValueError(f"Invalid element type: {etype} for NodeField")
+
         super().__init__(
-            num_nodes,
+            variable_num,
             "node",
             data_type,
             default,
-            varialbe,
+            variable,
         )

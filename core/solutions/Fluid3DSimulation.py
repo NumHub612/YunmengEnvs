@@ -63,8 +63,14 @@ if __name__ == "__main__":
 
     # set callback
     output_dir = "./tests/results"
-    confs = {"vel": {"style": "scatter", "dimension": "x"}}
-    # confs = {"vel": {"style": "scatter", "dimension": "z"}}
+    confs = {
+        "vel": {
+            "style": "cloudmap",
+            "dimension": "x",
+            # "slice_set": {"style": "slice_along_axis", "n": 6, "axis": "y"},
+            "slice_set": {"style": "slice", "normal": [1, 1, 0]},
+        }
+    }
     cb = callback_handlers["render"](output_dir, confs)
 
     # set solver
