@@ -31,7 +31,7 @@ class Burgers1D(BaseSolver):
                 "type": "fdm",
                 "equation": "1D Burgers' Equation",
                 "equation_expr": "u_t + u*u_x = nu*u_xx",
-                "domain": "1D",
+                "dimension": "1D",
                 "default_ic": "uniform",
                 "default_bc": "none",
             }
@@ -55,7 +55,7 @@ class Burgers1D(BaseSolver):
         """
         super().__init__(id, mesh)
         if mesh.dimension != "1d":
-            raise ValueError("The domain of the mesh must be 1D.")
+            raise ValueError("The dimension of the mesh must be 1D.")
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
