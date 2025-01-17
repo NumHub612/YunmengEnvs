@@ -158,7 +158,7 @@ class Grid1D(Grid):
             self._cells.append(cell)
 
     @property
-    def domain(self) -> str:
+    def dimension(self) -> str:
         return "1d"
 
     @property
@@ -290,7 +290,7 @@ class Grid2D(Grid):
                 cid += 1
 
     @property
-    def domain(self) -> str:
+    def dimension(self) -> str:
         return "2d"
 
     @property
@@ -510,7 +510,7 @@ class Grid3D(Grid):
                     cid += 1
 
     @property
-    def domain(self) -> str:
+    def dimension(self) -> str:
         return "3d"
 
     @property
@@ -575,3 +575,17 @@ class Grid3D(Grid):
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
         return [east, west, north, south, up, down]
+
+
+class AdaptiveGrid(Grid):
+    """Adaptive structured grid."""
+
+    def __init__(self, mesh: Grid):
+        """
+        Initialize an adaptive structured grid.
+
+        Args:
+            mesh: The original mesh.
+        """
+        super().__init__()
+        self._mesh = mesh

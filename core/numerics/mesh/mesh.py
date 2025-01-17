@@ -18,7 +18,6 @@ class Mesh(ABC):
 
     Notes:
         - Don't support isolated element.
-        - Require all elements to be continuously encoded.
     """
 
     def __init__(self):
@@ -42,7 +41,7 @@ class Mesh(ABC):
 
     @property
     @abstractmethod
-    def domain(self) -> str:
+    def dimension(self) -> str:
         """Return the domain of the mesh, e.g. 1d, 2d or 3d."""
         pass
 
@@ -160,6 +159,7 @@ class MeshTopo:
     """Mesh topology class for describing the topology.
 
     NOTE:
+        - This class is lazily, i.e. it will not be initialized until it is needed.
         - Require all elements to be continuously encoded, no check yet.
     """
 
@@ -257,7 +257,7 @@ class MeshTopo:
         """Collect the neighbours indexes of given node."""
         if self._node_neighbours is None:
             node_neighbours = [[] for _ in range(self._mesh.node_count)]
-            if self._mesh.domain == "1d":
+            if self._mesh.dimension == "1d":
                 for cell in self._mesh.cells:
                     faces = cell.faces
                     for i in range(len(faces)):
@@ -391,6 +391,7 @@ class MeshGeom:
     """Mesh geometry class for calculating the geometry.
 
     NOTE:
+        - This class is lazily, i.e. it will not be initialized until it is needed.
         - Require all elements to be continuously encoded, no check yet.
         - Return None if the elements have no connection.
     """

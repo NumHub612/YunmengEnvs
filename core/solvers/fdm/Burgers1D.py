@@ -54,7 +54,7 @@ class Burgers1D(BaseSolver):
         Constructor of the Burgers1D solver.
         """
         super().__init__(id, mesh)
-        if mesh.domain != "1d":
+        if mesh.dimension != "1d":
             raise ValueError("The domain of the mesh must be 1D.")
 
         self._geom = MeshGeom(mesh)

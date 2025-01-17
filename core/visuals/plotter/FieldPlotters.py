@@ -31,7 +31,7 @@ def plot_mesh(
         slice_set: Slice style and configs.
     """
     cells, points, _ = _extract_mesh_data(mesh)
-    mesh_type = mesh.domain
+    mesh_type = mesh.dimension
 
     PlotKits.plot_mesh_geometry(
         points,
@@ -89,13 +89,13 @@ def plot_field(
     # extract the mesh data
     cells, points, points_splited = _extract_mesh_data(mesh)
     mesh_domain = "point" if field.etype == "node" else "cell"
-    mesh_type = mesh.domain
+    mesh_type = mesh.dimension
 
     # extract the field data
     data, data_map = _extract_field_data(field)
 
     # plot net
-    if mesh.domain == "1d":
+    if mesh.dimension == "1d":
         x = points_splited.get(dimension)
         y = {
             f"{label}_{dimension}": {
@@ -146,7 +146,7 @@ def plot_field(
         PlotKits.plot_mesh_streamplot(
             points,
             cells,
-            mesh.domain,
+            mesh.dimension,
             data,
             mesh_domain,
             save_dir=save_dir,
@@ -171,7 +171,7 @@ def _extract_mesh_data(mesh: Mesh):
     points_splited = {"x": points[:, 0], "y": points[:, 1], "z": points[:, 2]}
 
     cells = []
-    if mesh.domain == "2d":
+    if mesh.dimension == "2d":
         for cell in mesh.cells:
             nodes = topo.collect_cell_nodes(cell.id)
             coors = [mesh.nodes[i].coordinate for i in nodes]
