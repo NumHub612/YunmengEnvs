@@ -35,15 +35,9 @@ class Mesh(ABC):
     # -----------------------------------------------
 
     @property
-    def version(self) -> int:
-        """Return the version."""
-        return self._version
-
-    @property
-    @abstractmethod
-    def dimension(self) -> str:
-        """Return the mesh domain, e.g. 1d, 2d or 3d."""
-        pass
+    def node_indexes(self) -> list:
+        """Return the indexes of all nodes."""
+        return [node.id for node in self._nodes]
 
     @property
     def node_count(self) -> int:
@@ -56,6 +50,11 @@ class Mesh(ABC):
         return self._nodes
 
     @property
+    def face_indexes(self) -> list:
+        """Return the indexes of all faces."""
+        return [face.id for face in self._faces]
+
+    @property
     def face_count(self) -> int:
         """Return the number of faces."""
         return len(self._faces)
@@ -66,6 +65,11 @@ class Mesh(ABC):
         return self._faces
 
     @property
+    def cell_indexes(self) -> list:
+        """Return the indexes of all cells."""
+        return [cell.id for cell in self._cells]
+
+    @property
     def cell_count(self) -> int:
         """Return the number of cells."""
         return len(self._cells)
@@ -74,6 +78,17 @@ class Mesh(ABC):
     def cells(self) -> list:
         """Return all cells."""
         return self._cells
+
+    @property
+    def version(self) -> int:
+        """Return the version."""
+        return self._version
+
+    @property
+    @abstractmethod
+    def dimension(self) -> str:
+        """Return the mesh domain, e.g. 1d, 2d or 3d."""
+        pass
 
     # -----------------------------------------------
     # --- element modification methods ---
@@ -95,34 +110,37 @@ class Mesh(ABC):
 
     def set_node_group(self, group_name: str, node_indices: list):
         """Assign the given nodes to the given group."""
-        for node_index in node_indices:
-            if node_index >= self.node_count or node_index < 0:
-                raise ValueError(f"Node index {node_index} out of range.")
-
         if group_name in self._groups:
-            logger.warning(f"Group {group_name} already exists, overwriting.")
+            raise ValueError(f"Group {group_name} already exists.")
+
+        min_id, max_id, _ = self.get_geom_assistant().statistics_node_attribute("id")
+        for node_index in node_indices:
+            if node_index > max_id or node_index < min_id:
+                raise ValueError(f"Node index {node_index} out of range.")
 
         self._groups[group_name] = node_indices
 
     def set_face_group(self, group_name: str, face_indices: list):
         """Assign the given faces to the given group."""
-        for face_index in face_indices:
-            if face_index >= self.face_count or face_index < 0:
-                raise ValueError(f"Face index {face_index} out of range.")
-
         if group_name in self._groups:
-            logger.warning(f"Group {group_name} already exists, overwriting.")
+            raise ValueError(f"Group {group_name} already exists.")
+
+        min_id, max_id, _ = self.get_geom_assistant().statistics_face_attribute("id")
+        for face_index in face_indices:
+            if face_index > max_id or face_index < min_id:
+                raise ValueError(f"Face index {face_index} out of range.")
 
         self._groups[group_name] = face_indices
 
     def set_cell_group(self, group_name: str, cell_indices: list):
         """Assign the given cells to the given group."""
-        for cell_index in cell_indices:
-            if cell_index >= self.cell_count or cell_index < 0:
-                raise ValueError(f"Cell index {cell_index} out of range.")
-
         if group_name in self._groups:
-            logger.warning(f"Group {group_name} already exists, overwriting.")
+            raise ValueError(f"Group {group_name} already exists.")
+
+        min_id, max_id, _ = self.get_geom_assistant().statistics_cell_attribute("id")
+        for cell_index in cell_indices:
+            if cell_index > max_id or cell_index < min_id:
+                raise ValueError(f"Cell index {cell_index} out of range.")
 
         self._groups[group_name] = cell_indices
 
@@ -136,7 +154,7 @@ class Mesh(ABC):
         if group_name in self._groups:
             return self._groups[group_name]
         else:
-            return None
+            return []
 
     # -----------------------------------------------
     # --- extension methods ---
@@ -160,7 +178,6 @@ class MeshTopo:
 
     NOTE:
         - This class is lazily, i.e. it will not be initialized until it is needed.
-        - Require all elements to be continuously encoded, no check yet.
     """
 
     def __init__(self, mesh: Mesh):
@@ -192,8 +209,8 @@ class MeshTopo:
         """Return the indexes of boundary nodes."""
         if self._boundary_nodes is None:
             self._boundary_nodes = []
-            for face in self.boundary_faces_indexes:
-                self._boundary_nodes.extend(self._mesh.faces[face].nodes)
+            for fid in self.boundary_faces_indexes:
+                self._boundary_nodes.extend(self._mesh.faces[fid].nodes)
             self._boundary_nodes = list(set(self._boundary_nodes))
         return self._boundary_nodes
 
@@ -235,8 +252,8 @@ class MeshTopo:
         if self._boundary_cells is None:
             self._boundary_cells = []
             for fid in self.boundary_faces_indexes:
-                cells = self.collect_face_cells(fid)
-                self._boundary_cells.extend(cells)
+                cids = self.collect_face_cells(fid)
+                self._boundary_cells.extend(cids)
         return self._boundary_cells
 
     @property
@@ -256,77 +273,78 @@ class MeshTopo:
     def collect_node_neighbours(self, node_index: int) -> list:
         """Collect the neighbours indexes of given node."""
         if self._node_neighbours is None:
-            node_neighbours = [[] for _ in range(self._mesh.node_count)]
+            neighbours = {nid: [] for nid in self._mesh.node_indexes}
             if self._mesh.dimension == "1d":
+                print("Warning: 1D mesh neighbour search is going to be abandoned.")
                 for cell in self._mesh.cells:
                     faces = cell.faces
                     for i in range(len(faces)):
                         nid1 = self._mesh.faces[faces[i]].nodes[0]
                         for j in range(i + 1, len(faces)):
                             nid2 = self._mesh.faces[faces[j]].nodes[0]
-                            node_neighbours[nid1].append(nid2)
-                            node_neighbours[nid2].append(nid1)
+                            neighbours[nid1].append(nid2)
+                            neighbours[nid2].append(nid1)
             else:
                 for face in self._mesh.faces:
                     nodes = face.nodes
                     for i in range(len(nodes)):
                         for j in range(i + 1, len(nodes)):
-                            node_neighbours[nodes[i]].append(nodes[j])
-                            node_neighbours[nodes[j]].append(nodes[i])
-            node_neighbours = [list(set(nodes)) for nodes in node_neighbours]
-            self._node_neighbours = node_neighbours
+                            neighbours[nodes[i]].append(nodes[j])
+                            neighbours[nodes[j]].append(nodes[i])
+            neighbours = {nid: list(set(nodes)) for nid, nodes in neighbours.items()}
+            self._node_neighbours = neighbours
         return self._node_neighbours[node_index]
 
     def collect_face_cells(self, face_index: int) -> list:
         """Collect the cells connected to the given face."""
         if self._face_cells is None:
-            face_cells = [[] for _ in range(self._mesh.face_count)]
+            face_cells = {fid: [] for fid in self._mesh.face_indexes}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     face_cells[fid].append(cell.id)
-            face_cells = [list(set(cells)) for cells in face_cells]
+            face_cells = {fid: list(set(cells)) for fid, cells in face_cells.items()}
             self._face_cells = face_cells
         return self._face_cells[face_index]
 
     def collect_node_faces(self, node_index: int) -> list:
         """Collect the faces connected to the given node."""
         if self._node_faces is None:
-            node_faces = [[] for _ in range(self._mesh.node_count)]
+            node_faces = {nid: [] for nid in self._mesh.node_indexes}
             for face in self._mesh.faces:
                 for nid in face.nodes:
                     node_faces[nid].append(face.id)
-            node_faces = [list(set(faces)) for faces in node_faces]
+            node_faces = {nid: list(set(faces)) for nid, faces in node_faces.items()}
             self._node_faces = node_faces
         return self._node_faces[node_index]
 
     def collect_node_cells(self, node_index: int) -> list:
         """Collect the cells connected to the given node."""
         if self._node_cells is None:
-            node_cells = [[] for _ in range(self._mesh.node_count)]
+            node_cells = {nid: [] for nid in self._mesh.node_indexes}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     for nid in self._mesh.faces[fid].nodes:
                         node_cells[nid].append(cell.id)
-            node_cells = [list(set(cells)) for cells in node_cells]
+            node_cells = {nid: list(set(cells)) for nid, cells in node_cells.items()}
             self._node_cells = node_cells
         return self._node_cells[node_index]
 
     def collect_cell_nodes(self, cell_index: int) -> list:
         """Collect the nodes connected to the given cell."""
         if self._cell_nodes is None:
-            cell_nodes = [[] for _ in range(self._mesh.cell_count)]
+            cell_nodes = {cid: [] for cid in self._mesh.cell_indexes}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     for nid in self._mesh.faces[fid].nodes:
                         cell_nodes[cell.id].append(nid)
-            cell_nodes = [list(set(nodes)) for nodes in cell_nodes]
+            cell_nodes = {cid: list(set(nodes)) for cid, nodes in cell_nodes.items()}
             self._cell_nodes = cell_nodes
         return self._cell_nodes[cell_index]
 
     def collect_cell_neighbours(self, cell_index: int) -> list:
         """Collect the neighbours of given cell."""
         if self._cell_neighbours is None:
-            cell_neighbours = [[] for _ in range(self._mesh.cell_count)]
+            cell_neighbours = {cid: [] for cid in self._mesh.cell_indexes}
             for i in range(self._mesh.face_count):
                 cells = self.collect_face_cells(i)
                 if len(cells) == 2:
@@ -340,34 +358,45 @@ class MeshTopo:
     # -----------------------------------------------
 
     def search_nearest_nodes(
-        self, coord: Coordinate, max_dist: float, top_k: int
+        self,
+        coordinate: Coordinate,
+        max_dist: float,
+        top_k: int,
     ) -> list:
         """Search the k nearest nodes to the given coordinate."""
         distances = []
         for node in self._mesh.nodes:
-            dist = np.linalg.norm(node.coordinate.to_np() - coord.to_np())
+            dist = np.linalg.norm(node.coordinate.to_np() - coordinate.to_np())
             if dist <= max_dist:
                 distances.append(node.id)
         distances.sort(key=lambda x: x)
         return distances[:top_k]
 
-    def search_nearest_cell(self, coord: Coordinate, max_dist: float) -> int:
+    def search_nearest_cell(
+        self,
+        coordinate: Coordinate,
+        max_dist: float,
+    ) -> int:
         """Search the nearest cell to the given coordinate."""
         min_dist = float("inf")
         min_cell_index = -1
         for cell in self._mesh.cells:
-            dist = np.linalg.norm(cell.coordinate.to_np() - coord.to_np())
+            dist = np.linalg.norm(cell.coordinate.to_np() - coordinate.to_np())
             if dist <= max_dist and dist < min_dist:
                 min_dist = dist
                 min_cell_index = cell.id
         return min_cell_index
 
-    def search_nearest_face(self, coord: Coordinate, max_dist: float) -> int:
+    def search_nearest_face(
+        self,
+        coordinate: Coordinate,
+        max_dist: float,
+    ) -> int:
         """Search the nearest face to the given coordinate."""
         min_dist = float("inf")
         min_face_index = -1
         for face in self._mesh.faces:
-            dist = np.linalg.norm(face.coordinate.to_np() - coord.to_np())
+            dist = np.linalg.norm(face.coordinate.to_np() - coordinate.to_np())
             if dist <= max_dist and dist < min_dist:
                 min_dist = dist
                 min_face_index = face.id
@@ -377,11 +406,15 @@ class MeshTopo:
     # --- generation methods ---
     # -----------------------------------------------
 
-    def generate_projection(self, coord: Coordinate, face_index: int) -> Coordinate:
+    def generate_projection(
+        self,
+        coordinate: Coordinate,
+        face_index: int,
+    ) -> Coordinate:
         """Generate the projection of the given coordinate on the given face."""
         face = self._mesh.faces[face_index]
         normal = face.normal
-        vec_np = (coord - face.coordinate).to_np()
+        vec_np = (coordinate - face.coordinate).to_np()
         proj_np = np.dot(vec_np, normal.to_np()) * normal.to_np()
         proj_coord = Coordinate.from_np(proj_np + face.coordinate.to_np())
         return proj_coord
@@ -392,8 +425,6 @@ class MeshGeom:
 
     NOTE:
         - This class is lazily, i.e. it will not be initialized until it is needed.
-        - Require all elements to be continuously encoded, no check yet.
-        - Return None if the elements have no connection.
     """
 
     def __init__(self, mesh: Mesh):
@@ -469,49 +500,107 @@ class MeshGeom:
     # -----------------------------------------------
 
     def statistics_node_attribute(self, attribute: str) -> tuple:
-        """Calculate the (min, max, avg) of the given attribute for nodes."""
-        attribute = attribute.lower()
-        if not hasattr(self._mesh.nodes[0].coordinate, attribute):
-            raise ValueError(f"Attribute {attribute} not found in nodes.")
+        """Statistics of the given attribute for all mesh nodes.
 
-        if attribute not in self._stats["node"]:
-            values = [getattr(node.coordinate, attribute) for node in self._mesh.nodes]
-            self._stats["node"][attribute] = (
-                min(values),
-                max(values),
-                sum(values) / len(values),
-            )
-        return self._stats["node"][attribute]
+        Args:
+            attribute: The attribute.
+
+        Returns:
+            A tuple of (min, max, avg) of the given attribute.
+
+        Note:
+            The attribute should be a valid attribute of Node:
+            - x, y, z: float
+            - id: int
+        """
+        attr = attribute.lower()
+        if attr not in ["x", "y", "z", "id"]:
+            raise ValueError(f"Invalid Node attribute: {attribute}")
+
+        if attr in self._stats["node"]:
+            return self._stats["node"][attr]
+
+        if attr == "id":
+            values = [node.id for node in self._mesh.nodes]
+        else:
+            values = [getattr(node.coordinate, attr) for node in self._mesh.nodes]
+
+        self._stats["node"][attr] = (
+            min(values),
+            max(values),
+            sum(values) / len(values),
+        )
+        return self._stats["node"][attr]
 
     def statistics_face_attribute(self, attribute: str) -> tuple:
-        """Calculate the (min, max, avg) of the given attribute for faces."""
-        attribute = attribute.lower()
-        if not hasattr(self._mesh.faces[0], attribute):
-            raise ValueError(f"Attribute {attribute} not found in faces.")
+        """Statistics of the given attribute for all mesh faces.
 
-        if attribute not in self._stats["face"]:
-            values = [getattr(face, attribute) for face in self._mesh.faces]
-            self._stats["face"][attribute] = (
-                min(values),
-                max(values),
-                sum(values) / len(values),
-            )
-        return self._stats["face"][attribute]
+        Args:
+            attribute: The attribute.
+
+        Returns:
+            A tuple of (min, max, avg) of the given attribute.
+
+        Note:
+            The attribute should be a valid attribute of Face:
+            - x, y, z: float
+            - area: float
+            - perimeter: Vector
+            - id: int
+        """
+        attr = attribute.lower()
+        if attr not in ["x", "y", "z", "area", "perimeter", "id"]:
+            raise ValueError(f"Invalid Face attribute: {attribute}")
+
+        if attr in self._stats["face"]:
+            return self._stats["face"][attr]
+
+        if attr not in ["x", "y", "z"]:
+            values = [getattr(face, attr) for face in self._mesh.faces]
+        else:
+            values = [getattr(face.coordinate, attr) for face in self._mesh.faces]
+
+        self._stats["face"][attr] = (
+            min(values),
+            max(values),
+            sum(values) / len(values),
+        )
+        return self._stats["face"][attr]
 
     def statistics_cell_attribute(self, attribute: str) -> tuple:
-        """Calculate the (min, max, avg) of the given attribute for cells."""
-        attribute = attribute.lower()
-        if not hasattr(self._mesh.cells[0], attribute):
-            raise ValueError(f"Attribute {attribute} not found in cells.")
+        """Statistics of the given attribute for all mesh cells.
 
-        if attribute not in self._stats["cell"]:
-            values = [getattr(cell, attribute) for cell in self._mesh.cells]
-            self._stats["cell"][attribute] = (
-                min(values),
-                max(values),
-                sum(values) / len(values),
-            )
-        return self._stats["cell"][attribute]
+        Args:
+            attribute: The attribute.
+
+        Returns:
+            A tuple of (min, max, avg) of the given attribute.
+
+        Note:
+            The attribute should be a valid attribute of Cell:
+            - x, y, z: float
+            - volume: float
+            - surface: float
+            - id: int
+        """
+        attr = attribute.lower()
+        if attr not in ["x", "y", "z", "volume", "surface", "id"]:
+            raise ValueError(f"Invalid Cell attribute: {attribute}")
+
+        if attr in self._stats["cell"]:
+            return self._stats["cell"][attr]
+
+        if attr not in ["x", "y", "z"]:
+            values = [getattr(cell, attr) for cell in self._mesh.cells]
+        else:
+            values = [getattr(cell.coordinate, attr) for cell in self._mesh.cells]
+
+        self._stats["cell"][attr] = (
+            min(values),
+            max(values),
+            sum(values) / len(values),
+        )
+        return self._stats["cell"][attr]
 
     # -----------------------------------------------
     # --- geometry methods ---
@@ -520,18 +609,15 @@ class MeshGeom:
     def calculate_cell_to_cell_distance(self, cell1: int, cell2: int) -> float:
         """Calculate the distance between the centroids of cells."""
         if self._cell_to_cell_dists is None:
-            cell_num = self._mesh.cell_count
-            cell_dists = [{} for _ in range(cell_num)]
-
-            topos = MeshTopo(self._mesh)
-            for i in range(cell_num):
-                for j in topos.collect_cell_neighbours(i):
+            cell_dists = {cid: {} for cid in self._mesh.cell_indexes}
+            topos = self._mesh.get_topo_assistant()
+            for cid in self._mesh.cell_indexes:
+                for j in topos.collect_cell_neighbours(cid):
                     dist = self.calculate_distance(
-                        self._mesh.cells[i].coordinate, self._mesh.cells[j].coordinate
+                        self._mesh.cells[cid].coordinate, self._mesh.cells[j].coordinate
                     )
-                    cell_dists[i][j] = dist
-                    cell_dists[j][i] = dist
-
+                    cell_dists[cid][j] = dist
+                    cell_dists[j][cid] = dist
             self._cell_to_cell_dists = cell_dists
 
         if cell2 in self._cell_to_cell_dists[cell1]:
@@ -542,13 +628,13 @@ class MeshGeom:
     def calculate_cell_to_face_distance(self, cell: int, face: int) -> float:
         """Calculate the distance between the given cell and the given face."""
         if self._cell_to_face_dists is None:
-            cell_num = self._mesh.cell_count
-            cell_face_dists = [{} for _ in range(cell_num)]
+            cell_face_dists = {cid: {} for cid in self._mesh.cell_indexes}
             for cell in self._mesh.cells:
-                for face in cell.faces:
-                    dist = self.calculate_distance(cell.coordinate, face.coordinate)
-                    cell_face_dists[cell.id][face.id] = dist
-
+                for fid in cell.faces:
+                    dist = self.calculate_distance(
+                        cell.coordinate, self._mesh.faces[fid].coordinate
+                    )
+                    cell_face_dists[cell.id][fid] = dist
             self._cell_to_face_dists = cell_face_dists
 
         if face in self._cell_to_face_dists[cell]:
@@ -559,17 +645,14 @@ class MeshGeom:
     def calculate_cell_to_node_distance(self, cell: int, node: int) -> float:
         """Calculate the distance between the given cell and the given node."""
         if self._cell_to_node_dists is None:
-            cell_num = self._mesh.cell_count
-            cell_node_dists = [{} for _ in range(cell_num)]
-
-            topos = MeshTopo(self._mesh)
-            for i in range(cell_num):
-                for j in topos.collect_cell_nodes(i):
+            cell_node_dists = {cid: {} for cid in self._mesh.cell_indexes}
+            topos = self._mesh.get_topo_assistant()
+            for cid in self._mesh.cell_indexes:
+                for j in topos.collect_cell_nodes(cid):
                     dist = self.calculate_distance(
-                        self._mesh.cells[i].coordinate, self._mesh.nodes[j].coordinate
+                        self._mesh.cells[cid].coordinate, self._mesh.nodes[j].coordinate
                     )
-                    cell_node_dists[i][j] = dist
-
+                    cell_node_dists[cid][j] = dist
             self._cell_to_node_dists = cell_node_dists
 
         if node in self._cell_to_node_dists[cell]:
@@ -580,18 +663,15 @@ class MeshGeom:
     def calucate_node_to_node_distance(self, node1: int, node2: int) -> float:
         """Calculate the distance between the given nodes."""
         if self._node_to_node_dists is None:
-            node_num = self._mesh.node_count
-            node_dists = [{} for _ in range(node_num)]
-
-            topos = MeshTopo(self._mesh)
-            for i in range(node_num):
-                for j in topos.collect_node_neighbours(i):
+            node_dists = {nid: {} for nid in self._mesh.node_indexes}
+            topos = self._mesh.get_topo_assistant()
+            for nid in self._mesh.node_indexes:
+                for j in topos.collect_node_neighbours(nid):
                     dist = self.calculate_distance(
-                        self._mesh.nodes[i].coordinate, self._mesh.nodes[j].coordinate
+                        self._mesh.nodes[nid].coordinate, self._mesh.nodes[j].coordinate
                     )
-                    node_dists[i][j] = dist
-                    node_dists[j][i] = dist
-
+                    node_dists[nid][j] = dist
+                    node_dists[j][nid] = dist
             self._node_to_node_dists = node_dists
 
         if node2 in self._node_to_node_dists[node1]:
@@ -604,8 +684,10 @@ class MeshGeom:
     # -----------------------------------------------
 
     def extract_coordinates_separated(
-        self, element_type: str, dims: str = "xyz"
-    ) -> tuple:
+        self,
+        element_type: str,
+        dims: str = "xyz",
+    ) -> list:
         """Extract the coordinates of each element separatedly."""
         etype = element_type.lower()
         if etype not in ["node", "cell", "face"]:
@@ -628,7 +710,7 @@ class MeshGeom:
 
         coordinate_map = {"x": xs, "y": ys, "z": zs}
         coordinates = [coordinate_map.get(d) for d in dims]
-        return tuple(coordinates)
+        return coordinates
 
     def extract_coordinates(self, element_type: str) -> np.ndarray:
         """Extract the coordinates of all elements."""
@@ -657,19 +739,18 @@ class MeshGeom:
             - This method is not symmetric.
         """
         if self._cell_to_cell_vects is None:
-            cell_num = self._mesh.cell_count
-            cell_vecs = [{} for _ in range(cell_num)]
-
-            topos = MeshTopo(self._mesh)
-            for i in range(cell_num):
-                for j in topos.collect_cell_neighbours(i):
+            cell_vecs = {cid: {} for cid in self._mesh.cell_indexes}
+            topos = self._mesh.get_topo_assistant()
+            for cid in self._mesh.cell_indexes:
+                for j in topos.collect_cell_neighbours(cid):
                     vec_np = (
-                        self._mesh.cells[i].coordinate - self._mesh.cells[j].coordinate
+                        self._mesh.cells[cid].coordinate
+                        - self._mesh.cells[j].coordinate
                     ).to_np()
-                    vec = Vector.from_np(vec_np).unit()
-                    cell_vecs[i][j] = vec
-                    cell_vecs[j][i] = -vec
-
+                    vec = Vector.from_np(vec_np)
+                    vec /= vec.magnitude
+                    cell_vecs[cid][j] = vec
+                    cell_vecs[j][cid] = -vec
             self._cell_to_cell_vects = cell_vecs
 
         if cell2 in self._cell_to_cell_vects[cell1]:
@@ -680,14 +761,13 @@ class MeshGeom:
     def calculate_cell_to_face_vector(self, cell: int, face: int) -> Coordinate:
         """Calculate the unit vector from the given cell to the given face."""
         if self._cell_to_face_vects is None:
-            cell_num = self._mesh.cell_count
-            cell_face_vecs = [{} for _ in range(cell_num)]
+            cell_face_vecs = {cid: {} for cid in self._mesh.cell_indexes}
             for cell in self._mesh.cells:
                 for face in cell.faces:
                     vec_np = (cell.coordinate - face.coordinate).to_np()
-                    vec = Vector.from_np(vec_np).unit()
+                    vec = Vector.from_np(vec_np)
+                    vec /= vec.magnitude
                     cell_face_vecs[cell.id][face.id] = vec
-
             self._cell_to_face_vects = cell_face_vecs
 
         if face in self._cell_to_face_vects[cell]:
