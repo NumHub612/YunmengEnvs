@@ -91,16 +91,16 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # --- element modification methods ---
+    # --- mesh modification methods ---
     # -----------------------------------------------
 
     @abstractmethod
-    def refine_cell(self, index: int):
+    def refine_cells(self, indexes: list):
         """Refine the given cell."""
         pass
 
     @abstractmethod
-    def relax_cell(self, index: int):
+    def relax_cells(self, indexes: list):
         """Relax the given cell."""
         pass
 
@@ -171,6 +171,31 @@ class Mesh(ABC):
         if self._geom is None:
             self._geom = MeshGeom(self)
         return self._geom
+
+
+class AdaptiveMesh(Mesh):
+    """Adaptive mesh."""
+
+    def __init__(self, nodes: list, faces: list, cells: list):
+        super().__init__()
+
+    @property
+    def dimension(self) -> str:
+        pass
+
+    def _check_dimension(self):
+        """Check the dimension of the inputed mesh."""
+        pass
+
+    def refine_cells(self, indexes: list):
+        pass
+
+    def relax_cells(self, indexes: list):
+        pass
+
+    def _refresh_mesh(self):
+        """Reset the mesh."""
+        pass
 
 
 class MeshTopo:
