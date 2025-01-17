@@ -42,7 +42,7 @@ class Mesh(ABC):
     @property
     @abstractmethod
     def dimension(self) -> str:
-        """Return the domain of the mesh, e.g. 1d, 2d or 3d."""
+        """Return the mesh domain, e.g. 1d, 2d or 3d."""
         pass
 
     @property

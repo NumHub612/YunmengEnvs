@@ -575,17 +575,3 @@ class Grid3D(Grid):
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
         return [east, west, north, south, up, down]
-
-
-class AdaptiveGrid(Grid):
-    """Adaptive structured grid."""
-
-    def __init__(self, mesh: Grid):
-        """
-        Initialize an adaptive structured grid.
-
-        Args:
-            mesh: The original mesh.
-        """
-        super().__init__()
-        self._mesh = mesh
