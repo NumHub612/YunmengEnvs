@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh import Coordinate
+from core.numerics.mesh import Coordinate, Node, Face, Cell
 from core.numerics.fields import Vector
 from configs.settings import logger
 
@@ -171,31 +171,6 @@ class Mesh(ABC):
         if self._geom is None:
             self._geom = MeshGeom(self)
         return self._geom
-
-
-class AdaptiveMesh(Mesh):
-    """Adaptive mesh."""
-
-    def __init__(self, nodes: list, faces: list, cells: list):
-        super().__init__()
-
-    @property
-    def dimension(self) -> str:
-        pass
-
-    def _check_dimension(self):
-        """Check the dimension of the inputed mesh."""
-        pass
-
-    def refine_cells(self, indexes: list):
-        pass
-
-    def relax_cells(self, indexes: list):
-        pass
-
-    def _refresh_mesh(self):
-        """Reset the mesh."""
-        pass
 
 
 class MeshTopo:
@@ -520,6 +495,47 @@ class MeshGeom:
         # Return the ids of the sorted coordinates
         return [coord_id for coord_id, _ in sorted_coords]
 
+    @staticmethod
+    def calculate_area(coords: list) -> float:
+        """Calculate the area of the given coordinates.
+
+        Note:
+            The coordinates should be sorted.
+        """
+        if len(coords) < 3:
+            raise ValueError("At least 3 coordinates are required.")
+
+        # Calculate the center of the coordinates
+        center = MeshGeom.calculate_center(coords)
+
+        # Calculate the area using the shoelace formula
+        area = 0.0
+        for i in range(len(coords)):
+            j = (i + 1) % len(coords)
+            area += (coords[i].x - center.x) * (coords[j].y - center.y)
+            area -= (coords[i].y - center.y) * (coords[j].x - center.x)
+        area /= 2.0
+
+        return abs(area)
+
+    @staticmethod
+    def calculate_perimeter(coords: list) -> float:
+        """Calculate the perimeter of the given coordinates.
+
+        Note:
+            The coordinates should be sorted.
+        """
+        if len(coords) < 2:
+            raise ValueError("At least 2 coordinates are required.")
+
+        # Calculate the perimeter using the distance formula
+        perimeter = 0.0
+        for i in range(len(coords)):
+            perimeter += MeshGeom.calculate_distance(
+                coords[i], coords[(i + 1) % len(coords)]
+            )
+        return perimeter
+
     # -----------------------------------------------
     # --- statistics methods ---
     # -----------------------------------------------
@@ -799,3 +815,194 @@ class MeshGeom:
             return self._cell_to_face_vects[cell][face]
         else:
             return None
+
+
+class GenericMesh(Mesh):
+    """Generic mesh."""
+
+    def __init__(self, nodes: list, faces: list, cells: list):
+        """Generic mesh.
+
+        Args:
+            nodes: The list of nodes cooridnates.
+            faces: The list of faces with their nodes indexes.
+            cells: The list of cells with their faces indexes.
+
+        Example:
+            For a 2D unstructured mesh:
+            >>> nodes = [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ]
+            >>> faces = [
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 0],
+            ]
+            >>> cells = [
+                [0, 1, 2, 3],
+            ]
+            >>> mesh = GenericMesh(nodes, faces, cells)
+        """
+        super().__init__()
+        self._dimension = ""
+
+        self._generate_nodes(nodes)
+        self._generate_faces(faces)
+        self._generate_cells(cells)
+
+    def _generate_nodes(self, nodes: list):
+        """Generate the nodes of the mesh."""
+        for i, coor in enumerate(nodes):
+            self._nodes.append(Node(i, Coordinate(*coor)))
+
+    def _generate_faces(self, faces: list):
+        """Generate the faces of the mesh."""
+        for i, node_ids in enumerate(faces):
+            coors = [self._nodes[j].coordinate for j in node_ids]
+            center = MeshGeom.calculate_center(coors)
+            # For 2d mesh
+            if len(node_ids) == 2:
+                self._dimension = "2d"
+                perimeter = MeshGeom.calculate_distance(coors[0], coors[1])
+                area = perimeter
+                normal = Vector.from_np(
+                    np.cross(
+                        (coors[1].to_np() - coors[0].to_np()),
+                        [0, 0, 1],
+                    )
+                )
+                normal /= normal.magnitude
+            # For 3d mesh
+            else:
+                self._dimension = "3d"
+                normal, dir_axis = self._calculate_plane_normal(coors)
+                node_ids = MeshGeom.sort_anticlockwise(
+                    {j: coors[j] for j in range(len(coors))}, dir_axis
+                )
+
+                # Calculate the perimeter and area
+                coors_sorted = [coors[j] for j in node_ids]
+                perimeter = MeshGeom.calculate_perimeter(coors_sorted)
+                area = MeshGeom.calculate_area(coors_sorted)
+
+            face = Face(i, center, node_ids, perimeter, area, normal)
+            self._faces.append(face)
+
+    def _generate_cells(self, cells: list):
+        """Generate the cells of the mesh."""
+        for i, face_ids in enumerate(cells):
+            faces = [self._faces[j] for j in face_ids]
+            center = MeshGeom.calculate_center([face.coordinate for face in faces])
+            surface = sum([face.area for face in faces])
+            volume = 0.0
+            if self._dimension == "2d":
+                node_coors = {
+                    node_id: self._nodes[node_id].coordinate
+                    for face in faces
+                    for node_id in face.nodes
+                }
+                coors = list(node_coors.values())
+                _, dir_axis = self._calculate_plane_normal(coors)
+                node_ids = MeshGeom.sort_anticlockwise(
+                    {j: coors[j] for j in range(len(coors))}, dir_axis
+                )
+                coors_sorted = [coors[j] for j in node_ids]
+                volume = MeshGeom.calculate_area(coors_sorted)
+
+                coors = {face.id: face.coordinate for face in faces}
+                _, dir_axis = self._calculate_plane_normal(list(coors.values()))
+                face_ids = MeshGeom.sort_anticlockwise(coors, dir_axis)
+            else:
+                # For tetrahedron
+                if len(faces) == 4:
+                    node_coors = {
+                        node_id: self._nodes[node_id].coordinate
+                        for face in faces
+                        for node_id in face.nodes
+                    }
+                    coors = list(node_coors.values())
+
+                    matrix = np.array(
+                        [coors[1] - coors[0], coors[2] - coors[0], coors[3] - coors[0]]
+                    )
+                    volume = abs(np.linalg.det(matrix)) / 6.0
+                # For hexahedron
+                elif len(faces) == 8:
+                    coors = {face.id: face.coordinate for face in faces}
+                    east_west = []
+                    for coor in coors.values():
+                        if abs(coor.x - center.x) < 1e-10:
+                            east_west.append(coor)
+                    north_south = []
+                    for coor in coors.values():
+                        if abs(coor.y - center.y) < 1e-10:
+                            north_south.append(coor)
+                    top_bottom = []
+                    for coor in coors.values():
+                        if abs(coor.z - center.z) < 1e-10:
+                            top_bottom.append(coor)
+
+                    edge1 = MeshGeom.calculate_distance(east_west[0], east_west[1])
+                    edge2 = MeshGeom.calculate_distance(north_south[0], north_south[1])
+                    edge3 = MeshGeom.calculate_distance(top_bottom[0], top_bottom[1])
+                    volume = edge1 * edge2 * edge3
+                else:
+                    raise ValueError("Unsupported cell")
+
+            cell = Cell(i, center, face_ids, surface, volume)
+            self._cells.append(cell)
+
+    def _calculate_plane_normal(self, coors: list) -> tuple:
+        """Calculate the normal of the plane"""
+        if len(coors) < 3:
+            raise ValueError("At least 3 coordinates are required.")
+
+        # Calculate the normal using the shoelace formula
+        normal = Vector.from_np(
+            np.cross(
+                (coors[1].to_np() - coors[0].to_np()),
+                (coors[2].to_np() - coors[1].to_np()),
+            )
+        )
+        normal /= normal.magnitude
+
+        # Check the direction of the normal
+        dir_index = np.argmax(np.abs(normal.to_np()))
+        dir_map = {0: "x", 1: "y", 2: "z"}
+        dir_axis = dir_map.get(dir_index)
+
+        return normal, dir_axis
+
+    @property
+    def dimension(self) -> str:
+        return self._dimension
+
+    def refine_cells(self, indexes: list):
+        pass
+
+    def relax_cells(self, indexes: list):
+        pass
+
+
+if __name__ == "__main__":
+    from core.numerics.mesh import Grid2D
+
+    low_left, upper_right = Coordinate(0, 0), Coordinate(100, 100)
+    nx, ny = 5, 5
+    grid = Grid2D(low_left, upper_right, nx, ny)
+
+    nodes = [node.coordinate.to_np() for node in grid.nodes]
+    faces = [face.nodes for face in grid.faces]
+    cells = [cell.faces for cell in grid.cells]
+
+    mesh = GenericMesh(nodes, faces, cells)
+    face_areas = [face.area for face in mesh.faces]
+    print(face_areas)
+    face_lengths = [face.perimeter for face in mesh.faces]
+    print(face_lengths)
+    cell_volumes = [cell.volume for cell in mesh.cells]
+    print(cell_volumes)
