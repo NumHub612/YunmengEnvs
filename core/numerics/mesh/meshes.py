@@ -879,15 +879,7 @@ class GenericMesh(Mesh):
             # For 3d mesh
             else:
                 self._dimension = "3d"
-                normal, dir_axis = self._calculate_plane_normal(coors)
-                node_ids = MeshGeom.sort_anticlockwise(
-                    {j: coors[j] for j in range(len(coors))}, dir_axis
-                )
-
-                # Calculate the perimeter and area
-                coors_sorted = [coors[j] for j in node_ids]
-                perimeter = MeshGeom.calculate_perimeter(coors_sorted)
-                area = MeshGeom.calculate_area(coors_sorted)
+                normal, perimeter, area = self._calculate_plane_features(coors)
 
             face = Face(i, center, node_ids, perimeter, area, normal)
             self._faces.append(face)
@@ -905,13 +897,8 @@ class GenericMesh(Mesh):
                     for face in faces
                     for node_id in face.nodes
                 }
-                coors = list(node_coors.values())
-                _, dir_axis = self._calculate_plane_normal(coors)
-                node_ids = MeshGeom.sort_anticlockwise(
-                    {j: coors[j] for j in range(len(coors))}, dir_axis
-                )
-                coors_sorted = [coors[j] for j in node_ids]
-                volume = MeshGeom.calculate_area(coors_sorted)
+                _, _, area = self._calculate_plane_features(list(node_coors.values()))
+                volume = area
 
                 coors = {face.id: face.coordinate for face in faces}
                 _, dir_axis = self._calculate_plane_normal(list(coors.values()))
@@ -924,32 +911,13 @@ class GenericMesh(Mesh):
                         for face in faces
                         for node_id in face.nodes
                     }
-                    coors = list(node_coors.values())
-
-                    matrix = np.array(
-                        [coors[1] - coors[0], coors[2] - coors[0], coors[3] - coors[0]]
+                    volume = self._calcuate_tetrahedron_volume(
+                        list(node_coors.values())
                     )
-                    volume = abs(np.linalg.det(matrix)) / 6.0
                 # For hexahedron
                 elif len(faces) == 8:
                     coors = {face.id: face.coordinate for face in faces}
-                    east_west = []
-                    for coor in coors.values():
-                        if abs(coor.x - center.x) < 1e-10:
-                            east_west.append(coor)
-                    north_south = []
-                    for coor in coors.values():
-                        if abs(coor.y - center.y) < 1e-10:
-                            north_south.append(coor)
-                    top_bottom = []
-                    for coor in coors.values():
-                        if abs(coor.z - center.z) < 1e-10:
-                            top_bottom.append(coor)
-
-                    edge1 = MeshGeom.calculate_distance(east_west[0], east_west[1])
-                    edge2 = MeshGeom.calculate_distance(north_south[0], north_south[1])
-                    edge3 = MeshGeom.calculate_distance(top_bottom[0], top_bottom[1])
-                    volume = edge1 * edge2 * edge3
+                    volume = self._calculate_hexahedron_volume(coors, center)
                 else:
                     raise ValueError("Unsupported cell")
 
@@ -976,6 +944,62 @@ class GenericMesh(Mesh):
         dir_axis = dir_map.get(dir_index)
 
         return normal, dir_axis
+
+    def _calculate_plane_features(self, coors: list) -> tuple:
+        """Calculate the normal and the direction of the plane"""
+        if len(coors) < 3:
+            raise ValueError("At least 3 coordinates are required.")
+
+        # Calculate the normal using the shoelace formula
+        normal, dir_axis = self._calculate_plane_normal(coors)
+
+        # Sort the coordinates
+        node_ids = MeshGeom.sort_anticlockwise(
+            {j: coors[j] for j in range(len(coors))}, dir_axis
+        )
+        coors_sorted = [coors[j] for j in node_ids]
+
+        # Calculate the perimeter and area
+        perimeter = MeshGeom.calculate_perimeter(coors_sorted)
+        area = MeshGeom.calculate_area(coors_sorted)
+        return normal, perimeter, area
+
+    def _calcuate_tetrahedron_volume(self, coors: list) -> float:
+        """Calculate the volume of the tetrahedron"""
+        if len(coors) != 4:
+            raise ValueError("At least 4 coordinates are required.")
+
+        matrix = np.array(
+            [coors[1] - coors[0], coors[2] - coors[0], coors[3] - coors[0]]
+        )
+        volume = abs(np.linalg.det(matrix)) / 6.0
+        return volume
+
+    def _calculate_hexahedron_volume(self, coors: list, center: Coordinate) -> float:
+        """Calculate the volume of the hexahedron"""
+        if len(coors) != 8:
+            raise ValueError("At least 8 coordinates are required.")
+
+        east_west = []
+        for coor in coors.values():
+            if abs(coor.x - center.x) < 1e-10:
+                east_west.append(coor)
+
+        north_south = []
+        for coor in coors.values():
+            if abs(coor.y - center.y) < 1e-10:
+                north_south.append(coor)
+
+        top_bottom = []
+        for coor in coors.values():
+            if abs(coor.z - center.z) < 1e-10:
+                top_bottom.append(coor)
+
+        edge1 = MeshGeom.calculate_distance(east_west[0], east_west[1])
+        edge2 = MeshGeom.calculate_distance(north_south[0], north_south[1])
+        edge3 = MeshGeom.calculate_distance(top_bottom[0], top_bottom[1])
+        volume = edge1 * edge2 * edge3
+        return volume
 
     @property
     def dimension(self) -> str:
