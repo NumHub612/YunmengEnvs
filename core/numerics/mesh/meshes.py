@@ -1082,6 +1082,21 @@ class AdaptiveRectangularMesh(GenericMesh):
                         continue
                     self._refine_cell(nb)
 
+        for cid in indexes:
+            cell = self.cells[cid]
+            faces = cell.faces
+            adj_cells = self._topo.collect_cell_neighbours(cid)
+            for adj_id in adj_cells:
+                adj_cell = self.cells[adj_id]
+                for face in adj_cell.faces:
+                    if face in faces:
+                        adj_cell.faces.remove(face)
+            for face in faces:
+                if face in self._faces:
+                    self._faces.remove(face)
+            self._cells.remove(cell)
+            self._cell_levels.pop(cid)
+
         self.refresh_mesh()
 
     def _refine_cell(self, index: int):
@@ -1138,7 +1153,6 @@ class AdaptiveRectangularMesh(GenericMesh):
             self._sub_faces[f2.id] = {"childrens": [], "parent": face.id}
 
             self._splited_faces[face.id] = face
-            self._faces.remove(face)
             self._max_face_id += 2
 
             # Update adjacent cell topology.
@@ -1147,21 +1161,21 @@ class AdaptiveRectangularMesh(GenericMesh):
                 if cid == index:
                     continue
                 adj_cell = self.cells[cid]
-                adj_cell.faces.remove(face.id)
                 adj_cell.faces.append(f1.id)
                 adj_cell.faces.append(f2.id)
 
         # Create center node.
-        nodes = self._topo.collect_cell_nodes(index)
+        nodes_id = self._topo.collect_cell_nodes(index)
+        nodes = [self.nodes[nid].coordinate for nid in nodes_id]
         center = self._geom.calculate_center(nodes)
-        node = Node(self._max_node_id + 1, center)
-        nodes_new.append(node)
-        self._nodes.append(node)
+        center_node = Node(self._max_node_id + 1, center)
+        nodes_new.append(center_node)
+        self._nodes.append(center_node)
         self._max_node_id += 1
 
         face_centers = []
         for node in nodes_new:
-            f_center = (node.coordinate + center.coordinate) / 2
+            f_center = (node.coordinate + center) / 2
             face_centers.append(f_center)
 
         # Create new faces
@@ -1179,6 +1193,7 @@ class AdaptiveRectangularMesh(GenericMesh):
                 parral_face.area,
                 parral_face.normal,
             )
+            faces_new.append(face)
             self._faces.append(face)
             self._sub_faces[f_id] = {"childrens": [], "parent": parral_face.id}
         self._max_face_id += 4
@@ -1323,15 +1338,3 @@ class AdaptiveRectangularMesh(GenericMesh):
         self._geom = self.get_geom_assistant()
 
         self._groups = {}
-
-
-if __name__ == "__main__":
-    from core.numerics.mesh import Grid2D
-
-    low_left, upper_right = Coordinate(0, 0), Coordinate(100, 100)
-    nx, ny = 5, 5
-    grid = Grid2D(low_left, upper_right, nx, ny)
-
-    nodes = [node.coordinate.to_np() for node in grid.nodes]
-    faces = [face.nodes for face in grid.faces]
-    cells = [cell.faces for cell in grid.cells]
