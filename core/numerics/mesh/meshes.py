@@ -854,6 +854,9 @@ class GenericMesh(Mesh):
         self._generate_faces(faces)
         self._generate_cells(cells)
 
+        self._topo = MeshTopo(self)
+        self._geom = MeshGeom(self)
+
     def _generate_nodes(self, nodes: list):
         """Generate the nodes of the mesh."""
         for i, coor in enumerate(nodes):
@@ -1012,6 +1015,86 @@ class GenericMesh(Mesh):
         pass
 
 
+class AdaptiveRectangularMesh(GenericMesh):
+    """Adaptive rectangular mesh."""
+
+    def __init__(self, nodes: list, faces: list, cells: list):
+        """Adaptive rectangular mesh.
+
+        Args:
+            nodes: The list of nodes cooridnates.
+            faces: The list of faces with their nodes indexes.
+            cells: The list of cells with their faces indexes.
+        """
+        super().__init__(nodes, faces, cells)
+        self._check_mesh_type()
+
+        self._max_node_id = self.node_indexes[-1]
+        self._max_face_id = self.face_indexes[-1]
+        self._max_cell_id = self.cell_indexes[-1]
+
+        self._sub_faces = {}
+        for face in self.faces:
+            self._sub_faces[face.id] = {"childrens": [], "parent": face.id}
+
+        self._sub_cells = {}
+        for cell in self.cells:
+            self._sub_cells[cell.id] = {"childrens": [], "parent": cell.id}
+
+        self._level_cells = {0: self.cell_indexes}
+        self._max_level = 0
+
+    def _check_mesh_type(self):
+        """Check the mesh type."""
+        if self.dimension == "2d" and any(
+            [len(cell.faces) != 4 for cell in self.cells]
+        ):
+            raise ValueError("Requires a rectangular mesh.")
+        if self.dimension == "3d" and any(
+            [len(cell.faces) != 8 for cell in self.cells]
+        ):
+            raise ValueError("Requires a rectangular mesh.")
+
+    def refine_cells(self, indexes: list):
+        for level in range(self._max_level + 1):
+            cell_ids = self._level_cells.get(level, [])
+            for cid in indexes:
+                if cid not in cell_ids:
+                    continue
+
+                cell = self.cells[cid]
+                neighbours = self._topo.collect_cell_neighbours(cid)
+
+    def _refine_2d_cell(self, index: int):
+        """Refine the given 2D cell."""
+        cell = self.cells[index]
+        faces = [self.faces[fid] for fid in cell.faces]
+
+    def _refine_3d_cell(self, index: int):
+        """Refine the given 3D cell."""
+        cell = self.cells[index]
+        faces = [self.faces[fid] for fid in cell.faces]
+
+    def relax_cells(self, indexes: list):
+        pass
+
+    def _relax_2d_cell(self, index: int):
+        """Relax the given 2D cell."""
+        pass
+
+    def _relax_3d_cell(self, index: int):
+        """Relax the given 3D cell."""
+        pass
+
+    def refresh_mesh(self):
+        """Refresh the mesh."""
+        self._version += 1
+
+        # self._topos = None
+        # self._geom = None
+        # self._groups = {}
+
+
 if __name__ == "__main__":
     from core.numerics.mesh import Grid2D
 
@@ -1022,11 +1105,3 @@ if __name__ == "__main__":
     nodes = [node.coordinate.to_np() for node in grid.nodes]
     faces = [face.nodes for face in grid.faces]
     cells = [cell.faces for cell in grid.cells]
-
-    mesh = GenericMesh(nodes, faces, cells)
-    face_areas = [face.area for face in mesh.faces]
-    print(face_areas)
-    face_lengths = [face.perimeter for face in mesh.faces]
-    print(face_lengths)
-    cell_volumes = [cell.volume for cell in mesh.cells]
-    print(cell_volumes)
