@@ -1006,6 +1006,7 @@ class GenericMesh(Mesh):
 
     @property
     def dimension(self) -> str:
+        """Return the dimension of the mesh, either 2d or 3d."""
         return self._dimension
 
     def refine_cells(self, indexes: list):
@@ -1016,7 +1017,10 @@ class GenericMesh(Mesh):
 
 
 class AdaptiveRectangularMesh(GenericMesh):
-    """Adaptive rectangular mesh."""
+    """Adaptive rectangular mesh.
+
+    When changing the mesh, the mesh will be refined firstly and then relaxed.
+    """
 
     def __init__(self, nodes: list, faces: list, cells: list):
         """Adaptive rectangular mesh.
@@ -1041,7 +1045,10 @@ class AdaptiveRectangularMesh(GenericMesh):
         for cell in self.cells:
             self._sub_cells[cell.id] = {"childrens": [], "parent": cell.id}
 
-        self._level_cells = {0: self.cell_indexes}
+        self._splited_faces = {}
+        self._splited_cells = {}
+
+        self._cell_levels = {cid: 0 for cid in self.cell_indexes}
         self._max_level = 0
 
     def _check_mesh_type(self):
@@ -1055,44 +1062,267 @@ class AdaptiveRectangularMesh(GenericMesh):
         ):
             raise ValueError("Requires a rectangular mesh.")
 
-    def refine_cells(self, indexes: list):
-        for level in range(self._max_level + 1):
-            cell_ids = self._level_cells.get(level, [])
-            for cid in indexes:
-                if cid not in cell_ids:
-                    continue
+    @property
+    def sub_cells(self) -> dict:
+        """Return the sub-cells of the mesh."""
+        return self._sub_cells
 
-                cell = self.cells[cid]
+    def refine_cells(self, indexes: list):
+        for level in range(self._max_level, -1, -1):
+            for cid in indexes:
+                if self._cell_levels[cid] < level:
+                    continue
+                self._refine_cell(cid)
+
                 neighbours = self._topo.collect_cell_neighbours(cid)
+                for nb in neighbours:
+                    if abs(self._cell_levels[nb] - level - 1) <= 1:
+                        continue
+                    if nb in indexes and self._cell_levels[nb] == level - 1:
+                        continue
+                    self._refine_cell(nb)
+
+        self.refresh_mesh()
+
+    def _refine_cell(self, index: int):
+        """Refine the given cell."""
+        if self.dimension == "2d":
+            self._refine_2d_cell(index)
+        else:
+            self._refine_3d_cell(index)
 
     def _refine_2d_cell(self, index: int):
         """Refine the given 2D cell."""
         cell = self.cells[index]
+        self._splited_cells[index] = cell
+
         faces = [self.faces[fid] for fid in cell.faces]
+        self._splited_faces.update({fid: face for fid, face in zip(cell.faces, faces)})
+
+        faces_new, nodes_new = [], []
+        for face in faces:
+            # Split the face line.
+            n1, n2 = face.nodes
+            med = (self.nodes[n1].coordinate + self.nodes[n2].coordinate) / 2
+            node = Node(self._max_node_id + 1, med)
+            nodes_new.append(node)
+            self._nodes.append(node)
+            self._max_node_id += 1
+
+            # Split new faces.
+            f1 = Face(
+                self._max_face_id + 1,
+                med,
+                [n1, node.id],
+                face.perimeter / 2,
+                face.perimeter / 2,
+                face.normal,
+            )
+            faces_new.append(f1)
+            self._faces.append(f1)
+
+            f2 = Face(
+                self._max_face_id + 2,
+                med,
+                [node.id, n2],
+                face.perimeter / 2,
+                face.perimeter / 2,
+                face.normal,
+            )
+            faces_new.append(f2)
+            self._faces.append(f2)
+
+            # Record raw face.
+            self._sub_faces[face.id]["childrens"] = [f1.id, f2.id]
+            self._sub_faces[f1.id] = {"childrens": [], "parent": face.id}
+            self._sub_faces[f2.id] = {"childrens": [], "parent": face.id}
+
+            self._splited_faces[face.id] = face
+            self._faces.remove(face)
+            self._max_face_id += 2
+
+            # Update adjacent cell topology.
+            cells = self._topo.collect_face_cells(face.id)
+            for cid in cells:
+                if cid == index:
+                    continue
+                adj_cell = self.cells[cid]
+                adj_cell.faces.remove(face.id)
+                adj_cell.faces.append(f1.id)
+                adj_cell.faces.append(f2.id)
+
+        # Create center node.
+        nodes = self._topo.collect_cell_nodes(index)
+        center = self._geom.calculate_center(nodes)
+        node = Node(self._max_node_id + 1, center)
+        nodes_new.append(node)
+        self._nodes.append(node)
+        self._max_node_id += 1
+
+        face_centers = []
+        for node in nodes_new:
+            f_center = (node.coordinate + center.coordinate) / 2
+            face_centers.append(f_center)
+
+        # Create new faces
+        for i in range(1, 5):
+            f_id = self._max_face_id + i
+            f_center = face_centers[i - 1]
+            f_nodes = [nodes_new[i - 1].id, nodes_new[-1].id]
+
+            parral_face = faces_new[(i + 1) % 8]
+            face = Face(
+                f_id,
+                f_center,
+                f_nodes,
+                parral_face.perimeter,
+                parral_face.area,
+                parral_face.normal,
+            )
+            self._faces.append(face)
+            self._sub_faces[f_id] = {"childrens": [], "parent": parral_face.id}
+        self._max_face_id += 4
+
+        # Create new cells.
+        surface = cell.surface / 4
+        volume = cell.volume / 4
+        cell_faces = [
+            [faces_new[0].id, faces_new[8].id, faces_new[11].id, faces_new[7].id],
+            [faces_new[1].id, faces_new[2].id, faces_new[9].id, faces_new[8].id],
+            [faces_new[9].id, faces_new[3].id, faces_new[4].id, faces_new[10].id],
+            [faces_new[10].id, faces_new[5].id, faces_new[6].id, faces_new[11].id],
+        ]
+        for i in range(1, 5):
+            c_id = self._max_cell_id + i
+            c = Cell(
+                c_id,
+                center,
+                cell_faces[i - 1],
+                surface,
+                volume,
+            )
+            self._cells.append(c)
+            self._sub_cells[index]["childrens"].append(c_id)
+            self._sub_cells[c_id] = {"childrens": [], "parent": index}
+            self._cell_levels[c_id] = self._cell_levels[index] + 1
+            self._max_cell_id += 1
 
     def _refine_3d_cell(self, index: int):
         """Refine the given 3D cell."""
-        cell = self.cells[index]
-        faces = [self.faces[fid] for fid in cell.faces]
+        raise NotImplementedError()
 
     def relax_cells(self, indexes: list):
-        pass
+        relaxed = []
+        for level in range(self._max_level, -1, -1):
+            for cid in indexes:
+                if self._cell_levels[cid] < level:
+                    continue
+                parent = self._sub_cells[cid]["parent"]
+                if parent in relaxed:
+                    continue
+                relaxed.append(parent)
+                self._relax_cell(cid)
+
+                neighbours = self._topo.collect_cell_neighbours(cid)
+                for nb in neighbours:
+                    if abs(self._cell_levels[nb] - level + 1) <= 1:
+                        continue
+                    if nb in indexes and self._cell_levels[nb] == level + 1:
+                        continue
+
+                    sub_parent = self._sub_cells[nb]["parent"]
+                    if sub_parent in relaxed:
+                        continue
+                    relaxed.append(sub_parent)
+                    self._relax_cell(nb)
+        self.refresh_mesh()
+
+    def _relax_cell(self, index: int):
+        """Relax the given cell."""
+        if self.dimension == "2d":
+            self._relax_2d_cell(index)
+        else:
+            self._relax_3d_cell(index)
 
     def _relax_2d_cell(self, index: int):
         """Relax the given 2D cell."""
-        pass
+        # Parent cell.
+        parent = self._sub_cells[index]["parent"]
+        parent_cell = self._splited_cells[parent]
+        parent_faces = list(
+            set([self._splited_faces[fid] for fid in parent_cell.faces])
+        )
+        parent_nodes = list(set([face.nodes for face in parent_faces]))
+
+        # Sub cells.
+        subs = self._sub_cells[parent]["childrens"]
+        sub_faces, sub_nodes = [], []
+        for sub in subs:
+            sub_cell = self.cells[sub]
+            sub_faces.extend([self.faces[fid] for fid in sub_cell.faces])
+            sub_nodes.extend([face.nodes for face in sub_faces])
+
+        sub_faces = list(set(sub_faces))
+        sub_nodes = list(set(sub_nodes))
+
+        # Update the adjacent cells.
+        for cid in subs:
+            adj_cells = self._topo.collect_cell_neighbours(cid)
+            for adj in adj_cells:
+                if adj in subs:
+                    continue
+
+                adj_cell = self.cells[adj]
+                raw_faces = []
+                for fid in adj_cell.faces:
+                    face = self.faces[fid]
+                    if face in sub_faces:
+                        parent_face = self._sub_faces[fid]["parent"]
+                        raw_faces.append(parent_face)
+                    else:
+                        raw_faces.append(fid)
+                adj_cell.faces = list(set(raw_faces))
+
+        # Remove the sub nodes.
+        for node in sub_nodes:
+            if node not in parent_nodes:
+                self._nodes.remove(self.nodes[node])
+
+        # Recover the parent faces.
+        for face in sub_faces:
+            self._faces.remove(face)
+            self._splited_faces.pop(face.id)
+            self._sub_faces.pop(face.id)
+
+        for face in parent_faces:
+            self._faces.append(face)
+            self._splited_faces.pop(face.id)
+
+        # Recover the parent cell.
+        for cid in subs:
+            self._cells.remove(self.cells[cid])
+            self._splited_cells.pop(cid)
+            self._sub_cells.pop(cid)
+
+        self._cells.append(parent_cell)
+        self._splited_cells.pop(parent)
 
     def _relax_3d_cell(self, index: int):
         """Relax the given 3D cell."""
-        pass
+        raise NotImplementedError()
 
     def refresh_mesh(self):
         """Refresh the mesh."""
         self._version += 1
+        logger.info(f"Refreshing the mesh to {self._version}.")
 
-        # self._topos = None
-        # self._geom = None
-        # self._groups = {}
+        self._topos = None
+        self._topo = self.get_topo_assistant()
+
+        self._geom = None
+        self._geom = self.get_geom_assistant()
+
+        self._groups = {}
 
 
 if __name__ == "__main__":
