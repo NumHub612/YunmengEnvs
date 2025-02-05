@@ -34,7 +34,7 @@ class Burgers3D(BaseSolver):
                 "equation_expr": "u_t + u*u_x + v*u_y + w*u_z = nu*(u_xx + u_yy + u_zz),\
                     v_t + u*v_x + v*v_y + w*v_z = nu*(v_xx + v_yy + v_zz),\
                     w_t + u*w_x + v*w_y + w*w_z = nu*(w_xx + w_yy + w_zz)",
-                "domain": "3D",
+                "dimension": "3D",
                 "default_ics": "none",
                 "default_bcs": "none",
             }
@@ -70,7 +70,7 @@ class Burgers3D(BaseSolver):
         super().__init__(id, mesh)
 
         if not isinstance(mesh, Grid3D):
-            raise ValueError("The mesh domain must be 3D grid.")
+            raise ValueError("The mesh dimension must be 3D grid.")
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)

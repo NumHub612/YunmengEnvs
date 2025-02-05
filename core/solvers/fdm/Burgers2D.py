@@ -33,7 +33,7 @@ class Burgers2D(BaseSolver):
                 "equation": "Burgers' Equation",
                 "equation_expr": "u_t + u*u_x + v*u_y = nu*(u_xx + u_yy),\
                     v_t + u*v_x + v*v_y = nu*(v_xx + v_yy)",
-                "domain": "2D",
+                "dimension": "2D",
                 "default_ics": "none",
                 "default_bcs": "none",
             }
@@ -69,7 +69,7 @@ class Burgers2D(BaseSolver):
         super().__init__(id, mesh)
 
         if not isinstance(mesh, Grid2D):
-            raise ValueError("The mesh domain must be 2D grid.")
+            raise ValueError("The mesh dimension must be 2D grid.")
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)

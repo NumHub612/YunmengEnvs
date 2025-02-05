@@ -4,8 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Callback for rendering the solver solutions.
 """
-from core.solvers.interfaces import ISolverCallback, ISolver
-from core.visuals.plotter import plot_scalar_field, plot_vector_field
+from core.solvers.interfaces import ISolverCallback
+from core.visuals.plotter import plot_field
 
 import os
 import shutil
@@ -29,7 +29,7 @@ class RenderCallback(ISolverCallback):
 
         Notes:
             - `fields` is a dictionary with the field names as keys
-              and the rendering options as values.
+               and the rendering options as values.
             - `fields` can be None, in which render all fields.
         """
         self._output_dir = os.path.abspath(output_dir)
@@ -69,6 +69,8 @@ class RenderCallback(ISolverCallback):
 
     def on_task_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):
         self._init_output_dirs(solver_solutions)
+
+        # TODO: ploting the mesh only.
         self._plot_field(solver_status, solver_solutions)
 
     def on_step(self, solver_status: dict, solver_solutions: dict, **kwargs):
@@ -96,21 +98,11 @@ class RenderCallback(ISolverCallback):
                 }
             )
 
-            if field.dtype == "scalar":
-                plot_scalar_field(
-                    field,
-                    self._mesh,
-                    **options,
-                )
-            elif field.dtype == "vector":
-                plot_vector_field(
-                    field,
-                    self._mesh,
-                    **options,
-                )
+            plot_field(field, self._mesh, **options)
         self._frame += 1
 
     def on_task_end(self, solver_status: dict, solver_solutions: dict, **kwargs):
+        # TODO: play the animation
         pass
 
     def on_step_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):

@@ -3,7 +3,7 @@ from core.numerics.mesh import Grid2D, Coordinate, MeshTopo
 from core.solvers.fdm.operators import fdm_operators
 from core.solvers.commons import inits, boundaries, SimpleEquation
 from core.numerics.fields import NodeField, Vector, Scalar
-from core.visuals.plotter import plot_vector_field
+from core.visuals.plotter import plot_field
 from core.visuals.animator import ImageSetPlayer
 import numpy as np
 import os
@@ -60,7 +60,9 @@ class TestSimpleEquations(unittest.TestCase):
         self._bc = boundaries.ConstantBoundary("bc1", bc_value, None)
 
     def tearDown(self):
-        pass
+        if os.path.exists("./tests/results/"):
+            shutil.rmtree("./tests/results/")
+        os.makedirs("./tests/results/")
 
     def test_full_burgers2d(self):
         """test full burgers equation"""
@@ -232,8 +234,8 @@ class TestSimpleEquations(unittest.TestCase):
             self.assertTrue(np.allclose(solution[i] * coef, validates[i].data))
 
         # play the images
+        ani = ImageSetPlayer(save_dir)
         if __name__ == "__main__":
-            ani = ImageSetPlayer(save_dir)
             ani.play()
 
     def test_grad_burgers2d(self):
@@ -399,7 +401,7 @@ class TestSimpleEquations(unittest.TestCase):
             # show solution
             if __name__ == "__main__":
                 if show and result_dir:
-                    plot_vector_field(
+                    plot_field(
                         self._var_field,
                         self._grid,
                         title=f"u-{i}",

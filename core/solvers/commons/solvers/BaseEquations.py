@@ -228,7 +228,12 @@ class BaseEquation(IEquation):
 
 
 class SimpleEquation(BaseEquation):
-    """Simple single pde equation class."""
+    """Simple single pde equation class.
+
+    Notes:
+        - Only support one variable and one equation.
+        - Only support fixed grid mesh.
+    """
 
     def __init__(self, name: str, operators: dict[str, IOperator]):
         super().__init__(name, operators)

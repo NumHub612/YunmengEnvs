@@ -9,6 +9,7 @@ import pyvista as pv
 import vtk
 import numpy as np
 import os
+import copy
 
 plt.rcParams["font.sans-serif"] = ["SimHei"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -102,61 +103,6 @@ def plot_data_series(
     plt.close()
 
 
-def plot_mesh(
-    points_coordinates: np.ndarray,
-    cells: np.ndarray,
-    mesh_type: str,
-    *,
-    title: str = "Mesh",
-    figsize: tuple = (8, 6),
-    save_dir: str = None,
-    show: bool = True,
-    show_edges: bool = False,
-):
-    """
-    Plot 2d mesh with unstructured mesh.
-
-    Args:
-        points_coordinates: List of coordinates of points.
-        cells: Polygons or polyhedrons of the mesh.
-        mesh_type: Type of the mesh, options: "2d", "3d".
-        title: Title of the plot.
-        figsize: Figure size.
-        save_dir: Directory to save the plot.
-        show: Whether to show the plot.
-        show_edges: Whether to show edges.
-
-    Notes:
-        - `show` and `save_dir` are mutually exclusive.
-    """
-    # Create a pyvista mesh object
-    points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_POLYHEDRON
-    types = np.array([mtype] * len(cells))
-    cells = np.concatenate(cells)
-
-    mesh = pv.UnstructuredGrid(cells, types, points)
-
-    # Create a plotter object
-    plotter = pv.Plotter(off_screen=not show, title=title)
-    plotter.add_mesh(mesh, show_edges=show_edges)
-    plotter.add_axes()
-    plotter.add_bounding_box()
-    plotter.view_isometric()
-
-    # Set title and save plot
-    if save_dir and not show:
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        save_path = os.path.join(save_dir, f"{title}.png")
-
-        winsize = (figsize[0] * 100, figsize[1] * 100)
-        plotter.screenshot(save_path, window_size=winsize)
-    if show:
-        plotter.show()
-    plotter.close()
-
-
 def plot_mesh_cloudmap(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
@@ -171,6 +117,7 @@ def plot_mesh_cloudmap(
     show: bool = True,
     cmap: str = "coolwarm",
     show_edges: bool = False,
+    slice_set: dict = None,
 ):
     """
     Plot cloudmap with unstructured mesh.
@@ -188,6 +135,7 @@ def plot_mesh_cloudmap(
         show: Whether to show the plot.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
+        slice_set: Choose slice style and configs.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -206,24 +154,14 @@ def plot_mesh_cloudmap(
         mesh.point_data[label] = scalars
     else:
         mesh.cell_data[label] = scalars
+    mesh = _mesh_slice_set(mesh, slice_set)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
     plotter.add_mesh(mesh, scalars=label, cmap=cmap, show_edges=show_edges)
-    plotter.add_axes()
-    plotter.add_bounding_box()
-    plotter.view_isometric()
 
     # Set title and save plot
-    if save_dir and not show:
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        save_path = os.path.join(save_dir, f"{title}.png")
-
-        winsize = (figsize[0] * 100, figsize[1] * 100)
-        plotter.screenshot(save_path, window_size=winsize)
-    if show:
-        plotter.show()
+    _save_plot(plotter, figsize, save_dir, title, show)
     plotter.close()
 
 
@@ -242,6 +180,7 @@ def plot_mesh_streamplot(
     color: str = "red",
     mag: float = 0.1,
     show_edges: bool = False,
+    slice_set: dict = None,
 ):
     """
     Plot streamplot with unstructured mesh.
@@ -260,6 +199,7 @@ def plot_mesh_streamplot(
         color: Color of the arrows.
         mag: Magnitude of the arrows.
         show_edges: Whether to show edges.
+        slice_set: Choose slice style and configs.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -278,6 +218,7 @@ def plot_mesh_streamplot(
         mesh.point_data[label] = vectors
     else:
         mesh.cell_data[label] = vectors
+    mesh = _mesh_slice_set(mesh, slice_set)
 
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
@@ -286,20 +227,8 @@ def plot_mesh_streamplot(
     cents = mesh.points if domain == "point" else mesh.cell_centers().points
     plotter.add_arrows(cents, vectors, mag=mag, color=color)
 
-    plotter.add_axes()
-    plotter.add_bounding_box()
-    plotter.view_isometric()
-
     # Set title and save plot
-    if save_dir and not show:
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        save_path = os.path.join(save_dir, f"{title}.png")
-
-        winsize = (figsize[0] * 100, figsize[1] * 100)
-        plotter.screenshot(save_path, window_size=winsize)
-    if show:
-        plotter.show()
+    _save_plot(plotter, figsize, save_dir, title, show)
     plotter.close()
 
 
@@ -320,12 +249,12 @@ def plot_mesh_scatters(
 
     Args:
         points_coordinates: List of coordinates of points.
-        scalars: Scalar values.
+        scalars: Scalar field values.
         title: Title of the plot.
         label: Label of the values.
         figsize: Figure size.
         save_dir: Directory to save the plot.
-        show: Whether to show the plot.
+        show: Whether to show.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
 
@@ -341,11 +270,93 @@ def plot_mesh_scatters(
     plotter = pv.Plotter(off_screen=not show, title=title)
     plotter.add_mesh(mesh, scalars=label, cmap=cmap, show_edges=show_edges)
 
+    # Set title and save plot
+    _save_plot(plotter, figsize, save_dir, title, show)
+    plotter.close()
+
+
+def plot_mesh_geometry(
+    points_coordinates: np.ndarray,
+    cells: np.ndarray,
+    mesh_type: str,
+    *,
+    title: str = "Mesh",
+    figsize: tuple = (8, 6),
+    save_dir: str = None,
+    show: bool = True,
+    show_edges: bool = False,
+    slice_set: dict = None,
+    cmap: str = "viridis",
+):
+    """
+    Plot mesh geometry.
+
+    Args:
+        points_coordinates: List of coordinates of points.
+        cells: Polygons or polyhedrons of the mesh.
+        mesh_type: Type of the mesh, options: "2d", "3d".
+        domain: Domain of the values bounded, options: "point", "cell".
+        title: Title of the plot.
+        figsize: Figure size.
+        save_dir: Directory to save the plot.
+        show: Whether to show the plot.
+        show_edges: Whether to show edges.
+
+    Notes:
+        - `show` and `save_dir` are mutually exclusive.
+    """
+    # Create a pyvista mesh object
+    points = points_coordinates.astype(np.float32)
+    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
+    types = np.array([mtype] * len(cells))
+    cells = np.concatenate(cells)
+
+    mesh = pv.UnstructuredGrid(cells, types, points)
+
+    # Set values to the mesh
+    elevations = points[:, 2]
+    label = "elevation"
+    mesh.point_data[label] = elevations
+    mesh = _mesh_slice_set(mesh, slice_set)
+
+    # Create a plotter object
+    plotter = pv.Plotter(off_screen=not show, title=title)
+    plotter.add_mesh(mesh, cmap=cmap, show_edges=show_edges)
+
+    # Set title and save plot
+    _save_plot(plotter, figsize, save_dir, title, show)
+    plotter.close()
+
+
+def _mesh_slice_set(mesh: pv.UnstructuredGrid, slice_set: dict):
+    """
+    Set the slice set for the mesh.
+    """
+    if slice_set and "style" in slice_set:
+        configs = copy.deepcopy(slice_set)
+        style = configs.pop("style")
+        if style == "slice_along_axis":
+            mesh = mesh.slice_along_axis(**configs)
+        elif style == "slice_orthogonal":
+            mesh = mesh.slice_orthogonal(**configs)
+        elif style == "slice":
+            mesh = mesh.slice(**configs)
+    return mesh
+
+
+def _save_plot(
+    plotter: pv.Plotter, figsize: tuple, save_dir: str, title: str, show: bool
+):
+    """
+    Save the plot.
+    """
+    # set plotting style
+    plotter.add_text(title)
     plotter.add_axes()
     plotter.add_bounding_box()
     plotter.view_isometric()
 
-    # Set title and save plot
+    # save ans show
     if save_dir and not show:
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
@@ -355,4 +366,3 @@ def plot_mesh_scatters(
         plotter.screenshot(save_path, window_size=winsize)
     if show:
         plotter.show()
-    plotter.close()
