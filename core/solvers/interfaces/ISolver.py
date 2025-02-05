@@ -26,10 +26,10 @@ class ISolver(ABC):
         Returns:
             - A dictionary containing the meta information of the solver with the following keys:
                 - description (str): A brief description of the solver.
-                - type (str): The type of the solver, e.g. FDM, FVM, etc.
+                - type (str): The type of the solver.
                 - equation (str): The equation solved by the solver, e.g. Navier-Stokes, etc.
                 - equation_expr (str): The mathematical expression of the equation.
-                - domain (str): The domain of the solver, e.g. 2D, etc.
+                - dimension (str): The dimension of the solver.
                 - default_ics (dict): The default initialization conditions.
                 - default_bcs (dict): The default boundary conditions.
                 - fields (dict): The dictionary of available fields solved by the solver.

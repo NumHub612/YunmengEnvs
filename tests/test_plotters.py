@@ -1,11 +1,5 @@
 # -*- encoding: utf-8 -*-
 from core.visuals.plotter import plot_field, plot_mesh
-from core.visuals.plotter import (
-    plot_mesh_geometry,
-    plot_mesh_cloudmap,
-    plot_mesh_scatters,
-    plot_mesh_streamplot,
-)
 from core.numerics.mesh import Coordinate, Grid1D, Grid2D, Grid3D
 from core.numerics.fields import Field, NodeField
 import unittest
@@ -266,10 +260,10 @@ class TestPlotters(unittest.TestCase):
 
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
-        # suit = unittest.TestLoader().loadTestsFromTestCase(TestPlotters)
+        suit = unittest.TestLoader().loadTestsFromTestCase(TestPlotters)
 
-        suit = unittest.TestSuite()
-        suit.addTest(TestPlotters("test_grid2d"))
+        # suit = unittest.TestSuite()
+        # suit.addTest(TestPlotters("test_grid2d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)

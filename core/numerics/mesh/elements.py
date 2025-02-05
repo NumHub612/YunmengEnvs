@@ -20,33 +20,18 @@ class Coordinate:
     z: float = 0
 
     def __add__(self, other: "Coordinate") -> "Coordinate":
-        """
-        Add two coordinates.
-        """
         return Coordinate(self.x + other.x, self.y + other.y, self.z + other.z)
 
     def __sub__(self, other: "Coordinate") -> "Coordinate":
-        """
-        Subtract two coordinates.
-        """
         return Coordinate(self.x - other.x, self.y - other.y, self.z - other.z)
 
     def __mul__(self, other: float) -> "Coordinate":
-        """
-        Multiply a coordinate by a scalar.
-        """
         return Coordinate(self.x * other, self.y * other, self.z * other)
 
     def __rmul__(self, other: float) -> "Coordinate":
-        """
-        Multiply a scalar by a coordinate.
-        """
         return self.__mul__(other)
 
     def __truediv__(self, other: float) -> "Coordinate":
-        """
-        Divide a coordinate by a scalar.
-        """
         return Coordinate(self.x / other, self.y / other, self.z / other)
 
     def to_np(self) -> np.ndarray:
