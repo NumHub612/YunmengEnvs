@@ -50,8 +50,8 @@
 
 ## YunmengEnvs API 文档
 
-+ [yunmeng.solutions package](./apis/solutions.md)
-+ [yunmeng.solvers package](./apis/solvers.md)
-+ [yunmeng.numerics package](./apis/numerics.md)
++ [solutions package](./apis/solutions.md)
++ [solvers package](./apis/solvers.md)
++ [numerics package](./apis/numerics.md)
 
 ---------------------------------------------------------------------------------
