@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - main
-      - dev
   pull_request:
     branches:
       - main
-      - dev
 
 jobs:
   YunMeng_Test:
@@ -49,7 +47,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Build and deploy docs
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/dev'}}
+        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
         run: |
           cd ${{ github.workspace }}
           pip install mkdocs mkdocstrings[python] mkdocs-material
@@ -59,21 +57,21 @@ jobs:
         shell: bash
 
       - name: Deploy docs to GitHub Pages
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/dev'}}
+        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
           enable_jekyll: true
 
-      - name: Build package
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
+      - name: Build package while tagging
+        if: ${{ matrix.os == 'ubuntu-22.04' && startsWith(github.ref, 'refs/tags')}}
         run: |
           pip install setuptools wheel twine
           python setup.py sdist bdist_wheel
 
       # - name: Upload to PyPI
-      #   if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
+      #   if: ${{ matrix.os == 'ubuntu-22.04' && startsWith(github.ref, 'refs/tags')}}
       #   env:
       #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
       #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
