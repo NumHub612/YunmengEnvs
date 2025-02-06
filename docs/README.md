@@ -16,11 +16,11 @@
 
 ---------------------------------------------------------------------------------
 
-## 概览
+## 文档导航
 
 + [关于YunmengEnvs](README.md)
-+ [安装](Install.md)
-+ [开始](QuickStart.md)
++ [开始安装](Install.md)
++ [概览](QuickStart.md)
 + [解决方案](Solutions.md)
 + [集成](Integrate.md)
 + [求解器](Solvers.md)
@@ -36,8 +36,9 @@
 
 如果你对这个项目感兴趣，欢迎加入我们！ 
 
-+ [加入社区](Developer.md#developer-guide)
-+ [参与项目](Developer.md#关于模型开发过程和文档一些待完善的建议)
++ [开发者指南](Developer.md#developer-guide)
++ [参与反馈](https://github.com/NumHub612/YunmengEnvs/issues)
++ [参与讨论](https://github.com/orgs/NumHub612/discussions)
 
 感谢我们的贡献者:
 

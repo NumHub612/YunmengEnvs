@@ -32,6 +32,10 @@
 
 如果你对这个项目感兴趣，欢迎加入我们！   
 
++ [开发者指南](Developer.md#developer-guide)
++ [参与反馈](https://github.com/NumHub612/YunmengEnvs/issues)
++ [参与讨论](https://github.com/orgs/NumHub612/discussions)
+
 感谢我们的贡献者:
 
 <a href="https://github.com/NumHub612/YunmengEnvs/graphs/contributors">
