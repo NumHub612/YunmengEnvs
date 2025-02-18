@@ -36,7 +36,7 @@
 + [参与反馈](https://github.com/NumHub612/YunmengEnvs/issues)
 + [参与讨论](https://github.com/orgs/NumHub612/discussions)
 
-感谢我们的贡献者:
+感谢所有的贡献者:
 
 <a href="https://github.com/NumHub612/YunmengEnvs/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=NumHub612/YunmengEnvs" />
