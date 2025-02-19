@@ -18,6 +18,7 @@ class Mesh(ABC):
 
     Notes:
         - Don't support isolated element.
+        - Don't support non-Cartesian coordinates.
     """
 
     def __init__(self):
@@ -88,6 +89,12 @@ class Mesh(ABC):
     @abstractmethod
     def dimension(self) -> str:
         """Return the mesh domain, e.g. 1d, 2d or 3d."""
+        pass
+
+    @property
+    @abstractmethod
+    def is_orthogonal(self) -> bool:
+        """Return True if the mesh is orthogonal."""
         pass
 
     # -----------------------------------------------
@@ -362,8 +369,11 @@ class GenericMesh(Mesh):
 
     @property
     def dimension(self) -> str:
-        """Return the dimension of the mesh, either 2d or 3d."""
         return self._dimension
+
+    @property
+    def is_orthogonal(self) -> bool:
+        return False
 
     def refine_cells(self, indexes: list):
         pass
@@ -422,6 +432,10 @@ class AdaptiveRectangularMesh(GenericMesh):
     def sub_cells(self) -> dict:
         """Return the sub-cells of the mesh."""
         return self._sub_cells
+
+    @property
+    def is_orthogonal(self) -> bool:
+        return True
 
     def refine_cells(self, indexes: list):
         for level in range(self._max_level, -1, -1):
