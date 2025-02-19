@@ -40,6 +40,10 @@ class Grid(Mesh):
         """The number of discretization size in the z-direction."""
         pass
 
+    @property
+    def is_orthogonal(self) -> bool:
+        return True
+
     # -----------------------------------------------
     # --- Abandoned methods ---
     # -----------------------------------------------

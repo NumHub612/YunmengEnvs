@@ -174,7 +174,7 @@ def _extract_mesh_data(mesh: Mesh):
     if mesh.dimension == "2d":
         for cell in mesh.cells:
             nodes = topo.collect_cell_nodes(cell.id)
-            coors = [mesh.nodes[i].coordinate for i in nodes]
+            coors = [mesh.get_node(i).coordinate for i in nodes]
             indexes = geom.sort_anticlockwise(dict(zip(nodes, coors)))
             cells.append([len(indexes)] + indexes)
     else:
