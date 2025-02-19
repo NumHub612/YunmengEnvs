@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Abstract mesh class for describing the geometry and topology.
 """
 from core.numerics.mesh import Coordinate, Node, Face, Cell
-from core.numerics.mesh import MeshTopo, MeshGeom
+from core.numerics.mesh.auxiliaries import MeshTopo, MeshGeom
 from core.numerics.fields import Vector
 from configs.settings import logger
 
@@ -19,6 +19,7 @@ class Mesh(ABC):
     Notes:
         - Don't support isolated element.
         - Don't support non-Cartesian coordinates.
+        - The mesh must use incremental encoding.
     """
 
     def __init__(self):
@@ -101,6 +102,13 @@ class Mesh(ABC):
     # --- mesh query methods ---
     # -----------------------------------------------
 
+    def get_node_cursor(self, node: Node) -> int:
+        """Get the cursor of the given node."""
+        for i, n in enumerate(self._nodes):
+            if n == node:
+                return i
+        return None
+
     def get_node(self, index: int) -> Node:
         """Get the node with the given index."""
         for node in self._nodes:
@@ -108,11 +116,25 @@ class Mesh(ABC):
                 return node
         return None
 
+    def get_face_cursor(self, face: Face) -> int:
+        """Get the cursor of the given face."""
+        for i, f in enumerate(self._faces):
+            if f == face:
+                return i
+        return None
+
     def get_face(self, index: int) -> Face:
         """Get the face with the given index."""
         for face in self._faces:
             if face.id == index:
                 return face
+        return None
+
+    def get_cell_cursor(self, cell: Cell) -> int:
+        """Get the cursor of the given cell."""
+        for i, c in enumerate(self._cells):
+            if c == cell:
+                return i
         return None
 
     def get_cell(self, index: int) -> Cell:
