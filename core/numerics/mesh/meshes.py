@@ -98,6 +98,31 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
+    # --- mesh query methods ---
+    # -----------------------------------------------
+
+    def get_node(self, index: int) -> Node:
+        """Get the node with the given index."""
+        for node in self._nodes:
+            if node.id == index:
+                return node
+        return None
+
+    def get_face(self, index: int) -> Face:
+        """Get the face with the given index."""
+        for face in self._faces:
+            if face.id == index:
+                return face
+        return None
+
+    def get_cell(self, index: int) -> Cell:
+        """Get the cell with the given index."""
+        for cell in self._cells:
+            if cell.id == index:
+                return cell
+        return None
+
+    # -----------------------------------------------
     # --- mesh modification methods ---
     # -----------------------------------------------
 

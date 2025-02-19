@@ -47,7 +47,7 @@ class MeshTopo:
         if self._boundary_nodes is None:
             self._boundary_nodes = []
             for fid in self.boundary_faces_indexes:
-                self._boundary_nodes.extend(self._mesh.faces[fid].nodes)
+                self._boundary_nodes.extend(self._mesh.get_face(fid).nodes)
             self._boundary_nodes = list(set(self._boundary_nodes))
         return self._boundary_nodes
 
@@ -116,9 +116,9 @@ class MeshTopo:
                 for cell in self._mesh.cells:
                     faces = cell.faces
                     for i in range(len(faces)):
-                        nid1 = self._mesh.faces[faces[i]].nodes[0]
+                        nid1 = self._mesh.get_face(faces[i]).nodes[0]
                         for j in range(i + 1, len(faces)):
-                            nid2 = self._mesh.faces[faces[j]].nodes[0]
+                            nid2 = self._mesh.get_face(faces[j]).nodes[0]
                             neighbours[nid1].append(nid2)
                             neighbours[nid2].append(nid1)
             else:
@@ -160,7 +160,7 @@ class MeshTopo:
             node_cells = {nid: [] for nid in self._mesh.node_indexes}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
-                    for nid in self._mesh.faces[fid].nodes:
+                    for nid in self._mesh.get_face(fid).nodes:
                         node_cells[nid].append(cell.id)
             node_cells = {nid: list(set(cells)) for nid, cells in node_cells.items()}
             self._node_cells = node_cells
@@ -172,7 +172,7 @@ class MeshTopo:
             cell_nodes = {cid: [] for cid in self._mesh.cell_indexes}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
-                    for nid in self._mesh.faces[fid].nodes:
+                    for nid in self._mesh.get_face(fid).nodes:
                         cell_nodes[cell.id].append(nid)
             cell_nodes = {cid: list(set(nodes)) for cid, nodes in cell_nodes.items()}
             self._cell_nodes = cell_nodes
@@ -492,7 +492,8 @@ class MeshGeom:
             for cid in self._mesh.cell_indexes:
                 for j in topos.collect_cell_neighbours(cid):
                     dist = self.calculate_distance(
-                        self._mesh.cells[cid].coordinate, self._mesh.cells[j].coordinate
+                        self._mesh.get_cell(cid).coordinate,
+                        self._mesh.get_cell(j).coordinate,
                     )
                     cell_dists[cid][j] = dist
                     cell_dists[j][cid] = dist
@@ -510,7 +511,7 @@ class MeshGeom:
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     dist = self.calculate_distance(
-                        cell.coordinate, self._mesh.faces[fid].coordinate
+                        cell.coordinate, self._mesh.get_face(fid).coordinate
                     )
                     cell_face_dists[cell.id][fid] = dist
             self._cell_to_face_dists = cell_face_dists
@@ -528,7 +529,8 @@ class MeshGeom:
             for cid in self._mesh.cell_indexes:
                 for j in topos.collect_cell_nodes(cid):
                     dist = self.calculate_distance(
-                        self._mesh.cells[cid].coordinate, self._mesh.nodes[j].coordinate
+                        self._mesh.get_cell(cid).coordinate,
+                        self._mesh.get_node(j).coordinate,
                     )
                     cell_node_dists[cid][j] = dist
             self._cell_to_node_dists = cell_node_dists
@@ -546,7 +548,8 @@ class MeshGeom:
             for nid in self._mesh.node_indexes:
                 for j in topos.collect_node_neighbours(nid):
                     dist = self.calculate_distance(
-                        self._mesh.nodes[nid].coordinate, self._mesh.nodes[j].coordinate
+                        self._mesh.get_node(nid).coordinate,
+                        self._mesh.get_node(j).coordinate,
                     )
                     node_dists[nid][j] = dist
                     node_dists[j][nid] = dist
@@ -622,8 +625,8 @@ class MeshGeom:
             for cid in self._mesh.cell_indexes:
                 for j in topos.collect_cell_neighbours(cid):
                     vec_np = (
-                        self._mesh.cells[cid].coordinate
-                        - self._mesh.cells[j].coordinate
+                        self._mesh.get_cell(cid).coordinate
+                        - self._mesh.get_cell(j).coordinate
                     ).to_np()
                     vec = Vector.from_np(vec_np)
                     vec /= vec.magnitude
