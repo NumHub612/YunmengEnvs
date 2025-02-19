@@ -5,6 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Interfaces for boundary conditions at faces of a mesh.
 """
 from abc import ABC, abstractmethod
+from core.numerics.mesh import Element
 
 
 class IBoundaryCondition(ABC):
@@ -32,7 +33,7 @@ class IBoundaryCondition(ABC):
         pass
 
     @abstractmethod
-    def evaluate(self, time: float, element: "Element") -> tuple:
+    def evaluate(self, time: float, element: Element) -> tuple:
         """
         Evaluate the boundary condition.
 

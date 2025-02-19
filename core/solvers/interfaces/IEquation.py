@@ -11,6 +11,9 @@ are also driven by the `Solver`.
 For known problems, more efficient solver can be directly developed.
 """
 from abc import ABC, abstractmethod
+from core.numerics.fields import Field, Variable
+from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
+from core.numerics.matrix import LinearEqs
 
 
 class IEquation(ABC):
@@ -68,7 +71,7 @@ class IEquation(ABC):
         pass
 
     @abstractmethod
-    def set_mesh(self, mesh: "Mesh"):
+    def set_mesh(self, mesh: Mesh):
         """
         Set the domain mesh.
 
@@ -85,7 +88,7 @@ class IEquation(ABC):
         pass
 
     @abstractmethod
-    def discretize(self) -> "LinearEqs":
+    def discretize(self) -> LinearEqs:
         """
         Discretize the equations system.
         """
@@ -104,24 +107,14 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def prepare(
-        self,
-        field: "Field",
-        topo: "MeshTopo",
-        geom: "MeshGeom",
-    ):
+    def prepare(self, field: Field, topo: MeshTopo, geom: MeshGeom):
         """
         Prepare the operator for running discretization.
-
-        Args:
-            field: The vairable field.
-            topo: Mesh topology.
-            geom: Mesh geometry.
         """
         pass
 
     @abstractmethod
-    def run(self, element: int) -> "Variable | LinearEqs":
+    def run(self, element: int) -> Variable | LinearEqs:
         """
         Run the operator on a given element.
 
