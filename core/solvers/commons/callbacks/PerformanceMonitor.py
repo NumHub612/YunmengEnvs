@@ -47,6 +47,23 @@ class PerformanceMonitor(ISolverCallback):
         self._interval = interval
         self._step = 0
 
+        # start the performance monitoring process.
+        log_dir = os.path.dirname(self._log_file)
+        profile = f"{self._log_id}_profile.svg"
+        profile = os.path.join(log_dir, profile)
+        self._perf_process = subprocess.Popen(
+            ["py-spy", "record", "-o", profile, "--pid", str(self._process)]
+        )
+        self._log.info(f"Start performance monitoring process")
+
+    def __del__(self):
+        """
+        Destructor.
+        """
+        if self._perf_process is not None:
+            self._perf_process.kill()
+            self._perf_process = None
+
     def _init_logging(self, log_id: str, log_file: str):
         """
         Initialize the unic logging.
@@ -92,7 +109,7 @@ class PerformanceMonitor(ISolverCallback):
             total_memories.append(gpu.memoryTotal)
             used_memories.append(gpu.memoryUsed)
 
-        if GPUtil.getGPUs() > 0:
+        if len(GPUtil.getGPUs()) > 0:
             memory_usages = [
                 used / total for used, total in zip(used_memories, total_memories)
             ]
@@ -147,33 +164,28 @@ class PerformanceMonitor(ISolverCallback):
         }
         self._log.info(json.dumps(mesh_info))
 
-        # start the performance monitoring process.
-        log_dir = os.path.dirname(self._log_file)
-        profile = f"{self._log_id}_profile.svg"
-        profile = os.path.abspath(log_dir, profile)
-        self._perf_process = subprocess.Popen(
-            ["py-spy", "record", "-o", profile, "--pid", str(self._process)]
-        )
-
-    def on_task_begin(self, **kwargs):
+    def on_task_begin(self, *args, **kwargs):
         logger.info("Task begin.")
 
-    def on_task_end(self, solver_status: dict, **kwargs):
+    def on_task_end(self, solver_status: dict, *args, **kwargs):
         status = self._collect_running_info(solver_status)
+        if self._perf_process is not None:
+            self._perf_process.kill()
+            self._perf_process = None
+
         self._log.info(json.dumps(status))
         self._log.info("Task end.")
 
-    def on_step_begin(self, **kwargs):
+    def on_step_begin(self, *args, **kwargs):
         pass
 
-    def on_step(self, **kwargs):
-        pass
-
-    def on_step_end(self, solver_status: dict, **kwargs):
+    def on_step(self, solver_status: dict, *args, **kwargs):
         self._step += 1
-
         if self._step % self._interval != 0:
             return
 
         status = self._collect_running_info(solver_status)
         self._log.info(json.dumps(status))
+
+    def on_step_end(self, *args, **kwargs):
+        pass
