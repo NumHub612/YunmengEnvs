@@ -1,4 +1,5 @@
 from core.solvers.commons.callbacks.RenderCallback import *
+from core.solvers.commons.callbacks.PerformanceMonitor import *
 
 
 # register all solver callbacks here
