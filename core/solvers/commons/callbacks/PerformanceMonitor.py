@@ -56,14 +56,6 @@ class PerformanceMonitor(ISolverCallback):
         )
         self._log.info(f"Start performance monitoring process")
 
-    def __del__(self):
-        """
-        Destructor.
-        """
-        if self._perf_process is not None:
-            self._perf_process.kill()
-            self._perf_process = None
-
     def _init_logging(self, log_id: str, log_file: str):
         """
         Initialize the unic logging.
@@ -165,15 +157,13 @@ class PerformanceMonitor(ISolverCallback):
         self._log.info(json.dumps(mesh_info))
 
     def on_task_begin(self, *args, **kwargs):
-        logger.info("Task begin.")
+        self._log.info("Task begin.")
 
-    def on_task_end(self, solver_status: dict, *args, **kwargs):
-        status = self._collect_running_info(solver_status)
-        if self._perf_process is not None:
-            self._perf_process.kill()
-            self._perf_process = None
-
-        self._log.info(json.dumps(status))
+    def on_task_end(self, *args, **kwargs):
+        # if self._perf_process is not None:
+        #     self._perf_process.send_signal(subprocess.signal.SIGINT)
+        #     self._perf_process.wait()
+        #     self._log.info("Stop performance monitoring process")
         self._log.info("Task end.")
 
     def on_step_begin(self, *args, **kwargs):
