@@ -1,4 +1,4 @@
-from core.numerics.mesh import Grid1D, Grid2D, Coordinate, Node, Mesh
+from core.numerics.mesh import Grid1D, Grid2D, Grid3D, Coordinate, Node, Mesh
 from core.numerics.mesh import MeshTopo
 from core.numerics.fields import NodeField, Scalar, Vector
 from core.solvers.commons import boundaries, inits, callbacks
@@ -173,14 +173,78 @@ class TestBurgers(unittest.TestCase):
         cb2.on_task_end()
 
     def test_burgers_3d(self):
-        pass
+        # set mesh
+        low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
+        nx, ny, nz = 11, 11, 11
+        grid = Grid3D(low_left, upper_right, nx, ny, nz)
+        topo = MeshTopo(grid)
+
+        node_index_groups = []
+        for i in range(9, 11):
+            for j in range(2):
+                for k in range(2):
+                    node_index_groups.append(grid.match_node(i, j, k))
+
+        bc_node_groups = []
+        for b in topo.boundary_nodes_indexes:
+            bc_node_groups.append(grid.nodes[b])
+
+        # set initial condition
+        node_num = grid.node_count
+        init_field = NodeField(node_num, "vector", Vector(0, 0, 0))
+        for i in node_index_groups:
+            init_field[i] = Vector(-2, 2, 2)
+
+        ic = inits.HotstartInitialization("ic1", init_field)
+
+        # set boundary condition
+        bc_value = Vector(0, 0, 0)
+        bc = boundaries.ConstantBoundary("bc1", bc_value, None)
+
+        # set callback
+        output_dir = "./tests/results"
+        confs = {
+            "vel": {
+                "style": "cloudmap",
+                "dimension": "x",
+                # "slice_set": {"style": "slice_along_axis", "n": 6, "axis": "y"},
+                "slice_set": {"style": "slice", "normal": [1, 1, 0]},
+            }
+        }
+        cb1 = callbacks.RenderCallback(output_dir, confs)
+        cb2 = callbacks.PerformanceMonitor(
+            "burgers3d", "./tests/results/burgers3d.log", 10
+        )
+
+        # set solver
+        solver = fdm.Burgers3D("solver1", grid)
+        solver.add_callback(cb1)
+        solver.add_callback(cb2)
+        solver.add_ic("vel", ic)
+        solver.add_bc("vel", bc_node_groups, bc)
+
+        sigma = 0.2
+        nu = 0.02
+        dx = 2 / grid.nx
+        dt = sigma * dx
+        nb_steps = 60
+        solver.initialize(nb_steps, nu)
+        cb2.on_task_begin()
+
+        # run solver
+        is_done = False
+        while not is_done:
+            is_done, _, status = solver.inference(dt)
+            print(f"Step {status['current_time']}")
+
+        cb2.on_task_end()
 
 
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
         suit.addTest(TestBurgers("test_burgers_1d"))
-        # suit.addTest(TestBurgers("test_burgers_2d"))
+        suit.addTest(TestBurgers("test_burgers_2d"))
         suit.addTest(TestBurgers("test_burgers_3d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
