@@ -8,7 +8,7 @@ from core.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from core.solvers.interfaces.IInitCondition import IInitCondition
 from core.solvers.interfaces.ISolverCallback import ISolverCallback
 from core.solvers.interfaces.IEquation import IEquation
-
+from core.numerics.fields import Field
 from abc import ABC, abstractmethod
 
 
@@ -68,7 +68,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def get_solution(self, field_name: str) -> "Field":
+    def get_solution(self, field_name: str) -> Field:
         """
         Get the solution of the solver.
         """

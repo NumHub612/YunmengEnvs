@@ -5,6 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 Interfaces for initializing the firield variables.
 """
 from abc import ABC, abstractmethod
+from core.numerics.fields import Field
 
 
 class IInitCondition(ABC):
@@ -21,7 +22,7 @@ class IInitCondition(ABC):
         pass
 
     @abstractmethod
-    def apply(self, field: "Field") -> None:
+    def apply(self, field: Field) -> None:
         """
         Initializes the field variables.
 
