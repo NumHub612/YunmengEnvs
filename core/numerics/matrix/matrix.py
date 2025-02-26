@@ -34,14 +34,13 @@ class Matrix:
     @staticmethod
     def zeros(shape: tuple, type: str = "float") -> "Matrix":
         """Create a matrix with all elements set to zero."""
-        if type == "float":
-            return Matrix(np.zeros(shape), shape)
-
-        if type == "scalar":
+        if type.lower() == "float":
+            zero = 0.0
+        elif type.lower() == "scalar":
             zero = Scalar().zero()
-        elif type == "vector":
+        elif type.lower() == "vector":
             zero = Vector().zero()
-        elif type == "tensor":
+        elif type.lower() == "tensor":
             zero = Tensor().zero()
         else:
             raise ValueError(f"Invalid matrix type {type}.")
@@ -51,14 +50,13 @@ class Matrix:
     @staticmethod
     def ones(shape: tuple, type: str = "float") -> "Matrix":
         """Create a matrix with all elements set to one."""
-        if type == "float":
-            return Matrix(np.ones(shape), shape)
-
-        if type == "scalar":
+        if type.lower() == "float":
+            one = 1.0
+        elif type.lower() == "scalar":
             one = Scalar().unit()
-        elif type == "vector":
+        elif type.lower() == "vector":
             one = Vector().unit()
-        elif type == "tensor":
+        elif type.lower() == "tensor":
             one = Tensor().unit()
         else:
             raise ValueError(f"Invalid matrix type {type}.")
@@ -68,7 +66,7 @@ class Matrix:
     @staticmethod
     def unit(shape: tuple, type: str = "float") -> "Matrix":
         """Create a Identity Matrix."""
-        if len(shape) == 2 and shape[0] != shape[1]:
+        if len(shape) != 2 or shape[0] != shape[1]:
             raise ValueError("Unit matrix must be squared.")
 
         if type == "float":
@@ -157,6 +155,9 @@ class Matrix:
 
     def __rsub__(self, other):
         return Matrix(other - self._data)
+
+    def __neg__(self):
+        return Matrix(-self._data)
 
     # -----------------------------------------------
     # --- matrix methods ---
@@ -312,6 +313,9 @@ class LinearEqs:
             self._mat / other,
             self._rhs / other,
         )
+
+    def __neg__(self):
+        return LinearEqs(self._var, -self._mat, -self._rhs)
 
     def _check_variable(self, other):
         if isinstance(other, LinearEqs) and other.variable != self.variable:
