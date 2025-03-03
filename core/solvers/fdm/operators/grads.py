@@ -6,8 +6,8 @@ Grad operators for the finite difference method.
 """
 from core.solvers.interfaces.IEquation import IOperator
 from core.numerics.matrix import LinearEqs
-from core.numerics.fields import Field, Variable, Tensor, Vector
-from core.numerics.mesh import Grid, MeshGeom, MeshTopo
+from core.numerics.fields import Field, NodeField, Tensor, Vector
+from core.numerics.mesh import Grid
 
 import numpy as np
 
@@ -26,7 +26,8 @@ class Grad01(IOperator):
     """
 
     def __init__(self):
-        self._field = None
+        self._source = None
+        self._mesh = None
         self._topo = None
         self._geom = None
 
@@ -34,28 +35,48 @@ class Grad01(IOperator):
     def type(self) -> str:
         return "GRAD"
 
-    def prepare(self, field: Field, topo: MeshTopo, geom: MeshGeom, **kwargs):
-        self._field = field
-        self._topo = topo
-        self._geom = geom
-
-        if not isinstance(self._topo.get_mesh(), Grid):
+    def prepare(self, mesh: Grid, **kwargs):
+        if not isinstance(mesh, Grid):
             raise ValueError("Grad01 operator only supports Grid.")
 
-        data_type = self._field.dtype
-        if data_type not in ["scalar", "vector"]:
+        self._mesh = mesh
+        self._topo = self._mesh.get_topo_assistant()
+        self._geom = self._mesh.get_geom_assistant()
+        self._source = None
+
+    def run(self, source: Field) -> Field | LinearEqs:
+        src_field_type = source.dtype
+        if src_field_type not in ["scalar", "vector"]:
             raise ValueError("Grad01 operator only supports scalar and vector fields.")
+        self._source = source
 
-    def run(self, element: int) -> Variable | LinearEqs:
-        neighbours = self._topo.get_mesh().retrieve_node_neighborhoods(element)
-        data_type = self._field.dtype
-
-        # calculate
-        if data_type == "scalar":
-            result = self._calculate_scalar_grad(element, neighbours)
+        if src_field_type == "scalar":
+            results = NodeField(
+                source.size,
+                "vector",
+                default=Vector.zero(),
+                variable=source.variable,
+            )
         else:
-            result = self._calculate_vector_grad(element, neighbours)
-        return result
+            results = NodeField(
+                source.size,
+                "tensor",
+                default=Tensor.zero(),
+                variable=source.variable,
+            )
+
+        for element in self._mesh.node_indexes:
+            neighbours = self._topo.get_mesh().retrieve_node_neighborhoods(element)
+
+            # calculate
+            if src_field_type == "scalar":
+                grad = self._calculate_scalar_grad(element, neighbours)
+            else:
+                grad = self._calculate_vector_grad(element, neighbours)
+
+            results[element] = grad
+
+        return results
 
     def _calculate_scalar_grad(
         self,
@@ -72,7 +93,7 @@ class Grad01(IOperator):
         for nb in [west, south, bot]:
             if nb is not None:
                 ds = self._geom.calucate_node_to_node_distance(element, nb)
-                grad = (self._field[element] - self._field[nb]) / ds
+                grad = (self._source[element] - self._source[nb]) / ds
                 results.append(grad)
             else:
                 results.append(0.0)
@@ -95,12 +116,12 @@ class Grad01(IOperator):
         for nb in [west, south, bot]:
             if nb is not None:
                 ds.append(self._geom.calucate_node_to_node_distance(element, nb))
-                vecs.append(self._field[nb].to_np())
+                vecs.append(self._source[nb].to_np())
             else:
                 ds.append(None)
                 vecs.append(None)
 
-        elem_vec = self._field[element].to_np()
+        elem_vec = self._source[element].to_np()
         for i in range(3):
             row = []
             for vec, d in zip(vecs, ds):

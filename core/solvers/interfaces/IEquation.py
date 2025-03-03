@@ -107,21 +107,21 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def prepare(self, field: Field, topo: MeshTopo, geom: MeshGeom):
+    def prepare(self, mesh: Mesh):
         """
         Prepare the operator for running discretization.
         """
         pass
 
     @abstractmethod
-    def run(self, element: int) -> Variable | LinearEqs:
+    def run(self, source: Field) -> Field | LinearEqs:
         """
-        Run the operator on a given element.
+        Run the operator on each element.
 
         Args:
-            element: Element id.
+            source: The source field to be discretized.
 
         Returns:
-            The result of the operator.
+            The discretized results.
         """
         pass

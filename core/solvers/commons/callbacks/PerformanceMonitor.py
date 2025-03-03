@@ -71,7 +71,7 @@ class PerformanceMonitor(ISolverCallback):
         formatter = logging.Formatter(
             "[%(asctime)s][%(name)s][%(process)d][%(thread)d]: %(message)s"
         )
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, "w")
         file_handler.setFormatter(formatter)
         log.addHandler(file_handler)
         return log

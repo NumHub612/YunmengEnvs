@@ -264,19 +264,13 @@ class LinearEqs:
 
     def __add__(self, other):
         self._check_variable(other)
-        if isinstance(other, (Variable, int, float)):
-            return LinearEqs(
-                self.variable,
-                self._mat + other,
-                self._rhs + other,
-            )
         if isinstance(other, LinearEqs):
             return LinearEqs(
                 self.variable,
                 self._mat + other.matrix,
                 self._rhs + other.rhs,
             )
-        raise ValueError(f"Invalid LinearEqs operation.")
+        raise ValueError(f"Invalid LinearEqs operation with {type(other)}.")
 
     def __sub__(self, other):
         return self.__add__(-other)
@@ -289,7 +283,6 @@ class LinearEqs:
 
     def __mul__(self, other):
         self._check_variable(other)
-        self._valid_multiple(other)
         return LinearEqs(
             self.variable,
             self._mat * other,
@@ -298,7 +291,6 @@ class LinearEqs:
 
     def __rmul__(self, other):
         self._check_variable(other)
-        self._valid_multiple(other)
         return LinearEqs(
             self.variable,
             other * self._mat,
@@ -307,7 +299,6 @@ class LinearEqs:
 
     def __truediv__(self, other):
         self._check_variable(other)
-        self._valid_multiple(other)
         return LinearEqs(
             self.variable,
             self._mat / other,
@@ -323,16 +314,6 @@ class LinearEqs:
                 f"Cannot add equations with different variables: \
                     {self.variable}, {other.variable}."
             )
-        if isinstance(other, Variable):
-            if other.type != self.matrix.type:
-                raise ValueError(
-                    f"Cannot add variable with different type: \
-                        {self.matrix.type}, {other.type}."
-                )
-
-    def _valid_multiple(self, other):
-        if not isinstance(other, (Variable, int, float)):
-            raise ValueError(f"Cannot multiply equations with {type(other)}.")
 
     # -----------------------------------------------
     # --- linear equations methods ---
