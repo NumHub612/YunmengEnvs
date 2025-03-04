@@ -9,6 +9,7 @@ import numpy as np
 import os
 import shutil
 import unittest
+import subprocess
 
 
 class TestSimpleEquations(unittest.TestCase):
@@ -60,13 +61,20 @@ class TestSimpleEquations(unittest.TestCase):
         self._bc = boundaries.ConstantBoundary("bc1", bc_value, None)
 
     def tearDown(self):
-        if os.path.exists("./tests/results/"):
-            shutil.rmtree("./tests/results/")
-        os.makedirs("./tests/results/")
+        # if os.path.exists("./tests/results/"):
+        #     shutil.rmtree("./tests/results/")
+        # os.makedirs("./tests/results/")
+        pass
 
     def test_full_burgers2d(self):
         """test full burgers equation"""
         print("Testing full burgers equation...")
+
+        # run performance profiling
+        output_dir = "./tests/results"
+        profile = os.path.join(output_dir, f"test_simple_equations_perf.svg")
+        subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
+
         # set result output path
         save_dir = "./tests/results/u"
         if os.path.exists(save_dir):

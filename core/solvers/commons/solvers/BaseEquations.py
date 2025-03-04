@@ -6,7 +6,7 @@ Basic and simple equation class for user customized pde equations.
 """
 from core.solvers.interfaces import IEquation, IOperator
 from core.numerics.fields import Variable, Field
-from core.numerics.matrix import LinearEqs
+from core.numerics.matrix import LinearEqs, Matrix
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import numpy as np
@@ -263,7 +263,7 @@ class SimpleEquation(BaseEquation):
 
     def discretize(self, dt: float) -> LinearEqs:
         # update configurations
-        self._configs["dt"] = dt
+        self._configs["step"] = dt
 
         # parse the equation
         if self._op_terms is None:
@@ -301,8 +301,10 @@ class SimpleEquation(BaseEquation):
                 else:
                     term_result = curr
                 op = ""
+
             if term_result:
-                final_eq += term_result
+                final_eq = self.operate("+", final_eq, term_result)
+
         return final_eq
 
     def operate(self, op: str, left, right):
@@ -313,22 +315,46 @@ class SimpleEquation(BaseEquation):
         if op == "*":
             if isinstance(left, Field) and isinstance(right, LinearEqs):
                 rhs = [left[i] * right.rhs[i] for i in range(left.size)]
-                rhs = np.array(rhs)
+                rhs = Matrix(rhs)
                 return LinearEqs(right.variable, right.matrix, rhs)
-            elif isinstance(right, Field) and isinstance(left, LinearEqs):
+            elif isinstance(left, LinearEqs) and isinstance(right, Field):
                 rhs = [left.rhs[i] * right[i] for i in range(right.size)]
-                rhs = np.array(rhs)
+                rhs = Matrix(rhs)
                 return LinearEqs(left.variable, left.matrix, rhs)
-            elif isinstance(left, Variable) and isinstance(right, LinearEqs):
-                rhs = [left * right.rhs[i] for i in range(right.size)]
-                rhs = np.array(rhs)
-                return LinearEqs(right.variable, right.matrix, rhs)
+            elif isinstance(left, Field) and isinstance(right, Field):
+                if left.size != right.size:
+                    raise ValueError(
+                        f"Incompatible field sizes: {left.size} and {right.size}."
+                    )
+                if left.etype != right.etype:
+                    raise ValueError(
+                        f"Incompatible field types: {left.etype} and {right.etype}."
+                    )
+                data = [(left[i] * right[i]).to_np() for i in range(left.size)]
+                return Field.from_np(np.array(data), left.etype)
+            elif isinstance(left, (float, Variable)) and isinstance(right, Field):
+                data = [(left * right[i]).to_np() for i in range(right.size)]
+                return Field.from_np(np.array(data), right.etype)
+            elif isinstance(left, Field) and isinstance(right, (float, Variable)):
+                data = [(left[i] * right).to_np() for i in range(left.size)]
+                return Field.from_np(np.array(data), left.etype)
             else:
                 return left * right
         elif op == "/":
             return left / right
         elif op == "+":
-            return left + right
+            if isinstance(left, Field) and isinstance(right, LinearEqs):
+                mat = right.matrix
+                rhs = [-left[i] + right.rhs[i] for i in range(left.size)]
+                rhs = Matrix(rhs)
+                return LinearEqs(right.variable, mat, rhs)
+            elif isinstance(left, LinearEqs) and isinstance(right, Field):
+                mat = left.matrix
+                rhs = [left.rhs[i] - right[i] for i in range(right.size)]
+                rhs = Matrix(rhs)
+                return LinearEqs(left.variable, mat, rhs)
+            else:
+                return left + right
         elif op == "-":
             return left - right
         else:
@@ -344,24 +370,19 @@ class SimpleEquation(BaseEquation):
 
         # perpare the operator
         op = self._operators.get(op_name)()
-        op.prepare(
-            field,
-            self._mesh.get_topo_assistant(),
-            self._mesh.get_geom_assistant(),
-            **self._configs,
-        )
+        op.prepare(self._mesh, **self._configs)
 
         # run the operator
-        var_name, var_type, eq_num = self._get_equation_info()
-        final_eq = LinearEqs.zeros(var_name, eq_num, var_type)
-        for node in self._mesh.nodes:
-            curr = op.run(node.id)
-            if isinstance(curr, LinearEqs):
-                final_eq += curr
-            else:
-                final_eq.rhs[node.id] = -curr
+        result = op.run(field)
+        if isinstance(result, Field):
+            var_name, var_type, eq_num = self._get_equation_info()
+            eqs = LinearEqs.zeros(var_name, eq_num, var_type)
+            for i in range(eq_num):
+                eqs.rhs[i] = -result[i]
+        else:
+            eqs = result
 
-        return final_eq
+        return result
 
     def run_func(self, func_name: str, func_args: list):
         """Run the elementary function with the given arguments."""

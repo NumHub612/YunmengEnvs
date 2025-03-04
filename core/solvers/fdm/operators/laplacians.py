@@ -6,10 +6,8 @@ Laplacian operators for the finite difference method.
 """
 from core.solvers.interfaces.IEquation import IOperator
 from core.numerics.matrix import LinearEqs
-from core.numerics.fields import Field, Variable, Vector, Scalar
-from core.numerics.mesh import MeshGeom, MeshTopo, Grid
-
-import numpy as np
+from core.numerics.fields import Field, NodeField, Vector, Scalar
+from core.numerics.mesh import Grid
 
 
 class Lap01(IOperator):
@@ -25,7 +23,8 @@ class Lap01(IOperator):
     """
 
     def __init__(self):
-        self._field = None
+        self._source = None
+        self._mesh = None
         self._topo = None
         self._geom = None
 
@@ -33,29 +32,49 @@ class Lap01(IOperator):
     def type(self) -> str:
         return "LAPLACIAN"
 
-    def prepare(self, field: Field, topo: MeshTopo, geom: MeshGeom, **kwargs):
-        self._field = field
-        self._topo = topo
-        self._geom = geom
-
-        if not isinstance(self._topo.get_mesh(), Grid):
+    def prepare(self, mesh: Grid, **kwargs):
+        if not isinstance(mesh, Grid):
             raise ValueError("Grad01 operator only supports Grid.")
 
-        data_type = self._field.dtype
+        self._mesh = mesh
+        self._topo = mesh.get_topo_assistant()
+        self._geom = mesh.get_geom_assistant()
+        self._source = FileNotFoundError
+
+    def run(self, source: Field) -> Field | LinearEqs:
+        data_type = source.dtype
         if data_type not in ["scalar", "vector"]:
             raise ValueError("Lap01 operator only supports scalar and vector fields.")
+        self._source = source
 
-    def run(self, element: int) -> Variable | LinearEqs:
-        neighbours = self._topo.get_mesh().retrieve_node_neighborhoods(element)
-        data_type = self._field.dtype
-
-        # calculate
         if data_type == "scalar":
-            result = self._calculate_scalar_laplacian(element, neighbours)
+            results = NodeField(
+                self._source.size,
+                "scalar",
+                default=Scalar.zero(),
+                variable=self._source.variable,
+            )
         else:
-            result = self._calculate_vector_laplacian(element, neighbours)
+            results = NodeField(
+                self._source.size,
+                "vector",
+                default=Vector.zero(),
+                variable=self._source.variable,
+            )
 
-        return result
+        for element in self._mesh.node_indexes:
+            neighbours = self._topo.get_mesh().retrieve_node_neighborhoods(element)
+            data_type = self._source.dtype
+
+            # calculate
+            if data_type == "scalar":
+                result = self._calculate_scalar_laplacian(element, neighbours)
+            else:
+                result = self._calculate_vector_laplacian(element, neighbours)
+
+            results[element] = result
+
+        return results
 
     def _calculate_scalar_laplacian(
         self,
@@ -75,10 +94,10 @@ class Lap01(IOperator):
                 results.append(0.0)
             else:
                 ds1 = self._geom.calucate_node_to_node_distance(element, forward)
-                part1 = (self._field[forward] - self._field[element]) / ds1
+                part1 = (self._source[forward] - self._source[element]) / ds1
 
                 ds2 = self._geom.calucate_node_to_node_distance(element, backward)
-                part2 = (self._field[element] - self._field[backward]) / ds2
+                part2 = (self._source[element] - self._source[backward]) / ds2
 
                 ds = 0.5 * (ds1 + ds2)
                 results.append((part1 - part2) / ds)
@@ -108,10 +127,10 @@ class Lap01(IOperator):
                 dists.append((ds1, ds2, ds))
 
                 values.append(
-                    (self._field[forward].to_np(), self._field[backward].to_np())
+                    (self._source[forward].to_np(), self._source[backward].to_np())
                 )
 
-        elem_value = self._field[element].to_np()
+        elem_value = self._source[element].to_np()
         results = []
         for i in range(3):
             result = []

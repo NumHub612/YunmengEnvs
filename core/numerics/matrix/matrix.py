@@ -34,14 +34,13 @@ class Matrix:
     @staticmethod
     def zeros(shape: tuple, type: str = "float") -> "Matrix":
         """Create a matrix with all elements set to zero."""
-        if type == "float":
-            return Matrix(np.zeros(shape), shape)
-
-        if type == "scalar":
+        if type.lower() == "float":
+            zero = 0.0
+        elif type.lower() == "scalar":
             zero = Scalar().zero()
-        elif type == "vector":
+        elif type.lower() == "vector":
             zero = Vector().zero()
-        elif type == "tensor":
+        elif type.lower() == "tensor":
             zero = Tensor().zero()
         else:
             raise ValueError(f"Invalid matrix type {type}.")
@@ -51,14 +50,13 @@ class Matrix:
     @staticmethod
     def ones(shape: tuple, type: str = "float") -> "Matrix":
         """Create a matrix with all elements set to one."""
-        if type == "float":
-            return Matrix(np.ones(shape), shape)
-
-        if type == "scalar":
+        if type.lower() == "float":
+            one = 1.0
+        elif type.lower() == "scalar":
             one = Scalar().unit()
-        elif type == "vector":
+        elif type.lower() == "vector":
             one = Vector().unit()
-        elif type == "tensor":
+        elif type.lower() == "tensor":
             one = Tensor().unit()
         else:
             raise ValueError(f"Invalid matrix type {type}.")
@@ -68,7 +66,7 @@ class Matrix:
     @staticmethod
     def unit(shape: tuple, type: str = "float") -> "Matrix":
         """Create a Identity Matrix."""
-        if len(shape) == 2 and shape[0] != shape[1]:
+        if len(shape) != 2 or shape[0] != shape[1]:
             raise ValueError("Unit matrix must be squared.")
 
         if type == "float":
@@ -157,6 +155,9 @@ class Matrix:
 
     def __rsub__(self, other):
         return Matrix(other - self._data)
+
+    def __neg__(self):
+        return Matrix(-self._data)
 
     # -----------------------------------------------
     # --- matrix methods ---
@@ -263,19 +264,13 @@ class LinearEqs:
 
     def __add__(self, other):
         self._check_variable(other)
-        if isinstance(other, (Variable, int, float)):
-            return LinearEqs(
-                self.variable,
-                self._mat + other,
-                self._rhs + other,
-            )
         if isinstance(other, LinearEqs):
             return LinearEqs(
                 self.variable,
                 self._mat + other.matrix,
                 self._rhs + other.rhs,
             )
-        raise ValueError(f"Invalid LinearEqs operation.")
+        raise ValueError(f"Invalid LinearEqs operation with {type(other)}.")
 
     def __sub__(self, other):
         return self.__add__(-other)
@@ -288,7 +283,6 @@ class LinearEqs:
 
     def __mul__(self, other):
         self._check_variable(other)
-        self._valid_multiple(other)
         return LinearEqs(
             self.variable,
             self._mat * other,
@@ -297,7 +291,6 @@ class LinearEqs:
 
     def __rmul__(self, other):
         self._check_variable(other)
-        self._valid_multiple(other)
         return LinearEqs(
             self.variable,
             other * self._mat,
@@ -306,12 +299,14 @@ class LinearEqs:
 
     def __truediv__(self, other):
         self._check_variable(other)
-        self._valid_multiple(other)
         return LinearEqs(
             self.variable,
             self._mat / other,
             self._rhs / other,
         )
+
+    def __neg__(self):
+        return LinearEqs(self._var, -self._mat, -self._rhs)
 
     def _check_variable(self, other):
         if isinstance(other, LinearEqs) and other.variable != self.variable:
@@ -319,16 +314,6 @@ class LinearEqs:
                 f"Cannot add equations with different variables: \
                     {self.variable}, {other.variable}."
             )
-        if isinstance(other, Variable):
-            if other.type != self.matrix.type:
-                raise ValueError(
-                    f"Cannot add variable with different type: \
-                        {self.matrix.type}, {other.type}."
-                )
-
-    def _valid_multiple(self, other):
-        if not isinstance(other, (Variable, int, float)):
-            raise ValueError(f"Cannot multiply equations with {type(other)}.")
 
     # -----------------------------------------------
     # --- linear equations methods ---
@@ -365,8 +350,7 @@ class LinearEqs:
                             np.linalg.solve(eq.matrix.data, eq.rhs.flatten().data)
                         )
                 except:
-                    # If the matrix is singular, the solution is all zeros.
-                    results.append(np.zeros(eq.size))
+                    raise RuntimeError("Cannot solve linear equations.")
             else:
                 raise ValueError(f"Unsupported algorithm {method}.")
         solution = np.array(results).T
