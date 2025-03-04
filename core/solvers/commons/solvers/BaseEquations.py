@@ -263,7 +263,7 @@ class SimpleEquation(BaseEquation):
 
     def discretize(self, dt: float) -> LinearEqs:
         # update configurations
-        self._configs["dt"] = dt
+        self._configs["step"] = dt
 
         # parse the equation
         if self._op_terms is None:
@@ -345,12 +345,12 @@ class SimpleEquation(BaseEquation):
         elif op == "+":
             if isinstance(left, Field) and isinstance(right, LinearEqs):
                 mat = right.matrix
-                rhs = [left[i] + right.rhs[i] for i in range(left.size)]
+                rhs = [-left[i] + right.rhs[i] for i in range(left.size)]
                 rhs = Matrix(rhs)
                 return LinearEqs(right.variable, mat, rhs)
             elif isinstance(left, LinearEqs) and isinstance(right, Field):
                 mat = left.matrix
-                rhs = [left.rhs[i] + right[i] for i in range(right.size)]
+                rhs = [left.rhs[i] - right[i] for i in range(right.size)]
                 rhs = Matrix(rhs)
                 return LinearEqs(left.variable, mat, rhs)
             else:
@@ -373,9 +373,16 @@ class SimpleEquation(BaseEquation):
         op.prepare(self._mesh, **self._configs)
 
         # run the operator
-        eqs = op.run(field)
+        result = op.run(field)
+        if isinstance(result, Field):
+            var_name, var_type, eq_num = self._get_equation_info()
+            eqs = LinearEqs.zeros(var_name, eq_num, var_type)
+            for i in range(eq_num):
+                eqs.rhs[i] = -result[i]
+        else:
+            eqs = result
 
-        return eqs
+        return result
 
     def run_func(self, func_name: str, func_args: list):
         """Run the elementary function with the given arguments."""

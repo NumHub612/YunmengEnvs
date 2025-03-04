@@ -350,8 +350,7 @@ class LinearEqs:
                             np.linalg.solve(eq.matrix.data, eq.rhs.flatten().data)
                         )
                 except:
-                    # If the matrix is singular, the solution is all zeros.
-                    results.append(np.zeros(eq.size))
+                    raise RuntimeError("Cannot solve linear equations.")
             else:
                 raise ValueError(f"Unsupported algorithm {method}.")
         solution = np.array(results).T

@@ -109,12 +109,10 @@ class TestSimpleEquations(unittest.TestCase):
 
         # discretize and solve
         eqs, solution = self._run(problem, save_dir, True)
-        print(eqs)
-        print(solution)
 
         diags = eqs.matrix.diag
         coef = 1 / self._dt
-        # self.assertTrue(np.all(diags == Vector.unit() * coef))
+        self.assertTrue(np.all(diags == Vector.unit() * coef))
 
         validates = [
             Vector(24.999999999999996, 24.999999999999996, 0.0),
