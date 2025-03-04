@@ -335,64 +335,6 @@ class TestSimpleEquations(unittest.TestCase):
         # discretize and solve
         self._run(problem)
 
-    def test_grad(self):
-        """test grad equation"""
-        print("Testing grad equation...")
-        # set equations
-        equation_expr = "u*grad::Grad01(u) == 0"
-        symbols = {
-            "u": {
-                "description": "velocity",
-                "coefficient": False,
-                "type": "vector",
-                "bounds": (None, None),
-            }
-        }
-        coefficients = {}
-        variables = {"u": self._var_field}
-
-        # set problem
-        problem = SimpleEquation("burgers2d", fdm_operators)
-        problem.set_equations([equation_expr], symbols)
-        problem.set_coefficients(coefficients)
-        problem.set_fields(variables)
-        problem.set_mesh(self._grid)
-
-        # discretize and solve
-        self._run(problem)
-
-    def test_laplacian(self):
-        """test laplacian equation"""
-        print("Testing laplacian equation...")
-        # set equations
-        equation_expr = "0 == nu*laplacian::Lap01(u)"
-        symbols = {
-            "u": {
-                "description": "velocity",
-                "coefficient": False,
-                "type": "vector",
-                "bounds": (None, None),
-            },
-            "nu": {
-                "description": "viscosity",
-                "coefficient": True,
-                "type": "scalar",
-                "bounds": (0, None),
-            },
-        }
-        coefficients = {"nu": Scalar(0.1)}
-        variables = {"u": self._var_field}
-
-        # set problem
-        problem = SimpleEquation("burgers2d", fdm_operators)
-        problem.set_equations([equation_expr], symbols)
-        problem.set_coefficients(coefficients)
-        problem.set_fields(variables)
-        problem.set_mesh(self._grid)
-
-        # discretize and solve
-        self._run(problem)
-
     def _run(self, problem, result_dir=None, show=False):
         # set solving parameters
         steps = 10

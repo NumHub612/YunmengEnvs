@@ -8,3 +8,5 @@ PyYAML
 setuptools
 sympy
 vtk
+psutil
+GPUtil
