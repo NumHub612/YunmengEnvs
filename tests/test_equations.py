@@ -73,7 +73,7 @@ class TestSimpleEquations(unittest.TestCase):
         # run performance profiling
         output_dir = "./tests/results"
         profile = os.path.join(output_dir, f"test_simple_equations_perf.svg")
-        # subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
+        subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
 
         # set result output path
         save_dir = "./tests/results/u"

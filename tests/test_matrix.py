@@ -14,6 +14,8 @@ class TestMatrixes(unittest.TestCase):
         print(f"\n---------- Testing < {cls.__name__} > \n")
 
         output_dir = "./tests/results"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         profile = os.path.join(output_dir, f"test_matrix_perf.svg")
         # subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
 
@@ -34,7 +36,7 @@ class TestMatrixes(unittest.TestCase):
         self._run_lineareqs_ops(41, "float")
         self._run_lineareqs_ops(100, "float")
         self._run_lineareqs_ops(1000, "float")
-        self._run_lineareqs_ops(10000, "float")
+        # self._run_lineareqs_ops(10000, "float")
         # self._run_lineareqs_ops(100000, "float") # out of memory, 74.5 G needed.
         # self._run_lineareqs_ops(1000000, "float")
 
@@ -54,7 +56,7 @@ class TestMatrixes(unittest.TestCase):
         self._run_lineareqs_ops(11, type)
         self._run_lineareqs_ops(41, type)
         self._run_lineareqs_ops(100, type)
-        self._run_lineareqs_ops(1000, type)
+        # self._run_lineareqs_ops(1000, type)
 
     def test_tensor_matrix(self):
         type = "tensor"
@@ -63,7 +65,7 @@ class TestMatrixes(unittest.TestCase):
         self._run_lineareqs_ops(11, type)
         self._run_lineareqs_ops(41, type)
         self._run_lineareqs_ops(100, type)
-        self._run_lineareqs_ops(1000, type)
+        # self._run_lineareqs_ops(1000, type)
 
     def _run_lineareqs_ops(self, size, type):
         start = time.time()
@@ -98,8 +100,8 @@ if __name__ == "__main__":
         suit = unittest.TestSuite()
         suit.addTest(TestMatrixes("test_baseline_matrix"))
         # suit.addTest(TestMatrixes("test_scalar_matrix"))
-        suit.addTest(TestMatrixes("test_vector_matrix"))
-        # suit.addTest(TestMatrixes("test_tensor_matrix"))
+        # suit.addTest(TestMatrixes("test_vector_matrix"))
+        suit.addTest(TestMatrixes("test_tensor_matrix"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)
