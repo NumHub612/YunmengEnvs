@@ -8,7 +8,7 @@
 
 ## 什么是 YunmengEnvs？
 
-[![](https://img.shields.io/badge/license-Apache--2.0-red)](./LICENSE) [![](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/) [![codecov](https://codecov.io/gh/NumHub612/YunmengEnvs/branch/dev/graph/badge.svg?token=R5niOoGKl0)](https://codecov.io/gh/NumHub612/YunmengEnvs) [![](https://img.shields.io/badge/Docs-YunmengHome-blue?logo=markdown)](https://NumHub612.github.io/YunmengEnvs/)
+[![](https://img.shields.io/badge/license-Apache--2.0-red)](./LICENSE) [![](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/)[![codecov](https://codecov.io/gh/NumHub612/YunmengEnvs/branch/main/graph/badge.svg?token=R5niOoGKl0)](https://codecov.io/gh/NumHub612/YunmengEnvs) [![](https://img.shields.io/badge/Docs-YunmengHome-blue?logo=markdown)](https://NumHub612.github.io/YunmengEnvs/)
 
 [简体中文](README.md) | [English](README.md)
 
