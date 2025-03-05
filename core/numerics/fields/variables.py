@@ -619,7 +619,7 @@ class Tensor(Variable):
 
     def __rmul__(self, other):
         if isinstance(other, (int, float, Scalar)):
-            return self.__rmul__(other)
+            return self.__mul__(other)
 
     def __truediv__(self, other) -> "Tensor":
         if isinstance(other, (int, float)):

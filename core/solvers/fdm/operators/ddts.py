@@ -6,8 +6,8 @@ DDt operators for the finite difference method.
 """
 from core.solvers.interfaces.IEquation import IOperator
 from core.numerics.matrix import LinearEqs, Matrix
-from core.numerics.fields import Field, Variable, Vector, Scalar, Tensor
-from core.numerics.mesh import MeshGeom, MeshTopo
+from core.numerics.fields import Field, NodeField, Variable, Vector, Scalar, Tensor
+from core.numerics.mesh import Mesh
 
 
 class Ddt01(IOperator):
@@ -16,22 +16,19 @@ class Ddt01(IOperator):
     """
 
     def __init__(self):
-        self._field = None
         self._dt = None
 
     @property
     def type(self) -> str:
         return "DDT"
 
-    def prepare(self, field: Field, topo: MeshTopo, geom: MeshGeom, **kwargs):
-        self._field = field
-        self._dt = kwargs.get("dt", 0.001)
+    def prepare(self, mesh: Mesh = None, step: float = 0.001, **kwargs):
+        self._dt = step
 
-    def run(self, element: int) -> Variable | LinearEqs:
+    def run(self, source: Field) -> Variable | LinearEqs:
         # basic information
-        var = self._field.variable
-        size = self._field.size
-        type = self._field.dtype
+        size = source.size
+        type = source.dtype
 
         # create matrix
         coef_val = 1.0 / self._dt
@@ -43,11 +40,12 @@ class Ddt01(IOperator):
             coef = Tensor.unit() * coef_val
 
         mat = Matrix.zeros((size, size), type)
-        mat[element, element] = coef
+        for i in range(size):
+            mat[i, i] = coef
 
         # create rhs
-        src = self._field[element] * coef_val
         rhs = Matrix.zeros((size,), type)
-        rhs[element] = src
+        for i in range(size):
+            rhs[i] = source[i] * coef_val
 
-        return LinearEqs(var, mat, rhs)
+        return LinearEqs(source.variable, mat, rhs)

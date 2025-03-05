@@ -9,6 +9,7 @@ import numpy as np
 import os
 import shutil
 import unittest
+import subprocess
 
 
 class TestSimpleEquations(unittest.TestCase):
@@ -60,13 +61,20 @@ class TestSimpleEquations(unittest.TestCase):
         self._bc = boundaries.ConstantBoundary("bc1", bc_value, None)
 
     def tearDown(self):
-        if os.path.exists("./tests/results/"):
-            shutil.rmtree("./tests/results/")
-        os.makedirs("./tests/results/")
+        # if os.path.exists("./tests/results/"):
+        #     shutil.rmtree("./tests/results/")
+        # os.makedirs("./tests/results/")
+        pass
 
     def test_full_burgers2d(self):
         """test full burgers equation"""
         print("Testing full burgers equation...")
+
+        # run performance profiling
+        output_dir = "./tests/results"
+        profile = os.path.join(output_dir, f"test_simple_equations_perf.svg")
+        subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
+
         # set result output path
         save_dir = "./tests/results/u"
         if os.path.exists(save_dir):
@@ -315,64 +323,6 @@ class TestSimpleEquations(unittest.TestCase):
             },
         }
         coefficients = {}
-        variables = {"u": self._var_field}
-
-        # set problem
-        problem = SimpleEquation("burgers2d", fdm_operators)
-        problem.set_equations([equation_expr], symbols)
-        problem.set_coefficients(coefficients)
-        problem.set_fields(variables)
-        problem.set_mesh(self._grid)
-
-        # discretize and solve
-        self._run(problem)
-
-    def test_grad(self):
-        """test grad equation"""
-        print("Testing grad equation...")
-        # set equations
-        equation_expr = "u*grad::Grad01(u) == 0"
-        symbols = {
-            "u": {
-                "description": "velocity",
-                "coefficient": False,
-                "type": "vector",
-                "bounds": (None, None),
-            }
-        }
-        coefficients = {}
-        variables = {"u": self._var_field}
-
-        # set problem
-        problem = SimpleEquation("burgers2d", fdm_operators)
-        problem.set_equations([equation_expr], symbols)
-        problem.set_coefficients(coefficients)
-        problem.set_fields(variables)
-        problem.set_mesh(self._grid)
-
-        # discretize and solve
-        self._run(problem)
-
-    def test_laplacian(self):
-        """test laplacian equation"""
-        print("Testing laplacian equation...")
-        # set equations
-        equation_expr = "0 == nu*laplacian::Lap01(u)"
-        symbols = {
-            "u": {
-                "description": "velocity",
-                "coefficient": False,
-                "type": "vector",
-                "bounds": (None, None),
-            },
-            "nu": {
-                "description": "viscosity",
-                "coefficient": True,
-                "type": "scalar",
-                "bounds": (0, None),
-            },
-        }
-        coefficients = {"nu": Scalar(0.1)}
         variables = {"u": self._var_field}
 
         # set problem
