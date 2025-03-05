@@ -1,7 +1,7 @@
 GPUtil==1.4.0
 imageio==2.36.0
 matplotlib==3.5.1
-numpy==1.20.2
+numpy
 psutil==7.0.0
 pyvista==0.44.2
 setuptools==72.1.0
