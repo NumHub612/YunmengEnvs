@@ -15,7 +15,7 @@ class TestMatrixes(unittest.TestCase):
 
         output_dir = "./tests/results"
         profile = os.path.join(output_dir, f"test_matrix_perf.svg")
-        subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
+        # subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
 
     @classmethod
     def tearDownClass(cls):
