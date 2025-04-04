@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
 
 Interface for callback classes used in the solvers.
 """
@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 
 class ISolverCallback(ABC):
     """
-    Interface for callback class for reporting solving process.
+    Interface for callback class used in solving process.
     """
 
     @classmethod
@@ -22,42 +22,42 @@ class ISolverCallback(ABC):
         pass
 
     @abstractmethod
-    def setup(self, solver_meta: dict, mesh: Mesh):
+    def setup(self):
         """
-        Set the solver meta information and mesh.
+        Set up the callback method.
         """
         pass
 
     @abstractmethod
-    def on_task_begin(self, solver_status: dict, solver_solutions: dict):
+    def on_task_begin(self):
         """
         Callback function called at the beginning of the task.
         """
         pass
 
     @abstractmethod
-    def on_task_end(self, solver_status: dict, solver_solutions: dict):
+    def on_task_end(self):
         """
         Callback function called at the end of task.
         """
         pass
 
     @abstractmethod
-    def on_step_begin(self, solver_status: dict, solver_solutions: dict):
+    def on_step_begin(self):
         """
         Callback function called at step begin.
         """
         pass
 
     @abstractmethod
-    def on_step(self, solver_status: dict, solver_solutions: dict):
+    def on_step(self):
         """
         Callback function called at each step.
         """
         pass
 
     @abstractmethod
-    def on_step_end(self, solver_status: dict, solver_solutions: dict):
+    def on_step_end(self):
         """
         Callback function called at the end of step.
         """
