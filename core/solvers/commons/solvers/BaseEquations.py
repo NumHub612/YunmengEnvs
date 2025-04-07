@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Join us, share your ideas!  
+Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Basic and simple equation class for user customized pde equations.
 """

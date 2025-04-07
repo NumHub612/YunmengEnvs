@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Join us, share your ideas!  
+Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 DDt operators for the finite difference method.
 """
@@ -14,9 +14,6 @@ class Ddt01(IOperator):
     """
     Simple first order time derivative operator in fdms.
     """
-
-    def __init__(self):
-        self._dt = None
 
     @property
     def type(self) -> str:

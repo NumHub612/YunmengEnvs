@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Join us, share your ideas!  
+Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix and linear equations.
 """
@@ -101,7 +101,7 @@ class Matrix:
 
     @property
     def type(self) -> str:
-        """The matrix data type, e.g. float, scalar, vector, tensor, etc."""
+        """The matrix data type, e.g. float, scalar, vector, tensor."""
         # TODO: check all elements are of the same type.
 
         if len(self.shape) == 2 and self.shape[1] > 0:
