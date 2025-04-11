@@ -17,45 +17,61 @@ class Field:
 
     def __init__(
         self,
-        variable_num: int,
+        size: int,
         element_type: str,
         data_type: str,
-        default: Scalar | Vector | Tensor = None,
+        data: Variable | np.ndarray = None,
         variable: str = "none",
     ):
         """
-        Initialize the field with a given number of variables and a default value.
+        Initialize the field.
 
         Args:
-            variable_num: The number of variables in the field.
+            size: The number of variables in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             element_type: The element type, e.g. "cell", "face", "node".
-            default: The default value of the field.
-            variable: The variable name.
+            data: The initial data of the field.
+            variable: The variable name for the field.
         """
-        element_type = element_type.lower()
         if element_type not in ["cell", "face", "node"]:
             raise ValueError(f"Invalid element type: {element_type} for Field")
         self._etype = element_type
 
-        data_type = data_type.lower()
         if data_type not in ["scalar", "vector", "tensor"]:
             raise ValueError(f"Invalid data type: {data_type}")
         self._dtype = data_type
 
-        if default and default.type != self._dtype:
-            raise ValueError(f"Conflicting default value type: {default.type}")
-        if default is None:
+        if data is None:
             type_map = {"scalar": Scalar, "vector": Vector, "tensor": Tensor}
             default = type_map[data_type]()
-        self._default = default
-        self._values = np.full(variable_num, default)
+            data = np.full(size, default)
+        else:
+            if isinstance(data, Variable):
+                if data.type != data_type:
+                    raise ValueError(f"Invalid data type: {data.type}")
+                data = np.full(size, data)
+            elif isinstance(data, np.ndarray):
+                if data.shape != (size,):
+                    raise ValueError(f"Invalid data shape: {data.shape}")
+                check_type = np.all([isinstance(v, Variable) for v in data])
+                if not check_type:
+                    raise TypeError(f"Not all elements are: Variable.")
+            else:
+                raise TypeError(f"Invalid data type: {type(data)}")
 
+        self._values = data
         self._variable = variable
 
     # -----------------------------------------------
     # --- Properties and auxiliary methods ---
     # -----------------------------------------------
+
+    @property
+    def data(self) -> np.ndarray:
+        """
+        Get the raw data of the field.
+        """
+        return self._values
 
     @property
     def variable(self) -> str:
@@ -87,10 +103,7 @@ class Field:
 
     @classmethod
     def from_np(
-        cls,
-        values: np.ndarray,
-        element_type: str = "none",
-        variable: str = "none",
+        cls, values: np.ndarray, element_type: str = "none", variable: str = "none"
     ) -> "Field":
         """
         Create a field from a numpy array.
@@ -102,37 +115,48 @@ class Field:
         """
         etype = element_type.lower() if element_type else "none"
 
-        if values.ndim == 2 and values.shape[1] == 1:
-            data = np.array([Scalar.from_np(v) for v in values])
-            dtype = "scalar"
-        elif values.ndim == 2 and values.shape[1] == 3:
-            data = np.array([Vector.from_np(v) for v in values])
-            dtype = "vector"
-        elif values.ndim == 2 and values.shape[1] == 9:
-            data = np.array([Tensor.from_np(v.reshape(3, 3)) for v in values])
-            dtype = "tensor"
-        elif values.ndim == 3:
-            data = np.array([Tensor.from_np(v) for v in values])
-            dtype = "tensor"
+        if values.dtype != object and values.ndim == 2:
+            if values.shape[1] == 1:
+                data = np.array([Scalar.from_np(v) for v in values])
+                dtype = "scalar"
+            elif values.shape[1] == 3:
+                data = np.array([Vector.from_np(v) for v in values])
+                dtype = "vector"
+            elif values.shape[1] == 9:
+                data = np.array([Tensor.from_np(v) for v in values])
+                dtype = "tensor"
+        elif values.dtype == object and values.ndim == 2:
+            if isinstance(values[0][0], Variable):
+                data = values
+                dtype = values[0][0].type
         else:
             raise ValueError(f"Invalid data shape: {values.shape}")
 
         args = {
-            "variable_num": values.shape[0],
+            "size": values.shape[0],
             "element_type": etype,
             "data_type": dtype,
-            "default": None,
+            "data": data,
             "variable": variable,
         }
-        field = cls(**args)
-        field._values = data
-        return field
+        return cls(**args)
 
     def to_np(self) -> np.ndarray:
         """
-        Convert the field to a numpy array.
+        Convert the field to a numpy float array.
         """
         return np.array([v.to_np().flatten() for v in self._values])
+
+    def scalarize(self) -> list["Field"]:
+        """
+        Convert the field to a list of scalar fields.
+        """
+        np_values = self.to_np()
+        scalar_fields = []
+        for i in range(self.size):
+            field = Field.from_np(np_values[:, i], self.etype, self.variable)
+            scalar_fields.append(field)
+        return scalar_fields
 
     def filter(self, func: Callable) -> list[int]:
         """
@@ -169,6 +193,8 @@ class Field:
             res = func(self._values[i])
             if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
+            else:
+                raise TypeError(f"Invalid return type: {res}")
 
     def at(self, indexes: list[int], func: Callable):
         """
@@ -190,6 +216,8 @@ class Field:
             res = func(self._values[i])
             if isinstance(res, Variable) and res.dtype == self.dtype:
                 self._values[i] = res
+            else:
+                raise TypeError(f"Invalid return type: {res}")
 
     def assign(self, other: "Field | Variable"):
         """
@@ -215,6 +243,28 @@ class Field:
         else:
             raise TypeError(f"Can't assign {type(other)} to field")
 
+    def resize(self, size: int):
+        """Resize the field to a new size inplace."""
+        if size < 1:
+            raise ValueError(f"Invalid size: {size}")
+
+        if size == self.size:
+            return
+
+        if size > self.size:
+            default = {
+                "float": 0.0,
+                "scalar": Scalar.zero(),
+                "vector": Vector.zero(),
+                "tensor": Tensor.zero(),
+            }
+            data = np.concatenate(
+                [self._values, np.full(size - self.size, default[self.dtype])]
+            )
+        else:
+            data = self._values[:size]
+        self._values = data
+
     # -----------------------------------------------
     # --- reload query methods ---
     # -----------------------------------------------
@@ -235,10 +285,8 @@ class Field:
         if index < 0 or index >= self.size:
             raise IndexError(f"Index out of range: {index}")
 
-        if value.type != self._default.type:
-            raise TypeError(
-                f"Invalid value type: {value.type} (expected {self._default.type})"
-            )
+        if value.type != self.dtype:
+            raise TypeError(f"Invalid value type: {value.type} (expected {self.dtype})")
 
         self._values[index] = value
 
@@ -272,9 +320,6 @@ class Field:
         if self.etype != other.etype:
             raise TypeError("Fields must have the same element type")
 
-        # if self.variable != other.variable:
-        #     raise TypeError("Fields must have the same variable")
-
     def __add__(self, other) -> "Field":
         """
         Add two fields or a field and a constant element-wise.
@@ -282,15 +327,15 @@ class Field:
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            data = self.to_np() + other.to_np()
+            data = self.data + other.data
             return Field.from_np(data, self.etype, self.variable)
         elif isinstance(other, Variable):
-            if other.type != self._default.type:
+            if other.type != self.dtype:
                 raise TypeError(
-                    f"Invalid value type: {other.type} (expected {self._default.type})"
+                    f"Invalid value type: {other.type} (expected {self.dtype})"
                 )
 
-            data = self.to_np() + other.data
+            data = self.data + other  # element-wise addition
             return Field.from_np(data, self.etype, self.variable)
         else:
             raise TypeError(f"Cannot add {type(other)} to field")
@@ -308,15 +353,15 @@ class Field:
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            data = self.to_np() - other.to_np()
+            data = self.data - other.data
             return Field.from_np(data, self.etype, self.variable)
         elif isinstance(other, Variable):
-            if other.type != self._default.type:
+            if other.type != self.dtype:
                 raise TypeError(
-                    f"Invalid value type: {other.type} (expected {self._default.type})"
+                    f"Invalid value type: {other.type} (expected {self.dtype})"
                 )
 
-            data = self.to_np() - other.data
+            data = self.data - other
             return Field.from_np(data, self.etype, self.variable)
         else:
             raise TypeError(f"Cannot subtract {type(other)} from field")
@@ -328,15 +373,15 @@ class Field:
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            data = other.to_np() - self.to_np()
+            data = other.data - self.data
             return Field.from_np(data, self.etype, self.variable)
         elif isinstance(other, Variable):
-            if other.type != self._default.type:
+            if other.type != self.dtype:
                 raise TypeError(
-                    f"Invalid value type: {other.type} (expected {self._default.type})"
+                    f"Invalid value type: {other.type} (expected {self.dtype})"
                 )
 
-            data = other.data - self.to_np()
+            data = other - self.data
             return Field.from_np(data, self.etype, self.variable)
         else:
             raise TypeError(f"Cannot subtract {type(other)} from field")
@@ -349,7 +394,7 @@ class Field:
             if isinstance(other, Scalar):
                 other = other.value
 
-            data = self._values * other
+            data = self.data * other
             return Field.from_np(data, self.etype, self.variable)
         elif isinstance(other, Field):
             if other.size != self.size:
@@ -357,7 +402,7 @@ class Field:
                     f"Cannot multiply fields of different sizes: {self.size} and {other.size}"
                 )
 
-            data = self.to_np() * other.to_np()
+            data = self.data * other.data
             return Field.from_np(data, self.etype, self.variable)
         else:
             raise TypeError(f"Cannot multiply field by {type(other)}")
@@ -375,23 +420,23 @@ class Field:
         if not isinstance(other, (Scalar, int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
 
-        data = self._values / other
+        data = self.data / other
         return Field.from_np(data, self.etype, self.variable)
 
     def __neg__(self) -> "Field":
         """
         Negate the field element-wise.
         """
-        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
-        result._values = -self._values
+        result = Field(self.size, self.etype, self.dtype, -self.data, self.variable)
         return result
 
     def __abs__(self) -> "Field":
         """
         Take the absolute value of the field element-wise.
         """
-        result = Field(self.size, self.etype, self.dtype, self._default, self.variable)
-        result._values = np.abs(self._values)
+        result = Field(
+            self.size, self.etype, self.dtype, np.abs(self._values), self.variable
+        )
         return result
 
 
@@ -404,9 +449,9 @@ class CellField(Field):
 
     def __init__(
         self,
-        variable_num: int,
+        size: int,
         data_type: str,
-        default: Variable = None,
+        data: Variable | np.ndarray = None,
         variable: str = "none",
         **kwargs,
     ):
@@ -414,7 +459,7 @@ class CellField(Field):
         Initialize the cell field.
 
         Args:
-            variable_num: The number of cells in the field.
+            size: The number of cells in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each cell.
             variable: The variable name.
@@ -424,10 +469,10 @@ class CellField(Field):
             raise ValueError(f"Invalid element type: {etype} for CellField")
 
         super().__init__(
-            variable_num,
+            size,
             "cell",
             data_type,
-            default,
+            data,
             variable,
         )
 
@@ -441,9 +486,9 @@ class FaceField(Field):
 
     def __init__(
         self,
-        variable_num: int,
+        size: int,
         data_type: str,
-        default: Variable = None,
+        data: Variable | np.ndarray = None,
         variable: str = "none",
         **kwargs,
     ):
@@ -451,7 +496,7 @@ class FaceField(Field):
         Initialize the face field.
 
         Args:
-            variable_num: The number of faces in the field.
+            size: The number of faces in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each face.
             variable: The variable name.
@@ -461,10 +506,10 @@ class FaceField(Field):
             raise ValueError(f"Invalid element type: {etype} for FaceField")
 
         super().__init__(
-            variable_num,
+            size,
             "face",
             data_type,
-            default,
+            data,
             variable,
         )
 
@@ -476,9 +521,9 @@ class NodeField(Field):
 
     def __init__(
         self,
-        variable_num: int,
+        size: int,
         data_type: str,
-        default: Variable = None,
+        data: Variable | np.ndarray = None,
         variable: str = "none",
         **kwargs,
     ):
@@ -486,7 +531,7 @@ class NodeField(Field):
         Initialize the node field.
 
         Args:
-            variable_num: The number of nodes in the field.
+            size: The number of nodes in the field.
             data_type: The data type, e.g. "scalar", "vector", "tensor".
             default: The default value of each node.
             variable: The variable name.
@@ -496,9 +541,9 @@ class NodeField(Field):
             raise ValueError(f"Invalid element type: {etype} for NodeField")
 
         super().__init__(
-            variable_num,
+            size,
             "node",
             data_type,
-            default,
+            data,
             variable,
         )
