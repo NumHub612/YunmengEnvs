@@ -14,7 +14,7 @@ class LinearEqs:
     Linear equations solver.
     """
 
-    def __init__(self, variable: str, mat: Matrix, rhs: Matrix):
+    def __init__(self, variable: str, mat: Matrix, rhs: Field):
         """Linear equations solver.
 
         Args:
@@ -26,15 +26,24 @@ class LinearEqs:
         self._mat = mat
         self._rhs = rhs
 
+        if self._mat.shape[0] != self._rhs.size:
+            raise ValueError(
+                f"The size of the matrix ({self._mat.shape[0]}) is not equal to \
+                    the size of the right-hand side ({self._rhs.size})."
+            )
+        self._size = self._rhs.size
+
     # -----------------------------------------------
     # --- static methods ---
     # -----------------------------------------------
 
     @staticmethod
-    def zeros(variable: str, size: int, type: str = "float") -> "LinearEqs":
+    def zeros(
+        variable: str, size: int, matrix_type: str = "float", rhs_type: str = "float"
+    ) -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
-        mat = Matrix.zeros((size, size), type)
-        rhs = Matrix.zeros((size,), type)
+        mat = Matrix.zeros((size, size), matrix_type)
+        rhs = Field(size, rhs_type)
         return LinearEqs(variable, mat, rhs)
 
     # -----------------------------------------------
@@ -44,7 +53,7 @@ class LinearEqs:
     @property
     def size(self) -> int:
         """The size of the linear equations."""
-        return self._mat.shape[0]
+        return self._size
 
     @property
     def variable(self) -> str:
@@ -56,66 +65,75 @@ class LinearEqs:
         """The cooefficient matrix."""
         return self._mat
 
+    @property.setter
+    def matrix(self, value: Matrix):
+        """Set the coefficient matrix."""
+        if self._mat.shape != value.shape:
+            raise ValueError(f"Invalid matrix shape: {value.shape}.")
+        if self._mat.type != value.type:
+            raise ValueError(f"Invalid matrix type: {value.type}.")
+        self._mat = value
+
     @property
-    def rhs(self) -> Matrix:
+    def rhs(self) -> Field:
         """The right-hand side."""
         return self._rhs
+
+    @property.setter
+    def rhs(self, value: Field):
+        """Set the right-hand side."""
+        if self._rhs.size != value.size:
+            raise ValueError(f"Invalid rhs size: {value.size}.")
+        if self._rhs.dtype != value.dtype:
+            raise ValueError(f"Invalid rhs type: {value.dtype}.")
+        self._rhs = value
 
     # -----------------------------------------------
     # --- overload methods ---
     # -----------------------------------------------
 
-    def __add__(self, other):
-        self._check_variable(other)
-        if isinstance(other, LinearEqs):
-            return LinearEqs(
-                self.variable,
-                self._mat + other.matrix,
-                self._rhs + other.rhs,
-            )
-        raise ValueError(f"Invalid LinearEqs operation with {type(other)}.")
-
-    def __sub__(self, other):
-        return self.__add__(-other)
+    def __add__(self, other: "LinearEqs"):
+        self._check_compatible(other)
+        return LinearEqs(
+            self.variable,
+            self._mat + other.matrix,
+            self._rhs + other.rhs,
+        )
 
     def __radd__(self, other):
         return self.__add__(other)
 
+    def __sub__(self, other):
+        return self.__add__(-other)
+
     def __rsub__(self, other):
         return other + (-self)
-
-    def __mul__(self, other):
-        self._check_variable(other)
-        return LinearEqs(
-            self.variable,
-            self._mat * other,
-            self._rhs * other,
-        )
-
-    def __rmul__(self, other):
-        self._check_variable(other)
-        return LinearEqs(
-            self.variable,
-            other * self._mat,
-            other * self._rhs,
-        )
-
-    def __truediv__(self, other):
-        self._check_variable(other)
-        return LinearEqs(
-            self.variable,
-            self._mat / other,
-            self._rhs / other,
-        )
 
     def __neg__(self):
         return LinearEqs(self._var, -self._mat, -self._rhs)
 
-    def _check_variable(self, other):
-        if isinstance(other, LinearEqs) and other.variable != self.variable:
+    def _check_compatible(self, other):
+        if not isinstance(other, LinearEqs):
+            raise ValueError(f"Invalid LinearEqs operation with {type(other)}.")
+        if other.size != self.size:
             raise ValueError(
-                f"Cannot add equations with different variables: \
-                    {self.variable}, {other.variable}."
+                f"Invalid LinearEqs operation with different sizes: \
+                    {self.size} vs {other.size}."
+            )
+        if other.variable != self.variable:
+            raise ValueError(
+                f"Invalid LinearEqs operation with different variables: \
+                    {self.variable} vs {other.variable}."
+            )
+        if other.matrix.type != self.matrix.type:
+            raise ValueError(
+                f"Invalid LinearEqs operation with different matrix types: \
+                    {self.matrix.type} vs {other.matrix.type}."
+            )
+        if other.rhs.dtype != self.rhs.dtype:
+            raise ValueError(
+                f"Invalid LinearEqs operation with different rhs types: \
+                    {self.rhs.dtype} vs {other.rhs.dtype}."
             )
 
     # -----------------------------------------------
@@ -124,18 +142,15 @@ class LinearEqs:
 
     def scalarize(self) -> list["LinearEqs"]:
         """Scalarize the vector equations."""
-        if self.matrix.type == "unknown":
-            raise ValueError(f"Cannot scalarize unknown matrix.")
-
         if self._mat.type == "float":
             return [self]
 
-        mats = self._mat.scalarize()
-        rhss = self._rhs.scalarize()
-        eqs = []
-        for mat, rhs in zip(mats, rhss):
-            eqs.append(LinearEqs(self.variable, mat, rhs))
+        mat_lst = self._mat.scalarize()
+        rhs_lst = self._rhs.scalarize()
 
+        eqs = []
+        for mat, rhs in zip(mat_lst, rhs_lst):
+            eqs.append(LinearEqs(self.variable, mat, rhs))
         return eqs
 
     def solve(self, method: str = "numpy") -> np.ndarray:
@@ -145,12 +160,12 @@ class LinearEqs:
             if method == "numpy":
                 try:
                     # If the matrix is all zeros, the solution is the right-hand side.
-                    if np.all(eq.matrix.data == 0):
-                        results.append(eq.rhs.flatten().data)
+                    if eq.matrix.nnz == 0:
+                        results.append(eq.rhs.data)
                     else:
                         # Solve the linear equations using numpy.
                         results.append(
-                            np.linalg.solve(eq.matrix.data, eq.rhs.flatten().data)
+                            np.linalg.solve(eq.matrix.to_dense(), eq.rhs.data)
                         )
                 except:
                     raise RuntimeError("Cannot solve linear equations.")

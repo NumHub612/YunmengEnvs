@@ -33,7 +33,7 @@ class Field:
             data: The initial data of the field.
             variable: The variable name for the field.
         """
-        if element_type not in ["cell", "face", "node"]:
+        if element_type not in ["cell", "face", "node", "none"]:
             raise ValueError(f"Invalid element type: {element_type} for Field")
         self._etype = element_type
 
@@ -63,7 +63,7 @@ class Field:
         self._variable = variable
 
     # -----------------------------------------------
-    # --- Properties and auxiliary methods ---
+    # --- Properties ---
     # -----------------------------------------------
 
     @property
@@ -100,6 +100,10 @@ class Field:
         Get the element type of the field, e.g. "cell", "face", "node".
         """
         return self._etype
+
+    # -----------------------------------------------
+    # --- auxiliary methods ---
+    # -----------------------------------------------
 
     @classmethod
     def from_np(
@@ -270,18 +274,12 @@ class Field:
     # -----------------------------------------------
 
     def __getitem__(self, index: int) -> Variable:
-        """
-        Get the value of the field at a given position.
-        """
         if index < 0 or index >= self.size:
             raise IndexError(f"Index out of range: {index}")
 
         return self._values[index]
 
     def __setitem__(self, index: int, value: Variable):
-        """
-        Set the value of the field at a given position.
-        """
         if index < 0 or index >= self.size:
             raise IndexError(f"Index out of range: {index}")
 
@@ -291,15 +289,9 @@ class Field:
         self._values[index] = value
 
     def __len__(self) -> int:
-        """
-        Get the number of variables in the field.
-        """
         return self._values.size
 
     def __iter__(self):
-        """
-        Iterate over the variables in the field.
-        """
         for i in range(self.size):
             yield self._values[i]
 
@@ -308,9 +300,6 @@ class Field:
     # -----------------------------------------------
 
     def _check_fields_compatible(self, other: "Field"):
-        """
-        Check if two fields are compatible for arithmetic operations.
-        """
         if self.size != other.size:
             raise ValueError("Fields must have the same number of variables")
 
@@ -321,9 +310,6 @@ class Field:
             raise TypeError("Fields must have the same element type")
 
     def __add__(self, other) -> "Field":
-        """
-        Add two fields or a field and a constant element-wise.
-        """
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
@@ -341,15 +327,9 @@ class Field:
             raise TypeError(f"Cannot add {type(other)} to field")
 
     def __radd__(self, other) -> "Field":
-        """
-        Add two fields or a field and a constant element-wise.
-        """
         return self.__add__(other)
 
     def __sub__(self, other) -> "Field":
-        """
-        Subtract two fields or a field and a constant element-wise.
-        """
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
@@ -367,9 +347,6 @@ class Field:
             raise TypeError(f"Cannot subtract {type(other)} from field")
 
     def __rsub__(self, other) -> "Field":
-        """
-        Subtract two fields or a field and a constant element-wise.
-        """
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
@@ -387,9 +364,6 @@ class Field:
             raise TypeError(f"Cannot subtract {type(other)} from field")
 
     def __mul__(self, other) -> "Field":
-        """
-        Multiply the field by a scalar element-wise.
-        """
         if isinstance(other, (int, float, Scalar)):
             if isinstance(other, Scalar):
                 other = other.value
@@ -408,15 +382,9 @@ class Field:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
     def __rmul__(self, other) -> "Field":
-        """
-        Multiply the field by a scalar element-wise.
-        """
         return self.__mul__(other)
 
     def __truediv__(self, other) -> "Field":
-        """
-        Divide the field by a scalar element-wise.
-        """
         if not isinstance(other, (Scalar, int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
 
@@ -424,16 +392,10 @@ class Field:
         return Field.from_np(data, self.etype, self.variable)
 
     def __neg__(self) -> "Field":
-        """
-        Negate the field element-wise.
-        """
         result = Field(self.size, self.etype, self.dtype, -self.data, self.variable)
         return result
 
     def __abs__(self) -> "Field":
-        """
-        Take the absolute value of the field element-wise.
-        """
         result = Field(
             self.size, self.etype, self.dtype, np.abs(self._values), self.variable
         )
