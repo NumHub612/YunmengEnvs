@@ -65,7 +65,7 @@ class LinearEqs:
         """The cooefficient matrix."""
         return self._mat
 
-    @property.setter
+    @matrix.setter
     def matrix(self, value: Matrix):
         """Set the coefficient matrix."""
         if self._mat.shape != value.shape:
@@ -79,7 +79,7 @@ class LinearEqs:
         """The right-hand side."""
         return self._rhs
 
-    @property.setter
+    @rhs.setter
     def rhs(self, value: Field):
         """Set the right-hand side."""
         if self._rhs.size != value.size:
@@ -149,8 +149,12 @@ class LinearEqs:
         rhs_lst = self._rhs.scalarize()
 
         eqs = []
-        for mat, rhs in zip(mat_lst, rhs_lst):
-            eqs.append(LinearEqs(self.variable, mat, rhs))
+        if len(mat_lst) == 1:
+            for rhs in rhs_lst:
+                eqs.append(LinearEqs(self.variable, self._mat, rhs))
+        else:
+            for mat, rhs in zip(mat_lst, rhs_lst):
+                eqs.append(LinearEqs(self.variable, mat, rhs))
         return eqs
 
     def solve(self, method: str = "numpy") -> np.ndarray:

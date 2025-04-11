@@ -80,6 +80,13 @@ class Field:
         """
         return self._variable
 
+    @variable.setter
+    def variable(self, value: str):
+        """
+        Set the variable name of the field.
+        """
+        self._variable = value
+
     @property
     def size(self) -> int:
         """
@@ -238,7 +245,7 @@ class Field:
 
             self._values = other._values
         elif isinstance(other, Variable):
-            if other.dtype != self.dtype:
+            if other.type != self.dtype:
                 raise TypeError(
                     f"Invalid value type: {other.dtype} (expected {self.dtype})"
                 )
@@ -377,7 +384,7 @@ class Field:
                 )
 
             data = self.data * other.data
-            return Field.from_np(data, self.etype, self.variable)
+            return Field.from_np(data, self.etype, "none")
         else:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 

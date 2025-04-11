@@ -66,7 +66,7 @@ class Grad01(IOperator):
             )
 
         for element in self._mesh.node_indexes:
-            neighbours = self._topo.get_mesh().retrieve_node_neighborhoods(element)
+            neighbours = self._mesh.retrieve_node_neighborhoods(element)
 
             # calculate
             if src_field_type == "scalar":

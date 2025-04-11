@@ -6,7 +6,7 @@ Basic and simple equation class for user customized pde equations.
 """
 from core.solvers.interfaces import IEquation, IOperator
 from core.numerics.fields import Variable, Field
-from core.numerics.matrix import LinearEqs, Matrix
+from core.numerics.matrix import LinearEqs, DenseMatrix
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import numpy as np
@@ -233,6 +233,7 @@ class SimpleEquation(BaseEquation):
     Notes:
         - Only support one variable and one equation.
         - Only support fixed grid mesh.
+        - Only support uniform coefficient.
     """
 
     def __init__(self, name: str, operators: dict[str, IOperator]):
@@ -274,7 +275,7 @@ class SimpleEquation(BaseEquation):
 
         # discretization
         var_name, var_type, eq_num = self._get_equation_info()
-        final_eq = LinearEqs.zeros(var_name, eq_num, var_type)
+        final_eq = LinearEqs.zeros(var_name, eq_num, rhs_type=var_type)
         for terms in self._op_terms:
             op, term_result = "+", None
             for it in terms:
@@ -313,46 +314,16 @@ class SimpleEquation(BaseEquation):
             return -right if op == "-" else right
 
         if op == "*":
-            if isinstance(left, Field) and isinstance(right, LinearEqs):
-                rhs = [left[i] * right.rhs[i] for i in range(left.size)]
-                rhs = Matrix(rhs)
-                return LinearEqs(right.variable, right.matrix, rhs)
-            elif isinstance(left, LinearEqs) and isinstance(right, Field):
-                rhs = [left.rhs[i] * right[i] for i in range(right.size)]
-                rhs = Matrix(rhs)
-                return LinearEqs(left.variable, left.matrix, rhs)
-            elif isinstance(left, Field) and isinstance(right, Field):
-                if left.size != right.size:
-                    raise ValueError(
-                        f"Incompatible field sizes: {left.size} and {right.size}."
-                    )
-                if left.etype != right.etype:
-                    raise ValueError(
-                        f"Incompatible field types: {left.etype} and {right.etype}."
-                    )
-                data = [(left[i] * right[i]).to_np() for i in range(left.size)]
-                return Field.from_np(np.array(data), left.etype)
-            elif isinstance(left, (float, Variable)) and isinstance(right, Field):
-                data = [(left * right[i]).to_np() for i in range(right.size)]
-                return Field.from_np(np.array(data), right.etype)
-            elif isinstance(left, Field) and isinstance(right, (float, Variable)):
-                data = [(left[i] * right).to_np() for i in range(left.size)]
-                return Field.from_np(np.array(data), left.etype)
-            else:
-                return left * right
+            return left * right
         elif op == "/":
             return left / right
         elif op == "+":
             if isinstance(left, Field) and isinstance(right, LinearEqs):
-                mat = right.matrix
-                rhs = [-left[i] + right.rhs[i] for i in range(left.size)]
-                rhs = Matrix(rhs)
-                return LinearEqs(right.variable, mat, rhs)
+                right.rhs = -left + right.rhs
+                return right
             elif isinstance(left, LinearEqs) and isinstance(right, Field):
-                mat = left.matrix
-                rhs = [left.rhs[i] - right[i] for i in range(right.size)]
-                rhs = Matrix(rhs)
-                return LinearEqs(left.variable, mat, rhs)
+                left.rhs = left.rhs - right
+                return left
             else:
                 return left + right
         elif op == "-":
@@ -376,9 +347,8 @@ class SimpleEquation(BaseEquation):
         result = op.run(field)
         if isinstance(result, Field):
             var_name, var_type, eq_num = self._get_equation_info()
-            eqs = LinearEqs.zeros(var_name, eq_num, var_type)
-            for i in range(eq_num):
-                eqs.rhs[i] = -result[i]
+            eqs = LinearEqs.zeros(var_name, eq_num, rhs_type=var_type)
+            eqs.rhs = -result
         else:
             eqs = result
 
