@@ -1,5 +1,5 @@
 from core.numerics.matrix import LinearEqs
-from core.numerics.matrix import DenseMatrix, SparseMatrix, SciMatrix
+from core.numerics.matrix import DenseMatrix, SparseMatrix, SciMatrix, TorchMatrix
 from core.numerics.fields import Field
 import numpy as np
 import time
@@ -209,6 +209,61 @@ class TestSciMatrixes(unittest.TestCase):
         print(f"+ div op(s): {end-start}")
 
 
+class TestTorchMatrixes(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print(f"\n---------- Testing < {cls.__name__} > \n")
+
+        output_dir = "./tests/results"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        profile = os.path.join(output_dir, f"test_matrix_perf.svg")
+        # subprocess.Popen(["py-spy", "record", "-o", profile, "--pid", str(os.getpid())])
+
+    @classmethod
+    def tearDownClass(cls):
+        print("\n---------- Done \n")
+
+    def setUp(self):
+        self._output_dir = "./tests/results"
+        self._scales = [100, 1000, 10000, 100000, 1000000]
+
+    def tearDown(self):
+        pass
+
+    def test_baseline_matrix(self):
+        print("test basline matrix operations: \n")
+
+        for size in self._scales:
+            self._run_matrix_ops(size, "float")
+
+    def _run_matrix_ops(self, size, type):
+        print(f"--- {type} equations ({size}*{size}) operation perf:")
+        mat1 = TorchMatrix.identity((size, size), type)
+        mat2 = TorchMatrix.identity((size, size), type)
+
+        start = time.time()
+        res = mat1 + mat2
+        end = time.time()
+        print(f"+ add op(s): {end-start}")
+
+        start = end
+        res = mat1 - mat2
+        end = time.time()
+        print(f"+ sub op(s): {end-start}")
+
+        start = end
+        res = 1.5 * mat1
+        end = time.time()
+        print(f"+ mul op(s): {end-start}")
+
+        start = end
+        res = mat1 / 2.0
+        end = time.time()
+        print(f"+ div op(s): {end-start}")
+
+
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
@@ -220,7 +275,8 @@ if __name__ == "__main__":
         # suit.addTest(TestSparseMatrixes("test_scalar_matrix"))
         # suit.addTest(TestSparseMatrixes("test_vector_matrix"))
         # suit.addTest(TestSparseMatrixes("test_tensor_matrix"))
-        suit.addTest(TestSciMatrixes("test_baseline_matrix"))
+        # suit.addTest(TestSciMatrixes("test_baseline_matrix"))
+        suit.addTest(TestTorchMatrixes("test_baseline_matrix"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)

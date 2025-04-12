@@ -394,10 +394,14 @@ class SciMatrix(Matrix):
 
     @classmethod
     def zeros(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+        if data_type != "float":
+            raise ValueError("Only float type is supported")
         return SciMatrix(shape)
 
     @classmethod
     def ones(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+        if data_type != "float":
+            raise ValueError("Only float type is supported")
         data = np.full(shape, 1.0)
         return SciMatrix(shape, dok_matrix(data))
 
@@ -405,6 +409,8 @@ class SciMatrix(Matrix):
     def identity(cls, shape: tuple, data_type: str = "float") -> "Matrix":
         if shape[0] != shape[1]:
             raise ValueError("Identity matrix must be squared.")
+        if data_type != "float":
+            raise ValueError("Only float type is supported")
 
         data = dok_matrix(shape)
         for i in range(shape[0]):
@@ -866,38 +872,78 @@ class TorchMatrix(Matrix):
     Torch matrix class only supporting float data types.
     """
 
-    def __init__(self, shape: tuple, data: torch.Tensor = None):
+    def __init__(
+        self, shape: tuple, data: torch.Tensor = None, device: str = "default"
+    ):
         """Torch matrix class.
 
         Args:
             shape: The matrix shape.
             data: The matrix data.
+            device: The device to store the matrix.
         """
         self._shape = shape
         self._data = None
 
-        if data:
+        if device == "default":
+            self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self._device = torch.device(device)
+
+        if data is not None:
             if data.shape != shape:
                 raise ValueError(f"Input data doesn't match shape: {shape}.")
-            self._data = data.to_sparse_csr()
+            self._data = data.to_sparse_coo().to(self._device)
         else:
-            self._data = torch.sparse_csr_tensor(size=shape)
+            self._data = torch.sparse_coo_tensor(size=shape, device=self._device)
 
     # -----------------------------------------------
     # --- class methods ---
     # -----------------------------------------------
+    @classmethod
+    def identity(cls, shape: tuple, data_type: str = "float") -> "TorchMatrix":
+        if data_type != "float":
+            raise ValueError("Only float type is supported")
+        if shape[0] != shape[1]:
+            raise ValueError("Identity matrix must be square")
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        size = shape[0]
+
+        # Create row_indices, col_indices, and values for the identity matrix
+        row_indices = torch.arange(size, device=device)
+        col_indices = torch.arange(size, device=device)
+        values = torch.ones(size, device=device)
+
+        indices = torch.stack([row_indices, col_indices])
+        data = torch.sparse_coo_tensor(indices, values, shape)
+        return cls(shape, data, device)
 
     @classmethod
-    def identity(cls, shape: tuple, data_type: str = "float") -> "Matrix":
-        raise NotImplementedError()
+    def ones(cls, shape: tuple, data_type: str = "float") -> "TorchMatrix":
+        if data_type != "float":
+            raise ValueError("Only float type is supported")
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        row_indices, col_indices = torch.meshgrid(
+            torch.arange(shape[0], device=device), torch.arange(shape[1], device=device)
+        )
+        row_indices = row_indices.flatten()
+        col_indices = col_indices.flatten()
+        values = torch.ones(shape[0] * shape[1], device=device, dtype=torch.float32)
+
+        indices = torch.stack([row_indices, col_indices])
+        data = torch.sparse_coo_tensor(indices, values, shape)
+        return cls(shape, data, device)
 
     @classmethod
-    def ones(cls, shape: tuple, data_type: str = "float") -> "Matrix":
-        raise NotImplementedError()
+    def zeros(cls, shape: tuple, data_type: str = "float") -> "TorchMatrix":
+        if data_type != "float":
+            raise ValueError("Only float type is supported")
 
-    @classmethod
-    def zeros(cls, shape: tuple, data_type: str = "float") -> "Matrix":
-        raise NotImplementedError()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        data = torch.sparse_coo_tensor(size=shape, device=device)
+        return cls(shape, data, device)
 
     # -----------------------------------------------
     # --- properties ---
@@ -905,66 +951,142 @@ class TorchMatrix(Matrix):
 
     @property
     def shape(self) -> tuple:
-        raise NotImplementedError()
+        return self._shape
 
     @property
     def type(self) -> str:
-        raise NotImplementedError()
+        return "float"
 
     @property
     def diag(self) -> np.ndarray:
-        raise NotImplementedError()
+        if self._shape[0] != self._shape[1]:
+            raise ValueError("Diagonal is only defined for square matrices")
+
+        row_indices = self._data.indices()[0]
+        col_indices = self._data.indices()[1]
+
+        diag_mask = row_indices == col_indices
+        diag_values = self._data.values()[diag_mask]
+        return diag_values.cpu().numpy()
 
     @property
     def nnz(self) -> int:
-        raise NotImplementedError()
+        return self._data._nnz()
 
     # -----------------------------------------------
     # --- overload methods ---
     # -----------------------------------------------
 
     def __getitem__(self, index: tuple):
-        raise NotImplementedError()
+        row, col = index
+        mask = (self._data.indices()[0] == row) & (self._data.indices()[1] == col)
+        if mask.any():
+            return self._data.values()[mask].item()
+        else:
+            return 0.0
 
-    def __setitem__(self, index: tuple, value: float | Variable):
-        raise NotImplementedError()
+    def __setitem__(self, index: tuple, value: float):
+        if isinstance(value, Variable):
+            raise ValueError("Only float values are supported")
+        row, col = index
+        mask = (self._data.indices()[0] == row) & (self._data.indices()[1] == col)
+        if mask.any():
+            self._data.values()[mask] = value
+        else:
+            new_indices = torch.cat(
+                (
+                    self._data.indices(),
+                    torch.tensor([[row], [col]], device=self._device),
+                ),
+                dim=1,
+            )
+            new_values = torch.cat(
+                (self._data.values(), torch.tensor([value], device=self._device))
+            )
+            self._data = torch.sparse_coo_tensor(
+                new_indices,
+                new_values,
+                self._shape,
+            )
+
+    def _check_compatible(self, other: "Matrix"):
+        if not isinstance(other, Matrix):
+            raise ValueError(f"Invalid operand type {type(other)}.")
+        if self.shape != other.shape:
+            raise ValueError(
+                f"Matrix shapes don't match: {self.shape} vs {other.shape}."
+            )
+
+        if self.type != other.type:
+            raise ValueError(
+                f"Matrix types don't match: \
+                             {self.type} vs {other.type}."
+            )
 
     def __add__(self, other: "Matrix"):
-        raise NotImplementedError()
+        self._check_compatible(other)
+        if isinstance(other, TorchMatrix):
+            return TorchMatrix(self._shape, self._data + other._data, self._device)
+        else:
+            data = self._data.clone()
+            for i in range(self._shape[0]):
+                for j in range(self._shape[1]):
+                    data[i, j] += other[i, j]
+            return TorchMatrix(self._shape, data, self._device)
 
     def __sub__(self, other: "Matrix"):
-        raise NotImplementedError()
-
-    def __mul__(self, other):
-        raise NotImplementedError()
+        self._check_compatible(other)
+        if isinstance(other, TorchMatrix):
+            return TorchMatrix(self._shape, self._data - other._data, self._device)
+        else:
+            data = self._data.clone()
+            for i in range(self._shape[0]):
+                for j in range(self._shape[1]):
+                    data[i, j] -= other[i, j]
+            return TorchMatrix(self._shape, data, self._device)
 
     def __truediv__(self, other):
-        raise NotImplementedError()
+        if isinstance(other, (int, float)):
+            return TorchMatrix(self._shape, self._data / other, self._device)
+        else:
+            raise ValueError("Unsupported operand type for /")
 
     def __rtruediv__(self, other):
-        raise NotImplementedError()
+        raise ValueError("Division by a sparse matrix is not supported")
+
+    def __mul__(self, other):
+        if isinstance(other, TorchMatrix):
+            return TorchMatrix(
+                self._shape, torch.sparse.mm(self._data, other._data), self._device
+            )
+        elif isinstance(other, (int, float)):
+            return TorchMatrix(self._shape, self._data * other, self._device)
+        else:
+            raise ValueError("Unsupported operand type for *")
 
     def __rmul__(self, other):
-        raise NotImplementedError()
+        return self.__mul__(other)
 
     def __neg__(self):
-        raise NotImplementedError()
+        return TorchMatrix(self._shape, -self._data, self._device)
 
     def __abs__(self):
-        raise NotImplementedError()
+        return TorchMatrix(self._shape, torch.abs(self._data), self._device)
 
     # -----------------------------------------------
     # --- matrix methods ---
     # -----------------------------------------------
 
     def to_dense(self) -> np.ndarray:
-        raise NotImplementedError()
+        return self._data.to_dense().cpu().numpy()
 
     def transpose(self) -> "Matrix":
-        raise NotImplementedError()
+        return TorchMatrix(self._shape[::-1], self._data.t(), self._device)
 
     def reshape(self, shape: tuple) -> "Matrix":
-        raise NotImplementedError()
+        if self._shape != shape:
+            raise ValueError("Reshape is not supported for sparse matrices")
+        return self
 
     def scalarize(self) -> list["Matrix"]:
-        raise NotImplementedError()
+        return [self]
