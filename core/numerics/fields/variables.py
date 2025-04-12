@@ -239,7 +239,7 @@ class Vector(Variable):
         elif isinstance(other, Tensor):
             lf = self.to_np()
             rhs = other.to_np()
-            result = [np.dot(lf, rhs[:, i]) for i in range(3)]
+            result = [np.dot(lf, rhs[3 * i : 3 * (i + 1)]) for i in range(3)]
             return Vector.from_np(np.array(result))
         else:
             raise TypeError(f"Invalid type for Vector mul() with {type(other)}.")

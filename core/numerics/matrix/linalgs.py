@@ -7,6 +7,7 @@ Linear algebra class.
 from core.numerics.matrix import Matrix, DenseMatrix
 from core.numerics.fields import Field
 import numpy as np
+import torch
 
 
 class LinearEqs:
@@ -78,7 +79,7 @@ class LinearEqs:
 
     @property
     def rhs(self) -> Field:
-        """The right-hand side."""
+        """The right-hand side vector."""
         return self._rhs
 
     @rhs.setter
@@ -146,9 +147,6 @@ class LinearEqs:
 
     def scalarize(self) -> list["LinearEqs"]:
         """Scalarize the vector equations."""
-        if self._mat.type == "float":
-            return [self]
-
         mat_lst = self._mat.scalarize()
         rhs_lst = self._rhs.scalarize()
 
@@ -174,6 +172,26 @@ class LinearEqs:
                         # Solve the linear equations using numpy.
                         results.append(
                             np.linalg.solve(eq.matrix.to_dense(), eq.rhs.data)
+                        )
+                except:
+                    raise RuntimeError("Cannot solve linear equations.")
+            elif method == "torch":
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                try:
+                    # If the matrix is all zeros, the solution is the right-hand side.
+                    if eq.matrix.nnz == 0:
+                        results.append(eq.rhs.data)
+                    else:
+                        # Solve the linear equations using torch.
+                        sparse_mat = eq.matrix.data.to_sparse_csr()
+                        dense_vec = torch.from_numpy(eq.rhs.data).to(device)
+                        results.append(
+                            torch.sparse.spsolve(
+                                sparse_mat,
+                                dense_vec,
+                            )
+                            .cpu()
+                            .numpy()
                         )
                 except:
                     raise RuntimeError("Cannot solve linear equations.")

@@ -99,14 +99,14 @@ class Field:
     @property
     def dtype(self) -> str:
         """
-        Get the data type of the field, e.g. "scalar", "vector", "tensor".
+        Get the data type of the field, e.g. "float","scalar", "vector", "tensor".
         """
         return self._dtype
 
     @property
     def etype(self) -> str:
         """
-        Get the element type of the field, e.g. "cell", "face", "node".
+        Get the element type of the field, e.g. "cell", "face", "node", "none".
         """
         return self._etype
 
@@ -128,8 +128,13 @@ class Field:
         """
         etype = element_type if element_type else "none"
 
-        if values.ndim == 1 or values.dtype != object:
-            dtype = "float"
+        if values.ndim == 1:
+            if values.dtype != object:
+                dtype = "float"
+            else:
+                if not isinstance(values[0], Variable):
+                    raise TypeError(f"Invalid data type: {type(values[0])}")
+                dtype = values[0].type
             data = values
         elif values.dtype != object and values.ndim == 2:
             if values.shape[1] == 1:
@@ -172,7 +177,7 @@ class Field:
         """
         np_values = self.to_np()
         scalar_fields = []
-        for i in range(self.size):
+        for i in range(np_values.shape[1]):
             field = Field.from_np(np_values[:, i], self.etype, self.variable)
             scalar_fields.append(field)
         return scalar_fields
@@ -319,10 +324,15 @@ class Field:
             raise ValueError("Fields must have the same number of variables")
 
         if self.dtype != other.dtype:
-            raise TypeError("Fields must have the same data type")
-
-        if self.etype != other.etype:
-            raise TypeError("Fields must have the same element type")
+            raise TypeError(
+                f"Fields must have the same data type: \
+                            {self.dtype} vs {other.dtype}"
+            )
+        if self.etype != other.etype and "none" not in [self.etype, other.etype]:
+            raise TypeError(
+                f"Fields must have the same element type: \
+                            {self.etype} vs {other.etype}"
+            )
 
     def __add__(self, other) -> "Field":
         if isinstance(other, Field):

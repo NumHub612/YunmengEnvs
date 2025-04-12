@@ -29,19 +29,15 @@ class Ddt01(IOperator):
         dtype = source.dtype
 
         # create matrix
-        coef_val = 1.0 / self._dt
-        if dtype == "vector":
-            coef = Vector.unit() * coef_val
-        elif dtype == "tensor":
-            coef = Tensor.unit() * coef_val
+        coef = 1.0 / self._dt
 
-        mat = DenseMatrix.zeros((size, size), dtype)
+        mat = DenseMatrix.zeros((size, size))
         for i in range(size):
             mat[i, i] = coef
 
         # create rhs
         rhs = NodeField(size, dtype)
         for i in range(size):
-            rhs[i] = source[i] * coef_val
+            rhs[i] = source[i] * coef
 
         return LinearEqs(variable, mat, rhs)

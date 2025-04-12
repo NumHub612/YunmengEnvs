@@ -10,6 +10,7 @@ import torch
 import numpy as np
 import copy
 from abc import abstractmethod
+from typing import Any
 
 
 class Matrix:
@@ -42,6 +43,12 @@ class Matrix:
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    @abstractmethod
+    def data(self) -> Any:
+        """The raw data of the matrix."""
+        raise NotImplementedError()
 
     @property
     @abstractmethod
@@ -210,6 +217,10 @@ class DenseMatrix(Matrix):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def data(self) -> np.ndarray:
+        return self._data
 
     @property
     def shape(self) -> tuple:
@@ -420,6 +431,10 @@ class SciMatrix(Matrix):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def data(self) -> dok_matrix:
+        return self._data
 
     @property
     def shape(self) -> tuple:
@@ -638,6 +653,11 @@ class SparseMatrix(Matrix):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def data(self) -> dict:
+        return self._matrix
+
     @property
     def shape(self) -> tuple:
         """The matrix shape, e.g. (rows, cols)."""
@@ -948,6 +968,10 @@ class TorchMatrix(Matrix):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def data(self) -> torch.Tensor:
+        return self._data
 
     @property
     def shape(self) -> tuple:

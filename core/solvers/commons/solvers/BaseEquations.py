@@ -6,7 +6,7 @@ Basic and simple equation class for user customized pde equations.
 """
 from core.solvers.interfaces import IEquation, IOperator
 from core.numerics.fields import Variable, Field
-from core.numerics.matrix import LinearEqs, DenseMatrix
+from core.numerics.matrix import LinearEqs
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import numpy as np
@@ -314,7 +314,16 @@ class SimpleEquation(BaseEquation):
             return -right if op == "-" else right
 
         if op == "*":
-            return left * right
+            if isinstance(left, Variable) and isinstance(right, Field):
+                data = np.array([left * val for val in right.data])
+                dtype = data[0].type
+                return Field(right.size, right.etype, dtype, data)
+            elif isinstance(left, Field) and isinstance(right, Variable):
+                data = np.array([val * right for val in left.data])
+                dtype = data[0].type
+                return Field(left.size, left.etype, dtype, data)
+            else:
+                return left * right
         elif op == "/":
             return left / right
         elif op == "+":
@@ -347,6 +356,7 @@ class SimpleEquation(BaseEquation):
         result = op.run(field)
         if isinstance(result, Field):
             var_name, var_type, eq_num = self._get_equation_info()
+            var_type = result.dtype
             eqs = LinearEqs.zeros(var_name, eq_num, rhs_type=var_type)
             eqs.rhs = -result
         else:
