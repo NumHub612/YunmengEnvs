@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Join us, share your ideas!  
+Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Grad operators for the finite difference method.
 """
@@ -54,19 +54,19 @@ class Grad01(IOperator):
             results = NodeField(
                 source.size,
                 "vector",
-                default=Vector.zero(),
+                data=Vector.zero(),
                 variable=source.variable,
             )
         else:
             results = NodeField(
                 source.size,
                 "tensor",
-                default=Tensor.zero(),
+                data=Tensor.zero(),
                 variable=source.variable,
             )
 
         for element in self._mesh.node_indexes:
-            neighbours = self._topo.get_mesh().retrieve_node_neighborhoods(element)
+            neighbours = self._mesh.retrieve_node_neighborhoods(element)
 
             # calculate
             if src_field_type == "scalar":

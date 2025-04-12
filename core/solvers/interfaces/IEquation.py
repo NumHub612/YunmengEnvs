@@ -1,13 +1,13 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!  
+Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface for describing and discretizing pde equations.
 
-The functionality of `Equation` overlaps with that of `Solver`. The former  
-is used for users customize problems and 
-provide standardized, configurable numerical discretization schemes, which 
-are also driven by the `Solver`. 
+The functionality of `Equation` overlaps with that of `Solver`. The former
+is used for users customize problems and
+provide standardized, configurable numerical discretization schemes, which
+are also driven by the `Solver`.
 For known problems, more efficient solver can be directly developed.
 """
 from abc import ABC, abstractmethod
