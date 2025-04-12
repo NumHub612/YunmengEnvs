@@ -396,6 +396,9 @@ class SciMatrix(Matrix):
 
     @classmethod
     def identity(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+        if shape[0] != shape[1]:
+            raise ValueError("Identity matrix must be squared.")
+
         data = np.identity(shape[0])
         return SciMatrix(shape, dok_matrix(data))
 
@@ -580,6 +583,42 @@ class SparseMatrix(Matrix):
             self._default = type_map[data_type].zero()
         else:
             self._default = default
+
+    # -----------------------------------------------
+    # --- class methods ---
+    # -----------------------------------------------
+
+    @classmethod
+    def zeros(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+        return SparseMatrix(shape, data_type)
+
+    @classmethod
+    def ones(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+        type_map = {
+            "float": 1.0,
+            "scalar": Scalar.unit(),
+            "vector": Vector.unit(),
+            "tensor": Tensor.unit(),
+        }
+
+        return SparseMatrix(shape, data_type, default=type_map[data_type])
+
+    @classmethod
+    def identity(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+        if shape[0] != shape[1]:
+            raise ValueError("Identity matrix must be squared.")
+
+        type_map = {
+            "float": 1.0,
+            "scalar": Scalar.unit(),
+            "vector": Vector.unit(),
+            "tensor": Tensor.unit(),
+        }
+        one = type_map[data_type]
+        data = {}
+        for i in range(shape[0]):
+            data[i * shape[1] + i] = one
+        return SparseMatrix(shape, data_type, data)
 
     # -----------------------------------------------
     # --- properties ---
