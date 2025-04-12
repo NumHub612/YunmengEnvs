@@ -239,7 +239,10 @@ class DenseMatrix(Matrix):
 
     def _check_type_compatible(self, other):
         if isinstance(other, np.ndarray):
-            check = np.all([isinstance(v, self.type) for v in other.flatten()])
+            if other.dtype == object:
+                check = np.all([v.type == self.type for v in other.flatten()])
+            else:
+                check = self.type == "float"
             if not check:
                 raise ValueError(f"Matrix types don't match: {self.type}.")
         elif isinstance(other, Matrix):

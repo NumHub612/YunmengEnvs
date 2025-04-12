@@ -37,13 +37,18 @@ class Field:
             raise ValueError(f"Invalid element type: {element_type} for Field")
         self._etype = element_type
 
-        if data_type not in ["scalar", "vector", "tensor"]:
+        if data_type not in ["float", "scalar", "vector", "tensor"]:
             raise ValueError(f"Invalid data type: {data_type}")
         self._dtype = data_type
 
         if data is None:
-            type_map = {"scalar": Scalar, "vector": Vector, "tensor": Tensor}
-            default = type_map[data_type]()
+            type_map = {
+                "float": 0.0,
+                "scalar": Scalar.zero(),
+                "vector": Vector.zero(),
+                "tensor": Tensor.zero(),
+            }
+            default = type_map[data_type]
             data = np.full(size, default)
         else:
             if isinstance(data, Variable):
@@ -53,9 +58,6 @@ class Field:
             elif isinstance(data, np.ndarray):
                 if data.shape != (size,):
                     raise ValueError(f"Invalid data shape: {data.shape}")
-                check_type = np.all([isinstance(v, Variable) for v in data])
-                if not check_type:
-                    raise TypeError(f"Not all elements are: Variable.")
             else:
                 raise TypeError(f"Invalid data type: {type(data)}")
 
@@ -124,9 +126,12 @@ class Field:
             - If values.shape[1] == 3, the field is a vector field.
             - If values.shape[1] == 9, the field is a tensor field
         """
-        etype = element_type.lower() if element_type else "none"
+        etype = element_type if element_type else "none"
 
-        if values.dtype != object and values.ndim == 2:
+        if values.ndim == 1 or values.dtype != object:
+            dtype = "float"
+            data = values
+        elif values.dtype != object and values.ndim == 2:
             if values.shape[1] == 1:
                 data = np.array([Scalar.from_np(v) for v in values])
                 dtype = "scalar"
@@ -156,7 +161,10 @@ class Field:
         """
         Convert the field to a numpy float array.
         """
-        return np.array([v.to_np().flatten() for v in self._values])
+        if self.dtype == "float":
+            return self._values
+        else:
+            return np.array([v.to_np() for v in self._values])
 
     def scalarize(self) -> list["Field"]:
         """
