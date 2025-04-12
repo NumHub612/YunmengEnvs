@@ -51,19 +51,19 @@ class Lap01(IOperator):
             results = NodeField(
                 self._source.size,
                 "scalar",
-                default=Scalar.zero(),
+                data=Scalar.zero(),
                 variable=self._source.variable,
             )
         else:
             results = NodeField(
                 self._source.size,
                 "vector",
-                default=Vector.zero(),
+                data=Vector.zero(),
                 variable=self._source.variable,
             )
 
         for element in self._mesh.node_indexes:
-            neighbours = self._topo.get_mesh().retrieve_node_neighborhoods(element)
+            neighbours = self._mesh.retrieve_node_neighborhoods(element)
             data_type = self._source.dtype
 
             # calculate

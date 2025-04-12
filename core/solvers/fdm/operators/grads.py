@@ -54,14 +54,14 @@ class Grad01(IOperator):
             results = NodeField(
                 source.size,
                 "vector",
-                default=Vector.zero(),
+                data=Vector.zero(),
                 variable=source.variable,
             )
         else:
             results = NodeField(
                 source.size,
                 "tensor",
-                default=Tensor.zero(),
+                data=Tensor.zero(),
                 variable=source.variable,
             )
 
