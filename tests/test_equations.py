@@ -108,7 +108,7 @@ class TestSimpleEquations(unittest.TestCase):
         problem.set_mesh(self._grid)
 
         # discretize and solve
-        eqs, solution = self._run(problem, save_dir, True)
+        eqs, _ = self._run(problem, save_dir, True)
 
         diags = eqs.matrix.diag
         coef = 1 / self._dt

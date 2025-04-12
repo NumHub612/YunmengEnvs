@@ -354,14 +354,6 @@ class SimpleEquation(BaseEquation):
 
         # run the operator
         result = op.run(field)
-        if isinstance(result, Field):
-            var_name, var_type, eq_num = self._get_equation_info()
-            var_type = result.dtype
-            eqs = LinearEqs.zeros(var_name, eq_num, rhs_type=var_type)
-            eqs.rhs = -result
-        else:
-            eqs = result
-
         return result
 
     def run_func(self, func_name: str, func_args: list):
