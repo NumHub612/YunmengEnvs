@@ -263,7 +263,7 @@ class DenseMatrix(Matrix):
 
     def __add__(self, other):
         self._check_type_compatible(other)
-        self._check_shape_compatible(other, mode="add")
+        self._check_shape_compatible(other)
         if isinstance(other, DenseMatrix):
             return DenseMatrix(self.shape, self._dtype, self._data + other._data)
         else:
@@ -275,8 +275,15 @@ class DenseMatrix(Matrix):
 
     def __sub__(self, other):
         self._check_type_compatible(other)
-        self._check_shape_compatible(other, mode="add")
-        return self.__add__(-other)
+        self._check_shape_compatible(other)
+        if isinstance(other, DenseMatrix):
+            return DenseMatrix(self.shape, self._dtype, self._data - other._data)
+        else:
+            data = copy.deepcopy(self._data)
+            for i in range(self.shape[0]):
+                for j in range(self.shape[1]):
+                    data[i, j] -= other[i, j]
+            return DenseMatrix(self.shape, self._dtype, data)
 
     def __mul__(self, other):
         if isinstance(other, (int, float, Scalar)):
@@ -374,7 +381,7 @@ class SciMatrix(Matrix):
         self._shape = shape
         self._data = None
 
-        if data:
+        if data is not None:
             if data.shape != shape:
                 raise ValueError(f"Input data doesn't match shape: {shape}.")
             self._data = data
@@ -399,8 +406,10 @@ class SciMatrix(Matrix):
         if shape[0] != shape[1]:
             raise ValueError("Identity matrix must be squared.")
 
-        data = np.identity(shape[0])
-        return SciMatrix(shape, dok_matrix(data))
+        data = dok_matrix(shape)
+        for i in range(shape[0]):
+            data[i, i] = 1.0
+        return SciMatrix(shape, data)
 
     # -----------------------------------------------
     # --- properties ---
@@ -450,27 +459,27 @@ class SciMatrix(Matrix):
 
     def __add__(self, other: "Matrix"):
         self._check_type_compatible(other)
-        self._check_shape_compatible(other, mode="add")
+        self._check_shape_compatible(other)
         if isinstance(other, SciMatrix):
             return SciMatrix(self.shape, self._data + other._data)
 
-        data = np.zeros(self.shape)
+        data = dok_matrix(self.shape)
         for i in range(self.shape[0]):
             for j in range(self.shape[1]):
                 data[i, j] = self._data[i, j] + other[i, j]
-        return SciMatrix(self.shape, dok_matrix(data))
+        return SciMatrix(self.shape, data)
 
     def __sub__(self, other):
         self._check_type_compatible(other)
-        self._check_shape_compatible(other, mode="add")
+        self._check_shape_compatible(other)
         if isinstance(other, SciMatrix):
             return SciMatrix(self.shape, self._data - other._data)
 
-        data = np.zeros(self.shape)
+        data = dok_matrix(self.shape)
         for i in range(self.shape[0]):
             for j in range(self.shape[1]):
                 data[i, j] = self._data[i, j] - other[i, j]
-        return SciMatrix(self.shape, dok_matrix(data))
+        return SciMatrix(self.shape, data)
 
     def __mul__(self, other):
         if isinstance(other, (int, float, Scalar)):
@@ -506,7 +515,7 @@ class SciMatrix(Matrix):
         if isinstance(other, (int, float, Scalar)):
             if isinstance(other, Scalar):
                 other = other.data
-            return SciMatrix(self, self._data / other)
+            return SciMatrix(self.shape, self._data / other)
         else:
             raise ValueError(f"Invalid operand type {type(other)}.")
 
@@ -705,7 +714,16 @@ class SparseMatrix(Matrix):
     def __sub__(self, other):
         if not isinstance(other, SparseMatrix):
             raise ValueError(f"Invalid operand type {type(other)}.")
-        return self.__add__(-other)
+        self._check_compatible(other)
+
+        data = copy.deepcopy(self._matrix)
+        for idx, val in other._matrix.items():
+            if idx in data:
+                data[idx] = data[idx] - val
+            else:
+                data[idx] = -val
+
+        return SparseMatrix(self.shape, self.type, data, self._default)
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
