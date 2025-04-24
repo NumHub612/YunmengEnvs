@@ -62,7 +62,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
-          enable_jekyll: true
+          enable_jekyll: false
 
       - name: Build package while tagging
         if: ${{ matrix.os == 'ubuntu-22.04' && startsWith(github.ref, 'refs/tags')}}
