@@ -7,7 +7,7 @@ Variables definition.
 from abc import abstractmethod
 import numpy as np
 
-from configs.settings import NUMERIC_TOLERANCE
+from configs.settings import settings
 
 
 class Variable:
@@ -253,7 +253,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < NUMERIC_TOLERANCE:
+            if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Vector.from_np(self.to_np() / other.value)
         else:
@@ -269,7 +269,9 @@ class Vector(Variable):
         if not isinstance(other, Vector):
             return False
 
-        is_equal = np.allclose(self.to_np(), other.to_np(), atol=NUMERIC_TOLERANCE)
+        is_equal = np.allclose(
+            self.to_np(), other.to_np(), atol=settings.NUMERIC_TOLERANCE
+        )
         return is_equal
 
     def __ne__(self, other) -> bool:
@@ -388,7 +390,7 @@ class Scalar(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < NUMERIC_TOLERANCE:
+            if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Scalar(self.value / other.value)
         else:
@@ -399,7 +401,7 @@ class Scalar(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if self.value < NUMERIC_TOLERANCE:
+            if self.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Scalar(other.value / self.value)
         else:
@@ -413,9 +415,9 @@ class Scalar(Variable):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Scalar):
-            return abs(self.value - other.value) < NUMERIC_TOLERANCE
+            return abs(self.value - other.value) < settings.NUMERIC_TOLERANCE
         elif isinstance(other, (int, float)):
-            return abs(self.value - other) < NUMERIC_TOLERANCE
+            return abs(self.value - other) < settings.NUMERIC_TOLERANCE
         else:
             return False
 
@@ -598,7 +600,7 @@ class Tensor(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < NUMERIC_TOLERANCE:
+            if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Tensor.from_np(self.to_np() / other.value)
         else:
@@ -614,7 +616,9 @@ class Tensor(Variable):
         if not isinstance(other, Tensor):
             return False
 
-        is_equal = np.allclose(self.to_np(), other.to_np(), atol=NUMERIC_TOLERANCE)
+        is_equal = np.allclose(
+            self.to_np(), other.to_np(), atol=settings.NUMERIC_TOLERANCE
+        )
         return is_equal
 
     def __ne__(self, other) -> bool:
