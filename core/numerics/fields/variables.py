@@ -6,8 +6,16 @@ Variables definition.
 """
 from abc import abstractmethod
 import numpy as np
+import torch
+import enum
 
 from configs.settings import settings
+
+
+class VariableType(enum.Enum):
+    SCALAR = "scalar"
+    VECTOR = "vector"
+    TENSOR = "tensor"
 
 
 class Variable:
@@ -18,6 +26,14 @@ class Variable:
     # -----------------------------------------------
     # --- abstract methods ---
     # -----------------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def from_torch(cls, torch_tensor: torch.Tensor) -> "Variable":
+        """
+        Set a variable by a torch tensor.
+        """
+        raise NotImplementedError()
 
     @classmethod
     @abstractmethod
@@ -64,9 +80,9 @@ class Variable:
 
     @property
     @abstractmethod
-    def type(self) -> str:
+    def type(self) -> VariableType:
         """
-        Get the type of the variable, e.g. scalar, vector, tensor.
+        Get the type of the variable.
         """
         raise NotImplementedError()
 
@@ -80,7 +96,7 @@ class Variable:
 
     @property
     @abstractmethod
-    def data(self) -> np.ndarray:
+    def data(self) -> torch.Tensor:
         """
         Get the data of the variable.
         """
@@ -103,6 +119,10 @@ class Variable:
         raise NotImplementedError()
 
     @abstractmethod
+    def __iadd__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
     def __sub__(self, other):
         raise NotImplementedError()
 
@@ -111,7 +131,19 @@ class Variable:
         raise NotImplementedError()
 
     @abstractmethod
+    def __isub__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
     def __mul__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __rmul__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __imul__(self, other):
         raise NotImplementedError()
 
     @abstractmethod
@@ -119,7 +151,7 @@ class Variable:
         raise NotImplementedError()
 
     @abstractmethod
-    def __rmul__(self, other):
+    def __itruediv__(self, other):
         raise NotImplementedError()
 
     @abstractmethod
@@ -149,21 +181,31 @@ class Vector(Variable):
     """
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
-        self._value = np.array([x, y, z])
+        self._value = torch.tensor(
+            [x, y, z], dtype=torch.float64, device=settings.DEVICE
+        )
+        self._magtitude = torch.linalg.vector_norm(self._value).item()
 
     # -----------------------------------------------
     # --- override methods ---
     # -----------------------------------------------
 
     @classmethod
+    def from_torch(cls, torch_tensor: torch.Tensor) -> "Vector":
+        if len(torch_tensor.shape) != 1 or torch_tensor.shape[0] != 3:
+            raise ValueError("Invalid torch tensor shape for Vector.")
+
+        return Vector(*torch_tensor.tolist())
+
+    @classmethod
     def from_np(cls, np_arr: np.ndarray) -> "Vector":
         if len(np_arr.shape) != 1 or np_arr.shape[0] != 3:
             raise ValueError("Invalid numpy array shape for Vector.")
 
-        return Vector(np_arr[0], np_arr[1], np_arr[2])
+        return Vector(*np_arr.tolist())
 
     def to_np(self) -> np.ndarray:
-        return self._value
+        return self._value.cpu().numpy()
 
     @classmethod
     def from_var(cls, var: "Vector") -> "Vector":
@@ -188,16 +230,15 @@ class Vector(Variable):
     # -----------------------------------------------
 
     @property
-    def type(self) -> str:
-        return "vector"
+    def type(self) -> VariableType:
+        return VariableType.VECTOR
 
     @property
     def magnitude(self) -> float:
-        length = np.sqrt(self.x**2 + self.y**2 + self.z**2)
-        return length
+        return self._magtitude
 
     @property
-    def data(self) -> np.ndarray:
+    def data(self) -> torch.Tensor:
         return self._value
 
     @property
@@ -218,35 +259,68 @@ class Vector(Variable):
 
     def __add__(self, other):
         if isinstance(other, Vector):
-            return Vector.from_np(self.to_np() + other.to_np())
+            return Vector.from_torch(self._value + other._value)
         else:
             raise TypeError(f"Invalid type for Vector add(): {type(other)}.")
 
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __iadd__(self, other):
+        if isinstance(other, Vector):
+            self._value += other._value
+        else:
+            raise TypeError(f"Invalid type for Vector iadd(): {type(other)}.")
+
     def __sub__(self, other):
         if isinstance(other, Vector):
-            return Vector.from_np(self.to_np() - other.to_np())
+            return Vector.from_torch(self._value - other._value)
         else:
             raise TypeError(f"Invalid type for Vector sub(): {type(other)}.")
+
+    def __rsub__(self, other):
+        if isinstance(other, Vector):
+            return Vector.from_torch(other._value - self._value)
+        else:
+            raise TypeError(f"Invalid type for Vector rsub(): {type(other)}.")
+
+    def __isub__(self, other):
+        if isinstance(other, Vector):
+            self._value -= other._value
+        else:
+            raise TypeError(f"Invalid type for Vector isub(): {type(other)}.")
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
             other = Scalar(other)
+        if not isinstance(other, Variable):
+            raise TypeError(f"Invalid type for Vector mul() with {type(other)}.")
 
-        if isinstance(other, Vector):
-            return Scalar.from_np(np.dot(self.to_np(), other.to_np()))
-        elif isinstance(other, Scalar):
-            return Vector.from_np(self.to_np() * other.value)
+        if isinstance(other, Scalar):
+            return Vector.from_torch(self._value * other.value)
+        elif isinstance(other, Vector):
+            return Scalar(torch.dot(self._value, other._value).item())
         elif isinstance(other, Tensor):
-            lf = self.to_np()
-            rhs = other.to_np().reshape(3, 3)
-            result = [np.dot(lf, rhs[:, i]) for i in range(3)]
-            return Vector.from_np(np.array(result))
+            rhs = other._value.reshape(3, 3)
+            result = torch.matmul(self._value, rhs)
+            return Vector.from_torch(result)
         else:
             raise TypeError(f"Invalid type for Vector mul() with {type(other)}.")
 
     def __rmul__(self, other):
         if isinstance(other, (int, float, Scalar)):
             return self.__mul__(other)
+
+    def __imul__(self, other):
+        if isinstance(other, (int, float)):
+            other = Scalar(other)
+        if not isinstance(other, Variable):
+            raise TypeError(f"Invalid type for Vector imul() with {type(other)}.")
+
+        if isinstance(other, Scalar):
+            self._value *= other.value
+        else:
+            raise TypeError(f"Invalid type for Vector imul() with {type(other)}.")
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
@@ -255,24 +329,45 @@ class Vector(Variable):
         if isinstance(other, Scalar):
             if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
-            return Vector.from_np(self.to_np() / other.value)
+            return Vector.from_torch(self._value / other.value)
         else:
             raise TypeError(f"Invalid type for Vector div(): {type(other)}.")
 
+    def __rtruediv__(self, other):
+        if isinstance(other, (int, float)):
+            other = Scalar(other)
+
+        if isinstance(other, Scalar):
+            if self.magnitude < settings.NUMERIC_TOLERANCE:
+                raise ZeroDivisionError("Division by zero.")
+            return Vector.from_torch(other.value / self._value)
+        else:
+            raise TypeError(f"Invalid type for Vector rdiv(): {type(other)}.")
+
+    def __itruediv__(self, other):
+        if isinstance(other, (int, float)):
+            other = Scalar(other)
+
+        if isinstance(other, Scalar):
+            if other.value < settings.NUMERIC_TOLERANCE:
+                raise ZeroDivisionError("Division by zero.")
+            self._value /= other.value
+        else:
+            raise TypeError(f"Invalid type for Vector idiv(): {type(other)}.")
+
     def __neg__(self):
-        return Vector.from_np(-self._value)
+        return Vector.from_torch(-self._value)
 
     def __abs__(self):
-        return Vector.from_np(np.abs(self._value))
+        return Vector.from_torch(torch.abs(self._value))
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Vector):
             return False
 
-        is_equal = np.allclose(
-            self.to_np(), other.to_np(), atol=settings.NUMERIC_TOLERANCE
+        return torch.allclose(
+            self._value, other._value, atol=settings.NUMERIC_TOLERANCE
         )
-        return is_equal
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
@@ -284,11 +379,19 @@ class Scalar(Variable):
     """
 
     def __init__(self, value: float = 0.0):
-        self._value = value
+        self._value = torch.tensor([value], dtype=torch.float64, device=settings.DEVICE)
+        self._magtitude = abs(value)
 
     # -----------------------------------------------
     # --- override methods ---
     # -----------------------------------------------
+
+    @classmethod
+    def from_torch(cls, torch_tensor: torch.Tensor) -> "Scalar":
+        if len(torch_tensor.shape) != 1 or torch_tensor.shape[0] != 1:
+            raise ValueError("Invalid torch tensor shape for Scalar.")
+
+        return Scalar(torch_tensor.item())
 
     @classmethod
     def from_np(cls, np_arr: np.ndarray) -> "Scalar":
@@ -320,20 +423,20 @@ class Scalar(Variable):
     # -----------------------------------------------
 
     @property
-    def type(self) -> str:
-        return "scalar"
+    def type(self) -> VariableType:
+        return VariableType.SCALAR
 
     @property
     def magnitude(self) -> float:
-        return abs(self.value)
+        return self._magtitude
 
     @property
-    def data(self) -> np.ndarray:
-        return np.array([self._value])
+    def data(self) -> torch.Tensor:
+        return self._value
 
     @property
     def value(self) -> float:
-        return self._value
+        return self._value.item()
 
     # -----------------------------------------------
     # --- reload arithmetic operations ---
@@ -341,49 +444,70 @@ class Scalar(Variable):
 
     def __add__(self, other):
         if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Scalar):
-            return Scalar(self.value + other.value)
+            return Scalar(self.value + other)
+        elif isinstance(other, Scalar):
+            return Scalar.from_torch(self._value + other._value)
         else:
             raise TypeError("Invalid type for Scalar add().")
 
     def __radd__(self, other):
         return self.__add__(other)
 
+    def __iadd__(self, other):
+        if isinstance(other, (int, float)):
+            self._value += other
+        elif isinstance(other, Scalar):
+            self._value += other._value
+        else:
+            raise TypeError("Invalid type for Scalar iadd().")
+
     def __sub__(self, other):
         if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Scalar):
-            return Scalar(self.value - other.value)
+            return Scalar(self.value - other)
+        elif isinstance(other, Scalar):
+            return Scalar.from_torch(self._value - other._value)
         else:
             raise TypeError("Invalid type for Scalar sub().")
 
     def __rsub__(self, other):
         if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Scalar):
-            return Scalar(other.value - self.value)
+            return Scalar(other - self.value)
+        elif isinstance(other, Scalar):
+            return Scalar.from_torch(other._value - self._value)
         else:
             raise TypeError("Invalid type for Scalar rsub().")
+
+    def __isub__(self, other):
+        if isinstance(other, (int, float)):
+            self._value -= other
+        elif isinstance(other, Scalar):
+            self._value -= other._value
+        else:
+            raise TypeError("Invalid type for Scalar isub().")
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            return Scalar(self.value * other.value)
+            return Scalar.from_torch(self._value * other._value)
         elif isinstance(other, Vector):
-            return Vector.from_np(self.value * other.to_np())
+            return Vector.from_torch(self._value * other._value)
         elif isinstance(other, Tensor):
-            return Tensor.from_np(self.value * other.to_np())
+            return Tensor.from_torch(self._value * other._value)
         else:
             raise TypeError(f"Invalid type for Scalar mul() with {type(other)}.")
 
     def __rmul__(self, other):
         return self.__mul__(other)
+
+    def __imul__(self, other):
+        if isinstance(other, (int, float)):
+            self._value *= other
+        elif isinstance(other, Scalar):
+            self._value *= other._value
+        else:
+            raise TypeError(f"Invalid type for Scalar imul() with {type(other)}.")
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
@@ -407,6 +531,16 @@ class Scalar(Variable):
         else:
             raise TypeError("Invalid type for Scalar rdiv().")
 
+    def __itruediv__(self, other):
+        if isinstance(other, (int, float)):
+            self._value /= other
+        elif isinstance(other, Scalar):
+            if other.value < settings.NUMERIC_TOLERANCE:
+                raise ZeroDivisionError("Division by zero.")
+            self._value /= other._value
+        else:
+            raise TypeError("Invalid type for Scalar idiv().")
+
     def __neg__(self):
         return Scalar(-self.value)
 
@@ -423,12 +557,6 @@ class Scalar(Variable):
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
-
-    def __call__(self):
-        return self.value
-
-    def __float__(self):
-        return float(self.value)
 
     def __str__(self):
         return f"Scalar({self.value})"
@@ -451,11 +579,37 @@ class Tensor(Variable):
         zy: float = 0.0,
         zz: float = 0.0,
     ):
-        self._value = np.array([xx, xy, xz, yx, yy, yz, zx, zy, zz])
+        self._value = torch.tensor(
+            [[xx, xy, xz], [yx, yy, yz], [zx, zy, zz]],
+            dtype=torch.float64,
+            device=settings.DEVICE,
+        )
+        self._magtitude = np.linalg.norm(self.to_np())
 
     # -----------------------------------------------
     # --- override methods ---
     # -----------------------------------------------
+
+    @classmethod
+    def from_torch(cls, torch_tensor: torch.Tensor) -> "Tensor":
+        if (
+            len(torch_tensor.shape) != 2
+            or torch_tensor.shape[0] not in [2, 3]
+            or torch_tensor.shape[1] not in [2, 3]
+        ):
+            raise ValueError("Invalid torch tensor shape for Tensor.")
+
+        if torch_tensor.shape[0] == 2 and torch_tensor.shape[1] == 2:
+            return Tensor(
+                torch_tensor[0, 0],
+                torch_tensor[0, 1],
+                0.0,
+                torch_tensor[1, 0],
+                torch_tensor[1, 1],
+                0.0,
+            )
+        else:
+            return Tensor(*torch_tensor.reshape(9).tolist())
 
     @classmethod
     def from_np(cls, np_array: np.ndarray) -> "Tensor":
@@ -504,53 +658,52 @@ class Tensor(Variable):
     # -----------------------------------------------
 
     @property
-    def type(self) -> str:
-        return "tensor"
+    def type(self) -> VariableType:
+        return VariableType.TENSOR
 
     @property
     def magnitude(self) -> float:
-        length = np.linalg.norm(self.to_np())
-        return length
+        return self._magtitude
 
     @property
-    def data(self) -> np.ndarray:
+    def data(self) -> torch.Tensor:
         return self._value
 
     @property
     def xx(self) -> float:
-        return self._value[0]
+        return self._value[0][0]
 
     @property
     def xy(self) -> float:
-        return self._value[1]
+        return self._value[0][1]
 
     @property
     def xz(self) -> float:
-        return self._value[2]
+        return self._value[0][2]
 
     @property
     def yx(self) -> float:
-        return self._value[3]
+        return self._value[1][0]
 
     @property
     def yy(self) -> float:
-        return self._value[4]
+        return self._value[1][1]
 
     @property
     def yz(self) -> float:
-        return self._value[5]
+        return self._value[1][2]
 
     @property
     def zx(self) -> float:
-        return self._value[6]
+        return self._value[2][0]
 
     @property
     def zy(self) -> float:
-        return self._value[7]
+        return self._value[2][1]
 
     @property
     def zz(self) -> float:
-        return self._value[8]
+        return self._value[2][2]
 
     # -----------------------------------------------
     # --- reload arithmetic operations ---
@@ -558,42 +711,62 @@ class Tensor(Variable):
 
     def __add__(self, other):
         if isinstance(other, Tensor):
-            return Tensor.from_np(self.to_np() + other.to_np())
+            return Tensor.from_torch(self._value + other._value)
         else:
             raise TypeError("Invalid type for Tensor add().")
 
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __iadd__(self, other):
+        if isinstance(other, Tensor):
+            self._value += other._value
+        else:
+            raise TypeError("Invalid type for Tensor iadd().")
+
     def __sub__(self, other):
         if isinstance(other, Tensor):
-            return Tensor.from_np(self.to_np() - other.to_np())
+            return Tensor.from_torch(self._value - other._value)
         else:
             raise TypeError("Invalid type for Tensor sub().")
 
+    def __rsub__(self, other):
+        if isinstance(other, Tensor):
+            return Tensor.from_torch(other._value - self._value)
+        else:
+            raise TypeError("Invalid type for Tensor rsub().")
+
+    def __isub__(self, other):
+        if isinstance(other, Tensor):
+            self._value -= other._value
+        else:
+            raise TypeError("Invalid type for Tensor isub().")
+
     def __mul__(self, other):
         if isinstance(other, (int, float)):
-            other = Scalar(other)
-
-        if isinstance(other, Scalar):
-            return Tensor.from_np(self.to_np() * other.value)
+            return Tensor.from_torch(self._value * other)
+        elif isinstance(other, Scalar):
+            return Tensor.from_torch(self._value * other._value)
         elif isinstance(other, Vector):
-            rh = other.to_np()
-            result = [np.dot(self._value[i * 3 : (i + 1) * 3], rh) for i in range(3)]
-            return Vector.from_np(np.array(result))
+            return Vector.from_torch(self._value @ other._value)
         elif isinstance(other, Tensor):
-            results = []
-            rh = other.to_np().reshape(3, 3)
-            lf = self.to_np().reshape(3, 3)
-            for i in range(3):
-                row = []
-                for j in range(3):
-                    row.append(np.dot(lf[i], rh[:, j]))
-                results.append(row)
-            return Tensor.from_np(np.array(results))
+            return Tensor.from_torch(self._value @ other._value)
         else:
             raise TypeError("Invalid type for Tensor mul().")
 
     def __rmul__(self, other):
         if isinstance(other, (int, float, Scalar)):
             return self.__mul__(other)
+
+    def __imul__(self, other):
+        if isinstance(other, (int, float)):
+            self._value *= other
+        elif isinstance(other, Scalar):
+            self._value *= other._value
+        elif isinstance(other, Tensor):
+            self._value = self._value @ other._value
+        else:
+            raise TypeError("Invalid type for Tensor imul().")
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
@@ -602,24 +775,44 @@ class Tensor(Variable):
         if isinstance(other, Scalar):
             if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
-            return Tensor.from_np(self.to_np() / other.value)
+            return Tensor.from_torch(self._value / other._value)
         else:
             raise TypeError("Invalid type for Tensor div().")
 
-    def __neg__(self):
-        return Tensor.from_np(-self.to_np())
+    def __rtruediv__(self, other):
+        if isinstance(other, (int, float)):
+            other = Scalar(other)
+
+        if isinstance(other, Scalar):
+            if self.magnitude < settings.NUMERIC_TOLERANCE:
+                raise ZeroDivisionError("Division by zero.")
+            return Tensor.from_torch(other._value / self._value)
+        else:
+            raise TypeError("Invalid type for Tensor rdiv().")
+
+    def __itruediv__(self, other):
+        if isinstance(other, (int, float)):
+            self._value /= other
+        elif isinstance(other, Scalar):
+            if other.value < settings.NUMERIC_TOLERANCE:
+                raise ZeroDivisionError("Division by zero.")
+            self._value /= other._value
+        else:
+            raise TypeError("Invalid type for Tensor idiv().")
 
     def __abs__(self):
-        return Tensor.from_np(np.abs(self._value))
+        return Tensor.from_torch(torch.abs(self._value))
+
+    def __neg__(self):
+        return Tensor.from_torch(-self._value)
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Tensor):
             return False
 
-        is_equal = np.allclose(
-            self.to_np(), other.to_np(), atol=settings.NUMERIC_TOLERANCE
+        return torch.allclose(
+            self._value, other._value, atol=settings.NUMERIC_TOLERANCE
         )
-        return is_equal
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)

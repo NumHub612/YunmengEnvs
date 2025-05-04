@@ -6,6 +6,8 @@ import os
 import logging
 import logging.handlers
 import json
+import torch
+import GPUtil
 
 
 class Settings:
@@ -38,13 +40,33 @@ class Settings:
             self._configs[name] = value
 
     @property
-    def NUMERIC_TOLERANCE(self):
+    def NUMERIC_TOLERANCE(self) -> float:
         """Numeric tolerance for floating point comparison."""
         return self._configs.get("NUMERIC_TOLERANCE", 1e-6)
 
     @NUMERIC_TOLERANCE.setter
-    def NUMERIC_TOLERANCE(self, value):
+    def NUMERIC_TOLERANCE(self, value: float):
         self._configs["NUMERIC_TOLERANCE"] = abs(value)
+
+    @property
+    def DEVICE(self) -> torch.device:
+        """Device for PyTorch."""
+        return self._configs.get(
+            "DEVICE", torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )
+
+    @DEVICE.setter
+    def DEVICE(self, value: torch.device):
+        self._configs["DEVICE"] = value
+
+    @property
+    def GPUs(self) -> list:
+        """List of GPUs available."""
+        return self._configs.get("GPUs", GPUtil.getGPUs())
+
+    @GPUs.setter
+    def GPUs(self, value: list):
+        self._configs["GPUs"] = value
 
 
 # global settings object
