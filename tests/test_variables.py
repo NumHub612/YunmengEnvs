@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import torch
 from core.numerics.fields import Scalar, Vector, Tensor, VariableType
+from configs.settings import settings
 
 
 class TestVariables(unittest.TestCase):
@@ -21,10 +22,10 @@ class TestVariables(unittest.TestCase):
         self.tensor = Tensor(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0)
 
     def test_from_torch(self):
-        scalar_torch = torch.tensor([5.0], dtype=torch.float64)
-        vector_torch = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float64)
+        scalar_torch = torch.tensor([5.0], dtype=settings.DTYPE)
+        vector_torch = torch.tensor([1.0, 2.0, 3.0], dtype=settings.DTYPE)
         tensor_torch = torch.tensor(
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]], dtype=torch.float64
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]], dtype=settings.DTYPE
         )
 
         self.assertEqual(Scalar.from_torch(scalar_torch).value, self.scalar.value)
@@ -67,11 +68,11 @@ class TestVariables(unittest.TestCase):
 
     def test_data(self):
         self.assertTrue(
-            torch.allclose(self.scalar.data, torch.tensor([5.0], dtype=torch.float64))
+            torch.allclose(self.scalar.data, torch.tensor([5.0], dtype=settings.DTYPE))
         )
         self.assertTrue(
             torch.allclose(
-                self.vector.data, torch.tensor([1.0, 2.0, 3.0], dtype=torch.float64)
+                self.vector.data, torch.tensor([1.0, 2.0, 3.0], dtype=settings.DTYPE)
             )
         )
         self.assertTrue(
@@ -79,7 +80,7 @@ class TestVariables(unittest.TestCase):
                 self.tensor.data,
                 torch.tensor(
                     [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]],
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                 ),
             )
         )
@@ -93,7 +94,8 @@ class TestVariables(unittest.TestCase):
         self.assertEqual(Scalar.unit().value, 1.0)
         self.assertTrue(
             torch.allclose(
-                Vector.unit()._value, torch.tensor([1.0, 1.0, 1.0], dtype=torch.float64)
+                Vector.unit()._value,
+                torch.tensor([1.0, 1.0, 1.0], dtype=settings.DTYPE),
             )
         )
         self.assertTrue(
@@ -101,7 +103,7 @@ class TestVariables(unittest.TestCase):
                 Tensor.unit()._value,
                 torch.tensor(
                     [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                 ),
             )
         )
@@ -110,7 +112,8 @@ class TestVariables(unittest.TestCase):
         self.assertEqual(Scalar.zero().value, 0.0)
         self.assertTrue(
             torch.allclose(
-                Vector.zero()._value, torch.tensor([0.0, 0.0, 0.0], dtype=torch.float64)
+                Vector.zero()._value,
+                torch.tensor([0.0, 0.0, 0.0], dtype=settings.DTYPE),
             )
         )
         self.assertTrue(
@@ -118,7 +121,7 @@ class TestVariables(unittest.TestCase):
                 Tensor.zero()._value,
                 torch.tensor(
                     [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                 ),
             )
         )
@@ -136,7 +139,7 @@ class TestVariables(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 (vector1 + vector2)._value,
-                torch.tensor([5.0, 7.0, 9.0], dtype=torch.float64),
+                torch.tensor([5.0, 7.0, 9.0], dtype=settings.DTYPE),
             )
         )
         self.assertTrue(
@@ -144,7 +147,7 @@ class TestVariables(unittest.TestCase):
                 (tensor1 + tensor2)._value,
                 torch.tensor(
                     [[10.0, 10.0, 10.0], [10.0, 10.0, 10.0], [10.0, 10.0, 10.0]],
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                 ),
             )
         )
@@ -154,7 +157,7 @@ class TestVariables(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 (vector1 - vector2)._value,
-                torch.tensor([-3.0, -3.0, -3.0], dtype=torch.float64),
+                torch.tensor([-3.0, -3.0, -3.0], dtype=settings.DTYPE),
             )
         )
         self.assertTrue(
@@ -162,7 +165,7 @@ class TestVariables(unittest.TestCase):
                 (tensor1 - tensor2)._value,
                 torch.tensor(
                     [[-8.0, -6.0, -4.0], [-2.0, 0.0, 2.0], [4.0, 6.0, 8.0]],
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                 ),
             )
         )
@@ -172,7 +175,7 @@ class TestVariables(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 (vector1 * scalar2)._value,
-                torch.tensor([3.0, 6.0, 9.0], dtype=torch.float64),
+                torch.tensor([3.0, 6.0, 9.0], dtype=settings.DTYPE),
             )
         )
         self.assertTrue(
@@ -180,7 +183,7 @@ class TestVariables(unittest.TestCase):
                 (tensor1 * scalar2)._value,
                 torch.tensor(
                     [[3.0, 6.0, 9.0], [12.0, 15.0, 18.0], [21.0, 24.0, 27.0]],
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                 ),
             )
         )
@@ -190,7 +193,7 @@ class TestVariables(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 (vector1 / scalar2)._value,
-                torch.tensor([1.0 / 3.0, 2.0 / 3.0, 1.0], dtype=torch.float64),
+                torch.tensor([1.0 / 3.0, 2.0 / 3.0, 1.0], dtype=settings.DTYPE),
             )
         )
         self.assertTrue(
@@ -202,7 +205,7 @@ class TestVariables(unittest.TestCase):
                         [4.0 / 3.0, 5.0 / 3.0, 2.0],
                         [7.0 / 3.0, 8.0 / 3.0, 3.0],
                     ],
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                 ),
             )
         )

@@ -68,6 +68,15 @@ class Settings:
     def GPUs(self, value: list):
         self._configs["GPUs"] = value
 
+    @property
+    def DTYPE(self) -> torch.dtype:
+        """Data type for PyTorch."""
+        return self._configs.get("DTYPE", torch.float64)
+
+    @DTYPE.setter
+    def DTYPE(self, value: torch.dtype):
+        self._configs["DTYPE"] = value
+
 
 # global settings object
 settings = Settings()

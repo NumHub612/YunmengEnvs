@@ -13,7 +13,6 @@ from core.numerics.fields.variables import (
 )
 from configs.settings import settings
 
-from typing import Callable
 import numpy as np
 import torch
 import enum
@@ -66,7 +65,7 @@ class Field:
             }
             default = type_map[data_type]
             values = torch.full(
-                (size, *default.shape), 0.0, dtype=torch.float64, device=device
+                (size, *default.shape), 0.0, dtype=settings.DTYPE, device=device
             )
             values[:] = default.data
         else:
@@ -74,7 +73,7 @@ class Field:
                 if data.type != data_type:
                     raise ValueError(f"Invalid data type: {data.type}")
                 values = torch.full(
-                    (size, *data.shape), 0.0, dtype=torch.float64, device=device
+                    (size, *data.shape), 0.0, dtype=settings.DTYPE, device=device
                 )
                 values[:] = data.data
             elif isinstance(data, np.ndarray):

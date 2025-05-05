@@ -2,6 +2,7 @@
 import unittest
 import torch
 import numpy as np
+from configs.settings import settings
 from core.numerics.fields import (
     Field,
     Scalar,
@@ -49,7 +50,7 @@ class TestFields(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 self.scalar_field.data,
-                torch.tensor([1.0, 1.0, 1.0], dtype=torch.float64, device=self.device),
+                torch.tensor([1.0, 1.0, 1.0], dtype=settings.DTYPE, device=self.device),
             )
         )
 
@@ -60,7 +61,7 @@ class TestFields(unittest.TestCase):
             torch.allclose(
                 self.vector_field.data,
                 torch.tensor(
-                    [[1.0, 2.0, 3.0]] * 3, dtype=torch.float64, device=self.device
+                    [[1.0, 2.0, 3.0]] * 3, dtype=settings.DTYPE, device=self.device
                 ),
             )
         )
@@ -73,7 +74,7 @@ class TestFields(unittest.TestCase):
                 self.tensor_field.data,
                 torch.tensor(
                     [[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]] * 3,
-                    dtype=torch.float64,
+                    dtype=settings.DTYPE,
                     device=self.device,
                 ),
             )
@@ -81,16 +82,16 @@ class TestFields(unittest.TestCase):
 
     def test_from_torch(self):
         scalar_torch = torch.tensor(
-            [1.0, 2.0, 3.0], dtype=torch.float64, device=self.device
+            [1.0, 2.0, 3.0], dtype=settings.DTYPE, device=self.device
         )
         vector_torch = torch.tensor(
             [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]],
-            dtype=torch.float64,
+            dtype=settings.DTYPE,
             device=self.device,
         )
         tensor_torch = torch.tensor(
             [[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]] * 3,
-            dtype=torch.float64,
+            dtype=settings.DTYPE,
             device=self.device,
         )
 
@@ -128,19 +129,19 @@ class TestFields(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 scalar_fields[0].data,
-                torch.tensor([1.0, 1.0, 1.0], dtype=torch.float64, device=self.device),
+                torch.tensor([1.0, 1.0, 1.0], dtype=settings.DTYPE, device=self.device),
             )
         )
         self.assertTrue(
             torch.allclose(
                 scalar_fields[1].data,
-                torch.tensor([2.0, 2.0, 2.0], dtype=torch.float64, device=self.device),
+                torch.tensor([2.0, 2.0, 2.0], dtype=settings.DTYPE, device=self.device),
             )
         )
         self.assertTrue(
             torch.allclose(
                 scalar_fields[2].data,
-                torch.tensor([3.0, 3.0, 3.0], dtype=torch.float64, device=self.device),
+                torch.tensor([3.0, 3.0, 3.0], dtype=settings.DTYPE, device=self.device),
             )
         )
 
@@ -152,7 +153,7 @@ class TestFields(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 self.scalar_field.data,
-                torch.tensor([5.0, 5.0, 5.0], dtype=torch.float64, device=self.device),
+                torch.tensor([5.0, 5.0, 5.0], dtype=settings.DTYPE, device=self.device),
             )
         )
 
@@ -162,7 +163,7 @@ class TestFields(unittest.TestCase):
             torch.allclose(
                 self.vector_field.data,
                 torch.tensor(
-                    [[10.0, 20.0, 30.0]] * 3, dtype=torch.float64, device=self.device
+                    [[10.0, 20.0, 30.0]] * 3, dtype=settings.DTYPE, device=self.device
                 ),
             )
         )
@@ -194,14 +195,14 @@ class TestFields(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 (scalar_field1 + scalar_field2).data,
-                torch.tensor([3.0, 3.0, 3.0], dtype=torch.float64, device=self.device),
+                torch.tensor([3.0, 3.0, 3.0], dtype=settings.DTYPE, device=self.device),
             )
         )
         self.assertTrue(
             torch.allclose(
                 (vector_field1 + vector_field2).data,
                 torch.tensor(
-                    [[5.0, 7.0, 9.0]] * 3, dtype=torch.float64, device=self.device
+                    [[5.0, 7.0, 9.0]] * 3, dtype=settings.DTYPE, device=self.device
                 ),
             )
         )
@@ -211,7 +212,7 @@ class TestFields(unittest.TestCase):
             torch.allclose(
                 (scalar_field1 - scalar_field2).data,
                 torch.tensor(
-                    [-1.0, -1.0, -1.0], dtype=torch.float64, device=self.device
+                    [-1.0, -1.0, -1.0], dtype=settings.DTYPE, device=self.device
                 ),
             )
         )
@@ -219,7 +220,7 @@ class TestFields(unittest.TestCase):
             torch.allclose(
                 (vector_field1 - vector_field2).data,
                 torch.tensor(
-                    [[-3.0, -3.0, -3.0]] * 3, dtype=torch.float64, device=self.device
+                    [[-3.0, -3.0, -3.0]] * 3, dtype=settings.DTYPE, device=self.device
                 ),
             )
         )
@@ -228,14 +229,14 @@ class TestFields(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 (scalar_field1 * 2.0).data,
-                torch.tensor([2.0, 2.0, 2.0], dtype=torch.float64, device=self.device),
+                torch.tensor([2.0, 2.0, 2.0], dtype=settings.DTYPE, device=self.device),
             )
         )
         self.assertTrue(
             torch.allclose(
                 (vector_field1 * 2.0).data,
                 torch.tensor(
-                    [[2.0, 4.0, 6.0]] * 3, dtype=torch.float64, device=self.device
+                    [[2.0, 4.0, 6.0]] * 3, dtype=settings.DTYPE, device=self.device
                 ),
             )
         )
@@ -244,14 +245,14 @@ class TestFields(unittest.TestCase):
         self.assertTrue(
             torch.allclose(
                 (scalar_field1 / 2.0).data,
-                torch.tensor([0.5, 0.5, 0.5], dtype=torch.float64, device=self.device),
+                torch.tensor([0.5, 0.5, 0.5], dtype=settings.DTYPE, device=self.device),
             )
         )
         self.assertTrue(
             torch.allclose(
                 (vector_field1 / 2.0).data,
                 torch.tensor(
-                    [[0.5, 1.0, 1.5]] * 3, dtype=torch.float64, device=self.device
+                    [[0.5, 1.0, 1.5]] * 3, dtype=settings.DTYPE, device=self.device
                 ),
             )
         )

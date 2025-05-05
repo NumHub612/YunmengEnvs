@@ -190,7 +190,7 @@ class Vector(Variable):
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         self._value = torch.tensor(
-            [x, y, z], dtype=torch.float64, device=settings.DEVICE
+            [x, y, z], dtype=settings.DTYPE, device=settings.DEVICE
         )
         self._magtitude = torch.linalg.vector_norm(self._value).item()
 
@@ -391,7 +391,9 @@ class Scalar(Variable):
     """
 
     def __init__(self, value: float = 0.0):
-        self._value = torch.tensor([value], dtype=torch.float64, device=settings.DEVICE)
+        self._value = torch.tensor(
+            [value], dtype=settings.DTYPE, device=settings.DEVICE
+        )
         self._magtitude = abs(value)
 
     # -----------------------------------------------
@@ -597,7 +599,7 @@ class Tensor(Variable):
     ):
         self._value = torch.tensor(
             [[xx, xy, xz], [yx, yy, yz], [zx, zy, zz]],
-            dtype=torch.float64,
+            dtype=settings.DTYPE,
             device=settings.DEVICE,
         )
         self._magtitude = np.linalg.norm(self.to_np())
