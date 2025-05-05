@@ -80,6 +80,14 @@ class Variable:
 
     @property
     @abstractmethod
+    def shape(self) -> tuple:
+        """
+        Get the shape of the variable.
+        """
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
     def type(self) -> VariableType:
         """
         Get the type of the variable.
@@ -228,6 +236,10 @@ class Vector(Variable):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def shape(self) -> tuple:
+        return (3,)
 
     @property
     def type(self) -> VariableType:
@@ -421,6 +433,10 @@ class Scalar(Variable):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def shape(self) -> tuple:
+        return (1,)
 
     @property
     def type(self) -> VariableType:
@@ -656,6 +672,10 @@ class Tensor(Variable):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def shape(self) -> tuple:
+        return (3, 3)
 
     @property
     def type(self) -> VariableType:
