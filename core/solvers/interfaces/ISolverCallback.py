@@ -4,7 +4,6 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface for callback classes used in the solvers.
 """
-from core.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 
 
@@ -25,6 +24,13 @@ class ISolverCallback(ABC):
     def setup(self):
         """
         Set up the callback method.
+        """
+        pass
+
+    @abstractmethod
+    def cleanup(self):
+        """
+        Clean up the callback method.
         """
         pass
 

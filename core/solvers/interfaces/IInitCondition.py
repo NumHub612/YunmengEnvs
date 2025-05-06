@@ -4,8 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interfaces for initializing the firield variables.
 """
-from abc import ABC, abstractmethod
 from core.numerics.fields import Field
+from abc import ABC, abstractmethod
 
 
 class IInitCondition(ABC):
