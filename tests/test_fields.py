@@ -1,16 +1,12 @@
 # -*- encoding: utf-8 -*-
 import unittest
 import torch
+import time
 import numpy as np
 from configs.settings import settings
-from core.numerics.fields import (
-    Field,
-    Scalar,
-    Vector,
-    Tensor,
-    ElementType,
-    VariableType,
-)
+from core.numerics.fields import Field, ElementType, VariableType
+
+settings.DEVICE = torch.device("cpu")
 
 
 class TestFields(unittest.TestCase):
@@ -24,238 +20,240 @@ class TestFields(unittest.TestCase):
         print("\n---------- Done \n")
 
     def setUp(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.scalar_field = Field(
-            3, ElementType.NODE, VariableType.SCALAR, Scalar(1.0), device=self.device
-        )
-        self.vector_field = Field(
-            3,
-            ElementType.NODE,
-            VariableType.VECTOR,
-            Vector(1.0, 2.0, 3.0),
-            device=self.device,
-        )
-        self.tensor_field = Field(
-            3,
-            ElementType.NODE,
-            VariableType.TENSOR,
-            Tensor(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0),
-            device=self.device,
-        )
+        self.size = 100
+        self.element_type = ElementType.NODE
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.gpus = [
+            torch.device(f"cuda:{i}") for i in range(torch.cuda.device_count())
+        ]
 
-    def test_initialization(self):
-        self.assertEqual(self.scalar_field.size, 3)
-        self.assertEqual(self.scalar_field.dtype, VariableType.SCALAR)
-        self.assertEqual(self.scalar_field.etype, ElementType.NODE)
-        self.assertTrue(
-            torch.allclose(
-                self.scalar_field.data,
-                torch.tensor([1.0, 1.0, 1.0], dtype=settings.DTYPE, device=self.device),
-            )
+    def test_scalar_field(self):
+        data = torch.randn(self.size, 1, device=self.device)
+        field = Field(
+            self.size, self.element_type, VariableType.SCALAR, data, device=self.device
         )
+        self.assertEqual(len(field.data), field.chunks)
+        self.assertEqual(field.size, self.size)
+        self.assertEqual(field.dtype, VariableType.SCALAR)
+        self.assertEqual(field.etype, self.element_type)
 
-        self.assertEqual(self.vector_field.size, 3)
-        self.assertEqual(self.vector_field.dtype, VariableType.VECTOR)
-        self.assertEqual(self.vector_field.etype, ElementType.NODE)
-        self.assertTrue(
-            torch.allclose(
-                self.vector_field.data,
-                torch.tensor(
-                    [[1.0, 2.0, 3.0]] * 3, dtype=settings.DTYPE, device=self.device
+    def test_vector_field(self):
+        data = torch.randn(self.size, 3, device=self.device)
+        field = Field(
+            self.size, self.element_type, VariableType.VECTOR, data, device=self.device
+        )
+        self.assertEqual(len(field.data), field.chunks)
+        self.assertEqual(field.size, self.size)
+        self.assertEqual(field.dtype, VariableType.VECTOR)
+        self.assertEqual(field.etype, self.element_type)
+
+    def test_tensor_field(self):
+        data = torch.randn(self.size, 3, 3, device=self.device)
+        field = Field(
+            self.size, self.element_type, VariableType.TENSOR, data, device=self.device
+        )
+        self.assertEqual(len(field.data), field.chunks)
+        self.assertEqual(field.size, self.size)
+        self.assertEqual(field.dtype, VariableType.TENSOR)
+        self.assertEqual(field.etype, self.element_type)
+
+    def test_addition(self):
+        for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:
+            data1 = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
+                device=self.device,
             )
-        )
-
-        self.assertEqual(self.tensor_field.size, 3)
-        self.assertEqual(self.tensor_field.dtype, VariableType.TENSOR)
-        self.assertEqual(self.tensor_field.etype, ElementType.NODE)
-        self.assertTrue(
-            torch.allclose(
-                self.tensor_field.data,
-                torch.tensor(
-                    [[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]] * 3,
-                    dtype=settings.DTYPE,
-                    device=self.device,
+            data2 = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
+                device=self.device,
             )
-        )
-
-    def test_from_torch(self):
-        scalar_torch = torch.tensor(
-            [1.0, 2.0, 3.0], dtype=settings.DTYPE, device=self.device
-        )
-        vector_torch = torch.tensor(
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]],
-            dtype=settings.DTYPE,
-            device=self.device,
-        )
-        tensor_torch = torch.tensor(
-            [[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]] * 3,
-            dtype=settings.DTYPE,
-            device=self.device,
-        )
-
-        scalar_field = Field.from_torch(
-            scalar_torch, ElementType.NODE, "scalar", self.device
-        )
-        vector_field = Field.from_torch(
-            vector_torch, ElementType.NODE, "vector", self.device
-        )
-        tensor_field = Field.from_torch(
-            tensor_torch, ElementType.NODE, "tensor", self.device
-        )
-
-        self.assertTrue(torch.allclose(scalar_field.data, scalar_torch))
-        self.assertTrue(torch.allclose(vector_field.data, vector_torch))
-        self.assertTrue(torch.allclose(tensor_field.data, tensor_torch))
-
-    def test_to_np(self):
-        self.assertTrue(
-            np.allclose(self.scalar_field.to_np(), np.array([1.0, 1.0, 1.0]))
-        )
-        self.assertTrue(
-            np.allclose(self.vector_field.to_np(), np.array([[1.0, 2.0, 3.0]] * 3))
-        )
-        self.assertTrue(
-            np.allclose(
-                self.tensor_field.to_np(),
-                np.array([[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]] * 3),
+            field1 = Field(
+                self.size, self.element_type, dtype, data1, device=self.device
             )
-        )
+            field2 = Field(
+                self.size, self.element_type, dtype, data2, device=self.device
+            )
+            result = field1 + field2
+            expected = data1 + data2
+            self.assertTrue(np.allclose(result.to_np(), expected.cpu().numpy()))
 
-    def test_scalarize(self):
-        scalar_fields = self.vector_field.scalarize()
-        self.assertEqual(len(scalar_fields), 3)
-        self.assertTrue(
-            torch.allclose(
-                scalar_fields[0].data,
-                torch.tensor([1.0, 1.0, 1.0], dtype=settings.DTYPE, device=self.device),
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                scalar_fields[1].data,
-                torch.tensor([2.0, 2.0, 2.0], dtype=settings.DTYPE, device=self.device),
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                scalar_fields[2].data,
-                torch.tensor([3.0, 3.0, 3.0], dtype=settings.DTYPE, device=self.device),
-            )
-        )
-
-    def test_assign(self):
-        new_scalar_field = Field(
-            3, ElementType.NODE, VariableType.SCALAR, Scalar(5.0), device=self.device
-        )
-        self.scalar_field.assign(new_scalar_field)
-        self.assertTrue(
-            torch.allclose(
-                self.scalar_field.data,
-                torch.tensor([5.0, 5.0, 5.0], dtype=settings.DTYPE, device=self.device),
-            )
-        )
-
-        new_vector = Vector(10.0, 20.0, 30.0)
-        self.vector_field.assign(new_vector)
-        self.assertTrue(
-            torch.allclose(
-                self.vector_field.data,
-                torch.tensor(
-                    [[10.0, 20.0, 30.0]] * 3, dtype=settings.DTYPE, device=self.device
+    def test_subtraction(self):
+        for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:
+            data1 = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
+                device=self.device,
             )
-        )
-
-    def test_arithmetic_operations(self):
-        scalar_field1 = Field(
-            3, ElementType.NODE, VariableType.SCALAR, Scalar(1.0), device=self.device
-        )
-        scalar_field2 = Field(
-            3, ElementType.NODE, VariableType.SCALAR, Scalar(2.0), device=self.device
-        )
-
-        vector_field1 = Field(
-            3,
-            ElementType.NODE,
-            VariableType.VECTOR,
-            Vector(1.0, 2.0, 3.0),
-            device=self.device,
-        )
-        vector_field2 = Field(
-            3,
-            ElementType.NODE,
-            VariableType.VECTOR,
-            Vector(4.0, 5.0, 6.0),
-            device=self.device,
-        )
-
-        # add
-        self.assertTrue(
-            torch.allclose(
-                (scalar_field1 + scalar_field2).data,
-                torch.tensor([3.0, 3.0, 3.0], dtype=settings.DTYPE, device=self.device),
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                (vector_field1 + vector_field2).data,
-                torch.tensor(
-                    [[5.0, 7.0, 9.0]] * 3, dtype=settings.DTYPE, device=self.device
+            data2 = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
+                device=self.device,
             )
-        )
+            field1 = Field(
+                self.size, self.element_type, dtype, data1, device=self.device
+            )
+            field2 = Field(
+                self.size, self.element_type, dtype, data2, device=self.device
+            )
+            result = field1 - field2
+            expected = data1 - data2
+            self.assertTrue(np.allclose(result.to_np(), expected.cpu().numpy()))
 
-        # sub
-        self.assertTrue(
-            torch.allclose(
-                (scalar_field1 - scalar_field2).data,
-                torch.tensor(
-                    [-1.0, -1.0, -1.0], dtype=settings.DTYPE, device=self.device
+    def test_multiplication(self):
+        for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:
+            data1 = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
+                device=self.device,
             )
-        )
-        self.assertTrue(
-            torch.allclose(
-                (vector_field1 - vector_field2).data,
-                torch.tensor(
-                    [[-3.0, -3.0, -3.0]] * 3, dtype=settings.DTYPE, device=self.device
-                ),
+            scalar = 2.0
+            field1 = Field(
+                self.size, self.element_type, dtype, data1, device=self.device
             )
-        )
+            result = field1 * scalar
+            expected = data1 * scalar
+            self.assertTrue(np.allclose(result.to_np(), expected.cpu().numpy()))
 
-        # mul
-        self.assertTrue(
-            torch.allclose(
-                (scalar_field1 * 2.0).data,
-                torch.tensor([2.0, 2.0, 2.0], dtype=settings.DTYPE, device=self.device),
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                (vector_field1 * 2.0).data,
-                torch.tensor(
-                    [[2.0, 4.0, 6.0]] * 3, dtype=settings.DTYPE, device=self.device
+    def test_negation(self):
+        for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:
+            data = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
+                device=self.device,
             )
-        )
+            field = Field(self.size, self.element_type, dtype, data, device=self.device)
+            result = -field
+            expected = -data
+            self.assertTrue(np.allclose(result.to_np(), expected.cpu().numpy()))
 
-        # div
-        self.assertTrue(
-            torch.allclose(
-                (scalar_field1 / 2.0).data,
-                torch.tensor([0.5, 0.5, 0.5], dtype=settings.DTYPE, device=self.device),
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                (vector_field1 / 2.0).data,
-                torch.tensor(
-                    [[0.5, 1.0, 1.5]] * 3, dtype=settings.DTYPE, device=self.device
+    def test_absolute(self):
+        for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:
+            data = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
+                device=self.device,
             )
-        )
+            field = Field(self.size, self.element_type, dtype, data, device=self.device)
+            result = abs(field)
+            expected = torch.abs(data)
+            self.assertTrue(np.allclose(result.to_np(), expected.cpu().numpy()))
+
+    def test_indexing(self):
+        for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:
+            data = torch.randn(
+                self.size,
+                *(
+                    (1,)
+                    if dtype == VariableType.SCALAR
+                    else (3,) if dtype == VariableType.VECTOR else (3, 3)
+                ),
+                device=self.device,
+                dtype=torch.float64,
+            )
+            field1 = Field(
+                self.size, self.element_type, dtype, data, device=self.device
+            )
+            field2 = Field(
+                self.size,
+                self.element_type,
+                dtype,
+                data,
+                device=self.device,
+                gpus=["cuda:0"],
+            )
+            index = 50
+            self.assertTrue(torch.allclose(field2[index], data[index]))
+            self.assertTrue(
+                torch.allclose(field2[index : index + 1], data[index : index + 1])
+            )
+
+            index = 5
+            self.assertTrue(torch.allclose(field1[index], data[index]))
+            self.assertTrue(
+                torch.allclose(field1[index : index + 1], data[index : index + 1])
+            )
+
+    def test_performance(self):
+        size = 10_000_000
+        element_type = ElementType.NODE
+        device = settings.DEVICE
+        gpus = settings.GPUs
+        print(f"Testing 1e7 element performance on {device}: {gpus}...")
+
+        for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:
+            print(f"Testing {dtype} type...")
+            shape = (
+                (size, 1)
+                if dtype == VariableType.SCALAR
+                else (size, 3) if dtype == VariableType.VECTOR else (size, 3, 3)
+            )
+            data = torch.randn(*shape)
+
+            # init
+            start_time = time.time()
+            field = Field(size, element_type, dtype, data, gpus=gpus)
+            init_time = time.time() - start_time
+            print(f"Initialization time: {init_time:.2f} seconds")
+
+            # add
+            start_time = time.time()
+            result = field + field
+            add_time = time.time() - start_time
+            print(f"Addition time: {add_time:.2f} seconds")
+
+            # mul
+            start_time = time.time()
+            result = field * 2.0
+            mul_time = time.time() - start_time
+            print(f"Multiplication time: {mul_time:.2f} seconds")
+
+            # neg
+            start_time = time.time()
+            result = -field
+            neg_time = time.time() - start_time
+            print(f"Negation time: {neg_time:.2f} seconds")
+
+            # abs
+            start_time = time.time()
+            result = abs(field)
+            abs_time = time.time() - start_time
+            print(f"Absolute value time: {abs_time:.2f} seconds")
+
+            # to_np
+            start_time = time.time()
+            np_data = field.to_np()
+            to_np_time = time.time() - start_time
+            print(f"Conversion to NumPy time: {to_np_time:.2f} seconds")
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ class ElementType(enum.Enum):
 
 class Field:
     """
-    Abstract field class.
+    Abstract field class, support multi-GPU data storage.
     """
 
     def __init__(
@@ -35,9 +35,10 @@ class Field:
         size: int,
         element_type: ElementType,
         data_type: VariableType,
-        data: Variable | np.ndarray | torch.Tensor = None,
+        data: Variable | np.ndarray | torch.Tensor | list[torch.Tensor] = None,
         variable: str = "none",
-        device: torch.device = settings.DEVICE,
+        device: torch.device = None,
+        gpus: list[str | torch.device] = None,
     ):
         """
         Initialize the field.
@@ -49,13 +50,35 @@ class Field:
             data: The initial data of the field.
             variable: The variable name for the field.
             device: The device to store the data.
+            gpus: A list of devices, e.g., ["cuda:0",].
         """
         assert element_type in ElementType, f"Invalid element type: {element_type}"
         assert data_type in VariableType, f"Invalid data type: {data_type}"
 
+        self._variable = variable
         self._etype = element_type
         self._dtype = data_type
-        self._device = device
+        self._size = size
+        self._device = device or settings.DEVICE
+
+        if gpus is not None:
+            # Check if all devices are valid
+            for dev in gpus:
+                if isinstance(dev, str):
+                    assert dev.startswith("cuda:"), f"Invalid device: {dev}"
+                    assert (
+                        int(dev.split(":")[1]) < torch.cuda.device_count()
+                    ), f"Device {dev} not available"
+                elif isinstance(dev, torch.device):
+                    assert dev.type == "cuda", f"Only CUDA devices are supported: {dev}"
+            self._gpus = [torch.device(dev) for dev in gpus]
+        else:
+            # Use the default GPU devices
+            if self._device.type == "cuda":
+                gpus = [f"cuda:{i}" for i in settings.GPUs]
+            else:
+                gpus = []
+            self._gpus = gpus
 
         if data is None:
             type_map = {
@@ -64,38 +87,49 @@ class Field:
                 VariableType.TENSOR: Tensor.zero().data,
             }
             default = type_map[data_type]
-            values = torch.full(
-                (size, *default.shape), 0.0, dtype=settings.DTYPE, device=device
-            )
+            values = torch.full((size, *default.shape), 0.0, dtype=settings.DTYPE)
             values[:] = default.data
         else:
             if isinstance(data, Variable):
                 if data.type != data_type:
                     raise ValueError(f"Invalid data type: {data.type}")
-                values = torch.full(
-                    (size, *data.shape), 0.0, dtype=settings.DTYPE, device=device
-                )
+                values = torch.full((size, *data.shape), 0.0, dtype=settings.DTYPE)
                 values[:] = data.data
             elif isinstance(data, np.ndarray):
                 if data.shape[0] != size:
                     raise ValueError(f"Invalid data shape: {data.shape}")
-                values = torch.from_numpy(data).to(device)
+                values = torch.from_numpy(data)
             elif isinstance(data, torch.Tensor):
                 if data.shape[0] != size:
                     raise ValueError(f"Invalid data shape: {data.shape}")
-                values = data.to(device)
+                values = data
+            elif isinstance(data, list):
+                if len(data) > 1 and len(data) != len(gpus):
+                    raise ValueError(f"Invalid number of GPUs: {len(gpus)}")
+                num = sum(d.shape[0] for d in data)
+                if num != size:
+                    raise ValueError(f"Invalid multi-data size: {num}")
+                values = data
             else:
                 raise TypeError(f"Invalid data type: {type(data)}")
 
-        self._values = values
-        self._variable = variable
+        if isinstance(values, list):
+            # Field tensor data checked above
+            self._values = values
+        elif self._device.type == "cuda" and len(self._gpus) > 1:
+            # Split the data across GPUs
+            self._values = torch.chunk(values, len(self._gpus), dim=0)
+            self._values = [v.to(dev) for v, dev in zip(self._values, self._gpus)]
+        else:
+            # Single GPU or CPU
+            self._values = [values.to(device)]
 
     # -----------------------------------------------
     # --- Properties ---
     # -----------------------------------------------
 
     @property
-    def data(self) -> torch.Tensor:
+    def data(self) -> list[torch.Tensor]:
         """
         Get the raw data of the field.
         """
@@ -118,9 +152,16 @@ class Field:
     @property
     def size(self) -> int:
         """
-        Get the field size.
+        Get the field total size.
         """
-        return self._values.size(0)
+        return self._size
+
+    @property
+    def chunks(self) -> int:
+        """
+        Get the number of chunks.
+        """
+        return len(self._values)
 
     @property
     def dtype(self) -> VariableType:
@@ -143,70 +184,40 @@ class Field:
     @classmethod
     def from_torch(
         cls,
-        values: torch.Tensor,
+        values: torch.Tensor | list[torch.Tensor],
         element_type: ElementType = ElementType.NONE,
         variable: str = "none",
-        device: torch.device = settings.DEVICE,
+        device: torch.device = None,
+        gpus: list[str | torch.device] = None,
     ) -> "Field":
-        """
-        Create a field from a torch tensor.
-        """
-        if values.ndim == 1:
+        values0 = values[0] if isinstance(values, list) else values
+        dtype = None
+        if values0.ndim == 1:
             dtype = VariableType.SCALAR
-        elif values.ndim == 2:
-            if values.shape[1] == 1:
+        elif values0.ndim == 2:
+            if values0.shape[1] == 1:
                 dtype = VariableType.SCALAR
-                values = values.flatten()
-            elif values.shape[1] == 3:
+            if values0.shape[1] == 3:
                 dtype = VariableType.VECTOR
-        elif values.ndim == 3:
-            if values.shape[1] == 3 and values.shape[2] == 3:
+        elif values0.ndim == 3:
+            if values0.shape[1] == 3 and values0.shape[2] == 3:
                 dtype = VariableType.TENSOR
-        else:
-            raise ValueError(f"Invalid shape: {values.shape}")
 
+        if dtype is None:
+            raise ValueError(f"Invalid shape: {values0.shape}")
+
+        if isinstance(values, list):
+            size = sum(v.shape[0] for v in values)
+        else:
+            size = values.shape[0]
         args = {
-            "size": values.shape[0],
+            "size": size,
             "element_type": element_type,
             "data_type": dtype,
             "data": values,
             "variable": variable,
             "device": device,
-        }
-        return cls(**args)
-
-    @classmethod
-    def from_np(
-        cls,
-        values: np.ndarray,
-        element_type: ElementType = ElementType.NONE,
-        variable: str = "none",
-        device: torch.device = settings.DEVICE,
-    ) -> "Field":
-        """
-        Create a field from a numpy array.
-        """
-        if values.ndim == 1:
-            dtype = VariableType.SCALAR
-        elif values.ndim == 2:
-            if values.shape[1] == 1:
-                dtype = VariableType.SCALAR
-                values = values.flatten()
-            elif values.shape[1] == 3:
-                dtype = VariableType.VECTOR
-        elif values.ndim == 3:
-            if values.shape[1] == 3 and values.shape[2] == 3:
-                dtype = VariableType.TENSOR
-        else:
-            raise ValueError(f"Invalid shape: {values.shape}")
-
-        args = {
-            "size": values.shape[0],
-            "element_type": element_type,
-            "data_type": dtype,
-            "data": values,
-            "variable": variable,
-            "device": device,
+            "gpus": gpus,
         }
         return cls(**args)
 
@@ -214,7 +225,7 @@ class Field:
         """
         Convert the field to a numpy array.
         """
-        return self._values.cpu().numpy()
+        return torch.cat([v.cpu() for v in self._values], dim=0).numpy()
 
     def assign(self, other):
         """
@@ -231,10 +242,11 @@ class Field:
             if other.type != self.dtype:
                 raise TypeError(
                     f"Invalid value type: \
-                        {other.dtype} (expected {self.dtype})"
+                        {other.type} (expected {self.dtype})"
                 )
 
-            self._values[:] = other.data
+            for i in range(self.size):
+                self._values[i][:] = other.data
         else:
             raise TypeError(f"Can't assign with {type(other)}")
 
@@ -245,36 +257,82 @@ class Field:
         if self.dtype == VariableType.SCALAR:
             return [self]
 
-        size = 3 if self.dtype == VariableType.VECTOR else 9
-        data = self._values.view(-1, size)
-        scalar_fields = list(torch.unbind(data, dim=1))
+        shape = 3 if self.dtype == VariableType.VECTOR else 9
+        values = torch.cat(self._values, dim=0)
+        data = values.view(-1, shape)
+        scalar_fields = []
+
+        for i, d in enumerate(torch.unbind(data, dim=1)):
+            scalar_fields.append(
+                Field.from_torch(
+                    d,
+                    self.etype,
+                    f"{self.variable}_{i}",
+                    self._device,
+                    self._gpus,
+                )
+            )
         return scalar_fields
 
     # -----------------------------------------------
     # --- reload query methods ---
     # -----------------------------------------------
 
-    def __getitem__(self, index: int) -> Variable:
-        if index < 0 or index >= self.size:
-            raise IndexError(f"Index out of range: {index}")
+    def _get_local_indices(self, global_indices: int) -> tuple:
+        """Get the local indices of the global index."""
+        chunks_size = [v.shape[0] for v in self._values]
+        cur = 0
+        dev_index, local_index = None, None
+        for i, size in enumerate(chunks_size):
+            if global_indices < cur + size:
+                dev_index = i
+                local_index = global_indices - cur
+                break
+            cur += size
+        return dev_index, local_index
 
-        return self._values[index]
+    def __getitem__(self, index: int | slice) -> Variable | torch.Tensor:
+        if isinstance(index, int):
+            if index < 0 or index >= self.size:
+                raise IndexError(f"Index out of range: {index}")
 
-    def __setitem__(self, index: int, value: Variable):
-        if index < 0 or index >= self.size:
-            raise IndexError(f"Index out of range: {index}")
+            dev, idx = self._get_local_indices(index)
+            return self._values[dev][idx]
+        elif isinstance(index, slice):
+            start, stop, step = index.indices(self.size)
+            global_indices = range(start, stop, step)
+            local_indices = [self._get_local_indices(i) for i in global_indices]
 
+            result = []
+            for dev, idx in local_indices:
+                result.append(self._values[dev][idx])
+            return torch.stack(result, dim=0)
+        else:
+            raise TypeError(f"Invalid index type: {type(index)}")
+
+    def __setitem__(self, index: int | slice, value: Variable):
         if value.type != self.dtype:
-            raise TypeError(f"Invalid value type: {value.type}")
+            raise TypeError(f"Invalid type: {value.type}")
+        if isinstance(index, int):
+            if index < 0 or index >= self.size:
+                raise IndexError(f"Index out of range: {index}")
 
-        self._values[index] = value.data
+            local_indices = [self._get_local_indices(index)]
+        else:
+            start, stop, step = index.indices(self.size)
+            global_indices = range(start, stop, step)
+            local_indices = [self._get_local_indices(i) for i in global_indices]
+
+        for dev, idx in local_indices:
+            self._values[dev][idx] = value.data
 
     def __len__(self) -> int:
-        return self._values.size(0)
+        return self._size
 
     def __iter__(self):
         for i in range(self.size):
-            yield self._values[i]
+            dev, idx = self._get_local_indices(i)
+            yield self._values[dev][idx]
 
     # -----------------------------------------------
     # --- override arithmetic operations ---
@@ -298,27 +356,35 @@ class Field:
                       {self.etype} vs {other.etype}"
             )
 
+        if self._gpus != other._gpus:
+            raise ValueError(
+                f"Fields must have the same GPU devices: \
+                    {self._gpus} vs {other._gpus}"
+            )
+
     def __add__(self, other) -> "Field":
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            data = self.data + other.data
+            data = [v1 + v2 for v1, v2 in zip(self.data, other.data)]
             return Field.from_torch(
                 data,
                 self.etype,
                 self.variable,
                 self._device,
+                self._gpus,
             )
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(f"Invalid value type: {other.type}")
 
-            data = self.data + other.data
+            data = [v + other.data for v in self.data]
             return Field.from_torch(
                 data,
                 self.etype,
                 self.variable,
                 self._device,
+                self._gpus,
             )
         else:
             raise TypeError(f"Cannot add {type(other)} to field")
@@ -330,12 +396,14 @@ class Field:
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            self._values += other.data
+            for i in range(self.chunks):
+                self._values[i] += other.data[i]
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(f"Invalid value type: {other.type}")
 
-            self._values += other.data
+            for i in range(self.chunks):
+                self._values[i] += other.data
         else:
             raise TypeError(f"Cannot add {type(other)} to field")
 
@@ -343,23 +411,25 @@ class Field:
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            data = self.data - other.data
+            data = [v1 - v2 for v1, v2 in zip(self.data, other.data)]
             return Field.from_torch(
                 data,
                 self.etype,
                 self.variable,
                 self._device,
+                self._gpus,
             )
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(f"Invalid value type: {other.type}")
 
-            data = self.data - other.data
+            data = [v - other.data for v in self.data]
             return Field.from_torch(
                 data,
                 self.etype,
                 self.variable,
                 self._device,
+                self._gpus,
             )
         else:
             raise TypeError(f"Cannot subtract {type(other)} from")
@@ -368,23 +438,25 @@ class Field:
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            data = other.data - self.data
+            data = [v2 - v1 for v1, v2 in zip(self.data, other.data)]
             return Field.from_torch(
                 data,
                 self.etype,
                 self.variable,
                 self._device,
+                self._gpus,
             )
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(f"Invalid value type: {other.type}")
 
-            data = other.data - self.data
+            data = [other.data - v for v in self.data]
             return Field.from_torch(
                 data,
                 self.etype,
                 self.variable,
                 self._device,
+                self._gpus,
             )
         else:
             raise TypeError(f"Cannot subtract {type(other)} from")
@@ -393,12 +465,14 @@ class Field:
         if isinstance(other, Field):
             self._check_fields_compatible(other)
 
-            self._values -= other.data
+            for i in range(self.chunks):
+                self._values[i] -= other.data[i]
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(f"Invalid value type: {other.type}")
 
-            self._values -= other.data
+            for i in range(self.chunks):
+                self._values[i] -= other.data
         else:
             raise TypeError(f"Cannot subtract {type(other)} from")
 
@@ -407,12 +481,13 @@ class Field:
             if isinstance(other, Scalar):
                 other = other.value
 
-            data = self.data * other
+            data = [v * other for v in self.data]
             return Field.from_torch(
                 data,
                 self.etype,
                 self.variable,
                 self._device,
+                self._gpus,
             )
         elif isinstance(other, Field):
             if other.size != self.size:
@@ -421,8 +496,14 @@ class Field:
                         {self.size} and {other.size}"
                 )
 
-            data = self.data * other.data
-            return Field.from_torch(data, self.etype, "none", self._device)
+            data = [v1 * v2 for v1, v2 in zip(self.data, other.data)]
+            return Field.from_torch(
+                data,
+                self.etype,
+                "none",
+                self._device,
+                self._gpus,
+            )
         else:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
@@ -434,7 +515,8 @@ class Field:
             if isinstance(other, Scalar):
                 other = other.value
 
-            self._values *= other
+            for i in range(self.chunks):
+                self._values[i] *= other
         elif isinstance(other, Field):
             if other.size != self.size:
                 raise TypeError(
@@ -442,47 +524,48 @@ class Field:
                         {self.size} and {other.size}"
                 )
 
-            self._values *= other.data
+            for i in range(self.chunks):
+                self._values[i] *= other.data
         else:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
     def __truediv__(self, other) -> "Field":
         if not isinstance(other, (Scalar, int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
+        if isinstance(other, Scalar):
+            other = other.value
 
-        data = self.data / other
+        data = [v / other for v in self.data]
         return Field.from_torch(
             data,
             self.etype,
             self.variable,
             self._device,
+            self._gpus,
         )
 
     def __itruediv__(self, other) -> "Field":
         if not isinstance(other, (Scalar, int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
+        if isinstance(other, Scalar):
+            other = other.value
 
-        self._values /= other
+        for i in range(self.chunks):
+            self._values[i] /= other
 
     def __neg__(self) -> "Field":
-        result = Field(
-            self.size,
-            self.etype,
-            self.dtype,
-            -self.data,
-            self.variable,
-            self._device,
-        )
-        return result
+        return self * -1
 
     def __abs__(self) -> "Field":
+        data = [v.abs() for v in self.data]
         result = Field(
             self.size,
             self.etype,
             self.dtype,
-            torch.abs(self._values),
+            data,
             self.variable,
             self._device,
+            self._gpus,
         )
         return result
 
