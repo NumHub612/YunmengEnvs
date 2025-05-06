@@ -61,7 +61,7 @@ class Field:
         self._size = size
         self._device = device or settings.DEVICE
 
-        if gpus is not None:
+        if gpus is not None and self._device.type == "cuda":
             # Check if all devices are valid
             for dev in gpus:
                 if isinstance(dev, str):
@@ -116,7 +116,7 @@ class Field:
         if isinstance(values, list):
             # Field tensor data checked above
             self._values = values
-        elif self._device.type == "cuda" and len(self._gpus) > 1:
+        elif len(self._gpus) > 1:
             # Split the data across GPUs
             self._values = torch.chunk(values, len(self._gpus), dim=0)
             self._values = [v.to(dev) for v, dev in zip(self._values, self._gpus)]
@@ -310,9 +310,10 @@ class Field:
         else:
             raise TypeError(f"Invalid index type: {type(index)}")
 
-    def __setitem__(self, index: int | slice, value: Variable):
-        if value.type != self.dtype:
+    def __setitem__(self, index: int | slice, value: Variable | torch.Tensor):
+        if isinstance(value, Variable) and value.type != self.dtype:
             raise TypeError(f"Invalid type: {value.type}")
+
         if isinstance(index, int):
             if index < 0 or index >= self.size:
                 raise IndexError(f"Index out of range: {index}")
@@ -323,8 +324,11 @@ class Field:
             global_indices = range(start, stop, step)
             local_indices = [self._get_local_indices(i) for i in global_indices]
 
+        if isinstance(value, Variable):
+            value = value.data
+
         for dev, idx in local_indices:
-            self._values[dev][idx] = value.data
+            self._values[dev][idx] = value
 
     def __len__(self) -> int:
         return self._size

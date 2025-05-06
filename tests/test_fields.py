@@ -3,6 +3,7 @@ import unittest
 import torch
 import time
 import numpy as np
+import random
 from configs.settings import settings
 from core.numerics.fields import Field, ElementType, VariableType
 
@@ -224,6 +225,23 @@ class TestFields(unittest.TestCase):
             field = Field(size, element_type, dtype, data, gpus=gpus)
             init_time = time.time() - start_time
             print(f"Initialization time: {init_time:.6f} seconds")
+
+            # quire
+            start_time = time.time()
+            for i in range(1000000):
+                index = random.randint(0, size - 1)
+                field[index]
+            quire_time = time.time() - start_time
+            print(f"Quering 1e6 times cost: {quire_time:.6f} seconds")
+
+            # assign
+            start_time = time.time()
+            value = data[0]
+            for i in range(1000000):
+                index = random.randint(1, size - 1)
+                field[index] = value
+            assign_time = time.time() - start_time
+            print(f"Assigning 1e6 times cost: {assign_time:.6f} seconds")
 
             # add
             start_time = time.time()
