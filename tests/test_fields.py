@@ -6,7 +6,7 @@ import numpy as np
 from configs.settings import settings
 from core.numerics.fields import Field, ElementType, VariableType
 
-settings.DEVICE = torch.device("cpu")
+# settings.DEVICE = torch.device("cpu")
 
 
 class TestFields(unittest.TestCase):
@@ -223,37 +223,37 @@ class TestFields(unittest.TestCase):
             start_time = time.time()
             field = Field(size, element_type, dtype, data, gpus=gpus)
             init_time = time.time() - start_time
-            print(f"Initialization time: {init_time:.2f} seconds")
+            print(f"Initialization time: {init_time:.6f} seconds")
 
             # add
             start_time = time.time()
             result = field + field
             add_time = time.time() - start_time
-            print(f"Addition time: {add_time:.2f} seconds")
+            print(f"Addition time: {add_time:.6f} seconds")
 
             # mul
             start_time = time.time()
             result = field * 2.0
             mul_time = time.time() - start_time
-            print(f"Multiplication time: {mul_time:.2f} seconds")
+            print(f"Multiplication time: {mul_time:.6f} seconds")
 
             # neg
             start_time = time.time()
             result = -field
             neg_time = time.time() - start_time
-            print(f"Negation time: {neg_time:.2f} seconds")
+            print(f"Negation time: {neg_time:.6f} seconds")
 
             # abs
             start_time = time.time()
             result = abs(field)
             abs_time = time.time() - start_time
-            print(f"Absolute value time: {abs_time:.2f} seconds")
+            print(f"Absolute value time: {abs_time:.6f} seconds")
 
             # to_np
             start_time = time.time()
             np_data = field.to_np()
             to_np_time = time.time() - start_time
-            print(f"Conversion to NumPy time: {to_np_time:.2f} seconds")
+            print(f"Conversion to NumPy time: {to_np_time:.6f} seconds")
 
 
 if __name__ == "__main__":
