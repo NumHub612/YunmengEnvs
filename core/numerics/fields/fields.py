@@ -75,7 +75,7 @@ class Field:
         else:
             # Use the default GPU devices
             if self._device.type == "cuda":
-                gpus = [f"cuda:{i}" for i in settings.GPUs]
+                gpus = settings.GPUs
             else:
                 gpus = []
             self._gpus = gpus
