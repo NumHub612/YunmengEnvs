@@ -108,6 +108,10 @@ class Settings:
         if max(value) >= torch.cuda.device_count():
             raise ValueError(f"Invalid GPU index: {max(value)}")
         self._configs["GPUs"] = [f"cuda:{i}" for i in value]
+        if len(value) == 0:
+            self._configs["DEVICE"] = torch.device("cpu")
+        else:
+            self._configs["DEVICE"] = torch.device(self._configs["GPUs"][0])
         logger.info(f"Set GPUs to {value}")
 
 

@@ -27,7 +27,10 @@ class ElementType(enum.Enum):
 
 class Field:
     """
-    Abstract field class, support multi-GPU data storage.
+    Abstract field class, support multi-GPUs data storage and acceleration.
+
+    The backend is `torch.Tensor`, which has high performance at computing,
+    suggest to use `numpy.ndarray` for data preparation.
     """
 
     def __init__(
@@ -60,6 +63,7 @@ class Field:
         self._dtype = data_type
         self._size = size
         self._device = device or settings.DEVICE
+        self._gpus = []
 
         if gpus is not None and self._device.type == "cuda":
             # Check if all devices are valid
@@ -69,13 +73,14 @@ class Field:
                     assert (
                         int(dev.split(":")[1]) < torch.cuda.device_count()
                     ), f"Device {dev} not available"
+                    self._gpus.append(torch.device(dev))
                 elif isinstance(dev, torch.device):
                     assert dev.type == "cuda", f"Only CUDA devices are supported: {dev}"
-            self._gpus = [torch.device(dev) for dev in gpus]
+                    self._gpus.append(dev)
         else:
             # Use the default GPU devices
             if self._device.type == "cuda":
-                gpus = settings.GPUs
+                gpus = [torch.device(dev) for dev in settings.GPUs]
             else:
                 gpus = []
             self._gpus = gpus
@@ -90,17 +95,22 @@ class Field:
             values = torch.full((size, *default.shape), 0.0, dtype=settings.DTYPE)
             values[:] = default.data
         else:
+            shape_map = {
+                VariableType.SCALAR: (size, 1),
+                VariableType.VECTOR: (size, 3),
+                VariableType.TENSOR: (size, 3, 3),
+            }
             if isinstance(data, Variable):
                 if data.type != data_type:
                     raise ValueError(f"Invalid data type: {data.type}")
                 values = torch.full((size, *data.shape), 0.0, dtype=settings.DTYPE)
                 values[:] = data.data
             elif isinstance(data, np.ndarray):
-                if data.shape[0] != size:
+                if data.shape != shape_map[data_type]:
                     raise ValueError(f"Invalid data shape: {data.shape}")
                 values = torch.from_numpy(data)
             elif isinstance(data, torch.Tensor):
-                if data.shape[0] != size:
+                if data.shape != shape_map[data_type]:
                     raise ValueError(f"Invalid data shape: {data.shape}")
                 values = data
             elif isinstance(data, list):
