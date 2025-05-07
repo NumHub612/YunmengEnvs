@@ -481,9 +481,9 @@ class Field:
             raise TypeError(f"Cannot subtract {type(other)} from")
 
     def __mul__(self, other) -> "Field":
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = other.value
+        if isinstance(other, (int, float, Variable)):
+            if isinstance(other, Variable):
+                other = other.data
 
             data = [v * other for v in self.data]
             return Field.from_torch(
@@ -512,7 +512,35 @@ class Field:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
     def __rmul__(self, other) -> "Field":
-        return self.__mul__(other)
+        if isinstance(other, (int, float, Variable)):
+            if isinstance(other, Variable):
+                other = other.data
+
+            data = [other * v for v in self.data]
+            return Field.from_torch(
+                data,
+                self.etype,
+                self.variable,
+                self._device,
+                self._gpus,
+            )
+        elif isinstance(other, Field):
+            if other.size != self.size:
+                raise TypeError(
+                    f"Cannot multiply fields of different sizes: \
+                        {self.size} and {other.size}"
+                )
+
+            data = [v2 * v1 for v1, v2 in zip(self.data, other.data)]
+            return Field.from_torch(
+                data,
+                self.etype,
+                "none",
+                self._device,
+                self._gpus,
+            )
+        else:
+            raise TypeError(f"Cannot multiply field by {type(other)}")
 
     def __imul__(self, other) -> "Field":
         if isinstance(other, (int, float, Scalar)):
@@ -521,15 +549,6 @@ class Field:
 
             for i in range(self.chunks):
                 self._values[i] *= other
-        elif isinstance(other, Field):
-            if other.size != self.size:
-                raise TypeError(
-                    f"Cannot multiply fields of different sizes: \
-                        {self.size} and {other.size}"
-                )
-
-            for i in range(self.chunks):
-                self._values[i] *= other.data
         else:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
