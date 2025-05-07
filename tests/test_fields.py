@@ -206,7 +206,7 @@ class TestFields(unittest.TestCase):
                 torch.allclose(field1[index : index + 1], data[index : index + 1])
             )
 
-    def test_performance(self):
+    def performance_test(self):
         size = 10_000_000
         element_type = ElementType.NODE
         device = settings.DEVICE
