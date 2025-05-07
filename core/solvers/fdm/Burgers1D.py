@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Join us, share your ideas!
+Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Solving the 1D Burgers equation using finite difference method.
 """
