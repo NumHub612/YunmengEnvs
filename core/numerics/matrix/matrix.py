@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix.
 """
-from core.numerics.fields import Variable, Scalar, Vector, Tensor
+from core.numerics.fields import Variable, VariableType, Scalar, Vector, Tensor
 from scipy.sparse import dok_matrix
 import torch
 import numpy as np
@@ -24,19 +24,31 @@ class Matrix:
 
     @classmethod
     @abstractmethod
-    def identity(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+    def from_torch(cls, torch_tensor: torch.Tensor) -> "Matrix":
+        """Create a matrix from a PyTorch tensor."""
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def identity(
+        cls, shape: tuple, data_type: VariableType = VariableType.SCALAR
+    ) -> "Matrix":
         """Create a Identity Matrix."""
         raise NotImplementedError()
 
     @classmethod
     @abstractmethod
-    def ones(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+    def ones(
+        cls, shape: tuple, data_type: VariableType = VariableType.SCALAR
+    ) -> "Matrix":
         """Create a matrix with all elements set to one."""
         raise NotImplementedError()
 
     @classmethod
     @abstractmethod
-    def zeros(cls, shape: tuple, data_type: str = "float") -> "Matrix":
+    def zeros(
+        cls, shape: tuple, data_type: VariableType = VariableType.SCALAR
+    ) -> "Matrix":
         """Create a matrix with all elements set to zero."""
         raise NotImplementedError()
 
@@ -58,8 +70,8 @@ class Matrix:
 
     @property
     @abstractmethod
-    def type(self) -> str:
-        """The matrix data type, e.g. float, scalar, vector, tensor."""
+    def dtype(self) -> VariableType:
+        """The matrix data type."""
         raise NotImplementedError()
 
     @property
@@ -72,6 +84,38 @@ class Matrix:
     @abstractmethod
     def nnz(self) -> int:
         """The number of all non-zero elements."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def T(self) -> "Matrix":
+        """The transpose of the matrix."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def inv(self) -> "Matrix":
+        """The inverse of the matrix."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def det(self) -> float:
+        """The determinant of the matrix."""
+        raise NotImplementedError()
+
+    # -----------------------------------------------
+    # --- matrix methods ---
+    # -----------------------------------------------
+
+    @abstractmethod
+    def to_dense(self) -> np.ndarray:
+        """Convert the matrix to a dense numpy array."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def scalarize(self) -> list["Matrix"]:
+        """Scalarize the matrix."""
         raise NotImplementedError()
 
     # -----------------------------------------------
@@ -91,11 +135,35 @@ class Matrix:
         raise NotImplementedError()
 
     @abstractmethod
+    def __radd__(self, other: "Matrix"):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __iadd__(self, other: "Matrix"):
+        raise NotImplementedError()
+
+    @abstractmethod
     def __sub__(self, other: "Matrix"):
         raise NotImplementedError()
 
     @abstractmethod
+    def __rsub__(self, other: "Matrix"):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __isub__(self, other: "Matrix"):
+        raise NotImplementedError()
+
+    @abstractmethod
     def __mul__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __rmul__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __imul__(self, other):
         raise NotImplementedError()
 
     @abstractmethod
@@ -107,7 +175,7 @@ class Matrix:
         raise NotImplementedError()
 
     @abstractmethod
-    def __rmul__(self, other):
+    def __itruediv__(self, other):
         raise NotImplementedError()
 
     @abstractmethod
@@ -116,30 +184,6 @@ class Matrix:
 
     @abstractmethod
     def __abs__(self):
-        raise NotImplementedError()
-
-    # -----------------------------------------------
-    # --- matrix methods ---
-    # -----------------------------------------------
-
-    @abstractmethod
-    def to_dense(self) -> np.ndarray:
-        """Convert the matrix to a dense numpy array."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def transpose(self) -> "Matrix":
-        """Transpose the matrix."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def reshape(self, shape: tuple) -> "Matrix":
-        """Reshape the matrix."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def scalarize(self) -> list["Matrix"]:
-        """Scalarize the matrix."""
         raise NotImplementedError()
 
 
