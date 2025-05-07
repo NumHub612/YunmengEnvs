@@ -194,7 +194,7 @@ class Field:
     @classmethod
     def from_torch(
         cls,
-        values: torch.Tensor | list[torch.Tensor],
+        values: np.ndarray | torch.Tensor | list[torch.Tensor],
         element_type: ElementType = ElementType.NONE,
         variable: str = "none",
         device: torch.device = None,
@@ -204,14 +204,21 @@ class Field:
         dtype = None
         if values0.ndim == 1:
             dtype = VariableType.SCALAR
+            values = [value.reshape(-1, 1) for value in values]
         elif values0.ndim == 2:
             if values0.shape[1] == 1:
                 dtype = VariableType.SCALAR
-            if values0.shape[1] == 3:
+            elif values0.shape[1] == 3:
                 dtype = VariableType.VECTOR
         elif values0.ndim == 3:
             if values0.shape[1] == 3 and values0.shape[2] == 3:
                 dtype = VariableType.TENSOR
+            elif values0.shape[1] == 3 and values0.shape[2] == 1:
+                dtype = VariableType.VECTOR
+                values = [value.reshape(-1, 3) for value in values]
+            elif values0.shape[1] == 1 and values0.shape[2] == 1:
+                dtype = VariableType.SCALAR
+                values = [value.reshape(-1, 1) for value in values]
 
         if dtype is None:
             raise ValueError(f"Invalid shape: {values0.shape}")
@@ -491,11 +498,17 @@ class Field:
             raise TypeError(f"Cannot subtract {type(other)} from")
 
     def __mul__(self, other) -> "Field":
-        if isinstance(other, (int, float, Variable)):
-            if isinstance(other, Variable):
-                other = other.data
-
+        if isinstance(other, (int, float)):
             data = [v * other for v in self.data]
+            return Field.from_torch(
+                data,
+                self.etype,
+                self.variable,
+                self._device,
+                self._gpus,
+            )
+        elif isinstance(other, Variable):
+            data = [v @ other for v in self.data]
             return Field.from_torch(
                 data,
                 self.etype,
@@ -510,7 +523,7 @@ class Field:
                         {self.size} and {other.size}"
                 )
 
-            data = [v1 * v2 for v1, v2 in zip(self.data, other.data)]
+            data = [v1 @ v2 for v1, v2 in zip(self.data, other.data)]
             return Field.from_torch(
                 data,
                 self.etype,
@@ -523,10 +536,16 @@ class Field:
 
     def __rmul__(self, other) -> "Field":
         if isinstance(other, (int, float, Variable)):
-            if isinstance(other, Variable):
-                other = other.data
-
             data = [other * v for v in self.data]
+            return Field.from_torch(
+                data,
+                self.etype,
+                self.variable,
+                self._device,
+                self._gpus,
+            )
+        elif isinstance(other, Variable):
+            data = [v @ other for v in self.data]
             return Field.from_torch(
                 data,
                 self.etype,
@@ -541,7 +560,7 @@ class Field:
                         {self.size} and {other.size}"
                 )
 
-            data = [v2 * v1 for v1, v2 in zip(self.data, other.data)]
+            data = [v2 @ v1 for v1, v2 in zip(self.data, other.data)]
             return Field.from_torch(
                 data,
                 self.etype,

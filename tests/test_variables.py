@@ -28,12 +28,12 @@ class TestVariables(unittest.TestCase):
             [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]], dtype=settings.DTYPE
         )
 
-        self.assertEqual(Scalar.from_torch(scalar_torch).value, self.scalar.value)
+        self.assertEqual(Scalar.from_data(scalar_torch).value, self.scalar.value)
         self.assertTrue(
-            torch.allclose(Vector.from_torch(vector_torch)._value, self.vector._value)
+            torch.allclose(Vector.from_data(vector_torch)._value, self.vector._value)
         )
         self.assertTrue(
-            torch.allclose(Tensor.from_torch(tensor_torch)._value, self.tensor._value)
+            torch.allclose(Tensor.from_data(tensor_torch)._value, self.tensor._value)
         )
 
     def test_from_np(self):
@@ -41,12 +41,12 @@ class TestVariables(unittest.TestCase):
         vector_np = np.array([1.0, 2.0, 3.0])
         tensor_np = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
 
-        self.assertEqual(Scalar.from_np(scalar_np).value, self.scalar.value)
+        self.assertEqual(Scalar.from_data(scalar_np).value, self.scalar.value)
         self.assertTrue(
-            np.allclose(Vector.from_np(vector_np).to_np(), self.vector.to_np())
+            np.allclose(Vector.from_data(vector_np).to_np(), self.vector.to_np())
         )
         self.assertTrue(
-            np.allclose(Tensor.from_np(tensor_np).to_np(), self.tensor.to_np())
+            np.allclose(Tensor.from_data(tensor_np).to_np(), self.tensor.to_np())
         )
 
     def test_to_np(self):
