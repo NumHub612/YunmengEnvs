@@ -334,9 +334,9 @@ class Field:
         return self._size
 
     def __iter__(self):
-        for i in range(self.size):
-            dev, idx = self._get_local_indices(i)
-            yield self._values[dev][idx]
+        for values in self._values:
+            for v in values:
+                yield v
 
     # -----------------------------------------------
     # --- override arithmetic operations ---
