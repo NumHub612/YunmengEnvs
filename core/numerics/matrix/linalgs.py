@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Linear algebra class.
 """
-from core.numerics.matrix import Matrix, DenseMatrix
+from core.numerics.matrix import Matrix, SparseMatrix
 from core.numerics.fields import Field
 import numpy as np
 import torch
@@ -43,7 +43,7 @@ class LinearEqs:
         variable: str, size: int, matrix_type: str = "float", rhs_type: str = "float"
     ) -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
-        mat = DenseMatrix.zeros((size, size), matrix_type)
+        mat = SparseMatrix.zeros((size, size), matrix_type)
         rhs = Field(size, "none", rhs_type)
         return LinearEqs(variable, mat, rhs)
 

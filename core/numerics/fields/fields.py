@@ -192,7 +192,7 @@ class Field:
     # -----------------------------------------------
 
     @classmethod
-    def from_torch(
+    def from_data(
         cls,
         values: np.ndarray | torch.Tensor | list[torch.Tensor],
         element_type: ElementType = ElementType.NONE,
@@ -200,6 +200,7 @@ class Field:
         device: torch.device = None,
         gpus: list[str | torch.device] = None,
     ) -> "Field":
+        """Create a field from data."""
         values0 = values[0] if isinstance(values, list) else values
         dtype = None
         if values0.ndim == 1:
@@ -219,7 +220,6 @@ class Field:
             elif values0.shape[1] == 1 and values0.shape[2] == 1:
                 dtype = VariableType.SCALAR
                 values = [value.reshape(-1, 1) for value in values]
-
         if dtype is None:
             raise ValueError(f"Invalid shape: {values0.shape}")
 
@@ -281,7 +281,7 @@ class Field:
 
         for i, d in enumerate(torch.unbind(data, dim=1)):
             scalar_fields.append(
-                Field.from_torch(
+                Field.from_data(
                     d,
                     self.etype,
                     f"{self.variable}_{i}",
@@ -388,7 +388,7 @@ class Field:
             self._check_fields_compatible(other)
 
             data = [v1 + v2 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -400,7 +400,7 @@ class Field:
                 raise TypeError(f"Invalid value type: {other.type}")
 
             data = [v + other.data for v in self.data]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -433,7 +433,7 @@ class Field:
             self._check_fields_compatible(other)
 
             data = [v1 - v2 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -445,7 +445,7 @@ class Field:
                 raise TypeError(f"Invalid value type: {other.type}")
 
             data = [v - other.data for v in self.data]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -460,7 +460,7 @@ class Field:
             self._check_fields_compatible(other)
 
             data = [v2 - v1 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -472,7 +472,7 @@ class Field:
                 raise TypeError(f"Invalid value type: {other.type}")
 
             data = [other.data - v for v in self.data]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -500,7 +500,7 @@ class Field:
     def __mul__(self, other) -> "Field":
         if isinstance(other, (int, float)):
             data = [v * other for v in self.data]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -509,7 +509,7 @@ class Field:
             )
         elif isinstance(other, Variable):
             data = [v @ other for v in self.data]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -524,7 +524,7 @@ class Field:
                 )
 
             data = [v1 @ v2 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 "none",
@@ -537,7 +537,7 @@ class Field:
     def __rmul__(self, other) -> "Field":
         if isinstance(other, (int, float, Variable)):
             data = [other * v for v in self.data]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -546,7 +546,7 @@ class Field:
             )
         elif isinstance(other, Variable):
             data = [v @ other for v in self.data]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 self.variable,
@@ -561,7 +561,7 @@ class Field:
                 )
 
             data = [v2 @ v1 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_torch(
+            return Field.from_data(
                 data,
                 self.etype,
                 "none",
@@ -588,7 +588,7 @@ class Field:
             other = other.value
 
         data = [v / other for v in self.data]
-        return Field.from_torch(
+        return Field.from_data(
             data,
             self.etype,
             self.variable,
