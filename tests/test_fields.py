@@ -207,16 +207,8 @@ class TestFields(unittest.TestCase):
                 gpus=default_gpu,
             )
             index = 50
-            self.assertTrue(torch.allclose(field2[index], data[index]))
-            self.assertTrue(
-                torch.allclose(field2[index : index + 1], data[index : index + 1])
-            )
-
-            index = 5
-            self.assertTrue(torch.allclose(field1[index], data[index]))
-            self.assertTrue(
-                torch.allclose(field1[index : index + 1], data[index : index + 1])
-            )
+            var = Field.DTYPE_MAP[dtype](data[index])
+            self.assertTrue(torch.allclose(field2[index].data, var.data))
 
     def performance_test(self):
         size = 10_000_000

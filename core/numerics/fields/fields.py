@@ -33,6 +33,12 @@ class Field:
     suggest to use `numpy.ndarray` for data preparation.
     """
 
+    DTYPE_MAP = {
+        VariableType.SCALAR: Scalar,
+        VariableType.VECTOR: Vector,
+        VariableType.TENSOR: Tensor,
+    }
+
     def __init__(
         self,
         size: int,
@@ -240,7 +246,7 @@ class Field:
 
     def to_np(self) -> np.ndarray:
         """
-        Convert the field to a numpy array.
+        Convert the field to a numpy array without type information.
         """
         return torch.cat([v.cpu() for v in self._values], dim=0).numpy()
 
@@ -308,22 +314,24 @@ class Field:
             cur += size
         return dev_index, local_index
 
-    def __getitem__(self, index: int | slice) -> Variable | torch.Tensor:
+    def __getitem__(self, index: int | slice) -> Variable | list[Variable]:
         if isinstance(index, int):
             if index < 0 or index >= self.size:
                 raise IndexError(f"Index out of range: {index}")
 
             dev, idx = self._get_local_indices(index)
-            return self._values[dev][idx]
+            var = self.DTYPE_MAP[self.dtype](self._values[dev][idx])
+            return var
         elif isinstance(index, slice):
             start, stop, step = index.indices(self.size)
-            global_indices = range(start, stop, step)
-            local_indices = [self._get_local_indices(i) for i in global_indices]
+            globals = range(start, stop, step)
+            locals = [self._get_local_indices(i) for i in globals]
 
             result = []
-            for dev, idx in local_indices:
-                result.append(self._values[dev][idx])
-            return torch.stack(result, dim=0)
+            for dev, idx in locals:
+                var = self.DTYPE_MAP[self.dtype](self._values[dev][idx])
+                result.append(var)
+            return result
         else:
             raise TypeError(f"Invalid index type: {type(index)}")
 
