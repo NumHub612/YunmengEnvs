@@ -320,7 +320,7 @@ class Field:
                 raise IndexError(f"Index out of range: {index}")
 
             dev, idx = self._get_local_indices(index)
-            var = self.DTYPE_MAP[self.dtype](self._values[dev][idx])
+            var = self.DTYPE_MAP[self.dtype].from_data(self._values[dev][idx])
             return var
         elif isinstance(index, slice):
             start, stop, step = index.indices(self.size)
@@ -329,7 +329,8 @@ class Field:
 
             result = []
             for dev, idx in locals:
-                var = self.DTYPE_MAP[self.dtype](self._values[dev][idx])
+                data = self._values[dev][idx]
+                var = self.DTYPE_MAP[self.dtype].from_data(data)
                 result.append(var)
             return result
         else:
@@ -427,12 +428,14 @@ class Field:
 
             for i in range(self.chunks):
                 self._values[i] += other.data[i]
+            return self
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(f"Invalid value type: {other.type}")
 
             for i in range(self.chunks):
                 self._values[i] += other.data
+            return self
         else:
             raise TypeError(f"Cannot add {type(other)} to field")
 
@@ -496,12 +499,14 @@ class Field:
 
             for i in range(self.chunks):
                 self._values[i] -= other.data[i]
+            return self
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(f"Invalid value type: {other.type}")
 
             for i in range(self.chunks):
                 self._values[i] -= other.data
+            return self
         else:
             raise TypeError(f"Cannot subtract {type(other)} from")
 
@@ -586,6 +591,7 @@ class Field:
 
             for i in range(self.chunks):
                 self._values[i] *= other
+            return self
         else:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
@@ -612,6 +618,7 @@ class Field:
 
         for i in range(self.chunks):
             self._values[i] /= other
+        return self
 
     def __neg__(self) -> "Field":
         return self * -1

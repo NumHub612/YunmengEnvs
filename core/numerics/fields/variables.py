@@ -266,6 +266,7 @@ class Vector(Variable):
     def __iadd__(self, other):
         if isinstance(other, Vector):
             self._value += other.data
+            return self
         else:
             raise TypeError(f"Invalid Vector iadd(): {type(other)}.")
 
@@ -284,6 +285,7 @@ class Vector(Variable):
     def __isub__(self, other):
         if isinstance(other, Vector):
             self._value -= other.data
+            return self
         else:
             raise TypeError(f"Invalid Vector isub(): {type(other)}.")
 
@@ -310,8 +312,10 @@ class Vector(Variable):
     def __imul__(self, other):
         if isinstance(other, (int, float)):
             self._value *= other
+            return self
         elif isinstance(other, Scalar):
             self._value *= other.value
+            return self
         else:
             raise TypeError(f"Invalid Vector imul(): {type(other)}.")
 
@@ -345,6 +349,7 @@ class Vector(Variable):
             if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.value
+            return self
         else:
             raise TypeError(f"Invalid Vector idiv(): {type(other)}.")
 
@@ -449,8 +454,10 @@ class Scalar(Variable):
     def __iadd__(self, other):
         if isinstance(other, (int, float)):
             self._value += other
+            return self
         elif isinstance(other, Scalar):
             self._value += other.data
+            return self
         else:
             raise TypeError(f"Invalid Scalar iadd(): {type(other)}.")
 
@@ -473,8 +480,10 @@ class Scalar(Variable):
     def __isub__(self, other):
         if isinstance(other, (int, float)):
             self._value -= other
+            return self
         elif isinstance(other, Scalar):
             self._value -= other.data
+            return self
         else:
             raise TypeError(f"Invalid Scalar isub(): {type(other)}.")
 
@@ -497,8 +506,10 @@ class Scalar(Variable):
     def __imul__(self, other):
         if isinstance(other, (int, float)):
             self._value *= other
+            return self
         elif isinstance(other, Scalar):
             self._value *= other.data
+            return self
         else:
             raise TypeError(f"Invalid Scalar imul(): {type(other)}.")
 
@@ -527,10 +538,12 @@ class Scalar(Variable):
     def __itruediv__(self, other):
         if isinstance(other, (int, float)):
             self._value /= other
+            return self
         elif isinstance(other, Scalar):
             if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.data
+            return self
         else:
             raise TypeError(f"Invalid Scalar idiv(): {type(other)}.")
 
@@ -699,6 +712,7 @@ class Tensor(Variable):
     def __iadd__(self, other):
         if isinstance(other, Tensor):
             self._value += other.data
+            return self
         else:
             raise TypeError(f"Invalid Tensor iadd(): {type(other)}.")
 
@@ -717,6 +731,7 @@ class Tensor(Variable):
     def __isub__(self, other):
         if isinstance(other, Tensor):
             self._value -= other.data
+            return self
         else:
             raise TypeError(f"Invalid Tensor isub(): {type(other)}.")
 
@@ -739,10 +754,13 @@ class Tensor(Variable):
     def __imul__(self, other):
         if isinstance(other, (int, float)):
             self._value *= other
+            return self
         elif isinstance(other, Scalar):
             self._value *= other.data
+            return self
         elif isinstance(other, Tensor):
             self._value = self._value @ other.data
+            return self
         else:
             raise TypeError(f"Invalid Tensor imul(): {type(other)}.")
 
@@ -771,10 +789,12 @@ class Tensor(Variable):
     def __itruediv__(self, other):
         if isinstance(other, (int, float)):
             self._value /= other
+            return self
         elif isinstance(other, Scalar):
             if other.value < settings.NUMERIC_TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.data
+            return self
         else:
             raise TypeError(f"Invalid Tensor idiv(): {type(other)}.")
 

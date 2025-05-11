@@ -9,7 +9,7 @@ from configs.settings import settings, logger
 
 import torch
 import numpy as np
-from typing import Any, Tuple, List, Union
+from typing import Any, Tuple, List
 from abc import abstractmethod
 
 import warnings
@@ -469,6 +469,7 @@ class TorchMatrix(Matrix):
         else:
             self._values = (self._values.to_dense() + other.to_dense()).coalesce()
             self._indices = self._values.indices()
+        return self
 
     def __sub__(self, other):
         self._check_compatible(other)
@@ -481,16 +482,11 @@ class TorchMatrix(Matrix):
                 self._device,
             )
         else:
-            negated_values = -other.to_dense()
-            combined_indices = torch.cat(
-                (self._indices, other._indices),
-                dim=1,
-            )
-            combined_values = torch.cat((self._values, negated_values))
+            substracted = (self._values.to_dense() - other.to_dense()).coalesce()
             return TorchMatrix(
                 self._shape,
-                combined_indices,
-                combined_values,
+                substracted.indices(),
+                substracted.values(),
                 self._device,
             )
 
@@ -501,21 +497,15 @@ class TorchMatrix(Matrix):
         self._check_compatible(other)
 
         if isinstance(other, TorchMatrix):
-            negated_indices = other._indices
-            negated_values = -other._values
-            self._indices = torch.cat(
-                (self._indices, negated_indices),
-                dim=1,
-            )
-            self._values = torch.cat((self._values, negated_values))
+            self._values = (self._values - other._values).coalesce()
+            self._indices = self._values.indices()
         else:
+            negated_values = -other.to_dense()
             other_dense = other.to_dense()
             negated_values = -other_dense
-            self._indices = torch.cat(
-                (self._indices, other._indices),
-                dim=1,
-            )
-            self._values = torch.cat((self._values, negated_values))
+            self._values = torch.cat((self._values, negated_values)).coalesce()
+            self._indices = self._values.indices()
+        return self
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
@@ -568,6 +558,7 @@ class TorchMatrix(Matrix):
                 other.to_dense(),
             )
             self._indices = self._values.indices()
+        return self
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
@@ -594,6 +585,7 @@ class TorchMatrix(Matrix):
     def __itruediv__(self, other):
         if isinstance(other, (int, float)):
             self._values = self._values / other
+            return self
         else:
             raise ValueError("Unsupported operand type for /")
 
@@ -621,11 +613,24 @@ class SparseMatrix(Matrix):
     Sparse matrix class implemented
     """
 
+    DTYPE_MAP = {
+        VariableType.SCALAR: Scalar,
+        VariableType.VECTOR: Vector,
+        VariableType.TENSOR: Tensor,
+    }
+
+    SIZE_MAP = {
+        VariableType.SCALAR: 1,
+        VariableType.VECTOR: 3,
+        VariableType.TENSOR: 9,
+    }
+
     def __init__(
         self,
         shape: Tuple[int, int],
         indices: torch.Tensor | np.ndarray = None,
         values: torch.Tensor | np.ndarray = None,
+        data_type: VariableType = VariableType.SCALAR,
         device: torch.device = None,
     ):
         """
@@ -635,34 +640,364 @@ class SparseMatrix(Matrix):
             shape: The shape of the matrix (rows, cols).
             indices: The indices of the non-zero elements.
             values: The values of the non-zero elements.
+            data_type: The data type of the matrix.
             device: The device to store the matrix.
         """
         self._device = device or settings.DEVICE
         self._shape = shape
+        self._dtype = data_type
+        self._values = []
 
-        if indices is None or values is None:
-            self._values = torch.sparse_coo_tensor(
-                size=shape,
-                dtype=settings.DTYPE,
-                device=self._device,
-            ).coalesce()
-            self._indices = torch.empty(
-                (2, 0),
-                dtype=torch.long,
-                device=self._device,
-            )
-            return
+        if values is None or indices is None:
+            for i in range(self.SIZE_MAP[data_type]):
+                self._values.append(TorchMatrix(shape, device=self._device))
+        else:
+            size = self.SIZE_MAP[data_type]
+            values = values.reshape(-1, size)
+            for i in range(size):
+                value = values[:, i]
+                self._values.append(
+                    TorchMatrix(
+                        shape,
+                        indices,
+                        value,
+                        device=self._device,
+                    )
+                )
 
-        if isinstance(values, np.ndarray):
-            values = torch.tensor(values, dtype=settings.DTYPE)
-        if isinstance(indices, np.ndarray):
-            indices = torch.tensor(indices, dtype=torch.long)
+    # -----------------------------------------------
+    # --- class methods ---
+    # -----------------------------------------------
 
-        self._values = torch.sparse_coo_tensor(
-            indices,
-            values,
-            shape,
+    @classmethod
+    def from_data(
+        cls,
+        shape: tuple,
+        indices: torch.Tensor | np.ndarray,
+        values: torch.Tensor | np.ndarray,
+        device: torch.device = None,
+    ) -> "Matrix":
+        dtype = None
+        if values.ndim == 1:
+            dtype = VariableType.SCALAR
+        elif values.ndim == 2:
+            if values.shape[1] == 1:
+                dtype = VariableType.SCALAR
+            elif values.shape[1] == 3:
+                dtype = VariableType.VECTOR
+            elif values.shape[1] == 9:
+                dtype = VariableType.TENSOR
+        elif values.ndim == 3:
+            if values.shape[1] == 3 and values.shape[2] == 3:
+                dtype = VariableType.TENSOR
+                values = values.reshape(-1, 9)
+            elif values.shape[1] == 3 and values.shape[2] == 1:
+                dtype = VariableType.VECTOR
+                values = values.reshape(-1, 3)
+            elif values.shape[1] == 1 and values.shape[2] == 1:
+                dtype = VariableType.SCALAR
+                values = values.reshape(-1, 1)
+        if dtype is None:
+            raise ValueError(f"Invalid shape: {values.shape}")
+
+        return cls(shape, indices, values, dtype, device)
+
+    @classmethod
+    def identity(
+        cls,
+        shape: tuple,
+        data_type: VariableType = VariableType.SCALAR,
+        device: torch.device = None,
+    ) -> "Matrix":
+        assert shape[0] == shape[1], "Identity matrix must be square."
+        indices = torch.tensor(
+            [[i, i] for i in range(shape[0])],
+            dtype=torch.long,
+            device=device,
+        ).t()
+
+        size = cls.SIZE_MAP[data_type]
+        values = torch.ones(
+            shape[0],
+            size,
             dtype=settings.DTYPE,
+            device=device,
+        )
+        return cls(shape, indices, values, data_type, device)
+
+    @classmethod
+    def ones(
+        cls,
+        shape: tuple,
+        data_type: VariableType = VariableType.SCALAR,
+        device: torch.device = None,
+    ) -> "Matrix":
+        indices = torch.tensor(
+            [[i, j] for i in range(shape[0]) for j in range(shape[1])],
+            dtype=torch.long,
+            device=device,
+        ).t()
+
+        size = cls.SIZE_MAP[data_type]
+        values = torch.ones(
+            shape[0] * shape[1],
+            size,
+            dtype=settings.DTYPE,
+            device=device,
+        )
+        return cls(shape, indices, values, data_type, device)
+
+    @classmethod
+    def zeros(
+        cls,
+        shape: tuple,
+        data_type: VariableType = VariableType.SCALAR,
+        device: torch.device = None,
+    ) -> "Matrix":
+        return cls(shape, device=device)
+
+    # -----------------------------------------------
+    # --- properties ---
+    # -----------------------------------------------
+
+    @property
+    def data(self) -> List[TorchMatrix]:
+        return self._values
+
+    @property
+    def shape(self) -> tuple:
+        return self._shape
+
+    @property
+    def dtype(self) -> VariableType:
+        return self._dtype
+
+    @property
+    def diag(self) -> list[np.ndarray]:
+        digs = [mat.diag[0] for mat in self._values]
+        return digs
+
+    @property
+    def nnz(self) -> list[int]:
+        nnz = [mat.nnz[0] for mat in self._values]
+        return nnz
+
+    @property
+    def T(self) -> "SparseMatrix":
+        new_values = []
+        for mat in self._values:
+            new_values.append(mat.T)
+        new_mat = SparseMatrix(
+            self._shape[::-1],
+            data_type=self._dtype,
             device=self._device,
-        ).coalesce()
-        self._indices = self._values.indices()
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    @property
+    def inv(self) -> "SparseMatrix":
+        new_values = []
+        for mat in self._values:
+            new_values.append(mat.inv)
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    @property
+    def det(self) -> list[float]:
+        dets = [mat.det[0] for mat in self._values]
+        return dets
+
+    # -----------------------------------------------
+    # --- matrix methods ---
+    # -----------------------------------------------
+
+    def scalarize(self) -> list[TorchMatrix]:
+        return self._values
+
+    def to_dense(self) -> np.ndarray:
+        dense_mats = []
+        for mat in self._values:
+            dense_mats.append(mat.to_dense())
+        return np.stack(dense_mats, axis=2)
+
+    # -----------------------------------------------
+    # --- overload methods ---
+    # -----------------------------------------------
+
+    def __getitem__(self, index: tuple):
+        item = [v[index] for v in self._values]
+        return item
+
+    def __setitem__(self, index: tuple, value: float | Variable):
+        for v in self._values:
+            v[index] = value
+
+    def __add__(self, other):
+        if not isinstance(other, Matrix):
+            raise ValueError("Unsupported operand type for +")
+
+        new_values = []
+        if isinstance(other, SparseMatrix):
+            for i in range(len(self._values)):
+                mat = self._values[i] + other._values[i]
+                new_values.append(mat)
+        else:
+            for mat in self._values:
+                mat = mat + other
+                new_values.append(mat)
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __iadd__(self, other):
+        if not isinstance(other, Matrix):
+            raise ValueError("Unsupported operand type for +")
+
+        if isinstance(other, SparseMatrix):
+            for i in range(len(self._values)):
+                self._values[i] += other._values[i]
+                self._values[i] = self._values[i]
+        else:
+            for mat in self._values:
+                mat += other
+        return self
+
+    def __sub__(self, other):
+        if not isinstance(other, Matrix):
+            raise ValueError("Unsupported operand type for -")
+        new_values = []
+        if isinstance(other, SparseMatrix):
+            for i in range(len(self._values)):
+                mat = self._values[i] - other._values[i]
+                new_values.append(mat)
+        else:
+            for mat in self._values:
+                mat = mat - other
+                new_values.append(mat)
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    def __rsub__(self, other):
+        return other.__sub__(self)
+
+    def __isub__(self, other):
+        if not isinstance(other, Matrix):
+            raise ValueError("Unsupported operand type for -")
+
+        if isinstance(other, SparseMatrix):
+            for i in range(len(self._values)):
+                self._values[i] -= other._values[i]
+                self._values[i] = self._values[i]
+        else:
+            for mat in self._values:
+                mat -= other
+        return self
+
+    def __mul__(self, other):
+        if not isinstance(other, (int, float)):
+            raise ValueError("Unsupported operand type for *")
+
+        new_values = []
+        for mat in self._values:
+            new_values.append(mat * other)
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    def __rmul__(self, other):
+        if not isinstance(other, (int, float)):
+            raise ValueError("Unsupported operand type for *")
+
+        return self.__mul__(other)
+
+    def __imul__(self, other):
+        if not isinstance(other, (int, float)):
+            raise ValueError("Unsupported operand type for *")
+
+        for mat in self._values:
+            mat *= other
+        return self
+
+    def __truediv__(self, other):
+        if not isinstance(other, (int, float)):
+            raise ValueError("Unsupported operand type for /")
+
+        new_values = []
+        for mat in self._values:
+            new_values.append(mat / other)
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    def __rtruediv__(self, other):
+        if not isinstance(other, (int, float)):
+            raise ValueError("Unsupported operand type for /")
+
+        new_values = []
+        for mat in self._values:
+            new_values.append(other / mat)
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    def __itruediv__(self, other):
+        if not isinstance(other, (int, float)):
+            raise ValueError("Unsupported operand type for /")
+
+        for mat in self._values:
+            mat /= other
+        return self
+
+    def __neg__(self):
+        new_values = []
+        for mat in self._values:
+            new_values.append(-mat)
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
+
+    def __abs__(self):
+        new_values = []
+        for mat in self._values:
+            new_values.append(abs(mat))
+        new_mat = SparseMatrix(
+            self._shape,
+            data_type=self._dtype,
+            device=self._device,
+        )
+        new_mat._values = new_values
+        return new_mat
