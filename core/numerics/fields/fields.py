@@ -4,12 +4,13 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Fields definition.
 """
-from core.numerics.fields.variables import (
+from core.numerics.fields import (
     Variable,
     VariableType,
     Scalar,
     Vector,
     Tensor,
+    DTYPE_MAP,
 )
 from configs.settings import settings
 
@@ -32,12 +33,6 @@ class Field:
     The backend is `torch.Tensor`, which has high performance at computing,
     suggest to use `numpy.ndarray` for data preparation.
     """
-
-    DTYPE_MAP = {
-        VariableType.SCALAR: Scalar,
-        VariableType.VECTOR: Vector,
-        VariableType.TENSOR: Tensor,
-    }
 
     def __init__(
         self,
@@ -320,7 +315,7 @@ class Field:
                 raise IndexError(f"Index out of range: {index}")
 
             dev, idx = self._get_local_indices(index)
-            var = self.DTYPE_MAP[self.dtype].from_data(self._values[dev][idx])
+            var = DTYPE_MAP[self.dtype].from_data(self._values[dev][idx])
             return var
         elif isinstance(index, slice):
             start, stop, step = index.indices(self.size)
@@ -330,7 +325,7 @@ class Field:
             result = []
             for dev, idx in locals:
                 data = self._values[dev][idx]
-                var = self.DTYPE_MAP[self.dtype].from_data(data)
+                var = DTYPE_MAP[self.dtype].from_data(data)
                 result.append(var)
             return result
         else:

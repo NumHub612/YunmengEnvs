@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix.
 """
-from core.numerics.fields import Variable, VariableType, Scalar, Vector, Tensor
+from core.numerics.fields import Variable, VariableType
 from configs.settings import settings, logger
 
 import torch
@@ -612,12 +612,6 @@ class SparseMatrix(Matrix):
     """
     Sparse matrix class implemented
     """
-
-    DTYPE_MAP = {
-        VariableType.SCALAR: Scalar,
-        VariableType.VECTOR: Vector,
-        VariableType.TENSOR: Tensor,
-    }
 
     SIZE_MAP = {
         VariableType.SCALAR: 1,

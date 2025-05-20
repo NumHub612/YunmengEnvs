@@ -3,7 +3,7 @@ import unittest
 import torch
 import numpy as np
 from configs.settings import settings
-from core.numerics.fields import VariableType, Scalar, Vector, Tensor
+from core.numerics.fields import VariableType
 from core.numerics.matrix import TorchMatrix, SparseMatrix
 
 
@@ -440,7 +440,7 @@ if __name__ == "__main__":
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
 
         suit = unittest.TestLoader().loadTestsFromTestCase(TestTorchMatrix)
-        # runner.run(suit)
+        runner.run(suit)
 
         suit = unittest.TestLoader().loadTestsFromTestCase(TestSparseMatrix)
         runner.run(suit)
