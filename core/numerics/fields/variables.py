@@ -181,9 +181,13 @@ class Vector(Variable):
     """
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
-        self._value = torch.tensor(
-            [x, y, z], dtype=settings.DTYPE, device=settings.DEVICE
-        )
+        device = torch.device(settings.DEVICE)
+        dtype = torch.float64
+        if settings.FPTYPE == "fp16":
+            dtype = torch.float16
+        elif settings.FPTYPE == "fp32":
+            dtype = torch.float32
+        self._value = torch.tensor([x, y, z], dtype=dtype, device=device)
         self._magtitude = torch.linalg.vector_norm(self._value).item()
 
     # -----------------------------------------------
@@ -324,7 +328,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.NUMERIC_TOLERANCE:
+            if other.value < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Vector.from_data(self._value / other.value)
         else:
@@ -335,7 +339,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if self.magnitude < settings.NUMERIC_TOLERANCE:
+            if self.magnitude < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Vector.from_data(other.value / self._value)
         else:
@@ -346,7 +350,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.NUMERIC_TOLERANCE:
+            if other.value < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.value
             return self
@@ -363,7 +367,7 @@ class Vector(Variable):
         if not isinstance(other, Vector):
             return False
 
-        return torch.allclose(self._value, other.data, atol=settings.NUMERIC_TOLERANCE)
+        return torch.allclose(self._value, other.data, atol=settings.TOLERANCE)
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
@@ -375,9 +379,13 @@ class Scalar(Variable):
     """
 
     def __init__(self, value: float = 0.0):
-        self._value = torch.tensor(
-            [value], dtype=settings.DTYPE, device=settings.DEVICE
-        )
+        device = torch.device(settings.DEVICE)
+        dtype = torch.float64
+        if settings.FPTYPE == "fp16":
+            dtype = torch.float16
+        elif settings.FPTYPE == "fp32":
+            dtype = torch.float32
+        self._value = torch.tensor([value], dtype=dtype, device=device)
         self._magtitude = abs(value)
 
     # -----------------------------------------------
@@ -395,7 +403,7 @@ class Scalar(Variable):
             return Scalar(data[0])
 
     def to_np(self) -> np.ndarray:
-        return np.array([self._value])
+        return self._value.cpu().numpy()
 
     @classmethod
     def from_var(cls, var: "Scalar") -> "Scalar":
@@ -518,7 +526,7 @@ class Scalar(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.NUMERIC_TOLERANCE:
+            if other.value < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Scalar(self.value / other.value)
         else:
@@ -529,7 +537,7 @@ class Scalar(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if self.value < settings.NUMERIC_TOLERANCE:
+            if self.value < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Scalar(other.value / self.value)
         else:
@@ -540,7 +548,7 @@ class Scalar(Variable):
             self._value /= other
             return self
         elif isinstance(other, Scalar):
-            if other.value < settings.NUMERIC_TOLERANCE:
+            if other.value < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.data
             return self
@@ -555,9 +563,9 @@ class Scalar(Variable):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Scalar):
-            return abs(self.value - other.value) < settings.NUMERIC_TOLERANCE
+            return abs(self.value - other.value) < settings.TOLERANCE
         elif isinstance(other, (int, float)):
-            return abs(self.value - other) < settings.NUMERIC_TOLERANCE
+            return abs(self.value - other) < settings.TOLERANCE
         else:
             return False
 
@@ -585,10 +593,16 @@ class Tensor(Variable):
         zy: float = 0.0,
         zz: float = 0.0,
     ):
+        device = torch.device(settings.DEVICE)
+        dtype = torch.float64
+        if settings.FPTYPE == "fp16":
+            dtype = torch.float16
+        elif settings.FPTYPE == "fp32":
+            dtype = torch.float32
         self._value = torch.tensor(
             [[xx, xy, xz], [yx, yy, yz], [zx, zy, zz]],
-            dtype=settings.DTYPE,
-            device=settings.DEVICE,
+            dtype=dtype,
+            device=device,
         )
         self._magtitude = np.linalg.norm(self.to_np())
 
@@ -618,7 +632,7 @@ class Tensor(Variable):
             return Tensor(*data.reshape(9).tolist())
 
     def to_np(self) -> np.ndarray:
-        return self._value
+        return self._value.cpu().numpy()
 
     @classmethod
     def from_var(cls, var: "Tensor") -> "Tensor":
@@ -769,7 +783,7 @@ class Tensor(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.NUMERIC_TOLERANCE:
+            if other.value < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Tensor.from_data(self._value / other.data)
         else:
@@ -780,7 +794,7 @@ class Tensor(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if self.magnitude < settings.NUMERIC_TOLERANCE:
+            if self.magnitude < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             return Tensor.from_data(other.data / self._value)
         else:
@@ -791,7 +805,7 @@ class Tensor(Variable):
             self._value /= other
             return self
         elif isinstance(other, Scalar):
-            if other.value < settings.NUMERIC_TOLERANCE:
+            if other.value < settings.TOLERANCE:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.data
             return self
@@ -811,7 +825,7 @@ class Tensor(Variable):
         return torch.allclose(
             self._value,
             other.data,
-            atol=settings.NUMERIC_TOLERANCE,
+            atol=settings.TOLERANCE,
         )
 
     def __ne__(self, other) -> bool:

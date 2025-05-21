@@ -51,9 +51,9 @@ torch.cuda.manual_seed_all(SEED)
 class Settings:
 
     default_configs = {
-        "DTYPE": torch.float64,
-        "NUMERIC_TOLERANCE": 1e-6,
-        "DEVICE": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        "FPTYPE": "fp64",
+        "TOLERANCE": 1e-6,
+        "DEVICE": "cuda" if torch.cuda.is_available() else "cpu",
         "GPUs": (
             [f"cuda:{i}" for i in range(torch.cuda.device_count())]
             if torch.cuda.is_available()
@@ -100,34 +100,39 @@ class Settings:
             raise AttributeError(f"Has no attribute '{name}'")
 
     @property
-    def DTYPE(self) -> torch.dtype:
-        """Data type for PyTorch."""
-        return self._configs.get("DTYPE", torch.float64)
+    def FPTYPE(self) -> str:
+        """float point data type, 'fp16', 'fp32' or 'fp64'."""
+        return self._configs.get("FPTYPE", "fp64")
 
-    @DTYPE.setter
-    def DTYPE(self, value: torch.dtype):
-        self._configs["DTYPE"] = value
-        logger.info(f"Set DTYPE to {value}")
+    @FPTYPE.setter
+    def FPTYPE(self, value: str):
+        if value not in ["fp16", "fp32", "fp64"]:
+            raise ValueError(f"Invalid FPTYPE: {value}.")
+        self._configs["FPTYPE"] = value
+        logger.info(f"Set FPTYPE to {value}")
 
     @property
-    def NUMERIC_TOLERANCE(self) -> float:
+    def TOLERANCE(self) -> float:
         """Tolerance for float point comparison."""
-        return self._configs.get("NUMERIC_TOLERANCE", 1e-6)
+        return self._configs.get("TOLERANCE", 1e-6)
 
-    @NUMERIC_TOLERANCE.setter
-    def NUMERIC_TOLERANCE(self, value: float):
-        self._configs["NUMERIC_TOLERANCE"] = abs(value)
-        logger.info(f"Set NUMERIC_TOLERANCE to {value}")
+    @TOLERANCE.setter
+    def TOLERANCE(self, value: float):
+        self._configs["TOLERANCE"] = abs(value)
+        logger.info(f"Set TOLERANCE to {value}")
 
     @property
-    def DEVICE(self) -> torch.device:
-        """Device for PyTorch."""
+    def DEVICE(self) -> str:
+        """GPU or CPU device."""
         return self._configs.get(
-            "DEVICE", torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            "DEVICE",
+            "cuda" if torch.cuda.is_available() else "cpu",
         )
 
     @DEVICE.setter
-    def DEVICE(self, value: torch.device):
+    def DEVICE(self, value: str):
+        if value not in ["cuda", "cpu"]:
+            raise ValueError(f"Invalid DEVICE: {value}.")
         self._configs["DEVICE"] = value
         logger.info(f"Set DEVICE to {value}")
 
@@ -145,10 +150,7 @@ class Settings:
         if max(value) >= torch.cuda.device_count():
             raise ValueError(f"Invalid GPU index: {max(value)}")
         self._configs["GPUs"] = [f"cuda:{i}" for i in value]
-        if len(value) == 0:
-            self._configs["DEVICE"] = torch.device("cpu")
-        else:
-            self._configs["DEVICE"] = torch.device(self._configs["GPUs"][0])
+        self._configs["DEVICE"] = "cpu" if len(value) == 0 else "cuda"
         logger.info(f"Set GPUs to {value}")
 
 
