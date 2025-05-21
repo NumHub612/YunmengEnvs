@@ -55,9 +55,7 @@ class Settings:
         "TOLERANCE": 1e-6,
         "DEVICE": "cuda" if torch.cuda.is_available() else "cpu",
         "GPUs": (
-            [f"cuda:{i}" for i in range(torch.cuda.device_count())]
-            if torch.cuda.is_available()
-            else []
+            list(range(torch.cuda.device_count())) if torch.cuda.is_available() else []
         ),
     }
 
@@ -140,7 +138,7 @@ class Settings:
     def GPUs(self) -> list:
         """List of GPUs available."""
         if torch.cuda.is_available():
-            gpus = [f"cuda:{i}" for i in range(torch.cuda.device_count())]
+            gpus = list(range(torch.cuda.device_count()))
         else:
             gpus = []
         return self._configs.get("GPUs", gpus)
@@ -149,7 +147,7 @@ class Settings:
     def GPUs(self, value: list[int]):
         if max(value) >= torch.cuda.device_count():
             raise ValueError(f"Invalid GPU index: {max(value)}")
-        self._configs["GPUs"] = [f"cuda:{i}" for i in value]
+        self._configs["GPUs"] = value
         self._configs["DEVICE"] = "cpu" if len(value) == 0 else "cuda"
         logger.info(f"Set GPUs to {value}")
 

@@ -47,7 +47,7 @@ class Field:
         data_type: VariableType,
         data: Variable | np.ndarray | torch.Tensor | list[torch.Tensor] = None,
         variable: str = "none",
-        device: torch.device | str = None,
+        device: str | torch.device = None,
         gpus: list[str | torch.device] = None,
     ):
         """
@@ -79,16 +79,14 @@ class Field:
         if settings.FPTYPE == "fp16":
             fptype = torch.float16
 
-        if gpus is not None and self._device.type == "cuda":
-            # Check if all devices are valid
-            self._gpus = [torch.device(dev) for dev in gpus]
-        else:
-            # Use the default GPU devices
-            if self._device.type == "cuda":
-                gpus = [torch.device(dev) for dev in settings.GPUs]
+        gpus = gpus or settings.GPUs
+        for dev in gpus:
+            if isinstance(dev, torch.device):
+                self._gpus.append(dev)
             else:
-                gpus = []
-            self._gpus = gpus
+                self._gpus.append(torch.device(f"cuda:{dev}"))
+        if self._device.type == "cpu":
+            self._gpus = []
 
         if data is None:
             default = DTYPE_MAP[data_type].zero().data
