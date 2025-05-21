@@ -19,17 +19,24 @@ class TestFields(unittest.TestCase):
         print("\n---------- Done \n")
 
     def setUp(self):
+        self.device = torch.device(settings.DEVICE)
+        self.dtype = torch.float64
+        if settings.FPTYPE == "fp16":
+            self.dtype = torch.float16
+        elif settings.FPTYPE == "fp32":
+            self.dtype = torch.float32
+
         self.size = 100
         self.element_type = ElementType.NODE
 
     def test_scalar_field(self):
-        data = torch.randn(self.size, 1, device=settings.DEVICE)
+        data = torch.randn(self.size, 1, device=self.device)
         field = Field(
             self.size,
             self.element_type,
             VariableType.SCALAR,
             data,
-            device=settings.DEVICE,
+            device=self.device,
         )
         self.assertEqual(len(field.data), field.chunks)
         self.assertEqual(field.size, self.size)
@@ -37,13 +44,13 @@ class TestFields(unittest.TestCase):
         self.assertEqual(field.etype, self.element_type)
 
     def test_vector_field(self):
-        data = torch.randn(self.size, 3, device=settings.DEVICE)
+        data = torch.randn(self.size, 3, device=self.device)
         field = Field(
             self.size,
             self.element_type,
             VariableType.VECTOR,
             data,
-            device=settings.DEVICE,
+            device=self.device,
         )
         self.assertEqual(len(field.data), field.chunks)
         self.assertEqual(field.size, self.size)
@@ -51,13 +58,13 @@ class TestFields(unittest.TestCase):
         self.assertEqual(field.etype, self.element_type)
 
     def test_tensor_field(self):
-        data = torch.randn(self.size, 3, 3, device=settings.DEVICE)
+        data = torch.randn(self.size, 3, 3, device=self.device)
         field = Field(
             self.size,
             self.element_type,
             VariableType.TENSOR,
             data,
-            device=settings.DEVICE,
+            device=self.device,
         )
         self.assertEqual(len(field.data), field.chunks)
         self.assertEqual(field.size, self.size)
@@ -73,7 +80,7 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
             )
             data2 = torch.randn(
                 self.size,
@@ -82,13 +89,13 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
             )
             field1 = Field(
-                self.size, self.element_type, dtype, data1, device=settings.DEVICE
+                self.size, self.element_type, dtype, data1, device=self.device
             )
             field2 = Field(
-                self.size, self.element_type, dtype, data2, device=settings.DEVICE
+                self.size, self.element_type, dtype, data2, device=self.device
             )
             result = field1 + field2
             expected = data1 + data2
@@ -103,7 +110,7 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
             )
             data2 = torch.randn(
                 self.size,
@@ -112,13 +119,13 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
             )
             field1 = Field(
-                self.size, self.element_type, dtype, data1, device=settings.DEVICE
+                self.size, self.element_type, dtype, data1, device=self.device
             )
             field2 = Field(
-                self.size, self.element_type, dtype, data2, device=settings.DEVICE
+                self.size, self.element_type, dtype, data2, device=self.device
             )
             result = field1 - field2
             expected = data1 - data2
@@ -133,11 +140,11 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
             )
             scalar = 2.0
             field1 = Field(
-                self.size, self.element_type, dtype, data1, device=settings.DEVICE
+                self.size, self.element_type, dtype, data1, device=self.device
             )
             result = field1 * scalar
             expected = data1 * scalar
@@ -152,11 +159,9 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
             )
-            field = Field(
-                self.size, self.element_type, dtype, data, device=settings.DEVICE
-            )
+            field = Field(self.size, self.element_type, dtype, data, device=self.device)
             result = -field
             expected = -data
             self.assertTrue(np.allclose(result.to_np(), expected.cpu().numpy()))
@@ -170,11 +175,9 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
             )
-            field = Field(
-                self.size, self.element_type, dtype, data, device=settings.DEVICE
-            )
+            field = Field(self.size, self.element_type, dtype, data, device=self.device)
             result = abs(field)
             expected = torch.abs(data)
             self.assertTrue(np.allclose(result.to_np(), expected.cpu().numpy()))
@@ -188,11 +191,11 @@ class TestFields(unittest.TestCase):
                     if dtype == VariableType.SCALAR
                     else (3,) if dtype == VariableType.VECTOR else (3, 3)
                 ),
-                device=settings.DEVICE,
+                device=self.device,
                 dtype=torch.float64,
             )
             field1 = Field(
-                self.size, self.element_type, dtype, data, device=settings.DEVICE
+                self.size, self.element_type, dtype, data, device=self.device
             )
             if settings.GPUs:
                 default_gpu = [settings.GPUs[0]]
@@ -203,7 +206,7 @@ class TestFields(unittest.TestCase):
                 self.element_type,
                 dtype,
                 data,
-                device=settings.DEVICE,
+                device=self.device,
                 gpus=default_gpu,
             )
             index = 50
@@ -213,7 +216,7 @@ class TestFields(unittest.TestCase):
     def performance_test(self):
         size = 10_000_000
         element_type = ElementType.NODE
-        device = settings.DEVICE
+        device = self.device
         gpus = settings.GPUs
         print(f"Testing 1e7 element performance on {device}: {gpus}...")
 

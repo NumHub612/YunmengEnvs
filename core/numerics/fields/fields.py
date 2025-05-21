@@ -34,6 +34,12 @@ class Field:
     suggest to use `numpy.ndarray` for data preparation.
     """
 
+    SHAPE_MAP = {
+        VariableType.SCALAR: (1,),
+        VariableType.VECTOR: (3,),
+        VariableType.TENSOR: (3, 3),
+    }
+
     def __init__(
         self,
         size: int,
@@ -41,7 +47,7 @@ class Field:
         data_type: VariableType,
         data: Variable | np.ndarray | torch.Tensor | list[torch.Tensor] = None,
         variable: str = "none",
-        device: torch.device = None,
+        device: torch.device | str = None,
         gpus: list[str | torch.device] = None,
     ):
         """
@@ -63,21 +69,19 @@ class Field:
         self._etype = element_type
         self._dtype = data_type
         self._size = size
-        self._device = device or settings.DEVICE
         self._gpus = []
+
+        self._device = device or settings.DEVICE
+        if isinstance(self._device, str):
+            self._device = torch.device(self._device)
+
+        fptype = torch.float64 if settings.FPTYPE == "float64" else torch.float32
+        if settings.FPTYPE == "fp16":
+            fptype = torch.float16
 
         if gpus is not None and self._device.type == "cuda":
             # Check if all devices are valid
-            for dev in gpus:
-                if isinstance(dev, str):
-                    assert dev.startswith("cuda:"), f"Invalid device: {dev}"
-                    assert (
-                        int(dev.split(":")[1]) < torch.cuda.device_count()
-                    ), f"Device {dev} not available"
-                    self._gpus.append(torch.device(dev))
-                elif isinstance(dev, torch.device):
-                    assert dev.type == "cuda", f"Only CUDA devices are supported: {dev}"
-                    self._gpus.append(dev)
+            self._gpus = [torch.device(dev) for dev in gpus]
         else:
             # Use the default GPU devices
             if self._device.type == "cuda":
@@ -87,31 +91,21 @@ class Field:
             self._gpus = gpus
 
         if data is None:
-            type_map = {
-                VariableType.SCALAR: Scalar.zero().data,
-                VariableType.VECTOR: Vector.zero().data,
-                VariableType.TENSOR: Tensor.zero().data,
-            }
-            default = type_map[data_type]
-            values = torch.full((size, *default.shape), 0.0, dtype=settings.DTYPE)
+            default = DTYPE_MAP[data_type].zero().data
+            values = torch.full((size, *default.shape), 0.0, dtype=fptype)
             values[:] = default.data
         else:
-            shape_map = {
-                VariableType.SCALAR: (size, 1),
-                VariableType.VECTOR: (size, 3),
-                VariableType.TENSOR: (size, 3, 3),
-            }
             if isinstance(data, Variable):
                 if data.type != data_type:
                     raise ValueError(f"Invalid data type: {data.type}")
-                values = torch.full((size, *data.shape), 0.0, dtype=settings.DTYPE)
+                values = torch.full((size, *data.shape), 0.0, dtype=fptype)
                 values[:] = data.data
             elif isinstance(data, np.ndarray):
-                if data.shape != shape_map[data_type]:
+                if data.shape != (size, *self.SHAPE_MAP[data_type]):
                     raise ValueError(f"Invalid data shape: {data.shape}")
                 values = torch.from_numpy(data)
             elif isinstance(data, torch.Tensor):
-                if data.shape != shape_map[data_type]:
+                if data.shape != (size, *self.SHAPE_MAP[data_type]):
                     raise ValueError(f"Invalid data shape: {data.shape}")
                 values = data
             elif isinstance(data, list):
@@ -239,9 +233,22 @@ class Field:
         }
         return cls(**args)
 
+    def to_tensor(self, device: torch.device) -> torch.Tensor:
+        """
+        Convert the field to a torch tensor on the specified device.
+        """
+        if device.type == "cuda":
+            if len(self._gpus) > 1:
+                data = torch.cat([v.to(device) for v in self._values], dim=0)
+            else:
+                data = torch.cat(self._values, dim=0).to(device)
+        else:
+            data = torch.cat(self._values, dim=0).cpu()
+        return data
+
     def to_np(self) -> np.ndarray:
         """
-        Convert the field to a numpy array without type information.
+        Convert the field to a numpy array.
         """
         return torch.cat([v.cpu() for v in self._values], dim=0).numpy()
 
