@@ -1220,9 +1220,9 @@ class SparseMatrix(Matrix):
         self._dtype = data_type
         self._values = []
 
-        if settings.DEVICE != "cuda":
-            backend = "scipy"
-            logger.warning("Using scipy backend instead of cupy for no gpu accessible.")
+        if settings.DEVICE != "cuda" and backend == "cupy":
+            backend = "torch"
+            logger.warning("Using torch backend instead of cupy for no gpu accessible.")
 
         size = self.SIZE_MAP[data_type]
         if backend == "cupy":
@@ -1233,6 +1233,7 @@ class SparseMatrix(Matrix):
             self._values = self._create_scipy_matrix(shape, indices, values, size)
         else:
             raise ValueError(f"Unsupported backend: {backend}")
+        self._backend = backend
 
     def _create_cupy_matrix(self, shape, indices, values, size):
         mats = []
@@ -1357,6 +1358,11 @@ class SparseMatrix(Matrix):
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def backend(self) -> str:
+        """The backend used for the matrix."""
+        return self._backend
 
     @property
     def data(self) -> List[Matrix]:

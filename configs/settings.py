@@ -51,6 +51,7 @@ torch.cuda.manual_seed_all(SEED)
 class Settings:
 
     default_configs = {
+        "ITERATION": (1.0e-6, 1000),
         "FPTYPE": "fp64",
         "TOLERANCE": 1e-6,
         "DEVICE": "cuda" if torch.cuda.is_available() else "cpu",
@@ -150,6 +151,18 @@ class Settings:
         self._configs["GPUs"] = value
         self._configs["DEVICE"] = "cpu" if len(value) == 0 else "cuda"
         logger.info(f"Set GPUs to {value}")
+
+    @property
+    def ITERATION(self) -> tuple:
+        """Iteration range for optimization."""
+        return self._configs.get("ITERATION", (1.0e-6, 1000))
+
+    @ITERATION.setter
+    def ITERATION(self, value: tuple):
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise ValueError(f"Invalid ITERATION: {value}.")
+        self._configs["ITERATION"] = value
+        logger.info(f"Set ITERATION to {value}")
 
 
 # global settings object
