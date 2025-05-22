@@ -1185,6 +1185,8 @@ class SciMatrix(Matrix):
 class SparseMatrix(Matrix):
     """
     Sparse matrix class implemented
+
+    TODO: support Variable elements.
     """
 
     SIZE_MAP = {

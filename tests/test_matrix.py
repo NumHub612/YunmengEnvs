@@ -345,6 +345,35 @@ class TestCupyMatrix(unittest.TestCase):
         self.assertEqual(len(det), 1)
         self.assertAlmostEqual(det[0], cp.linalg.det(self.cupy_matrix.data.todense()))
 
+    def peformance_test(self):
+        import time
+
+        matrix_size = 10_000_000
+
+        # init
+        start_time = time.time()
+        matrix = CupyMatrix.identity((matrix_size, matrix_size))
+        end_time = time.time()
+        print(f"Init time: {end_time - start_time} s")
+
+        # add
+        start_time = time.time()
+        mat2 = matrix + matrix
+        end_time = time.time()
+        print(f"Add time: {end_time - start_time} s")
+
+        # sub
+        start_time = time.time()
+        mat3 = mat2 - matrix
+        end_time = time.time()
+        print(f"Sub time: {end_time - start_time} s")
+
+        # mul
+        start_time = time.time()
+        matrix *= 3.0
+        end_time = time.time()
+        print(f"Mul time: {end_time - start_time} s")
+
 
 class TestSciMatrix(unittest.TestCase):
 
@@ -497,6 +526,35 @@ class TestSciMatrix(unittest.TestCase):
         self.assertIsInstance(det, list)
         self.assertEqual(len(det), 1)
         self.assertAlmostEqual(det[0], np.linalg.det(self.sci_matrix.data.toarray()))
+
+    def peformance_test(self):
+        import time
+
+        matrix_size = 10_000_000
+
+        # init
+        start_time = time.time()
+        matrix = SciMatrix.identity((matrix_size, matrix_size))
+        end_time = time.time()
+        print(f"Init time: {end_time - start_time} s")
+
+        # add
+        start_time = time.time()
+        mat2 = matrix + matrix
+        end_time = time.time()
+        print(f"Add time: {end_time - start_time} s")
+
+        # sub
+        start_time = time.time()
+        mat3 = mat2 - matrix
+        end_time = time.time()
+        print(f"Sub time: {end_time - start_time} s")
+
+        # mul
+        start_time = time.time()
+        matrix *= 3.0
+        end_time = time.time()
+        print(f"Mul time: {end_time - start_time} s")
 
 
 class TestSparseMatrix(unittest.TestCase):
