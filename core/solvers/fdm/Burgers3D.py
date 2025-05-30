@@ -104,7 +104,7 @@ class Burgers3D(BaseSolver):
         self._ics["vel"].apply(self._fields["vel"])
 
         # Check boundary conditions
-        for node in self._topo.boundary_nodes_indexes:
+        for node in self._topo.boundary_nodes_indices:
             if node not in self._bcs or "vel" not in self._bcs[node]:
                 raise ValueError(f"Solver {self._id} has no boundary for {node}.")
 
@@ -146,7 +146,7 @@ class Burgers3D(BaseSolver):
         new_u = copy.deepcopy(u)
 
         # Apply boundary conditions
-        for node in self._topo.boundary_nodes_indexes:
+        for node in self._topo.boundary_nodes_indices:
             for var, bc in self._bcs.get(node, {"vel": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
@@ -154,7 +154,7 @@ class Burgers3D(BaseSolver):
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_nodes_indexes:
+        for node in self._topo.interior_nodes_indices:
             eid, wid, nid, sid, tid, bid = self._mesh.retrieve_node_neighborhoods(node)
             p = u[node]
             e, w, n, s, t, b = u[eid], u[wid], u[nid], u[sid], u[tid], u[bid]

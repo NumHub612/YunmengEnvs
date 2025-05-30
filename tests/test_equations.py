@@ -54,7 +54,7 @@ class TestSimpleEquations(unittest.TestCase):
 
         # set boundary condition
         bc_groups = []
-        for i in self._topo.boundary_nodes_indexes:
+        for i in self._topo.boundary_nodes_indices:
             bc_groups.append(self._grid.nodes[i])
 
         bc_value = Vector(1, 1)
@@ -234,7 +234,7 @@ class TestSimpleEquations(unittest.TestCase):
                     )
 
             # update boundary condition
-            for node in self._topo.boundary_nodes_indexes:
+            for node in self._topo.boundary_nodes_indices:
                 _, val = self._bc.evaluate(None, None)
                 self._var_field[node] = val
 

@@ -48,10 +48,10 @@ class Grid(Mesh):
     # --- Abandoned methods ---
     # -----------------------------------------------
 
-    def refine_cells(self, indexes: list):
+    def refine_cells(self, indices: list):
         raise NotImplementedError
 
-    def relax_cells(self, indexes: list):
+    def relax_cells(self, indices: list):
         raise NotImplementedError
 
     # -----------------------------------------------
@@ -61,7 +61,7 @@ class Grid(Mesh):
     @abstractmethod
     def match_node(self, i: int, j: int, k: int) -> int:
         """
-        Match the global node index with the local indexes.
+        Match the global node index with the local indices.
 
         Args:
             i: The local index in the x-direction.
@@ -76,7 +76,7 @@ class Grid(Mesh):
     @abstractmethod
     def match_cell(self, i: int, j: int, k: int) -> int:
         """
-        Match the global cell index with the local indexes.
+        Match the global cell index with the local indices.
 
         Args:
             i: The local index in the x-direction.
@@ -91,13 +91,13 @@ class Grid(Mesh):
     @abstractmethod
     def retrieve_node_neighborhoods(self, index: int) -> list:
         """
-        Get the neighborhood node indexes of the given node.
+        Get the neighborhood node indices of the given node.
 
         Args:
             index: The global node index.
 
         Returns:
-            - The neighborhood node global indexes sorted in the following order:
+            - The neighborhood node global indices sorted in the following order:
                 - [east, west, north, south, top, bottom]
 
         Notes:
@@ -108,13 +108,13 @@ class Grid(Mesh):
     @abstractmethod
     def retrieve_cell_neighborhoods(self, index: int) -> list:
         """
-        Get the neighborhood cell indexes of the given cell.
+        Get the neighborhood cell indices of the given cell.
 
         Args:
             index: The global cell index.
 
         Returns:
-            - The neighborhood cell global indexes sorted in the following order:
+            - The neighborhood cell global indices sorted in the following order:
                 - [east, west, north, south, top, bottom]
 
         Notes:

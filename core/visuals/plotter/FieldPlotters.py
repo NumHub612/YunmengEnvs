@@ -175,8 +175,8 @@ def _extract_mesh_data(mesh: Mesh):
         for cell in mesh.cells:
             nodes = topo.collect_cell_nodes(cell.id)
             coors = [mesh.get_node(i).coordinate for i in nodes]
-            indexes = geom.sort_anticlockwise(dict(zip(nodes, coors)))
-            cells.append([len(indexes)] + indexes)
+            indices = geom.sort_anticlockwise(dict(zip(nodes, coors)))
+            cells.append([len(indices)] + indices)
     else:
         for cell in mesh.cells:
             nodes1 = mesh.faces[cell.faces[-1]].nodes

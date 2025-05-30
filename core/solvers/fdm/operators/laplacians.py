@@ -62,7 +62,7 @@ class Lap01(IOperator):
                 variable=self._source.variable,
             )
 
-        for element in self._mesh.node_indexes:
+        for element in self._mesh.node_indices:
             neighbours = self._mesh.retrieve_node_neighborhoods(element)
             data_type = self._source.dtype
 
@@ -82,14 +82,14 @@ class Lap01(IOperator):
         neighbours: list[int],
     ) -> Scalar:
         """Excute laplacian operator on scalar field."""
-        if element in self._topo.boundary_nodes_indexes:
+        if element in self._topo.boundary_nodes_indices:
             return Scalar.zero()
 
         east, west, north, south, top, bot = neighbours
         results = []
 
-        for indexes in [(east, west), (north, south), (top, bot)]:
-            forward, backward = indexes
+        for indices in [(east, west), (north, south), (top, bot)]:
+            forward, backward = indices
             if forward is None:
                 results.append(0.0)
             else:
@@ -110,13 +110,13 @@ class Lap01(IOperator):
         neighbours: list[int],
     ) -> Vector:
         """Excute laplacian operator on vector field."""
-        if element in self._topo.boundary_nodes_indexes:
+        if element in self._topo.boundary_nodes_indices:
             return Vector.zero()
 
         east, west, north, south, top, bot = neighbours
         dists, values = [], []
-        for indexes in [(east, west), (north, south), (top, bot)]:
-            forward, backward = indexes
+        for indices in [(east, west), (north, south), (top, bot)]:
+            forward, backward = indices
             if forward is None:
                 dists.append((None, None, None))
                 values.append((None, None))

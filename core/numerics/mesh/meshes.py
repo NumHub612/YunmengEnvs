@@ -19,15 +19,10 @@ class Mesh(ABC):
     Notes:
         - Don't support isolated element.
         - Don't support non-Cartesian coordinates.
-        - The mesh must use incremental encoding.
     """
 
     def __init__(self):
         self._version = 1
-        self._nodes = []
-        self._faces = []
-        self._cells = []
-        self._groups = {}
 
         self._topo = None
         self._geom = None
@@ -37,49 +32,58 @@ class Mesh(ABC):
     # -----------------------------------------------
 
     @property
-    def node_indexes(self) -> list:
-        """Return the indexes of all nodes."""
-        return [node.id for node in self._nodes]
+    @abstractmethod
+    def node_indices(self) -> list:
+        """Return the indices of all nodes."""
+        pass
 
     @property
+    @abstractmethod
     def node_count(self) -> int:
         """Return the number of nodes."""
-        return len(self._nodes)
+        pass
 
     @property
+    @abstractmethod
     def nodes(self) -> list:
         """Return all nodes."""
-        return self._nodes
+        pass
 
     @property
-    def face_indexes(self) -> list:
-        """Return the indexes of all faces."""
-        return [face.id for face in self._faces]
+    @abstractmethod
+    def face_indices(self) -> list:
+        """Return the indices of all faces."""
+        pass
 
     @property
+    @abstractmethod
     def face_count(self) -> int:
         """Return the number of faces."""
-        return len(self._faces)
+        pass
 
     @property
+    @abstractmethod
     def faces(self) -> list:
         """Return all faces."""
-        return self._faces
+        pass
 
     @property
-    def cell_indexes(self) -> list:
-        """Return the indexes of all cells."""
-        return [cell.id for cell in self._cells]
+    @abstractmethod
+    def cell_indices(self) -> list:
+        """Return the indices of all cells."""
+        pass
 
     @property
+    @abstractmethod
     def cell_count(self) -> int:
         """Return the number of cells."""
-        return len(self._cells)
+        pass
 
     @property
+    @abstractmethod
     def cells(self) -> list:
         """Return all cells."""
-        return self._cells
+        pass
 
     @property
     def version(self) -> int:
@@ -94,67 +98,21 @@ class Mesh(ABC):
 
     @property
     @abstractmethod
-    def is_orthogonal(self) -> bool:
+    def orthogonal(self) -> bool:
         """Return True if the mesh is orthogonal."""
         pass
-
-    # -----------------------------------------------
-    # --- mesh query methods ---
-    # -----------------------------------------------
-
-    def get_node_cursor(self, node: Node) -> int:
-        """Get the cursor of the given node."""
-        for i, n in enumerate(self._nodes):
-            if n == node:
-                return i
-        return None
-
-    def get_node(self, index: int) -> Node:
-        """Get the node with the given index."""
-        for node in self._nodes:
-            if node.id == index:
-                return node
-        return None
-
-    def get_face_cursor(self, face: Face) -> int:
-        """Get the cursor of the given face."""
-        for i, f in enumerate(self._faces):
-            if f == face:
-                return i
-        return None
-
-    def get_face(self, index: int) -> Face:
-        """Get the face with the given index."""
-        for face in self._faces:
-            if face.id == index:
-                return face
-        return None
-
-    def get_cell_cursor(self, cell: Cell) -> int:
-        """Get the cursor of the given cell."""
-        for i, c in enumerate(self._cells):
-            if c == cell:
-                return i
-        return None
-
-    def get_cell(self, index: int) -> Cell:
-        """Get the cell with the given index."""
-        for cell in self._cells:
-            if cell.id == index:
-                return cell
-        return None
 
     # -----------------------------------------------
     # --- mesh modification methods ---
     # -----------------------------------------------
 
     @abstractmethod
-    def refine_cells(self, indexes: list):
+    def refine_cells(self, indices: list):
         """Refine the given cell."""
         pass
 
     @abstractmethod
-    def relax_cells(self, indexes: list):
+    def relax_cells(self, indices: list):
         """Relax the given cell."""
         pass
 
@@ -162,53 +120,20 @@ class Mesh(ABC):
     # --- additional methods ---
     # -----------------------------------------------
 
-    def set_node_group(self, group_name: str, node_indices: list):
+    @abstractmethod
+    def setnode_group(self, etype: str, group_name: str, indices: list):
         """Assign the given nodes to the given group."""
-        if group_name in self._groups:
-            raise ValueError(f"Group {group_name} already exists.")
+        pass
 
-        min_id, max_id, _ = self.get_geom_assistant().statistics_node_attribute("id")
-        for node_index in node_indices:
-            if node_index > max_id or node_index < min_id:
-                raise ValueError(f"Node index {node_index} out of range.")
-
-        self._groups[group_name] = node_indices
-
-    def set_face_group(self, group_name: str, face_indices: list):
-        """Assign the given faces to the given group."""
-        if group_name in self._groups:
-            raise ValueError(f"Group {group_name} already exists.")
-
-        min_id, max_id, _ = self.get_geom_assistant().statistics_face_attribute("id")
-        for face_index in face_indices:
-            if face_index > max_id or face_index < min_id:
-                raise ValueError(f"Face index {face_index} out of range.")
-
-        self._groups[group_name] = face_indices
-
-    def set_cell_group(self, group_name: str, cell_indices: list):
-        """Assign the given cells to the given group."""
-        if group_name in self._groups:
-            raise ValueError(f"Group {group_name} already exists.")
-
-        min_id, max_id, _ = self.get_geom_assistant().statistics_cell_attribute("id")
-        for cell_index in cell_indices:
-            if cell_index > max_id or cell_index < min_id:
-                raise ValueError(f"Cell index {cell_index} out of range.")
-
-        self._groups[group_name] = cell_indices
-
+    @abstractmethod
     def delete_group(self, group_name: str):
         """Delete the given node group."""
-        if group_name in self._groups:
-            self._groups.pop(group_name)
+        pass
 
+    @abstractmethod
     def get_group(self, group_name: str) -> list:
         """Return the element indices of given group."""
-        if group_name in self._groups:
-            return self._groups[group_name]
-        else:
-            return []
+        pass
 
     # -----------------------------------------------
     # --- extension methods ---
@@ -226,6 +151,17 @@ class Mesh(ABC):
             self._geom = MeshGeom(self)
         return self._geom
 
+    @abstractmethod
+    def save(self, file_path: str):
+        """Save the mesh to the given file path."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def load(file_path: str):
+        """Load the mesh from local."""
+        pass
+
 
 class GenericMesh(Mesh):
     """Generic mesh."""
@@ -235,8 +171,8 @@ class GenericMesh(Mesh):
 
         Args:
             nodes: The list of nodes cooridnates.
-            faces: The list of faces with their nodes indexes.
-            cells: The list of cells with their faces indexes.
+            faces: The list of faces with their nodes indices.
+            cells: The list of cells with their faces indices.
 
         Example:
             For a 2D unstructured mesh:
@@ -422,10 +358,10 @@ class GenericMesh(Mesh):
     def is_orthogonal(self) -> bool:
         return False
 
-    def refine_cells(self, indexes: list):
+    def refine_cells(self, indices: list):
         pass
 
-    def relax_cells(self, indexes: list):
+    def relax_cells(self, indices: list):
         pass
 
 
@@ -440,15 +376,15 @@ class AdaptiveRectangularMesh(GenericMesh):
 
         Args:
             nodes: The list of nodes cooridnates.
-            faces: The list of faces with their nodes indexes.
-            cells: The list of cells with their faces indexes.
+            faces: The list of faces with their nodes indices.
+            cells: The list of cells with their faces indices.
         """
         super().__init__(nodes, faces, cells)
         self._check_mesh_type()
 
-        self._max_node_id = self.node_indexes[-1]
-        self._max_face_id = self.face_indexes[-1]
-        self._max_cell_id = self.cell_indexes[-1]
+        self._max_node_id = self.node_indices[-1]
+        self._max_face_id = self.face_indices[-1]
+        self._max_cell_id = self.cell_indices[-1]
 
         self._sub_faces = {}
         for face in self.faces:
@@ -461,7 +397,7 @@ class AdaptiveRectangularMesh(GenericMesh):
         self._splited_faces = {}
         self._splited_cells = {}
 
-        self._cell_levels = {cid: 0 for cid in self.cell_indexes}
+        self._cell_levels = {cid: 0 for cid in self.cell_indices}
         self._max_level = 0
 
     def _check_mesh_type(self):
@@ -484,9 +420,9 @@ class AdaptiveRectangularMesh(GenericMesh):
     def is_orthogonal(self) -> bool:
         return True
 
-    def refine_cells(self, indexes: list):
+    def refine_cells(self, indices: list):
         for level in range(self._max_level, -1, -1):
-            for cid in indexes:
+            for cid in indices:
                 if self._cell_levels[cid] < level:
                     continue
                 self._refine_cell(cid)
@@ -495,11 +431,11 @@ class AdaptiveRectangularMesh(GenericMesh):
                 for nb in neighbours:
                     if abs(self._cell_levels[nb] - level - 1) <= 1:
                         continue
-                    if nb in indexes and self._cell_levels[nb] == level - 1:
+                    if nb in indices and self._cell_levels[nb] == level - 1:
                         continue
                     self._refine_cell(nb)
 
-        for cid in indexes:
+        for cid in indices:
             cell = self.cells[cid]
             faces = cell.faces
             adj_cells = self._topo.collect_cell_neighbours(cid)
@@ -643,10 +579,10 @@ class AdaptiveRectangularMesh(GenericMesh):
         """Refine the given 3D cell."""
         raise NotImplementedError()
 
-    def relax_cells(self, indexes: list):
+    def relax_cells(self, indices: list):
         relaxed = []
         for level in range(self._max_level, -1, -1):
-            for cid in indexes:
+            for cid in indices:
                 if self._cell_levels[cid] < level:
                     continue
                 parent = self._sub_cells[cid]["parent"]
@@ -659,7 +595,7 @@ class AdaptiveRectangularMesh(GenericMesh):
                 for nb in neighbours:
                     if abs(self._cell_levels[nb] - level + 1) <= 1:
                         continue
-                    if nb in indexes and self._cell_levels[nb] == level + 1:
+                    if nb in indices and self._cell_levels[nb] == level + 1:
                         continue
 
                     sub_parent = self._sub_cells[nb]["parent"]

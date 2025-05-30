@@ -12,18 +12,12 @@ from core.numerics.fields import (
     Tensor,
     DTYPE_MAP,
 )
+from core.numerics.mesh import ElementType
 from configs.settings import settings
 
 import numpy as np
 import torch
-import enum
-
-
-class ElementType(enum.Enum):
-    CELL = "cell"
-    FACE = "face"
-    NODE = "node"
-    NONE = "none"
+import os
 
 
 class Field:
@@ -93,28 +87,13 @@ class Field:
             values = torch.full((size, *default.shape), 0.0, dtype=fptype)
             values[:] = default.data
         else:
-            if isinstance(data, Variable):
-                if data.type != data_type:
-                    raise ValueError(f"Invalid data type: {data.type}")
-                values = torch.full((size, *data.shape), 0.0, dtype=fptype)
-                values[:] = data.data
-            elif isinstance(data, np.ndarray):
-                if data.shape != (size, *self.SHAPE_MAP[data_type]):
-                    raise ValueError(f"Invalid data shape: {data.shape}")
-                values = torch.from_numpy(data)
-            elif isinstance(data, torch.Tensor):
-                if data.shape != (size, *self.SHAPE_MAP[data_type]):
-                    raise ValueError(f"Invalid data shape: {data.shape}")
-                values = data
-            elif isinstance(data, list):
-                if len(data) > 1 and len(data) != len(gpus):
-                    raise ValueError(f"Invalid number of GPUs: {len(gpus)}")
-                num = sum(d.shape[0] for d in data)
-                if num != size:
-                    raise ValueError(f"Invalid multi-data size: {num}")
-                values = data
-            else:
-                raise TypeError(f"Invalid data type: {type(data)}")
+            values = self._check_values(
+                data,
+                data_type,
+                size,
+                self._gpus,
+                fptype,
+            )
 
         if isinstance(values, list):
             # Field tensor data checked above
@@ -126,6 +105,32 @@ class Field:
         else:
             # Single GPU or CPU
             self._values = [values.to(device)]
+
+    def _check_values(self, data, data_type, size, gpus, fptype):
+        """check if the values are valid"""
+        if isinstance(data, Variable):
+            if data.type != data_type:
+                raise ValueError(f"Invalid data type: {data.type}")
+            values = torch.full((size, *data.shape), 0.0, dtype=fptype)
+            values[:] = data.data
+        elif isinstance(data, np.ndarray):
+            if data.shape != (size, *self.SHAPE_MAP[data_type]):
+                raise ValueError(f"Invalid data shape: {data.shape}")
+            values = torch.from_numpy(data)
+        elif isinstance(data, torch.Tensor):
+            if data.shape != (size, *self.SHAPE_MAP[data_type]):
+                raise ValueError(f"Invalid data shape: {data.shape}")
+            values = data
+        elif isinstance(data, list):
+            if len(data) > 1 and len(data) != len(gpus):
+                raise ValueError(f"Invalid number of GPUs: {len(gpus)}")
+            num = sum(d.shape[0] for d in data)
+            if num != size:
+                raise ValueError(f"Invalid multi-data size: {num}")
+            values = data
+        else:
+            raise TypeError(f"Invalid data type: {type(data)}")
+        return values
 
     # -----------------------------------------------
     # --- Properties ---
@@ -205,12 +210,13 @@ class Field:
             elif values0.shape[1] == 3:
                 dtype = VariableType.VECTOR
         elif values0.ndim == 3:
-            if values0.shape[1] == 3 and values0.shape[2] == 3:
+            shape = values0.shape
+            if shape[1] == 3 and shape[2] == 3:
                 dtype = VariableType.TENSOR
-            elif values0.shape[1] == 3 and values0.shape[2] == 1:
+            elif shape[1] == 3 and shape[2] == 1:
                 dtype = VariableType.VECTOR
                 values = [value.reshape(-1, 3) for value in values]
-            elif values0.shape[1] == 1 and values0.shape[2] == 1:
+            elif shape[1] == 1 and shape[2] == 1:
                 dtype = VariableType.SCALAR
                 values = [value.reshape(-1, 1) for value in values]
         if dtype is None:
@@ -296,6 +302,18 @@ class Field:
                 )
             )
         return scalar_fields
+
+    def save(self, file_path: str):
+        """Save the field to a file."""
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        torch.save(self.data, file_path)
+
+    @staticmethod
+    def load(file_path: str, device: torch.device = None) -> "Field":
+        """Load the field from a file."""
+        data = torch.load(file_path, map_location=device)
+        return Field.from_data(data, device=device)
 
     # -----------------------------------------------
     # --- reload query methods ---

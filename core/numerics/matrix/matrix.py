@@ -13,6 +13,8 @@ from cupyx.scipy.sparse import coo_matrix
 import torch
 import numpy as np
 from typing import Any, Tuple, List
+import os
+import pickle
 from abc import abstractmethod
 
 import warnings
@@ -61,6 +63,17 @@ class Matrix:
         device: torch.device = None,
     ) -> "Matrix":
         """Create a matrix with all elements set to zero."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def save(self, file_path: str):
+        """Save the matrix to a file."""
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def load(cls, file_path: str) -> "Matrix":
+        """Load a matrix from a file."""
         raise NotImplementedError()
 
     # -----------------------------------------------
@@ -300,6 +313,18 @@ class TorchMatrix(Matrix):
         device: torch.device = None,
     ) -> "TorchMatrix":
         return cls(shape, device=device)
+
+    def save(self, file_path: str):
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        torch.save(self._values, file_path)
+
+    @classmethod
+    def load(cls, file_path: str) -> "TorchMatrix":
+        values = torch.load(file_path)
+        shape = values.shape
+        indices = values.indices()
+        return cls(shape, indices, values=values)
 
     # -----------------------------------------------
     # --- matrix methods ---
@@ -976,6 +1001,18 @@ class SciMatrix(Matrix):
         data = np.ones(shape[0])
         return SciMatrix(shape, rows, cols, data)
 
+    def save(self, file_path: str):
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+
+        with open(file_path, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load(cls, file_path: str) -> "SciMatrix":
+        with open(file_path, "rb") as f:
+            return pickle.load(f)
+
     # -----------------------------------------------
     # --- properties ---
     # -----------------------------------------------
@@ -1222,7 +1259,7 @@ class SparseMatrix(Matrix):
 
         if settings.DEVICE != "cuda" and backend == "cupy":
             backend = "torch"
-            logger.warning("Using torch backend instead of cupy for no gpu accessible.")
+            logger.warning("Using torch backend instead of cupy.")
 
         size = self.SIZE_MAP[data_type]
         if backend == "cupy":
@@ -1354,6 +1391,18 @@ class SparseMatrix(Matrix):
         device: torch.device = None,
     ) -> "Matrix":
         return cls(shape, device=device)
+
+    def save(self, file_path: str):
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+
+        with open(file_path, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load(cls, file_path: str) -> "SparseMatrix":
+        with open(file_path, "rb") as f:
+            return pickle.load(f)
 
     # -----------------------------------------------
     # --- properties ---

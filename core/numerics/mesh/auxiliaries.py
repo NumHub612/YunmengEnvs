@@ -42,29 +42,29 @@ class MeshTopo:
     # -----------------------------------------------
 
     @property
-    def boundary_nodes_indexes(self) -> list:
-        """Return the indexes of boundary nodes."""
+    def boundary_nodes_indices(self) -> list:
+        """Return the indices of boundary nodes."""
         if self._boundary_nodes is None:
             self._boundary_nodes = []
-            for fid in self.boundary_faces_indexes:
+            for fid in self.boundary_faces_indices:
                 self._boundary_nodes.extend(self._mesh.get_face(fid).nodes)
             self._boundary_nodes = list(set(self._boundary_nodes))
         return self._boundary_nodes
 
     @property
-    def interior_nodes_indexes(self) -> list:
-        """Return the indexes of interior nodes."""
+    def interior_nodes_indices(self) -> list:
+        """Return the indices of interior nodes."""
         if self._interior_nodes is None:
             self._interior_nodes = []
             for node in self._mesh.nodes:
-                if node.id not in self.boundary_nodes_indexes:
+                if node.id not in self.boundary_nodes_indices:
                     self._interior_nodes.append(node.id)
             self._interior_nodes = list(set(self._interior_nodes))
         return self._interior_nodes
 
     @property
-    def boundary_faces_indexes(self) -> list:
-        """Return the indexes of boundary faces."""
+    def boundary_faces_indices(self) -> list:
+        """Return the indices of boundary faces."""
         if self._boundary_faces is None:
             self._boundary_faces = []
             for face in self._mesh.faces:
@@ -74,32 +74,32 @@ class MeshTopo:
         return self._boundary_faces
 
     @property
-    def interior_faces_indexes(self) -> list:
-        """Return the indexes of interior faces."""
+    def interior_faces_indices(self) -> list:
+        """Return the indices of interior faces."""
         if self._interior_faces is None:
             self._interior_faces = []
             for face in self._mesh.faces:
-                if face.id not in self.boundary_faces_indexes:
+                if face.id not in self.boundary_faces_indices:
                     self._interior_faces.append(face.id)
         return self._interior_faces
 
     @property
-    def boundary_cells_indexes(self) -> list:
-        """Return the indexes of boundary cells."""
+    def boundary_cells_indices(self) -> list:
+        """Return the indices of boundary cells."""
         if self._boundary_cells is None:
             self._boundary_cells = []
-            for fid in self.boundary_faces_indexes:
+            for fid in self.boundary_faces_indices:
                 cids = self.collect_face_cells(fid)
                 self._boundary_cells.extend(cids)
         return self._boundary_cells
 
     @property
-    def interior_cells_indexes(self) -> list:
-        """Return the indexes of interior cells."""
+    def interior_cells_indices(self) -> list:
+        """Return the indices of interior cells."""
         if self._interior_cells is None:
             self._interior_cells = []
             for cell in self._mesh.cells:
-                if cell.id not in self.boundary_cells_indexes:
+                if cell.id not in self.boundary_cells_indices:
                     self._interior_cells.append(cell.id)
         return self._interior_cells
 
@@ -108,9 +108,9 @@ class MeshTopo:
     # -----------------------------------------------
 
     def collect_node_neighbours(self, node_index: int) -> list:
-        """Collect the neighbours indexes of given node."""
+        """Collect the neighbours indices of given node."""
         if self._node_neighbours is None:
-            neighbours = {nid: [] for nid in self._mesh.node_indexes}
+            neighbours = {nid: [] for nid in self._mesh.node_indices}
             if self._mesh.dimension == "1d":
                 print("Warning: 1D mesh neighbour search is going to be abandoned.")
                 for cell in self._mesh.cells:
@@ -135,7 +135,7 @@ class MeshTopo:
     def collect_face_cells(self, face_index: int) -> list:
         """Collect the cells connected to the given face."""
         if self._face_cells is None:
-            face_cells = {fid: [] for fid in self._mesh.face_indexes}
+            face_cells = {fid: [] for fid in self._mesh.face_indices}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     face_cells[fid].append(cell.id)
@@ -146,7 +146,7 @@ class MeshTopo:
     def collect_node_faces(self, node_index: int) -> list:
         """Collect the faces connected to the given node."""
         if self._node_faces is None:
-            node_faces = {nid: [] for nid in self._mesh.node_indexes}
+            node_faces = {nid: [] for nid in self._mesh.node_indices}
             for face in self._mesh.faces:
                 for nid in face.nodes:
                     node_faces[nid].append(face.id)
@@ -157,7 +157,7 @@ class MeshTopo:
     def collect_node_cells(self, node_index: int) -> list:
         """Collect the cells connected to the given node."""
         if self._node_cells is None:
-            node_cells = {nid: [] for nid in self._mesh.node_indexes}
+            node_cells = {nid: [] for nid in self._mesh.node_indices}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     for nid in self._mesh.get_face(fid).nodes:
@@ -169,7 +169,7 @@ class MeshTopo:
     def collect_cell_nodes(self, cell_index: int) -> list:
         """Collect the nodes connected to the given cell."""
         if self._cell_nodes is None:
-            cell_nodes = {cid: [] for cid in self._mesh.cell_indexes}
+            cell_nodes = {cid: [] for cid in self._mesh.cell_indices}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     for nid in self._mesh.get_face(fid).nodes:
@@ -181,7 +181,7 @@ class MeshTopo:
     def collect_cell_neighbours(self, cell_index: int) -> list:
         """Collect the neighbours of given cell."""
         if self._cell_neighbours is None:
-            cell_neighbours = {cid: [] for cid in self._mesh.cell_indexes}
+            cell_neighbours = {cid: [] for cid in self._mesh.cell_indices}
             for i in range(self._mesh.face_count):
                 cells = self.collect_face_cells(i)
                 if len(cells) == 2:
@@ -487,9 +487,9 @@ class MeshGeom:
     def calculate_cell_to_cell_distance(self, cell1: int, cell2: int) -> float:
         """Calculate the distance between the centroids of cells."""
         if self._cell_to_cell_dists is None:
-            cell_dists = {cid: {} for cid in self._mesh.cell_indexes}
+            cell_dists = {cid: {} for cid in self._mesh.cell_indices}
             topos = self._mesh.get_topo_assistant()
-            for cid in self._mesh.cell_indexes:
+            for cid in self._mesh.cell_indices:
                 for j in topos.collect_cell_neighbours(cid):
                     dist = self.calculate_distance(
                         self._mesh.get_cell(cid).coordinate,
@@ -507,7 +507,7 @@ class MeshGeom:
     def calculate_cell_to_face_distance(self, cell: int, face: int) -> float:
         """Calculate the distance between the given cell and the given face."""
         if self._cell_to_face_dists is None:
-            cell_face_dists = {cid: {} for cid in self._mesh.cell_indexes}
+            cell_face_dists = {cid: {} for cid in self._mesh.cell_indices}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     dist = self.calculate_distance(
@@ -524,9 +524,9 @@ class MeshGeom:
     def calculate_cell_to_node_distance(self, cell: int, node: int) -> float:
         """Calculate the distance between the given cell and the given node."""
         if self._cell_to_node_dists is None:
-            cell_node_dists = {cid: {} for cid in self._mesh.cell_indexes}
+            cell_node_dists = {cid: {} for cid in self._mesh.cell_indices}
             topos = self._mesh.get_topo_assistant()
-            for cid in self._mesh.cell_indexes:
+            for cid in self._mesh.cell_indices:
                 for j in topos.collect_cell_nodes(cid):
                     dist = self.calculate_distance(
                         self._mesh.get_cell(cid).coordinate,
@@ -543,9 +543,9 @@ class MeshGeom:
     def calucate_node_to_node_distance(self, node1: int, node2: int) -> float:
         """Calculate the distance between the given nodes."""
         if self._node_to_node_dists is None:
-            node_dists = {nid: {} for nid in self._mesh.node_indexes}
+            node_dists = {nid: {} for nid in self._mesh.node_indices}
             topos = self._mesh.get_topo_assistant()
-            for nid in self._mesh.node_indexes:
+            for nid in self._mesh.node_indices:
                 for j in topos.collect_node_neighbours(nid):
                     dist = self.calculate_distance(
                         self._mesh.get_node(nid).coordinate,
@@ -620,9 +620,9 @@ class MeshGeom:
             - This method is not symmetric.
         """
         if self._cell_to_cell_vects is None:
-            cell_vecs = {cid: {} for cid in self._mesh.cell_indexes}
+            cell_vecs = {cid: {} for cid in self._mesh.cell_indices}
             topos = self._mesh.get_topo_assistant()
-            for cid in self._mesh.cell_indexes:
+            for cid in self._mesh.cell_indices:
                 for j in topos.collect_cell_neighbours(cid):
                     vec_np = (
                         self._mesh.get_cell(cid).coordinate
@@ -642,7 +642,7 @@ class MeshGeom:
     def calculate_cell_to_face_vector(self, cell: int, face: int) -> Coordinate:
         """Calculate the unit vector from the given cell to the given face."""
         if self._cell_to_face_vects is None:
-            cell_face_vecs = {cid: {} for cid in self._mesh.cell_indexes}
+            cell_face_vecs = {cid: {} for cid in self._mesh.cell_indices}
             for cell in self._mesh.cells:
                 for face in cell.faces:
                     vec_np = (cell.coordinate - face.coordinate).to_np()

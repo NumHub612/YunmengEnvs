@@ -830,3 +830,10 @@ class Tensor(Variable):
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
+
+
+DTYPE_MAP = {
+    VariableType.SCALAR: Scalar,
+    VariableType.VECTOR: Vector,
+    VariableType.TENSOR: Tensor,
+}
