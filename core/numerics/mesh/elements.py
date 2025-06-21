@@ -7,6 +7,7 @@ Node, face, and cell classes for the mesh.
 from core.numerics.fields import Vector
 from dataclasses import dataclass
 import numpy as np
+import enum
 
 
 @dataclass
@@ -73,10 +74,7 @@ class Face(Element):
     Face element for the mesh.
     """
 
-    nodes: list
-    perimeter: float
-    area: float
-    normal: Vector
+    nodes: list[int]
 
 
 @dataclass
@@ -85,6 +83,4 @@ class Cell(Element):
     Cell element for the mesh.
     """
 
-    faces: list
-    surface: float
-    volume: float
+    faces: list[int]

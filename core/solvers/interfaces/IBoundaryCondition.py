@@ -4,8 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interfaces for boundary conditions at faces of a mesh.
 """
-from abc import ABC, abstractmethod
 from core.numerics.mesh import Element
+from abc import ABC, abstractmethod
 
 
 class IBoundaryCondition(ABC):

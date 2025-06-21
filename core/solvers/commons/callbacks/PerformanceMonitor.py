@@ -144,17 +144,16 @@ class PerformanceMonitor(ISolverCallback):
         self._log.info(json.dumps(solver_meta))
 
         # Log the mesh information.
-        geom = mesh.get_geom_assistant()
         mesh_info = {
-            "dimension": mesh.dimension,
-            "is_orthogonal": mesh.is_orthogonal,
+            "orthogonal": mesh.orthogonal,
             "node_count": mesh.node_count,
             "face_count": mesh.face_count,
             "cell_count": mesh.cell_count,
-            "face_area_statistic": geom.statistics_face_attribute("area"),
-            "cell_volume_statistic": geom.statistics_cell_attribute("volume"),
         }
         self._log.info(json.dumps(mesh_info))
+
+    def cleanup(self, *args, **kwargs):
+        pass
 
     def on_task_begin(self, *args, **kwargs):
         self._log.info("Task begin.")

@@ -47,6 +47,9 @@ class RenderCallback(ISolverCallback):
         if solver_meta.get("fields"):
             self._init_output_dirs(solver_meta["fields"])
 
+    def cleanup(self):
+        pass
+
     def _init_output_dirs(self, available_fields: dict):
         # prevent multiple initializations of output directories
         if self._field_dirs:

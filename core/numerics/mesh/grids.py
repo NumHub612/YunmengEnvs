@@ -4,12 +4,15 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 1d/2d/2d structured grids.
 """
-from core.numerics.mesh import Mesh, MeshGeom, Coordinate, Node, Face, Cell
-from core.numerics.fields import Vector
+from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
+from core.numerics.mesh import Coordinate, Node, Face, Cell
+from core.numerics.types import ElementType, MeshDim
 from configs.settings import logger
 
 import numpy as np
 from abc import abstractmethod
+import os
+import pickle
 
 
 class Grid(Mesh):
@@ -17,10 +20,53 @@ class Grid(Mesh):
 
     def __init__(self):
         super().__init__()
+        self._nodes = []
+        self._faces = []
+        self._cells = []
+
+        self._topo = MeshTopo(self)
+        self._geom = MeshGeom(self)
+
+        self._groups = {}
 
     # -----------------------------------------------
-    # --- Extenal grid properties ---
+    # --- properties ---
     # -----------------------------------------------
+
+    @property
+    def orthogonal(self) -> bool:
+        return True
+
+    @property
+    def node_count(self) -> int:
+        return len(self._nodes)
+
+    @property
+    def nodes(self) -> list[Node]:
+        return self._nodes
+
+    @nodes.setter
+    def nodes(self, nodes: list[Node]):
+        for node in nodes:
+            self._nodes[node.id] = node
+        self._geom.reset()
+        self._version += 1
+
+    @property
+    def face_count(self) -> int:
+        return len(self._faces)
+
+    @property
+    def faces(self) -> list[Face]:
+        return self._faces
+
+    @property
+    def cell_count(self) -> int:
+        return len(self._cells)
+
+    @property
+    def cells(self) -> list[Cell]:
+        return self._cells
 
     @property
     @abstractmethod
@@ -41,27 +87,71 @@ class Grid(Mesh):
         pass
 
     @property
-    def is_orthogonal(self) -> bool:
-        return True
+    @abstractmethod
+    def dx(self) -> float:
+        """The spacing of the grid in the x-direction."""
+        pass
+
+    @property
+    @abstractmethod
+    def dy(self) -> float:
+        """The spacing of the grid in the y-direction."""
+        pass
+
+    @property
+    @abstractmethod
+    def dz(self) -> float:
+        """The spacing of the grid in the z-direction."""
+        pass
 
     # -----------------------------------------------
-    # --- Abandoned methods ---
+    # --- methods ---
     # -----------------------------------------------
 
-    def refine_cells(self, indexes: list):
-        raise NotImplementedError
+    def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
+        return [self._nodes[i] for i in nodes_ids]
 
-    def relax_cells(self, indexes: list):
-        raise NotImplementedError
+    def get_faces(self, faces_ids: list[int]) -> list[Face]:
+        return [self._faces[i] for i in faces_ids]
 
-    # -----------------------------------------------
-    # --- Extenal grid methods ---
-    # -----------------------------------------------
+    def get_cells(self, cells_ids: list[int]) -> list[Cell]:
+        return [self._cells[i] for i in cells_ids]
+
+    def set_group(self, etype, group_name, indices):
+        if not isinstance(etype, ElementType):
+            raise ValueError("Invalid element type.")
+        if group_name in self._groups:
+            raise ValueError("Group already exists.")
+        self._groups[group_name] = (indices, etype)
+
+    def get_group(self, group_name):
+        if group_name not in self._groups:
+            raise ValueError("Group does not exist.")
+        return self._groups[group_name]
+
+    def delete_group(self, group_name):
+        if group_name in self._groups:
+            self._groups.pop(group_name)
+        else:
+            return None
+
+    def save(self, file_path: str):
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        mesh_file = os.path.join(file_path, "mesh.pkl")
+        with open(mesh_file, "wb") as f:
+            pickle.dump(self, f)
+
+    @staticmethod
+    def load(file_path: str) -> Mesh:
+        mesh_file = os.path.join(file_path, "mesh.pkl")
+        with open(mesh_file, "rb") as f:
+            mesh = pickle.load(f)
+        return mesh
 
     @abstractmethod
     def match_node(self, i: int, j: int, k: int) -> int:
         """
-        Match the global node index with the local indexes.
+        Match the global node index with the local indices.
 
         Args:
             i: The local index in the x-direction.
@@ -76,7 +166,7 @@ class Grid(Mesh):
     @abstractmethod
     def match_cell(self, i: int, j: int, k: int) -> int:
         """
-        Match the global cell index with the local indexes.
+        Match the global cell index with the local indices.
 
         Args:
             i: The local index in the x-direction.
@@ -89,36 +179,30 @@ class Grid(Mesh):
         pass
 
     @abstractmethod
-    def retrieve_node_neighborhoods(self, index: int) -> list:
+    def retrieve_node_neighbours(self, index: int) -> list:
         """
-        Get the neighborhood node indexes of the given node.
+        Get the neighbours node indices of the given node.
 
         Args:
             index: The global node index.
 
-        Returns:
-            - The neighborhood node global indexes sorted in the following order:
-                - [east, west, north, south, top, bottom]
-
         Notes:
-            - The east, north and top directions are the x-, y- and z-axes.
+            - The neighbours are sorted in the orders:
+            [east, west, north, south, top, bottom]
         """
         pass
 
     @abstractmethod
-    def retrieve_cell_neighborhoods(self, index: int) -> list:
+    def retrieve_cell_neighbours(self, index: int) -> list:
         """
-        Get the neighborhood cell indexes of the given cell.
+        Get the neighbours cell indices of the given cell.
 
         Args:
             index: The global cell index.
 
-        Returns:
-            - The neighborhood cell global indexes sorted in the following order:
-                - [east, west, north, south, top, bottom]
-
         Notes:
-            - The east, north and top directions are the x-, y-, and z-axes.
+            - The neighbour cells sorted in the orders:
+            [east, west, north, south, top, bottom]
         """
         pass
 
@@ -142,38 +226,37 @@ class Grid1D(Grid):
         """
         super().__init__()
         self._nx = num
+        self._dx = None
 
         self._generate(start, end, num)
 
     def _generate(self, start, end, num):
         # generate nodes
-        dx = (end.x - start.x) / (num - 1)
+        self._dx = (end.x - start.x) / (num - 1)
         for i in range(num):
-            x = start.x + i * dx
+            x = start.x + i * self._dx
             node = Node(i, Coordinate(x))
             self._nodes.append(node)
 
         # generate mesh
         for i in range(num):
             node1 = self._nodes[i]
-            normal = Vector(0, 1)
 
             # face
-            face1 = Face(i, node1.coordinate, [i], 1, 1, normal)
+            face1 = Face(i, node1.coordinate, [i])
             self._faces.append(face1)
 
             # cell
             if i == num - 1:
                 break
             node2 = self._nodes[i + 1]
-            length = abs(node2.coordinate.x - node1.coordinate.x)
             center = 0.5 * (node1.coordinate + node2.coordinate)
-            cell = Cell(i, center, [i, i + 1], length, length)
+            cell = Cell(i, center, [i, i + 1])
             self._cells.append(cell)
 
     @property
-    def dimension(self) -> str:
-        return "1d"
+    def dimension(self) -> MeshDim:
+        return MeshDim.DIM1
 
     @property
     def nx(self) -> int:
@@ -187,32 +270,47 @@ class Grid1D(Grid):
     def nz(self) -> int:
         return None
 
+    @property
+    def dx(self) -> float:
+        return self._dx
+
+    @property
+    def dy(self) -> float:
+        return None
+
+    @property
+    def dz(self) -> float:
+        return None
+
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Grid1D cannot be updated.")
+
     def match_node(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
     def match_cell(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
-    def retrieve_node_neighborhoods(self, index: int) -> list:
+    def retrieve_node_neighbours(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> list:
+    def retrieve_cell_neighbours(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
 
 
 class Grid2D(Grid):
-    """2D structured grid in x-y plane.
-
-    Notes:
-        - All nodes z-coordinate are set to 0.
-    """
+    """2D structured grid in x-y plane."""
 
     def __init__(
-        self, lower_left: Coordinate, upper_right: Coordinate, num_x: int, num_y: int
+        self,
+        lower_left: Coordinate,
+        upper_right: Coordinate,
+        num_x: int,
+        num_y: int,
     ):
         """
         Initialize a 2D structured grid.
@@ -228,19 +326,22 @@ class Grid2D(Grid):
         self._ur = upper_right
         self._nx = num_x
         self._ny = num_y
+        self._dx = None
+        self._dy = None
+        self._dz = None
 
         self._generate()
 
     def _generate(self):
-        dx = (self._ur.x - self._ll.x) / (self._nx - 1)
-        dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        self._dx = (self._ur.x - self._ll.x) / (self._nx - 1)
+        self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
 
         # generate nodes
         nid = 0
         for i in range(self._nx):
-            x = self._ll.x + i * dx
+            x = self._ll.x + i * self._dx
             for j in range(self._ny):
-                y = self._ll.y + j * dy
+                y = self._ll.y + j * self._dy
                 node = Node(nid, Coordinate(x, y))
                 self._nodes.append(node)
                 nid += 1
@@ -256,10 +357,7 @@ class Grid2D(Grid):
                     n_ru = self._nodes[(i + 1) * self._ny + j]
                     nodes = [n_lu.id, n_ru.id]
                     center = 0.5 * (n_lu.coordinate + n_ru.coordinate)
-                    perimeter = abs(n_ru.coordinate.x - n_lu.coordinate.x)
-                    area = perimeter
-                    normal = Vector(0, 1)
-                    face1 = Face(fid, center, nodes, perimeter, area, normal)
+                    face1 = Face(fid, center, nodes)
                     self._faces.append(face1)
                     fid += 1
 
@@ -268,10 +366,7 @@ class Grid2D(Grid):
                     n_ld = self._nodes[i * self._ny + j + 1]
                     nodes = [n_lu.id, n_ld.id]
                     center = 0.5 * (n_lu.coordinate + n_ld.coordinate)
-                    perimeter = abs(n_ld.coordinate.y - n_lu.coordinate.y)
-                    area = perimeter
-                    normal = Vector(1, 0)
-                    face2 = Face(fid, center, nodes, perimeter, area, normal)
+                    face2 = Face(fid, center, nodes)
                     self._faces.append(face2)
                     fid += 1
 
@@ -291,15 +386,13 @@ class Grid2D(Grid):
                 center = MeshGeom.calculate_center(
                     [self._faces[id].coordinate for id in faces]
                 )
-                surface = dx * dy
-                volume = surface
-                cell = Cell(cid, center, faces, surface, volume)
+                cell = Cell(cid, center, faces)
                 self._cells.append(cell)
                 cid += 1
 
     @property
-    def dimension(self) -> str:
-        return "2d"
+    def dimension(self) -> MeshDim:
+        return MeshDim.DIM2
 
     @property
     def nx(self) -> int:
@@ -312,6 +405,21 @@ class Grid2D(Grid):
     @property
     def nz(self) -> int:
         return None
+
+    @property
+    def dx(self) -> float:
+        return self._dx
+
+    @property
+    def dy(self) -> float:
+        return self._dy
+
+    @property
+    def dz(self) -> float:
+        return None
+
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Grid2D cannot be updated.")
 
     def match_node(self, i: int, j: int, k: int = None) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
@@ -327,7 +435,7 @@ class Grid2D(Grid):
         cid = i * (self._ny - 1) + j
         return cid if 0 <= cid < self.cell_count else None
 
-    def retrieve_node_neighborhoods(self, index: int) -> list:
+    def retrieve_node_neighbours(self, index: int) -> list:
         i = index // self._ny
         j = index % self._ny
 
@@ -337,7 +445,7 @@ class Grid2D(Grid):
         east = self.match_node(i + 1, j)
         return [east, west, north, south, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> list:
+    def retrieve_cell_neighbours(self, index: int) -> list:
         i = index // (self._ny - 1)
         j = index % (self._ny - 1)
 
@@ -375,22 +483,25 @@ class Grid3D(Grid):
         self._nx = num_x
         self._ny = num_y
         self._nz = num_z
+        self._dx = None
+        self._dy = None
+        self._dz = None
 
         self._generate()
 
     def _generate(self):
-        dx = (self._ur.x - self._ll.x) / (self._nx - 1)
-        dy = (self._ur.y - self._ll.y) / (self._ny - 1)
-        dz = (self._ur.z - self._ll.z) / (self._nz - 1)
+        self._dx = (self._ur.x - self._ll.x) / (self._nx - 1)
+        self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        self._dz = (self._ur.z - self._ll.z) / (self._nz - 1)
 
         # generate nodes
         nid = 0
         for k in range(self._nz):
-            z = self._ll.z + k * dz
+            z = self._ll.z + k * self._dz
             for j in range(self._ny):
-                y = self._ll.y + j * dy
+                y = self._ll.y + j * self._dy
                 for i in range(self._nx):
-                    x = self._ll.x + i * dx
+                    x = self._ll.x + i * self._dx
                     node = Node(nid, Coordinate(x, y, z))
                     self._nodes.append(node)
                     nid += 1
@@ -412,10 +523,7 @@ class Grid3D(Grid):
                     center = MeshGeom.calculate_center(
                         [self._nodes[id].coordinate for id in nodes]
                     )
-                    perimeter = 2 * dy + 2 * dz
-                    area = dy * dz
-                    normal = Vector(1, 0, 0)
-                    face = Face(fid, center, nodes, perimeter, area, normal)
+                    face = Face(fid, center, nodes)
                     self._faces.append(face)
                     fid += 1
 
@@ -433,10 +541,7 @@ class Grid3D(Grid):
                     center = MeshGeom.calculate_center(
                         [self._nodes[id].coordinate for id in nodes]
                     )
-                    perimeter = 2 * dx + 2 * dz
-                    area = dx * dz
-                    normal = Vector(0, 1, 0)
-                    face = Face(fid, center, nodes, perimeter, area, normal)
+                    face = Face(fid, center, nodes)
                     self._faces.append(face)
                     fid += 1
 
@@ -452,10 +557,7 @@ class Grid3D(Grid):
                     center = MeshGeom.calculate_center(
                         [self._nodes[id].coordinate for id in nodes]
                     )
-                    perimeter = 2 * dx + 2 * dy
-                    area = dx * dy
-                    normal = Vector(0, 0, 1)
-                    face = Face(fid, center, nodes, perimeter, area, normal)
+                    face = Face(fid, center, nodes)
                     self._faces.append(face)
                     fid += 1
 
@@ -505,15 +607,13 @@ class Grid3D(Grid):
                     center = MeshGeom.calculate_center(
                         [self._faces[id].coordinate for id in faces]
                     )
-                    surface = 2 * dx * dy + 2 * dy * dz + 2 * dx * dz
-                    volume = dx * dy * dz
-                    cell = Cell(cid, center, faces, surface, volume)
+                    cell = Cell(cid, center, faces)
                     self._cells.append(cell)
                     cid += 1
 
     @property
-    def dimension(self) -> str:
-        return "3d"
+    def dimension(self) -> MeshDim:
+        return MeshDim.DIM3
 
     @property
     def nx(self) -> int:
@@ -526,6 +626,21 @@ class Grid3D(Grid):
     @property
     def nz(self) -> int:
         return self._nz
+
+    @property
+    def dx(self) -> float:
+        return self._dx
+
+    @property
+    def dy(self) -> float:
+        return self._dy
+
+    @property
+    def dz(self) -> float:
+        return self._dz
+
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Grid3D cannot be updated.")
 
     def match_node(self, i: int, j: int, k: int) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny or k < 0 or k >= self._nz:
@@ -546,7 +661,7 @@ class Grid3D(Grid):
 
         return k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i
 
-    def retrieve_node_neighborhoods(self, index: int) -> list:
+    def retrieve_node_neighbours(self, index: int) -> list:
         k = index // (self._nx * self._ny)
         j = (index - k * self._nx * self._ny) // self._nx
         i = index % self._nx
@@ -559,7 +674,7 @@ class Grid3D(Grid):
         up = self.match_node(i, j, k + 1)
         return [east, west, north, south, up, down]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> list:
+    def retrieve_cell_neighbours(self, index: int) -> list:
         k = index // ((self._nx - 1) * (self._ny - 1))
         j = (index - k * (self._nx - 1) * (self._ny - 1)) // (self._nx - 1)
         i = (index - k * (self._nx - 1) * (self._ny - 1)) % (self._nx - 1)
