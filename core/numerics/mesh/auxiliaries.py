@@ -4,10 +4,10 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh import Coordinate, Element, Cell, MeshDim
+from core.numerics.mesh import Coordinate, Element, Cell
 from core.numerics.fields import Vector, Field
+from core.numerics.types import MeshDim
 import numpy as np
-import torch
 import math
 
 

@@ -4,26 +4,15 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh import Coordinate, Node, Face, Cell, ElementType
-from core.numerics.mesh.auxiliaries import MeshTopo, MeshGeom
-from core.numerics.fields import Vector
-from configs.settings import settings
+from core.numerics.mesh import Coordinate, Node, Face, Cell
+from core.numerics.mesh import MeshTopo, MeshGeom
+from core.numerics.types import MeshDim, ElementType
 
 from abc import ABC, abstractmethod
 import numpy as np
-import enum
 import torch
 import os
 import pickle
-
-
-class MeshDim(enum.Enum):
-    """The dimension of the mesh."""
-
-    DIM1 = "1d"
-    DIM2 = "2d"
-    DIM3 = "3d"
-    NONE = "none"
 
 
 class Mesh(ABC):

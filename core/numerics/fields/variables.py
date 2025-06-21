@@ -359,13 +359,13 @@ class Vector(Variable):
         return Vector.from_data(-self._value)
 
     def __abs__(self):
-        return Vector.from_data(torch.abs(self._value))
+        return Vector.from_data(np.abs(self._value))
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Vector):
             return False
 
-        return torch.allclose(self._value, other.data, atol=settings.TOLERANCE)
+        return np.allclose(self._value, other.data, atol=settings.TOLERANCE)
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
@@ -377,7 +377,7 @@ class Scalar(Variable):
     """
 
     def __init__(self, value: float = 0.0):
-        self._value = value
+        self._value = np.array([value], dtype=np.float64)
         self._magtitude = abs(value)
 
     # -----------------------------------------------
@@ -434,7 +434,7 @@ class Scalar(Variable):
 
     @property
     def value(self) -> float:
-        return self._value
+        return self._value[0]
 
     # -----------------------------------------------
     # --- reload arithmetic operations ---
@@ -797,7 +797,7 @@ class Tensor(Variable):
             raise TypeError(f"Invalid Tensor idiv(): {type(other)}.")
 
     def __abs__(self):
-        return Tensor.from_data(torch.abs(self._value))
+        return Tensor.from_data(np.allclose(self._value))
 
     def __neg__(self):
         return Tensor.from_data(-self._value)
@@ -806,7 +806,7 @@ class Tensor(Variable):
         if not isinstance(other, Tensor):
             return False
 
-        return torch.allclose(
+        return np.allclose(
             self._value,
             other.data,
             atol=settings.TOLERANCE,

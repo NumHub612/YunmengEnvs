@@ -84,12 +84,3 @@ class Cell(Element):
     """
 
     faces: list[int]
-
-
-class ElementType(enum.Enum):
-    """The element type."""
-
-    CELL = "cell"
-    FACE = "face"
-    NODE = "node"
-    NONE = "none"

@@ -12,7 +12,7 @@ from core.numerics.fields import (
     Tensor,
     DTYPE_MAP,
 )
-from core.numerics.mesh import ElementType
+from core.numerics.types import ElementType
 from configs.settings import settings
 
 import numpy as np
