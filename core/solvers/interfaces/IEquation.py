@@ -10,10 +10,10 @@ provide standardized, configurable numerical discretization schemes, which
 are also driven by the `Solver`.
 For known problems, more efficient solver can be directly developed.
 """
-from abc import ABC, abstractmethod
-from core.numerics.fields import Field, Variable
-from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
 from core.numerics.matrix import LinearEqs
+from core.numerics.fields import Field
+from core.numerics.mesh import Mesh
+from abc import ABC, abstractmethod
 
 
 class IEquation(ABC):

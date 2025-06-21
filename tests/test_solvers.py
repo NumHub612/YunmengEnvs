@@ -1,6 +1,6 @@
 from core.numerics.mesh import Grid1D, Grid2D, Grid3D, Coordinate, Node, Mesh
 from core.numerics.mesh import MeshTopo
-from core.numerics.fields import NodeField, Scalar, Vector
+from core.numerics.fields import NodeField, Scalar, Vector, VariableType
 from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fdm
 from core.utils.SympifyNumExpr import lambdify_numexpr
@@ -44,7 +44,7 @@ class TestBurgers(unittest.TestCase):
         nu = 0.07
 
         def ic_func(mesh: Mesh):
-            field = NodeField(mesh.node_count, "scalar")
+            field = NodeField(mesh.node_count, VariableType.SCALAR)
             for i in range(mesh.node_count):
                 x = mesh.nodes[i].coordinate.x
                 value = Scalar(func(0.0, x, nu))
@@ -95,7 +95,7 @@ class TestBurgers(unittest.TestCase):
 
         # get solution
         u_simu = solver.get_solution("u")
-        u_simu = np.asarray([var.value for var in u_simu])
+        u_simu = u_simu.to_np()
         u_real = np.asarray([func(total_time, x, nu) for x in xs])
 
         # plot solution
@@ -127,12 +127,12 @@ class TestBurgers(unittest.TestCase):
 
         topo = MeshTopo(grid)
         bc_groups = []
-        for i in topo.boundary_nodes_indexes:
+        for i in topo.boundary_nodes:
             bc_groups.append(grid.nodes[i])
 
         # set initial condition
         node_num = grid.node_count
-        init_field = NodeField(node_num, "vector", Vector(1, 1))
+        init_field = NodeField(node_num, VariableType.VECTOR, Vector(1, 1))
         for i in init_groups:
             init_field[i] = Vector(2, 2)
 
@@ -186,12 +186,12 @@ class TestBurgers(unittest.TestCase):
                     node_index_groups.append(grid.match_node(i, j, k))
 
         bc_node_groups = []
-        for b in topo.boundary_nodes_indexes:
+        for b in topo.boundary_nodes:
             bc_node_groups.append(grid.nodes[b])
 
         # set initial condition
         node_num = grid.node_count
-        init_field = NodeField(node_num, "vector", Vector(0, 0, 0))
+        init_field = NodeField(node_num, VariableType.VECTOR, Vector(0, 0, 0))
         for i in node_index_groups:
             init_field[i] = Vector(-2, 2, 2)
 
@@ -243,8 +243,8 @@ class TestBurgers(unittest.TestCase):
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
-        suit.addTest(TestBurgers("test_burgers_1d"))
-        # suit.addTest(TestBurgers("test_burgers_2d"))
+        # suit.addTest(TestBurgers("test_burgers_1d"))
+        suit.addTest(TestBurgers("test_burgers_2d"))
         # suit.addTest(TestBurgers("test_burgers_3d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
