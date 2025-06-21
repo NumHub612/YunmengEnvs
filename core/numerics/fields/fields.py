@@ -372,7 +372,7 @@ class Field:
             value = value.data
 
         for dev, idx in local_indices:
-            self._values[dev][idx] = value
+            self._values[dev][idx] = torch.tensor(value)
 
     def __len__(self) -> int:
         return self._size

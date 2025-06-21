@@ -7,6 +7,16 @@ Type definitions for numerical computations.
 import enum
 
 
+class VariableType(enum.Enum):
+    """
+    Variable type enumeration.
+    """
+
+    SCALAR = "scalar"
+    VECTOR = "vector"
+    TENSOR = "tensor"
+
+
 class ElementType(enum.Enum):
     """The element type."""
 

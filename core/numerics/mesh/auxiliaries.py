@@ -305,6 +305,7 @@ class MeshGeom:
         self._cell2cell_dists = None
         self._cell2face_dists = None
         self._cell2node_dists = None
+        self._node2node_dists = None
 
         self._face_areas = None
         self._face_perimeters = None
@@ -665,6 +666,21 @@ class MeshGeom:
                     cell_node_dists[cell.id][node.id] = dist
             self._cell2node_dists = cell_node_dists
         return self._cell2node_dists
+
+    @property
+    def node2node_distances(self) -> dict:
+        """Return the distances between each pair of nodes."""
+        if self._node2node_dists is None:
+            node_dists = {n.id: {} for n in self._mesh.nodes}
+            for node in self._mesh.nodes:
+                neighbours = self._topo.node_neighbours[node.id]
+                neighbours = self._mesh.get_nodes(neighbours)
+                for nb in neighbours:
+                    dist = self.calculate_distance(node, nb)
+                    node_dists[node.id][nb.id] = dist
+                    node_dists[nb.id][node.id] = dist
+            self._node2node_dists = node_dists
+        return self._node2node_dists
 
     # -----------------------------------------------
     # --- vector properties ---

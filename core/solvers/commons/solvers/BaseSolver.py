@@ -79,13 +79,13 @@ class BaseSolver(ISolver):
             if not isinstance(elem, (Node, Face, Cell)):
                 raise ValueError(f"Invalid element: {elem}")
             if isinstance(elem, Node):
-                if elem.id < 0 or elem.id > max(self._mesh.node_indices):
+                if elem.id < 0 or elem.id > self._mesh.node_count:
                     raise ValueError(f"Invalid node id: {elem.id}")
             elif isinstance(elem, Face):
-                if elem.id < 0 or elem.id > max(self._mesh.face_indices):
+                if elem.id < 0 or elem.id > self._mesh.face_count:
                     raise ValueError(f"Invalid face id: {elem.id}")
             elif isinstance(elem, Cell):
-                if elem.id < 0 or elem.id > max(self._mesh.cell_indices):
+                if elem.id < 0 or elem.id > self._mesh.cell_count:
                     raise ValueError(f"Invalid cell id: {elem.id}")
 
             if elem.id not in self._bcs:

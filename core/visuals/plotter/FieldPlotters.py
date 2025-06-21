@@ -4,9 +4,25 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Plotters for visualizing the fluid fields.
 """
-from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
-from core.numerics.fields import Field
+from core.numerics.mesh import Mesh, MeshTopo, MeshGeom, MeshDim
+from core.numerics.fields import Field, VariableType
 from core.visuals.plotter import PlotKits
+import numpy as np
+
+
+def extract_coordinates(mesh, element_type: str) -> np.ndarray:
+    """Extract the coordinates of all elements."""
+    etype = element_type.lower()
+    if etype not in ["node", "cell", "face"]:
+        raise ValueError(f"Invalid element type: {etype}.")
+    elements_map = {
+        "node": mesh.nodes,
+        "cell": mesh.cells,
+        "face": mesh.faces,
+    }
+    elements = elements_map.get(etype)
+    coordinates = np.array([e.coordinate.to_np() for e in elements])
+    return coordinates
 
 
 def plot_mesh(
@@ -88,14 +104,14 @@ def plot_field(
     """
     # extract the mesh data
     cells, points, points_splited = _extract_mesh_data(mesh)
-    mesh_domain = "point" if field.etype == "node" else "cell"
-    mesh_type = mesh.dimension
+    mesh_domain = "point" if field.etype.value == "node" else "cell"
+    mesh_type = mesh.dimension.value
 
     # extract the field data
     data, data_map = _extract_field_data(field)
 
     # plot net
-    if mesh.dimension == "1d":
+    if mesh.dimension == MeshDim.DIM1:
         x = points_splited.get(dimension)
         y = {
             f"{label}_{dimension}": {
@@ -167,7 +183,7 @@ def _extract_mesh_data(mesh: Mesh):
     topo, geom = MeshTopo(mesh), MeshGeom(mesh)
 
     # extract the points
-    points = geom.extract_coordinates("node")
+    points = extract_coordinates(mesh, "node")
     points_splited = {"x": points[:, 0], "y": points[:, 1], "z": points[:, 2]}
 
     cells = []
@@ -199,9 +215,9 @@ def _extract_field_data(field: Field):
     """
     values = field.to_np()
 
-    if field.dtype == "scalar":
+    if field.dtype == VariableType.SCALAR:
         return values, {"x": values, "y": values, "z": values}
-    elif field.dtype == "vector":
+    elif field.dtype == VariableType.VECTOR:
         us = values[:, 0]
         vs = values[:, 1]
         ws = values[:, 2]

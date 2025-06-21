@@ -86,6 +86,24 @@ class Grid(Mesh):
         """The number of discretization size in the z-direction."""
         pass
 
+    @property
+    @abstractmethod
+    def dx(self) -> float:
+        """The spacing of the grid in the x-direction."""
+        pass
+
+    @property
+    @abstractmethod
+    def dy(self) -> float:
+        """The spacing of the grid in the y-direction."""
+        pass
+
+    @property
+    @abstractmethod
+    def dz(self) -> float:
+        """The spacing of the grid in the z-direction."""
+        pass
+
     # -----------------------------------------------
     # --- methods ---
     # -----------------------------------------------
@@ -208,14 +226,15 @@ class Grid1D(Grid):
         """
         super().__init__()
         self._nx = num
+        self._dx = None
 
         self._generate(start, end, num)
 
     def _generate(self, start, end, num):
         # generate nodes
-        dx = (end.x - start.x) / (num - 1)
+        self._dx = (end.x - start.x) / (num - 1)
         for i in range(num):
-            x = start.x + i * dx
+            x = start.x + i * self._dx
             node = Node(i, Coordinate(x))
             self._nodes.append(node)
 
@@ -249,6 +268,18 @@ class Grid1D(Grid):
 
     @property
     def nz(self) -> int:
+        return None
+
+    @property
+    def dx(self) -> float:
+        return self._dx
+
+    @property
+    def dy(self) -> float:
+        return None
+
+    @property
+    def dz(self) -> float:
         return None
 
     def update(self, mask_indices: list[int]):
@@ -295,19 +326,22 @@ class Grid2D(Grid):
         self._ur = upper_right
         self._nx = num_x
         self._ny = num_y
+        self._dx = None
+        self._dy = None
+        self._dz = None
 
         self._generate()
 
     def _generate(self):
-        dx = (self._ur.x - self._ll.x) / (self._nx - 1)
-        dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        self._dx = (self._ur.x - self._ll.x) / (self._nx - 1)
+        self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
 
         # generate nodes
         nid = 0
         for i in range(self._nx):
-            x = self._ll.x + i * dx
+            x = self._ll.x + i * self._dx
             for j in range(self._ny):
-                y = self._ll.y + j * dy
+                y = self._ll.y + j * self._dy
                 node = Node(nid, Coordinate(x, y))
                 self._nodes.append(node)
                 nid += 1
@@ -370,6 +404,18 @@ class Grid2D(Grid):
 
     @property
     def nz(self) -> int:
+        return None
+
+    @property
+    def dx(self) -> float:
+        return self._dx
+
+    @property
+    def dy(self) -> float:
+        return self._dy
+
+    @property
+    def dz(self) -> float:
         return None
 
     def update(self, mask_indices: list[int]):
@@ -437,22 +483,25 @@ class Grid3D(Grid):
         self._nx = num_x
         self._ny = num_y
         self._nz = num_z
+        self._dx = None
+        self._dy = None
+        self._dz = None
 
         self._generate()
 
     def _generate(self):
-        dx = (self._ur.x - self._ll.x) / (self._nx - 1)
-        dy = (self._ur.y - self._ll.y) / (self._ny - 1)
-        dz = (self._ur.z - self._ll.z) / (self._nz - 1)
+        self._dx = (self._ur.x - self._ll.x) / (self._nx - 1)
+        self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        self._dz = (self._ur.z - self._ll.z) / (self._nz - 1)
 
         # generate nodes
         nid = 0
         for k in range(self._nz):
-            z = self._ll.z + k * dz
+            z = self._ll.z + k * self._dz
             for j in range(self._ny):
-                y = self._ll.y + j * dy
+                y = self._ll.y + j * self._dy
                 for i in range(self._nx):
-                    x = self._ll.x + i * dx
+                    x = self._ll.x + i * self._dx
                     node = Node(nid, Coordinate(x, y, z))
                     self._nodes.append(node)
                     nid += 1
@@ -577,6 +626,18 @@ class Grid3D(Grid):
     @property
     def nz(self) -> int:
         return self._nz
+
+    @property
+    def dx(self) -> float:
+        return self._dx
+
+    @property
+    def dy(self) -> float:
+        return self._dy
+
+    @property
+    def dz(self) -> float:
+        return self._dz
 
     def update(self, mask_indices: list[int]):
         raise NotImplementedError("Grid3D cannot be updated.")

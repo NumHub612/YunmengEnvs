@@ -6,8 +6,8 @@ Solving the 1D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
 from core.solvers.commons import inits
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.fields import NodeField, Scalar
+from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, MeshDim
+from core.numerics.fields import NodeField, Scalar, VariableType
 
 import copy
 import time
@@ -54,14 +54,14 @@ class Burgers1D(BaseSolver):
         Constructor of the Burgers1D solver.
         """
         super().__init__(id, mesh)
-        if mesh.dimension != "1d":
+        if mesh.dimension != MeshDim.DIM1:
             raise ValueError("The dimension of the mesh must be 1D.")
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
 
         self._default_ic = inits.UniformInitialization("default", Scalar(0.0))
-        self._fields = {"u": NodeField(mesh.node_count, "scalar")}
+        self._fields = {"u": NodeField(mesh.node_count, VariableType.SCALAR)}
 
         self._total_time = 0.0
         self._dt = 0.0
@@ -97,7 +97,7 @@ class Burgers1D(BaseSolver):
         # initialize parameters
         self._nu = nu
 
-        min_dx, _, _ = self._geom.statistics_cell_attribute("volume")
+        min_dx = self._mesh.dx
         self._dt = nu * min_dx
         self._total_time = time_steps * self._dt
         self._t = 0.0
@@ -125,7 +125,7 @@ class Burgers1D(BaseSolver):
         new_u = copy.deepcopy(u)
 
         # Apply boundary conditions
-        for node in self._topo.boundary_node_indices:
+        for node in self._topo.boundary_nodes:
             for var, bc in self._bcs.get(node, {"u": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
@@ -133,13 +133,13 @@ class Burgers1D(BaseSolver):
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_node_indices:
-            lnode, rnode = self._topo.collect_node_neighbours(node)
+        for node in self._topo.interior_nodes:
+            lnode, rnode = self._mesh.retrieve_node_neighbours(node)[:2]
             if lnode > rnode:
                 lnode, rnode = rnode, lnode
 
-            ldist = self._geom.calucate_node_to_node_distance(node, lnode)
-            rdist = self._geom.calucate_node_to_node_distance(node, rnode)
+            ldist = self._mesh.dx
+            rdist = self._mesh.dx
             new_u[node] = (
                 u[node]
                 - u[node] * self._dt / ldist * (u[node] - u[lnode])

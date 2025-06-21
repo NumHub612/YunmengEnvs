@@ -7,19 +7,9 @@ Variables definition.
 from abc import abstractmethod
 import numpy as np
 import torch
-import enum
 
 from configs.settings import settings
-
-
-class VariableType(enum.Enum):
-    """
-    Variable type enumeration.
-    """
-
-    SCALAR = "scalar"
-    VECTOR = "vector"
-    TENSOR = "tensor"
+from core.numerics.types import VariableType
 
 
 class Variable:

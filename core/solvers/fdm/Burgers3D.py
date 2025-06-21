@@ -6,7 +6,7 @@ Solving the 3D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
 from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.fields import NodeField
+from core.numerics.fields import NodeField, VariableType
 from core.numerics.mesh import Grid3D
 from configs.settings import logger
 
@@ -95,7 +95,7 @@ class Burgers3D(BaseSolver):
             time_steps: The total time steps of the simulation.
             nu: The viscosity of the Burgers equation.
         """
-        self._fields = {"vel": NodeField(self._mesh.node_count, "vector")}
+        self._fields = {"vel": NodeField(self._mesh.node_count, VariableType.VECTOR)}
 
         # Check initial conditions
         if "vel" not in self._ics:
@@ -104,20 +104,16 @@ class Burgers3D(BaseSolver):
         self._ics["vel"].apply(self._fields["vel"])
 
         # Check boundary conditions
-        for node in self._topo.boundary_node_indices:
+        for node in self._topo.boundary_nodes:
             if node not in self._bcs or "vel" not in self._bcs[node]:
                 raise ValueError(f"Solver {self._id} has no boundary for {node}.")
 
         # Init configs
         self._nu = nu
         self._sigma = sigma
-
-        min_x, max_x, _ = self._geom.statistics_node_attribute("x")
-        min_y, max_y, _ = self._geom.statistics_node_attribute("y")
-        min_z, max_z, _ = self._geom.statistics_node_attribute("z")
-        self._dx = (max_x - min_x) / self._mesh.nx
-        self._dy = (max_y - min_y) / self._mesh.ny
-        self._dz = (max_z - min_z) / self._mesh.nz
+        self._dx = self._mesh.dx
+        self._dy = self._mesh.dy
+        self._dz = self._mesh.dz
 
         self._dt = sigma * self._dx
         self._total_time = time_steps * self._dt
@@ -146,7 +142,7 @@ class Burgers3D(BaseSolver):
         new_u = copy.deepcopy(u)
 
         # Apply boundary conditions
-        for node in self._topo.boundary_node_indices:
+        for node in self._topo.boundary_nodes:
             for var, bc in self._bcs.get(node, {"vel": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
@@ -154,8 +150,8 @@ class Burgers3D(BaseSolver):
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_node_indices:
-            eid, wid, nid, sid, tid, bid = self._mesh.retrieve_node_neighborhoods(node)
+        for node in self._topo.interior_nodes:
+            eid, wid, nid, sid, tid, bid = self._mesh.retrieve_node_neighbours(node)
             p = u[node]
             e, w, n, s, t, b = u[eid], u[wid], u[nid], u[sid], u[tid], u[bid]
 
