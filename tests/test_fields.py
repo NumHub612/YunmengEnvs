@@ -211,7 +211,7 @@ class TestFields(unittest.TestCase):
             )
             index = 50
             var = DTYPE_MAP[dtype].from_data(data[index])
-            self.assertTrue(torch.allclose(field2[index].data, var.data))
+            self.assertTrue(np.allclose(field2[index].data, var.data))
 
     def performance_test(self):
         size = 10_000_000
