@@ -251,6 +251,9 @@ class Grid1D(Grid):
     def nz(self) -> int:
         return None
 
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Grid1D cannot be updated.")
+
     def match_node(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
@@ -368,6 +371,9 @@ class Grid2D(Grid):
     @property
     def nz(self) -> int:
         return None
+
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Grid2D cannot be updated.")
 
     def match_node(self, i: int, j: int, k: int = None) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
@@ -570,6 +576,9 @@ class Grid3D(Grid):
     @property
     def nz(self) -> int:
         return self._nz
+
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Grid3D cannot be updated.")
 
     def match_node(self, i: int, j: int, k: int) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny or k < 0 or k >= self._nz:

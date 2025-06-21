@@ -4,8 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh import Coordinate, Node, Face, Cell
-from core.numerics.mesh import MeshTopo, MeshGeom
+from core.numerics.mesh.elements import Coordinate, Node, Face, Cell
+from core.numerics.mesh.auxiliaries import MeshTopo, MeshGeom
 from core.numerics.types import MeshDim, ElementType
 
 from abc import ABC, abstractmethod
@@ -225,14 +225,16 @@ class GenericMesh(Mesh):
 
     def _generate_nodes(self, nodes: list):
         """Generate the nodes of the mesh."""
-        nodes = []
+        results = [None] * len(nodes)
         for i, coor in enumerate(nodes):
             # id is index.
-            self._nodes.append(Node(i, Coordinate(*coor)))
+            results[i] = Node(i, Coordinate(*coor))
+        return results
 
     def _generate_faces(self, faces: list):
         """Generate the faces of the mesh."""
         normals = []
+        results = [None] * len(faces)
         for i, node_ids in enumerate(faces):
             coors = {j: self._nodes[j].coordinate for j in node_ids}
             center = MeshGeom.calculate_center(list(coors.values()))
@@ -246,14 +248,16 @@ class GenericMesh(Mesh):
                 normals.append(normal)
 
             # id is index.
-            self._faces.append(Face(i, center, node_ids))
+            results[i] = Face(i, center, node_ids)
 
         if normals and all(sum(n) == 1 for n in normals):
             self._orthogonal = True
+        return results
 
     def _generate_cells(self, cells: list):
         """Generate the cells of the mesh."""
         normals = []
+        results = [None] * len(cells)
         for i, face_ids in enumerate(cells):
             faces = [self._faces[j] for j in face_ids]
             coors = {face.id: face.coordinate for face in faces}
@@ -269,10 +273,11 @@ class GenericMesh(Mesh):
                     raise ValueError("Unsupported cell type.")
 
             # id is index.
-            self._cells.append(Cell(i, center, face_ids))
+            results[i] = Cell(i, center, face_ids)
 
         if normals and all(sum(n) == 1 for n in normals):
             self._orthogonal = True
+        return results
 
     def _calculate_plane_normal(self, coors: list) -> tuple:
         """Calculate the normal of the plane"""
@@ -338,6 +343,9 @@ class GenericMesh(Mesh):
     # -----------------------------------------------
     # --- methods ---
     # -----------------------------------------------
+
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Generic mesh cannot be updated.")
 
     def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
         return [self._nodes[i] for i in nodes_ids]

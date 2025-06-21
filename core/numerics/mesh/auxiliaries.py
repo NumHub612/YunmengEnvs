@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh import Coordinate, Element, Cell
+from core.numerics.mesh.elements import Coordinate, Element, Cell
 from core.numerics.fields import Vector, Field
 from core.numerics.types import MeshDim
 import numpy as np
@@ -73,7 +73,7 @@ class MeshTopo:
         if self._boundary_faces is None:
             bound_faces = []
             for face in self._mesh.faces:
-                if len(self.face_cells(face.id)) == 1:
+                if len(self.face_cells[face.id]) == 1:
                     bound_faces.append(face.id)
             self._boundary_faces = bound_faces
         return self._boundary_faces
@@ -173,7 +173,7 @@ class MeshTopo:
             cell_nodes = {c.id: set() for c in self._mesh.cells}
             for cell in self._mesh.cells:
                 for fid in cell.faces:
-                    for nid in face_nodes:
+                    for nid in face_nodes[fid]:
                         cell_nodes[cell.id].add(nid)
             self._cell_nodes = cell_nodes
         return self._cell_nodes
@@ -184,6 +184,7 @@ class MeshTopo:
         if self._cell_neighbours is None:
             cell_neighbours = {c.id: set() for c in self._mesh.cells}
             for cells in self.face_cells.values():
+                cells = list(cells)
                 if len(cells) == 2:
                     cell_neighbours[cells[0]].add(cells[1])
                     cell_neighbours[cells[1]].add(cells[0])
@@ -325,10 +326,10 @@ class MeshGeom:
     ) -> float:
         """Calculate the distance between two coordinates."""
         if isinstance(point1, Element):
-            coord1 = point1.coordinate
+            point1 = point1.coordinate
         if isinstance(point2, Element):
-            coord2 = point2.coordinate
-        return np.linalg.norm(coord1.to_np() - coord2.to_np())
+            point2 = point2.coordinate
+        return np.linalg.norm(point1.to_np() - point2.to_np())
 
     @staticmethod
     def calculate_center(points: list) -> Coordinate:

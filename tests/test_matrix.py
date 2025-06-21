@@ -824,8 +824,8 @@ if __name__ == "__main__":
         # suit = unittest.TestLoader().loadTestsFromTestCase(TestCupyMatrix)
         # runner.run(suit)
 
-        # suit = unittest.TestLoader().loadTestsFromTestCase(TestSciMatrix)
-        # runner.run(suit)
+        suit = unittest.TestLoader().loadTestsFromTestCase(TestSciMatrix)
+        runner.run(suit)
 
-        # suit = unittest.TestLoader().loadTestsFromTestCase(TestSparseMatrix)
-        # runner.run(suit)
+        suit = unittest.TestLoader().loadTestsFromTestCase(TestSparseMatrix)
+        runner.run(suit)
