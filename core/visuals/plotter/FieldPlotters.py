@@ -47,7 +47,7 @@ def plot_mesh(
         slice_set: Slice style and configs.
     """
     cells, points, _ = _extract_mesh_data(mesh)
-    mesh_type = mesh.dimension
+    mesh_type = mesh.dimension.value
 
     PlotKits.plot_mesh_geometry(
         points,
@@ -158,11 +158,11 @@ def plot_field(
             label=label,
             **kwargs,
         )
-    elif style == "streamplot" and field.dtype == "vector":
+    elif style == "streamplot" and field.dtype.value == "vector":
         PlotKits.plot_mesh_streamplot(
             points,
             cells,
-            mesh.dimension,
+            mesh.dimension.value,
             data,
             mesh_domain,
             save_dir=save_dir,
@@ -187,11 +187,12 @@ def _extract_mesh_data(mesh: Mesh):
     points_splited = {"x": points[:, 0], "y": points[:, 1], "z": points[:, 2]}
 
     cells = []
-    if mesh.dimension == "2d":
+    if mesh.dimension.value == "2d":
         for cell in mesh.cells:
-            nodes = topo.collect_cell_nodes(cell.id)
-            coors = [mesh.get_node(i).coordinate for i in nodes]
-            indices = geom.sort_anticlockwise(dict(zip(nodes, coors)))
+            node_ids = topo.cell_nodes[cell.id]
+            nodes = mesh.get_nodes(node_ids)
+            coors = [n.coordinate for n in nodes]
+            indices = geom.sort_anticlockwise(dict(zip(node_ids, coors)))
             cells.append([len(indices)] + indices)
     else:
         for cell in mesh.cells:

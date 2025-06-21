@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 from core.visuals.plotter import plot_field, plot_mesh
-from core.numerics.mesh import Coordinate, Grid1D, Grid2D, Grid3D
-from core.numerics.fields import Field, NodeField
+from core.numerics.mesh import Coordinate, Grid1D, Grid2D, Grid3D, ElementType
+from core.numerics.fields import Field, NodeField, VariableType
 import unittest
 import numpy as np
 import os
@@ -21,14 +21,10 @@ class TestPlotters(unittest.TestCase):
     def setUp(self):
         self.is_show = False
         self.save_dir = "./tests/results/"
-        if os.path.exists(self.save_dir):
-            shutil.rmtree(self.save_dir)
-        os.makedirs(self.save_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
 
     def tearDown(self):
-        if os.path.exists("./tests/results/"):
-            shutil.rmtree("./tests/results/")
-        os.makedirs("./tests/results/")
+        pass
 
     def test_mesh(self):
         """Test plotting mesh"""
@@ -75,7 +71,7 @@ class TestPlotters(unittest.TestCase):
 
         # set node scalar field
         scalar_values_n = np.array([np.random.rand(1) for i in range(grid.node_count)])
-        scalar_field = Field.from_np(scalar_values_n, "node")
+        scalar_field = Field.from_data(scalar_values_n, ElementType.NODE)
 
         plot_field(
             scalar_field,
@@ -90,7 +86,7 @@ class TestPlotters(unittest.TestCase):
 
         # set node vector field
         vector_values_n = np.random.rand(grid.node_count, 3)
-        vector_field = Field.from_np(vector_values_n, "node")
+        vector_field = Field.from_data(vector_values_n, ElementType.NODE)
 
         plot_field(
             vector_field,
@@ -116,7 +112,7 @@ class TestPlotters(unittest.TestCase):
 
         # set node scalar field
         scalar_values_n = np.array([np.random.rand(1) for i in range(grid.node_count)])
-        scaler_field_n = Field.from_np(scalar_values_n, "node")
+        scaler_field_n = Field.from_data(scalar_values_n, ElementType.NODE)
 
         plot_field(
             scaler_field_n,
@@ -141,7 +137,7 @@ class TestPlotters(unittest.TestCase):
         # set node vector field
         vector_values_n = np.random.rand(grid.node_count, 3)
         vector_values_n[:, 2] = 0.0
-        vector_field_n = Field.from_np(vector_values_n, "node")
+        vector_field_n = Field.from_data(vector_values_n, ElementType.NODE)
 
         plot_field(
             vector_field_n,
@@ -179,7 +175,7 @@ class TestPlotters(unittest.TestCase):
 
         # set cell scalar field
         scalar_values_c = np.array([np.random.rand(1) for i in range(grid.cell_count)])
-        scaler_field_c = Field.from_np(scalar_values_c, "cell", "u")
+        scaler_field_c = Field.from_data(scalar_values_c, ElementType.CELL, "u")
 
         plot_field(
             scaler_field_c,
@@ -194,7 +190,7 @@ class TestPlotters(unittest.TestCase):
         # set cell vector field
         vector_values_c = np.random.rand(grid.cell_count, 3)
         vector_values_c[:, 2] = 0.0
-        vector_field_c = Field.from_np(vector_values_c, "cell")
+        vector_field_c = Field.from_data(vector_values_c, ElementType.CELL)
 
         plot_field(
             vector_field_c,
@@ -219,7 +215,7 @@ class TestPlotters(unittest.TestCase):
 
         # set scalar field
         scalar_values_n = np.array([[i % 100] for i in range(grid.node_count)])
-        scalar_field = Field.from_np(scalar_values_n, "node", "u")
+        scalar_field = Field.from_data(scalar_values_n, ElementType.NODE, "u")
 
         plot_field(
             scalar_field,
@@ -243,7 +239,7 @@ class TestPlotters(unittest.TestCase):
 
         # set vector field
         vector_values_n = np.random.rand(grid.node_count, 3)
-        vector_field = NodeField.from_np(vector_values_n, variable="u")
+        vector_field = NodeField.from_data(vector_values_n, variable="u")
 
         plot_field(
             vector_field,

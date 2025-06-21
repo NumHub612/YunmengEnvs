@@ -244,8 +244,8 @@ if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
         # suit.addTest(TestBurgers("test_burgers_1d"))
-        # suit.addTest(TestBurgers("test_burgers_2d"))
-        suit.addTest(TestBurgers("test_burgers_3d"))
+        suit.addTest(TestBurgers("test_burgers_2d"))
+        # suit.addTest(TestBurgers("test_burgers_3d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)
