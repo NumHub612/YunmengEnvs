@@ -74,10 +74,7 @@ class Face(Element):
     Face element for the mesh.
     """
 
-    nodes: list
-    perimeter: float
-    area: float
-    normal: Vector
+    nodes: list[int]
 
 
 @dataclass
@@ -86,12 +83,12 @@ class Cell(Element):
     Cell element for the mesh.
     """
 
-    faces: list
-    surface: float
-    volume: float
+    faces: list[int]
 
 
 class ElementType(enum.Enum):
+    """The element type."""
+
     CELL = "cell"
     FACE = "face"
     NODE = "node"

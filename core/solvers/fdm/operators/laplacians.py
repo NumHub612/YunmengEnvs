@@ -82,7 +82,7 @@ class Lap01(IOperator):
         neighbours: list[int],
     ) -> Scalar:
         """Excute laplacian operator on scalar field."""
-        if element in self._topo.boundary_nodes_indices:
+        if element in self._topo.boundary_node_indices:
             return Scalar.zero()
 
         east, west, north, south, top, bot = neighbours
@@ -110,7 +110,7 @@ class Lap01(IOperator):
         neighbours: list[int],
     ) -> Vector:
         """Excute laplacian operator on vector field."""
-        if element in self._topo.boundary_nodes_indices:
+        if element in self._topo.boundary_node_indices:
             return Vector.zero()
 
         east, west, north, south, top, bot = neighbours

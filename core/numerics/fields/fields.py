@@ -132,6 +132,18 @@ class Field:
             raise TypeError(f"Invalid data type: {type(data)}")
         return values
 
+    def save(self, file_path: str):
+        """Save the field to a file."""
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        torch.save(self.data, file_path)
+
+    @staticmethod
+    def load(file_path: str, device: torch.device = None) -> "Field":
+        """Load the field from a file."""
+        data = torch.load(file_path, map_location=device)
+        return Field.from_data(data, device=device)
+
     # -----------------------------------------------
     # --- Properties ---
     # -----------------------------------------------
@@ -302,18 +314,6 @@ class Field:
                 )
             )
         return scalar_fields
-
-    def save(self, file_path: str):
-        """Save the field to a file."""
-        if not os.path.exists(os.path.dirname(file_path)):
-            os.makedirs(os.path.dirname(file_path))
-        torch.save(self.data, file_path)
-
-    @staticmethod
-    def load(file_path: str, device: torch.device = None) -> "Field":
-        """Load the field from a file."""
-        data = torch.load(file_path, map_location=device)
-        return Field.from_data(data, device=device)
 
     # -----------------------------------------------
     # --- reload query methods ---

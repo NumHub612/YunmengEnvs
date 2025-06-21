@@ -127,7 +127,7 @@ class TestBurgers(unittest.TestCase):
 
         topo = MeshTopo(grid)
         bc_groups = []
-        for i in topo.boundary_nodes_indices:
+        for i in topo.boundary_node_indices:
             bc_groups.append(grid.nodes[i])
 
         # set initial condition
@@ -186,7 +186,7 @@ class TestBurgers(unittest.TestCase):
                     node_index_groups.append(grid.match_node(i, j, k))
 
         bc_node_groups = []
-        for b in topo.boundary_nodes_indices:
+        for b in topo.boundary_node_indices:
             bc_node_groups.append(grid.nodes[b])
 
         # set initial condition

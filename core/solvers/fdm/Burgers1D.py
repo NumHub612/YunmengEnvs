@@ -125,7 +125,7 @@ class Burgers1D(BaseSolver):
         new_u = copy.deepcopy(u)
 
         # Apply boundary conditions
-        for node in self._topo.boundary_nodes_indices:
+        for node in self._topo.boundary_node_indices:
             for var, bc in self._bcs.get(node, {"u": self._default_bcs}).items():
                 if var not in self._fields:
                     continue
@@ -133,7 +133,7 @@ class Burgers1D(BaseSolver):
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_nodes_indices:
+        for node in self._topo.interior_node_indices:
             lnode, rnode = self._topo.collect_node_neighbours(node)
             if lnode > rnode:
                 lnode, rnode = rnode, lnode

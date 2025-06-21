@@ -84,7 +84,7 @@ class Grad01(IOperator):
         neighbours: list[int],
     ) -> Vector:
         """Calculate the gradient of scalar."""
-        if element in self._topo.boundary_nodes_indices:
+        if element in self._topo.boundary_node_indices:
             return Vector.zero()
 
         east, west, north, south, top, bot = neighbours
@@ -106,7 +106,7 @@ class Grad01(IOperator):
         neighbours: list[int],
     ) -> Tensor:
         """Calculate the gradient of vector."""
-        if element in self._topo.boundary_nodes_indices:
+        if element in self._topo.boundary_node_indices:
             return Tensor.zero()
 
         east, west, north, south, top, bot = neighbours

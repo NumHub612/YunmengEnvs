@@ -13,6 +13,10 @@ from configs.settings import settings
 
 
 class VariableType(enum.Enum):
+    """
+    Variable type enumeration.
+    """
+
     SCALAR = "scalar"
     VECTOR = "vector"
     TENSOR = "tensor"
@@ -181,14 +185,8 @@ class Vector(Variable):
     """
 
     def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
-        device = torch.device(settings.DEVICE)
-        dtype = torch.float64
-        if settings.FPTYPE == "fp16":
-            dtype = torch.float16
-        elif settings.FPTYPE == "fp32":
-            dtype = torch.float32
-        self._value = torch.tensor([x, y, z], dtype=dtype, device=device)
-        self._magtitude = torch.linalg.vector_norm(self._value).item()
+        self._value = np.array([x, y, z], dtype=np.float64)
+        self._magtitude = np.linalg.norm(self._value)
 
     # -----------------------------------------------
     # --- override methods ---
@@ -202,7 +200,7 @@ class Vector(Variable):
         return Vector(*data.tolist())
 
     def to_np(self) -> np.ndarray:
-        return self._value.cpu().numpy()
+        return self._value
 
     @classmethod
     def from_var(cls, var: "Vector") -> "Vector":
@@ -239,7 +237,7 @@ class Vector(Variable):
         return self._magtitude
 
     @property
-    def data(self) -> torch.Tensor:
+    def data(self) -> np.ndarray:
         return self._value
 
     @property
@@ -302,9 +300,9 @@ class Vector(Variable):
         if isinstance(other, Scalar):
             return Vector.from_data(self._value * other.value)
         elif isinstance(other, Vector):
-            return Scalar(torch.dot(self._value, other.data).item())
+            return Scalar(np.dot(self._value, other.data).item())
         elif isinstance(other, Tensor):
-            result = torch.matmul(self._value, other.data)
+            result = [np.dot(self._value, other.data[:, i]) for i in range(3)]
             return Vector.from_data(result)
         else:
             raise TypeError(f"Invalid Vector mul(): {type(other)}.")
@@ -379,13 +377,7 @@ class Scalar(Variable):
     """
 
     def __init__(self, value: float = 0.0):
-        device = torch.device(settings.DEVICE)
-        dtype = torch.float64
-        if settings.FPTYPE == "fp16":
-            dtype = torch.float16
-        elif settings.FPTYPE == "fp32":
-            dtype = torch.float32
-        self._value = torch.tensor([value], dtype=dtype, device=device)
+        self._value = value
         self._magtitude = abs(value)
 
     # -----------------------------------------------
@@ -403,7 +395,7 @@ class Scalar(Variable):
             return Scalar(data[0])
 
     def to_np(self) -> np.ndarray:
-        return self._value.cpu().numpy()
+        return np.array([self._value], dtype=np.float64)
 
     @classmethod
     def from_var(cls, var: "Scalar") -> "Scalar":
@@ -437,12 +429,12 @@ class Scalar(Variable):
         return self._magtitude
 
     @property
-    def data(self) -> torch.Tensor:
+    def data(self) -> np.ndarray:
         return self._value
 
     @property
     def value(self) -> float:
-        return self._value.item()
+        return self._value
 
     # -----------------------------------------------
     # --- reload arithmetic operations ---
@@ -593,18 +585,10 @@ class Tensor(Variable):
         zy: float = 0.0,
         zz: float = 0.0,
     ):
-        device = torch.device(settings.DEVICE)
-        dtype = torch.float64
-        if settings.FPTYPE == "fp16":
-            dtype = torch.float16
-        elif settings.FPTYPE == "fp32":
-            dtype = torch.float32
-        self._value = torch.tensor(
-            [[xx, xy, xz], [yx, yy, yz], [zx, zy, zz]],
-            dtype=dtype,
-            device=device,
+        self._value = np.array(
+            [[xx, xy, xz], [yx, yy, yz], [zx, zy, zz]], dtype=np.float64
         )
-        self._magtitude = np.linalg.norm(self.to_np())
+        self._magtitude = np.linalg.norm(self._value)
 
     # -----------------------------------------------
     # --- override methods ---
@@ -632,7 +616,7 @@ class Tensor(Variable):
             return Tensor(*data.reshape(9).tolist())
 
     def to_np(self) -> np.ndarray:
-        return self._value.cpu().numpy()
+        return self._value
 
     @classmethod
     def from_var(cls, var: "Tensor") -> "Tensor":
@@ -671,7 +655,7 @@ class Tensor(Variable):
         return self._magtitude
 
     @property
-    def data(self) -> torch.Tensor:
+    def data(self) -> np.ndarray:
         return self._value
 
     @property

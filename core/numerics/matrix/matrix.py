@@ -27,6 +27,17 @@ class Matrix:
     Abstract matrix class.
     """
 
+    @abstractmethod
+    def save(self, file_path: str):
+        """Save the matrix to a file."""
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def load(cls, file_path: str) -> "Matrix":
+        """Load a matrix from a file."""
+        raise NotImplementedError()
+
     # -----------------------------------------------
     # --- class methods ---
     # -----------------------------------------------
@@ -63,17 +74,6 @@ class Matrix:
         device: torch.device = None,
     ) -> "Matrix":
         """Create a matrix with all elements set to zero."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def save(self, file_path: str):
-        """Save the matrix to a file."""
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
-    def load(cls, file_path: str) -> "Matrix":
-        """Load a matrix from a file."""
         raise NotImplementedError()
 
     # -----------------------------------------------
@@ -266,6 +266,18 @@ class TorchMatrix(Matrix):
 
         self._indices = self._values.indices()
 
+    def save(self, file_path: str):
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        torch.save(self._values, file_path)
+
+    @classmethod
+    def load(cls, file_path: str) -> "TorchMatrix":
+        values = torch.load(file_path)
+        shape = values.shape
+        indices = values.indices()
+        return cls(shape, indices, values=values)
+
     # -----------------------------------------------
     # --- class methods ---
     # -----------------------------------------------
@@ -313,18 +325,6 @@ class TorchMatrix(Matrix):
         device: torch.device = None,
     ) -> "TorchMatrix":
         return cls(shape, device=device)
-
-    def save(self, file_path: str):
-        if not os.path.exists(os.path.dirname(file_path)):
-            os.makedirs(os.path.dirname(file_path))
-        torch.save(self._values, file_path)
-
-    @classmethod
-    def load(cls, file_path: str) -> "TorchMatrix":
-        values = torch.load(file_path)
-        shape = values.shape
-        indices = values.indices()
-        return cls(shape, indices, values=values)
 
     # -----------------------------------------------
     # --- matrix methods ---
