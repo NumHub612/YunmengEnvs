@@ -260,12 +260,12 @@ class Grid1D(Grid):
     def match_cell(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
-    def retrieve_node_neighborhoods(self, index: int) -> list:
+    def retrieve_node_neighbours(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> list:
+    def retrieve_cell_neighbours(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
@@ -389,7 +389,7 @@ class Grid2D(Grid):
         cid = i * (self._ny - 1) + j
         return cid if 0 <= cid < self.cell_count else None
 
-    def retrieve_node_neighborhoods(self, index: int) -> list:
+    def retrieve_node_neighbours(self, index: int) -> list:
         i = index // self._ny
         j = index % self._ny
 
@@ -399,7 +399,7 @@ class Grid2D(Grid):
         east = self.match_node(i + 1, j)
         return [east, west, north, south, None, None]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> list:
+    def retrieve_cell_neighbours(self, index: int) -> list:
         i = index // (self._ny - 1)
         j = index % (self._ny - 1)
 
@@ -474,6 +474,7 @@ class Grid3D(Grid):
                     center = MeshGeom.calculate_center(
                         [self._nodes[id].coordinate for id in nodes]
                     )
+                    face = Face(fid, center, nodes)
                     self._faces.append(face)
                     fid += 1
 
@@ -599,7 +600,7 @@ class Grid3D(Grid):
 
         return k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i
 
-    def retrieve_node_neighborhoods(self, index: int) -> list:
+    def retrieve_node_neighbours(self, index: int) -> list:
         k = index // (self._nx * self._ny)
         j = (index - k * self._nx * self._ny) // self._nx
         i = index % self._nx
@@ -612,7 +613,7 @@ class Grid3D(Grid):
         up = self.match_node(i, j, k + 1)
         return [east, west, north, south, up, down]
 
-    def retrieve_cell_neighborhoods(self, index: int) -> list:
+    def retrieve_cell_neighbours(self, index: int) -> list:
         k = index // ((self._nx - 1) * (self._ny - 1))
         j = (index - k * (self._nx - 1) * (self._ny - 1)) // (self._nx - 1)
         i = (index - k * (self._nx - 1) * (self._ny - 1)) % (self._nx - 1)
