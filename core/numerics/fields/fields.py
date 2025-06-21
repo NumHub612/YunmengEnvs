@@ -85,7 +85,7 @@ class Field:
         if data is None:
             default = DTYPE_MAP[data_type].zero().data
             values = torch.full((size, *default.shape), 0.0, dtype=fptype)
-            values[:] = default.data
+            values[:] = torch.tensor(default.data)
         else:
             values = self._check_values(
                 data,
@@ -112,7 +112,7 @@ class Field:
             if data.type != data_type:
                 raise ValueError(f"Invalid data type: {data.type}")
             values = torch.full((size, *data.shape), 0.0, dtype=fptype)
-            values[:] = data.data
+            values[:] = torch.tensor(data.data)
         elif isinstance(data, np.ndarray):
             if data.shape != (size, *self.SHAPE_MAP[data_type]):
                 raise ValueError(f"Invalid data shape: {data.shape}")
