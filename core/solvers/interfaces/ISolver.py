@@ -10,6 +10,37 @@ from core.solvers.interfaces.ISolverCallback import ISolverCallback
 from core.solvers.interfaces.IEquation import IEquation
 from core.numerics.fields import Field
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+
+@dataclass
+class SolverMeta:
+    """
+    The meta information of the solver.
+    """
+
+    description: str  # A brief description about this solver.
+    type: str  # The type of the solver, e.g. fvm, etc.
+    equation: str  # The equation solved by the solver, e.g. Navier-Stokes, etc.
+    equation_expr: str  # The mathematical expression of the equation.
+    dimension: str  # The equation dimension, e.g. 1d, 2d, 3d.
+    default_ics: dict  # Default initialization conditions.
+    default_bcs: dict  # Default boundary conditions.
+    fields: dict  # The dictionary of available fields solved.
+
+
+@dataclass
+class SolverStatus:
+    """
+    The current status of the solver, excluding the solutions.
+    """
+
+    elapsed_time: float  # The elapsed time since the start of the solver.
+    iteration: int  # The iteration number.
+    time_step: float  # The current calculation time step.
+    current_time: float  # The current time in the simulation.
+    convergence: bool  # Whether the solver has converged.
+    infos: str  # Any error messages or warnings.
 
 
 class ISolver(ABC):
@@ -19,28 +50,17 @@ class ISolver(ABC):
 
     @classmethod
     @abstractmethod
-    def get_meta(cls) -> dict:
+    def get_meta(cls) -> SolverMeta:
         """
         The accessiable fields and other meta infomations of solver.
 
-        Returns:
-            - A dictionary containing the meta information of the solver with the following keys:
-                - description (str): A brief description of the solver.
-                - type (str): The type of the solver.
-                - equation (str): The equation solved by the solver, e.g. Navier-Stokes, etc.
-                - equation_expr (str): The mathematical expression of the equation.
-                - dimension (str): The dimension of the solver.
-                - default_ics (dict): The default initialization conditions.
-                - default_bcs (dict): The default boundary conditions.
-                - fields (dict): The dictionary of available fields solved by the solver.
-
         Notes:
-            - The `fields` contains all the avaiable fields from the solver, following the format:
+            - The `fields` contains all the avaiable fields with following keys:
                 - description (str): A brief description.
                 - dtype (str): The data type, e.g. scalar, vector, tensor.
-                - etype (str): The element type of the field, e.g. node, face, cell.
+                - etype (str): The element type, e.g. node, face, cell.
         """
-        return {}
+        pass
 
     @classmethod
     @abstractmethod
@@ -52,18 +72,9 @@ class ISolver(ABC):
 
     @property
     @abstractmethod
-    def status(self) -> dict:
+    def status(self) -> SolverStatus:
         """
         The current status of the solver, not including the solution.
-
-        Returns:
-            - A dictionary containing the current status of the solver with the following keys:
-                - elapsed_time (float): The elapsed time since the start of the solver.
-                - iteration (int): The current iteration number.
-                - time_step (float): The current time step.
-                - current_time (float): The current time.
-                - convergence (bool): Whether the solver has converged.
-                - error (str): Any error messages or warnings.
         """
         pass
 
@@ -149,7 +160,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def inference(self) -> tuple[bool, bool, dict]:
+    def inference(self) -> tuple[bool, bool, SolverStatus]:
         """
         Inference the solver to get the solutions.
         Run by steps.

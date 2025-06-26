@@ -10,6 +10,8 @@ from core.solvers.interfaces import (
     ISolverCallback,
     IInitCondition,
     IBoundaryCondition,
+    SolverMeta,
+    SolverStatus,
 )
 from core.numerics.fields import Field
 from core.numerics.mesh import Mesh, Node, Face, Cell
@@ -44,11 +46,15 @@ class BaseSolver(ISolver):
         self._default_bcs = None
         self._bcs = {}
 
+        self._status = SolverStatus()
+
+    @property
+    def status(self) -> SolverStatus:
+        return self._status
+
     def get_solution(self, field_name: str) -> Field:
         if field_name not in self._fields:
-            logger.warning(
-                f"Solver {self._id} solution for {field_name} is not available."
-            )
+            logger.warning(f"Solver {self._id} solution {field_name} isn't available.")
             return None
 
         return self._fields[field_name]
@@ -65,9 +71,7 @@ class BaseSolver(ISolver):
             raise ValueError(f"Invalid initial condition: {ic}")
 
         if var in self._ics:
-            logger.warning(
-                f"Solver {self._id} initial condition for {var} overwriting."
-            )
+            logger.warning(f"Solver {self._id} initial condition for {var} overwrited")
 
         self._ics[var] = ic
 
@@ -93,7 +97,7 @@ class BaseSolver(ISolver):
 
             if var in self._bcs[elem.id]:
                 logger.warning(
-                    f"Solver {self._id} boundary condition for {var} on {elem.id} overwriting."
+                    f"Solver {self._id} boundary condition  for {var} on {elem.id} overwrited."
                 )
 
             self._bcs[elem.id][var] = bc

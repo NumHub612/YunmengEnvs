@@ -4,8 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Callback for rendering the solver solutions.
 """
-from core.solvers.interfaces import ISolverCallback
-from core.visuals.plotter import plot_field
+from core.solvers.interfaces import ISolverCallback, SolverMeta, SolverStatus
+from core.visuals.plotter import plot_field, plot_mesh
 
 import os
 import shutil
@@ -41,11 +41,11 @@ class RenderCallback(ISolverCallback):
         self._field_dirs = {}
         self._frame = 0
 
-    def setup(self, solver_meta: dict, mesh: object, **kwargs):
+    def setup(self, solver_meta: SolverMeta, mesh: object, **kwargs):
         self._mesh = mesh
 
-        if solver_meta.get("fields"):
-            self._init_output_dirs(solver_meta["fields"])
+        if solver_meta.fields is not None:
+            self._init_output_dirs(solver_meta.fields)
 
     def cleanup(self):
         pass
@@ -70,21 +70,24 @@ class RenderCallback(ISolverCallback):
             os.makedirs(dir)
             self._field_dirs[fname] = dir
 
-    def on_task_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):
+    def on_task_begin(
+        self, solver_status: SolverStatus, solver_solutions: dict, **kwargs
+    ):
         self._init_output_dirs(solver_solutions)
 
-        # TODO: ploting the mesh only.
+        plot_mesh(self._mesh, save_dir=self._output_dir)
+
         self._plot_field(solver_status, solver_solutions)
 
-    def on_step(self, solver_status: dict, solver_solutions: dict, **kwargs):
+    def on_step(self, solver_status: SolverStatus, solver_solutions: dict, **kwargs):
         self._plot_field(solver_status, solver_solutions)
 
-    def _plot_field(self, solver_status: dict, solver_solutions: dict):
+    def _plot_field(self, solver_status, solver_solutions):
         solutions = {}
         for fname in self._field_dirs.keys():
             solutions[fname] = solver_solutions.get(fname)
 
-        time = solver_status.get("current_time")
+        time = solver_status.current_time
         for fname, field in solutions.items():
             code = self._frame if time is None else round(time, 6)
             title = f"{fname}-{code}"
@@ -104,12 +107,12 @@ class RenderCallback(ISolverCallback):
             plot_field(field, self._mesh, **options)
         self._frame += 1
 
-    def on_task_end(self, solver_status: dict, solver_solutions: dict, **kwargs):
+    def on_task_end(self, **kwargs):
         # TODO: play the animation
         pass
 
-    def on_step_begin(self, solver_status: dict, solver_solutions: dict, **kwargs):
+    def on_step_begin(self, **kwargs):
         pass
 
-    def on_step_end(self, solver_status: dict, solver_solutions: dict, **kwargs):
+    def on_step_end(self, **kwargs):
         pass
