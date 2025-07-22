@@ -14,6 +14,19 @@ from core.numerics.matrix import LinearEqs
 from core.numerics.fields import Field
 from core.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+
+@dataclass
+class EqSymbol:
+    """
+    The symbol used in the equation.
+    """
+
+    description: str  # A brief description about the symbol.
+    type: str  # Type of the symbol, e.g. "scalar", "vector", "tensor".
+    coefficient: bool  # Whether the symbol is coefficient.
+    boundary: tuple  # Boundarys of the symbol.
 
 
 class IEquation(ABC):
@@ -32,21 +45,18 @@ class IEquation(ABC):
         "FUNC",
     ]
 
+    @property
     @abstractmethod
-    def set_equations(self, equations: list, symbols: dict):
+    def id(self) -> str:
+        """
+        The equation id.
+        """
+        pass
+
+    @abstractmethod
+    def set_equations(self, equations: list[str], symbols: dict[str, EqSymbol]):
         """
         Set the equations and symbols for the equation.
-
-        Args:
-            equations: A list of equations expressions.
-            symbols: Symbols used in the equations.
-
-        Notes:
-            - `symbols` discribe the variables as:
-                - description (str): A brief description.
-                - type (str): Type of the variable, e.g. "scalar", "vector", "tensor"
-                - coefficent (bool): Whether the variable is coefficient.
-                - bounds (tuple): Bounds of the variable.
         """
         pass
 
@@ -54,19 +64,13 @@ class IEquation(ABC):
     def set_coefficients(self, coefficients: dict):
         """
         Set the coefficients for the equations.
-
-        Args:
-            coefficients: Coefficients for the equations.
         """
         pass
 
     @abstractmethod
-    def set_fields(self, fields: dict):
+    def set_fields(self, fields: dict[str, Field]):
         """
         Set the variable fields.
-
-        Args:
-            fields: Dictionary of the fields.
         """
         pass
 
@@ -74,9 +78,6 @@ class IEquation(ABC):
     def set_mesh(self, mesh: Mesh):
         """
         Set the domain mesh.
-
-        Args:
-            mesh: The domain mesh.
         """
         pass
 
@@ -103,13 +104,15 @@ class IOperator(ABC):
     @property
     @abstractmethod
     def type(self) -> str:
-        """The type of the operator."""
+        """
+        The type of the operator in `SUPPORTED_OPS`.
+        """
         pass
 
     @abstractmethod
     def prepare(self, mesh: Mesh):
         """
-        Prepare the operator for running discretization.
+        Prepare the operator for discretization.
         """
         pass
 
@@ -117,11 +120,5 @@ class IOperator(ABC):
     def run(self, source: Field) -> Field | LinearEqs:
         """
         Run the operator on each element.
-
-        Args:
-            source: The source field to be discretized.
-
-        Returns:
-            The discretized results.
         """
         pass

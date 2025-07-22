@@ -196,21 +196,21 @@ class MeshTopo:
     # -----------------------------------------------
 
     @property
-    def face_id_indices(self) -> dict:
+    def face_indices(self) -> dict:
         """Return the indices of faces with their ids."""
         if self._face_indices is None:
             self._face_indices = {f.id: i for i, f in enumerate(self._mesh.faces)}
         return self._face_indices
 
     @property
-    def node_id_indices(self) -> dict:
+    def node_indices(self) -> dict:
         """Return the indices of nodes with their ids."""
         if self._node_indices is None:
             self._node_indices = {n.id: i for i, n in enumerate(self._mesh.nodes)}
         return self._node_indices
 
     @property
-    def cell_id_indices(self) -> dict:
+    def cell_indices(self) -> dict:
         """Return the indices of cells with their ids."""
         if self._cell_indices is None:
             self._cell_indices = {c.id: i for i, c in enumerate(self._mesh.cells)}
@@ -615,7 +615,7 @@ class MeshGeom:
 
     def _calculate_cell_surface(self):
         cell_surfaces = [0.0] * self._mesh.cell_count
-        id_indices = self._topo.face_id_indices
+        id_indices = self._topo.face_indices
         for i, cell in enumerate(self._mesh.cells):
             surface = sum(self.face_areas[id_indices[f.id]] for f in cell.faces)
             cell_surfaces[i] = surface
@@ -699,7 +699,7 @@ class MeshGeom:
                     vec = Vector.from_np(vec_np)
                     vec /= vec.magnitude
                     cell_vecs[cell.id][nb.id] = vec
-                    cell_vecs[nb.id][cell.id] = -vec
+                    cell_vecs[nb.id][cell.id] = vec  # Symmetric matrix
             self._cell2cell_vects = cell_vecs
         return self._cell2cell_vects
 

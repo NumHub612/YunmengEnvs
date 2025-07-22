@@ -4,8 +4,17 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interfaces for boundary conditions at faces of a mesh.
 """
-from core.numerics.mesh import Element
 from abc import ABC, abstractmethod
+import enum
+
+
+class BoundaryType(enum.Enum):
+    """Boundary type"""
+
+    FIXED = "dirichlet"
+    NATURAL = "neumann"
+    MIXED = "robin"
+    UNKNOWN = "unknown"
 
 
 class IBoundaryCondition(ABC):
@@ -21,28 +30,32 @@ class IBoundaryCondition(ABC):
         """
         pass
 
+    @classmethod
     @abstractmethod
-    def update(self, time: float):
+    def get_type(cls) -> BoundaryType:
         """
-        Update the boundary condition parameters.
-        Used for running online.
+        THe boundary type.
+        """
+        pass
 
-        Args:
-            time: The current time.
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        """
+        The boundary condition id.
         """
         pass
 
     @abstractmethod
-    def evaluate(self, time: float, element: Element) -> tuple:
+    def update(self):
+        """
+        Update the boundary condition parameters.
+        """
+        pass
+
+    @abstractmethod
+    def evaluate(self) -> tuple:
         """
         Evaluate the boundary condition.
-
-        Args:
-            time: The current time.
-            element: The mesh element to be evaluated.
-
-        Returns:
-            Tuple of boundary values, where:
-            (flux, value, *extras).
         """
         pass

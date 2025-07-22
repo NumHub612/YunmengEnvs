@@ -311,15 +311,31 @@ class Grid2D(Grid):
         upper_right: Coordinate,
         num_x: int,
         num_y: int,
+        mode: str = None,
+        **kwargs
     ):
         """
         Initialize a 2D structured grid.
 
         Args:
             lower_left: The lower left corner of the grid.
-            upper_right: The upper right corner of the grid.
+            upper_right: The upper right corner.
             num_x: The number of nodes in the x-direction.
             num_y: The number of nodes in the y-direction.
+            mode: The node distribution mode.
+            kwargs: The extra settings corresponding to `mode`.
+
+        Note:
+            if `mode` is None, the extra settings would be invalid.
+            if `mode` is xxx, the following configs needed:
+                + dx (float):
+                + dy (float):
+            if `mode` is xxx: the following configs needed:
+                + ratio_x (float):
+                + ratio_x (float):
+            if `mode` is xxx: the following configs needed:
+                + pos_x (list):
+                + pos_y (list):
         """
         super().__init__()
         self._ll = lower_left

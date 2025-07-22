@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Fields definition.
 """
-from core.numerics.fields import (
+from core.numerics.fields.variables import (
     Variable,
     VariableType,
     Scalar,

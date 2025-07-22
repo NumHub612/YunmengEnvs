@@ -11,6 +11,19 @@ from core.solvers.interfaces.IEquation import IEquation
 from core.numerics.fields import Field
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import enum
+
+
+class SolverType(enum.Enum):
+    """The solver type."""
+
+    FVM = "fvm"
+    FDM = "fdm"
+    FEM = "fem"
+    LBM = "lbm"
+    NN = "nn"
+    HYB = "hyb"
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -20,7 +33,7 @@ class SolverMeta:
     """
 
     description: str  # A brief description about this solver.
-    type: str  # The type of the solver, e.g. fvm, etc.
+    type: SolverType  # The type of the solver.
     equation: str  # The equation solved by the solver, e.g. Navier-Stokes, etc.
     equation_expr: str  # The mathematical expression of the equation.
     dimension: str  # The equation dimension, e.g. 1d, 2d, 3d.
@@ -67,6 +80,14 @@ class ISolver(ABC):
     def get_name(cls) -> str:
         """
         Unique name of this solver.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        """
+        The solver id.
         """
         pass
 

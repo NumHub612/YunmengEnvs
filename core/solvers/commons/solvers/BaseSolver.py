@@ -12,6 +12,7 @@ from core.solvers.interfaces import (
     IBoundaryCondition,
     SolverMeta,
     SolverStatus,
+    SolverType,
 )
 from core.numerics.fields import Field
 from core.numerics.mesh import Mesh, Node, Face, Cell
@@ -47,6 +48,10 @@ class BaseSolver(ISolver):
         self._bcs = {}
 
         self._status = SolverStatus()
+
+    @property
+    def id(self) -> str:
+        return self._id
 
     @property
     def status(self) -> SolverStatus:
