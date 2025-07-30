@@ -50,8 +50,6 @@ class Diffusion2D(BaseSolver):
         self._default_bcs = {"u": boundaries.ConstantBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
 
-        self._start_time = time.perf_counter()
-
         self._fields = {
             "u": CellField(self._mesh.cell_count, VariableType.SCALAR),
         }
@@ -78,31 +76,24 @@ class Diffusion2D(BaseSolver):
                 )
                 self._bcs[face] = self._default_bcs["u"]
 
-        # Init status
-        self._status.iteration = 0
-        self._status.time_step = None
-        self._status.current_time = None
-        self._status.elapsed_time = time.perf_counter() - self._start_time
-        self._status.convergence = False
-        self._status.infos = ""
-
         # Init parameters
         self._phi = phi
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_task_begin(self.status, self._fields)
+            callback.on_task_begin()
 
     def inference(self) -> tuple[bool, bool, SolverStatus]:
         logger.info("Inference the 2D diffusion solver...")
+        start = time.perf_counter()
 
         sys = LinearEqs.zeros("u", self._mesh.cell_count)
         # Aseemble boundary matrix
         for face in self._topo.boundary_faces:  # TODO: iteration by face not cell.
             bc = self._bcs[face]["u"]
-            FluxC, FluxF, FluxV = self._handle_boundary(face, bc)  # TODO: uniform args.
+            FluxC, FluxF, FluxV = self._handle_boundary(face, bc)
             fid = self._mesh.faces[face].id
-            cid = self._topo.face_cells[fid][0]
+            cid = list(self._topo.face_cells[fid])[0]
             cindex = self._topo.cell_indices[cid]  # TODO: cid == cindex.
 
             sys.matrix[cindex, cindex] += FluxC + FluxF
@@ -125,18 +116,19 @@ class Diffusion2D(BaseSolver):
             sys.rhs[cindex1] -= FluxV
 
         # Solve linear system
-        solutions = sys.solve(method="cupy")
+        solutions = sys.solve(method="numpy")
 
         # Update solution
         self._fields["u"] = solutions
 
         # Update status
-        self._status.elapsed_time = time.perf_counter() - self._start_time
-        self._status.convergence = True
+        self._status.elapsed_time = time.perf_counter() - start
+        self._status.progress = 1.0
+        self._status.converged = True
 
         # Call callbacks
         for callback in self._callbacks:
-            callback.on_step(self.status, self._fields)
+            callback.on_step()
 
         return True, False, self.status
 
@@ -154,7 +146,7 @@ class Diffusion2D(BaseSolver):
 
         Sb = self._geom.face_areas[face]
         fid = self._mesh.faces[face].id
-        cid = self._topo.face_cells[fid][0]
+        cid = list(self._topo.face_cells[fid])[0]
         dist = self._geom.cell2face_distances[cid][fid]
 
         FluxC = self._phi * Sb / dist
@@ -174,7 +166,7 @@ class Diffusion2D(BaseSolver):
         bc_inf, bc_coef, _ = bcs
         Sb = self._geom.face_areas[face]
         fid = self._mesh.faces[face].id
-        cid = self._topo.face_cells[fid][0]
+        cid = list(self._topo.face_cells[fid])[0]
         dist = self._geom.cell2face_distances[cid][fid]
         temp = self._phi / dist
         Req = Sb * (bc_coef * temp) / (bc_coef + temp)

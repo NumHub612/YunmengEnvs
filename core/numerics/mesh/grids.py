@@ -16,7 +16,11 @@ import pickle
 
 
 class Grid(Mesh):
-    """Base class for orthogonal structured grids."""
+    """Abstract base class for orthogonal structured grids.
+
+    For `Grid`, the topological relationships and geometric calculations are simplified:
+    - The `Element`'s id will be equal to its index.
+    """
 
     def __init__(self):
         super().__init__()

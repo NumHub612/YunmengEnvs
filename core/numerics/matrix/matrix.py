@@ -1496,7 +1496,12 @@ class SparseMatrix(Matrix):
         val = DTYPE_MAP[self.dtype].from_data(np.array(item))
         return val
 
-    def __setitem__(self, index: tuple, value):
+    def __setitem__(self, index: tuple, value: float | Variable):
+        if isinstance(value, Scalar):
+            value = value.value
+        elif isinstance(value, Variable):
+            value = value.data
+
         for v in self._values:
             v[index] = value
 

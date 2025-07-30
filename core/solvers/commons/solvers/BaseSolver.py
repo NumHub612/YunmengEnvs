@@ -59,7 +59,7 @@ class BaseSolver(ISolver):
 
     def get_solution(self, field_name: str) -> Field:
         if field_name not in self._fields:
-            logger.warning(f"Solver {self._id} solution {field_name} isn't available.")
+            logger.error(f"Solver {self._id} solution {field_name} isn't available.")
             return None
 
         return self._fields[field_name]
@@ -68,7 +68,7 @@ class BaseSolver(ISolver):
         if not isinstance(callback, ISolverCallback):
             raise ValueError(f"Invalid callback: {callback}")
 
-        callback.setup(self.get_meta(), self._mesh)
+        callback.setup(self, self._mesh)
         self._callbacks.append(callback)
 
     def add_ic(self, var: str, ic: IInitCondition):

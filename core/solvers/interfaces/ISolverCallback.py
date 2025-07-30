@@ -29,7 +29,7 @@ class ISolverCallback(ABC):
         pass
 
     @abstractmethod
-    def setup(self):
+    def setup(self, solver: object, mesh: object, **kwargs):
         """
         Set up the callback method.
         """

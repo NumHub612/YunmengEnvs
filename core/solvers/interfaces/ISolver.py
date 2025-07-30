@@ -32,14 +32,14 @@ class SolverMeta:
     The meta information of the solver.
     """
 
-    description: str  # A brief description about this solver.
-    type: SolverType  # The type of the solver.
-    equation: str  # The equation solved by the solver, e.g. Navier-Stokes, etc.
-    equation_expr: str  # The mathematical expression of the equation.
-    dimension: str  # The equation dimension, e.g. 1d, 2d, 3d.
-    default_ics: dict  # Default initialization conditions.
-    default_bcs: dict  # Default boundary conditions.
-    fields: dict  # The dictionary of available fields solved.
+    description: str = ""  # A brief description about this solver.
+    type: SolverType = SolverType.UNKNOWN  # The solver type.
+    equation: str = ""  # The equation solved by the solver, e.g. Burgers, etc.
+    equation_expr: str = ""  # The mathematical expression of the equation.
+    dimension: str = ""  # The equation dimension, e.g. 1d, 2d, 3d.
+    default_ics: dict = None  # Default initialization conditions.
+    default_bcs: dict = None  # Default boundary conditions.
+    fields: dict = None  # The dictionary of available fields solved.
 
 
 @dataclass
@@ -48,12 +48,14 @@ class SolverStatus:
     The current status of the solver, excluding the solutions.
     """
 
-    elapsed_time: float  # The elapsed time since the start of the solver.
-    iteration: int  # The iteration number.
-    time_step: float  # The current calculation time step.
-    current_time: float  # The current time in the simulation.
-    convergence: bool  # Whether the solver has converged.
-    infos: str  # Any error messages or warnings.
+    elapsed_time: float = 0.0  # Time spent on the current step.
+    residual: float = 0.0  # The max residual in current step.
+    iteration: int = 0  # The iteration number.
+    time_step: float = 0.0  # The current calculation time step.
+    progress: float = 0.0  # Progress percentage (0~1).
+    finished: bool = False  # Whether the solver has finished.
+    converged: bool = False  # Whether the solver has converged.
+    msg: str = ""  # Any info messages, errors or warnings.
 
 
 class ISolver(ABC):
@@ -68,10 +70,10 @@ class ISolver(ABC):
         The accessiable fields and other meta infomations of solver.
 
         Notes:
-            - The `fields` contains all the avaiable fields with following keys:
+            - The `fields` contains all the avaiable fields with followings:
                 - description (str): A brief description.
-                - dtype (str): The data type, e.g. scalar, vector, tensor.
-                - etype (str): The element type, e.g. node, face, cell.
+                - dtype (str): Data type, [scalar, vector, tensor].
+                - etype (str): Element type, [node, face, cell].
         """
         pass
 
