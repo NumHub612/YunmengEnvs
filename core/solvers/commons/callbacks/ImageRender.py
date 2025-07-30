@@ -4,17 +4,18 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Callback for rendering the solver solutions.
 """
-from core.solvers.interfaces import ISolverCallback, ISolver, SolverMeta, SolverStatus
+from core.solvers.interfaces import ISolverCallback, ISolver
 from core.numerics.mesh import Mesh
 from core.visuals.plotter import plot_field, plot_mesh
+from core.visuals.animator import ImageSetPlayer
 
 import os
 import shutil
 
 
-class RenderCallback(ISolverCallback):
+class ImageRender(ISolverCallback):
     """
-    Callback for real-time rendering the solutions.
+    ImageRender  rendering the solver solutions to images while solving.
     """
 
     @classmethod
@@ -33,7 +34,7 @@ class RenderCallback(ISolverCallback):
             fields: The expected fields to be rendered.
 
         Notes:
-            - `fields` is a dictionary with the field names as keys
+            - `fields` is a dictionary with the field names as keys,
                and the rendering options as values.
             - `fields` can be None, in which render all fields.
         """
@@ -132,7 +133,12 @@ class RenderCallback(ISolverCallback):
             plot_field(field, self._mesh, **options)
 
     def on_task_end(self, **kwargs):
-        pass
+        for fname, field in self._fields.items():
+            img_dir = field["save_dir"]
+            if not os.path.exists(img_dir):
+                continue
+            player = ImageSetPlayer(img_dir, pause=0.01)
+            player.play(show=False, save=True)
 
     def on_step_begin(self, **kwargs):
         pass

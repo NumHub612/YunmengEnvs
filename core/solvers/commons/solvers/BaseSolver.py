@@ -76,7 +76,10 @@ class BaseSolver(ISolver):
             raise ValueError(f"Invalid initial condition: {ic}")
 
         if var in self._ics:
-            logger.warning(f"Solver {self._id} initial condition for {var} overwrited")
+            logger.warning(
+                f"Solver {self._id} var {var} \
+                           initial condition overwrited."
+            )
 
         self._ics[var] = ic
 
@@ -87,22 +90,14 @@ class BaseSolver(ISolver):
         for elem in elements:
             if not isinstance(elem, (Node, Face, Cell)):
                 raise ValueError(f"Invalid element: {elem}")
-            if isinstance(elem, Node):
-                if elem.id < 0 or elem.id > self._mesh.node_count:
-                    raise ValueError(f"Invalid node id: {elem.id}")
-            elif isinstance(elem, Face):
-                if elem.id < 0 or elem.id > self._mesh.face_count:
-                    raise ValueError(f"Invalid face id: {elem.id}")
-            elif isinstance(elem, Cell):
-                if elem.id < 0 or elem.id > self._mesh.cell_count:
-                    raise ValueError(f"Invalid cell id: {elem.id}")
 
             if elem.id not in self._bcs:
                 self._bcs[elem.id] = {}
 
             if var in self._bcs[elem.id]:
                 logger.warning(
-                    f"Solver {self._id} boundary condition  for {var} on {elem.id} overwrited."
+                    f"Solver {self._id} var {var} boundary condition \
+                        on {elem.id} overwrited."
                 )
 
             self._bcs[elem.id][var] = bc

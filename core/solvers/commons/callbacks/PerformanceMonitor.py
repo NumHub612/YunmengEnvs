@@ -50,7 +50,14 @@ class PerformanceMonitor(ISolverCallback):
         profile = f"{id}_profile.svg"
         profile = os.path.join(output_dir, profile)
         self._perf_process = subprocess.Popen(
-            ["py-spy", "record", "-o", profile, "--pid", str(self._process)]
+            [
+                "py-spy",
+                "record",
+                "-o",
+                profile,
+                "--pid",
+                str(self._process),
+            ]
         )
         logger.info(f"Start performance monitoring {id} process {self._process}")
 
@@ -114,7 +121,6 @@ class PerformanceMonitor(ISolverCallback):
         return status
 
     def setup(self, solver: ISolver, mesh: Mesh, **kwargs):
-        # Log the platform information.
         platform_info = self._get_platform_info()
         logger.info(json.dumps(platform_info))
 

@@ -68,7 +68,7 @@ class TestFdmBurgers(unittest.TestCase):
 
         # set callback
         output_dir = "./tests/results"
-        cb1 = callbacks.RenderCallback(output_dir)
+        cb1 = callbacks.ImageRender(output_dir)
         cb2 = callbacks.PerformanceMonitor(
             "burgers1d", "./tests/results/burgers1d.log", 10
         )
@@ -153,7 +153,7 @@ class TestFdmBurgers(unittest.TestCase):
         confs = {
             "vel": {"style": "cloudmap", "dimension": "x"},
         }
-        cb1 = callbacks.RenderCallback(output_dir, confs)
+        cb1 = callbacks.ImageRender(output_dir, confs)
         cb2 = callbacks.PerformanceMonitor(
             "burgers2d", "./tests/results/burgers2d.log", 10
         )
@@ -217,7 +217,7 @@ class TestFdmBurgers(unittest.TestCase):
                 "slice_set": {"style": "slice", "normal": [1, 1, 0]},
             }
         }
-        cb1 = callbacks.RenderCallback(output_dir, confs)
+        cb1 = callbacks.ImageRender(output_dir, confs)
         cb2 = callbacks.PerformanceMonitor(
             "burgers3d", "./tests/results/burgers3d.log", 10
         )
@@ -343,7 +343,7 @@ class TestFvmEqs(unittest.TestCase):
                 "show_edges": True,
             }
         }
-        cb1 = callbacks.RenderCallback("cb1", output_dir, fields=confs)
+        cb1 = callbacks.ImageRender("cb1", output_dir, fields=confs)
 
         # set solver
         solver = fvm.Diffusion2D("solver1", grid)
@@ -361,6 +361,8 @@ class TestFvmEqs(unittest.TestCase):
         is_done = False
         while not is_done:
             is_done, _, _ = solver.inference()
+
+        cb1.on_task_end()
 
     def test_convection_2d(self):
         """test Convection2D."""
