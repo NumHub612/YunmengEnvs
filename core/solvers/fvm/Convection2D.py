@@ -2,5 +2,5 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Provide the AMR algorithm for mesh refinement.
+Solutions for the 2D convection equation using finite volume method.
 """

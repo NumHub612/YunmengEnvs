@@ -10,6 +10,52 @@ from core.solvers.interfaces.ISolverCallback import ISolverCallback
 from core.solvers.interfaces.IEquation import IEquation
 from core.numerics.fields import Field
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+import enum
+
+
+class SolverType(enum.Enum):
+    """The solver type."""
+
+    FVM = "fvm"
+    FDM = "fdm"
+    FEM = "fem"
+    LBM = "lbm"
+    NN = "nn"
+    HYB = "hyb"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class SolverMeta:
+    """
+    The meta information of the solver.
+    """
+
+    description: str = ""  # A brief description about this solver.
+    type: SolverType = SolverType.UNKNOWN  # The solver type.
+    equation: str = ""  # The equation solved by the solver, e.g. Burgers, etc.
+    equation_expr: str = ""  # The mathematical expression of the equation.
+    dimension: str = ""  # The equation dimension, e.g. 1d, 2d, 3d.
+    default_ics: dict = None  # Default initialization conditions.
+    default_bcs: dict = None  # Default boundary conditions.
+    fields: dict = None  # The dictionary of available fields solved.
+
+
+@dataclass
+class SolverStatus:
+    """
+    The current status of the solver, excluding the solutions.
+    """
+
+    elapsed_time: float = 0.0  # Time spent on the current step.
+    residual: float = 0.0  # The max residual in current step.
+    iteration: int = 0  # The iteration number.
+    time_step: float = 0.0  # The current calculation time step.
+    progress: float = 0.0  # Progress percentage (0~1).
+    finished: bool = False  # Whether the solver has finished.
+    converged: bool = False  # Whether the solver has converged.
+    msg: str = ""  # Any info messages, errors or warnings.
 
 
 class ISolver(ABC):
@@ -19,28 +65,17 @@ class ISolver(ABC):
 
     @classmethod
     @abstractmethod
-    def get_meta(cls) -> dict:
+    def get_meta(cls) -> SolverMeta:
         """
         The accessiable fields and other meta infomations of solver.
 
-        Returns:
-            - A dictionary containing the meta information of the solver with the following keys:
-                - description (str): A brief description of the solver.
-                - type (str): The type of the solver.
-                - equation (str): The equation solved by the solver, e.g. Navier-Stokes, etc.
-                - equation_expr (str): The mathematical expression of the equation.
-                - dimension (str): The dimension of the solver.
-                - default_ics (dict): The default initialization conditions.
-                - default_bcs (dict): The default boundary conditions.
-                - fields (dict): The dictionary of available fields solved by the solver.
-
         Notes:
-            - The `fields` contains all the avaiable fields from the solver, following the format:
+            - The `fields` contains all the avaiable fields with followings:
                 - description (str): A brief description.
-                - dtype (str): The data type, e.g. scalar, vector, tensor.
-                - etype (str): The element type of the field, e.g. node, face, cell.
+                - dtype (str): Data type, [scalar, vector, tensor].
+                - etype (str): Element type, [node, face, cell].
         """
-        return {}
+        pass
 
     @classmethod
     @abstractmethod
@@ -52,18 +87,17 @@ class ISolver(ABC):
 
     @property
     @abstractmethod
-    def status(self) -> dict:
+    def id(self) -> str:
+        """
+        The solver id.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def status(self) -> SolverStatus:
         """
         The current status of the solver, not including the solution.
-
-        Returns:
-            - A dictionary containing the current status of the solver with the following keys:
-                - elapsed_time (float): The elapsed time since the start of the solver.
-                - iteration (int): The current iteration number.
-                - time_step (float): The current time step.
-                - current_time (float): The current time.
-                - convergence (bool): Whether the solver has converged.
-                - error (str): Any error messages or warnings.
         """
         pass
 
@@ -149,7 +183,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def inference(self) -> tuple[bool, bool, dict]:
+    def inference(self) -> tuple[bool, bool, SolverStatus]:
         """
         Inference the solver to get the solutions.
         Run by steps.

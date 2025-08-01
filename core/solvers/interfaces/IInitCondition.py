@@ -17,16 +17,21 @@ class IInitCondition(ABC):
     @abstractmethod
     def get_name(cls) -> str:
         """
-        The unique name of the initialization method.
+        The unique name of this method.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        """
+        The initial condition id.
         """
         pass
 
     @abstractmethod
-    def apply(self, field: Field) -> None:
+    def apply(self, field: Field):
         """
         Initializes the field variables.
-
-        Args:
-            field: Field to be initialized.
         """
         pass

@@ -1,16 +1,32 @@
-from core.numerics.mesh import Grid1D, Grid2D, Grid3D, Coordinate, Node, Mesh
-from core.numerics.mesh import MeshTopo
-from core.numerics.fields import NodeField, Scalar, Vector, VariableType
+from core.numerics.mesh import (
+    Grid1D,
+    Grid2D,
+    Grid3D,
+    Coordinate,
+    Node,
+    Mesh,
+    MeshTopo,
+    MeshGeom,
+)
+from core.numerics.fields import (
+    NodeField,
+    CellField,
+    FaceField,
+    Scalar,
+    Vector,
+    VariableType,
+)
 from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fdm
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import unittest
 
 
-class TestBurgers(unittest.TestCase):
+class TestFdmBurgers(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -62,7 +78,7 @@ class TestBurgers(unittest.TestCase):
 
         # set callback
         output_dir = "./tests/results"
-        cb1 = callbacks.RenderCallback(output_dir)
+        cb1 = callbacks.ImageRender(output_dir)
         cb2 = callbacks.PerformanceMonitor(
             "burgers1d", "./tests/results/burgers1d.log", 10
         )
@@ -147,7 +163,7 @@ class TestBurgers(unittest.TestCase):
         confs = {
             "vel": {"style": "cloudmap", "dimension": "x"},
         }
-        cb1 = callbacks.RenderCallback(output_dir, confs)
+        cb1 = callbacks.ImageRender(output_dir, confs)
         cb2 = callbacks.PerformanceMonitor(
             "burgers2d", "./tests/results/burgers2d.log", 10
         )
@@ -211,7 +227,7 @@ class TestBurgers(unittest.TestCase):
                 "slice_set": {"style": "slice", "normal": [1, 1, 0]},
             }
         }
-        cb1 = callbacks.RenderCallback(output_dir, confs)
+        cb1 = callbacks.ImageRender(output_dir, confs)
         cb2 = callbacks.PerformanceMonitor(
             "burgers3d", "./tests/results/burgers3d.log", 10
         )
@@ -244,7 +260,7 @@ if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
         # suit.addTest(TestBurgers("test_burgers_1d"))
-        suit.addTest(TestBurgers("test_burgers_2d"))
+        # suit.addTest(TestFdmBurgers("test_burgers_2d"))
         # suit.addTest(TestBurgers("test_burgers_3d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)

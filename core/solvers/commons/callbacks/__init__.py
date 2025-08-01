@@ -1,4 +1,4 @@
-from core.solvers.commons.callbacks.RenderCallback import *
+from core.solvers.commons.callbacks.ImageRender import *
 from core.solvers.commons.callbacks.PerformanceMonitor import *
 
 

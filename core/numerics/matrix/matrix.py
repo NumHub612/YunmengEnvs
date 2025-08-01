@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix.
 """
-from core.numerics.fields import Variable, VariableType, Scalar
+from core.numerics.fields import Variable, VariableType, Scalar, DTYPE_MAP
 from configs.settings import settings, logger
 import scipy.sparse as sp
 from scipy.sparse import dok_matrix
@@ -101,25 +101,25 @@ class Matrix:
     @property
     @abstractmethod
     def diag(self) -> list:
-        """The diagonal elements of the matrix."""
+        """The diagonal elements."""
         raise NotImplementedError()
 
     @property
     @abstractmethod
     def nnz(self) -> list[int]:
-        """The number of all non-zero elements."""
+        """The number of all non-zero."""
         raise NotImplementedError()
 
     @property
     @abstractmethod
     def T(self) -> "Matrix":
-        """The transpose of the matrix."""
+        """The transposed matrix."""
         raise NotImplementedError()
 
     @property
     @abstractmethod
     def inv(self) -> "Matrix":
-        """The inverse of the matrix."""
+        """The inversed matrix."""
         raise NotImplementedError()
 
     @property
@@ -138,8 +138,13 @@ class Matrix:
         raise NotImplementedError()
 
     @abstractmethod
+    def clean(self):
+        """Clean the matrix to zero."""
+        raise NotImplementedError()
+
+    @abstractmethod
     def to_dense(self) -> np.ndarray:
-        """Convert the matrix to a dense format."""
+        """Convert to a dense matrix."""
         raise NotImplementedError()
 
     # -----------------------------------------------
@@ -354,8 +359,10 @@ class TorchMatrix(Matrix):
 
     @property
     def diag(self) -> List[np.ndarray]:
-        diag_indices = self._indices[:, self._indices[0] == self._indices[1]]
-        diag_values = self._values.values()[diag_indices[0]]
+        row_indices = self._indices[0]
+        col_indices = self._indices[1]
+        diag_indices = torch.where(row_indices == col_indices)[0]
+        diag_values = self._values.values()[diag_indices]
         return [diag_values.cpu().numpy()]
 
     @property
@@ -1390,7 +1397,7 @@ class SparseMatrix(Matrix):
         data_type: VariableType = VariableType.SCALAR,
         device: torch.device = None,
     ) -> "Matrix":
-        return cls(shape, device=device)
+        return cls(shape, data_type=data_type, device=device)
 
     def save(self, file_path: str):
         if not os.path.exists(os.path.dirname(file_path)):
@@ -1473,6 +1480,9 @@ class SparseMatrix(Matrix):
     def scalarize(self) -> list[Matrix]:
         return self._values
 
+    def clean(self):
+        raise NotImplementedError()
+
     def to_dense(self) -> np.ndarray:
         dense_mats = []
         for mat in self._values:
@@ -1483,11 +1493,17 @@ class SparseMatrix(Matrix):
     # --- overload methods ---
     # -----------------------------------------------
 
-    def __getitem__(self, index: tuple):
+    def __getitem__(self, index: tuple) -> float | Variable:
         item = [v[index] for v in self._values]
-        return item
+        val = DTYPE_MAP[self.dtype].from_data(np.array(item))
+        return val
 
     def __setitem__(self, index: tuple, value: float | Variable):
+        if isinstance(value, Scalar):
+            value = value.value
+        elif isinstance(value, Variable):
+            value = value.data
+
         for v in self._values:
             v[index] = value
 
@@ -1522,9 +1538,8 @@ class SparseMatrix(Matrix):
         if isinstance(other, SparseMatrix):
             for i in range(len(self._values)):
                 self._values[i] += other._values[i]
-                self._values[i] = self._values[i]
         else:
-            for mat in self._values:
+            for mat in self._values:  # broadcast addition
                 mat += other
         return self
 

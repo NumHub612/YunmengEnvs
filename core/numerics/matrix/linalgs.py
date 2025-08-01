@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Linear algebra class.
 """
 from core.numerics.matrix import Matrix, SparseMatrix
-from core.numerics.fields import Field, VariableType
+from core.numerics.fields import Field, VariableType, ElementType
 from configs.settings import settings
 import numpy as np
 import torch
@@ -64,13 +64,14 @@ class LinearEqs:
     def zeros(
         variable: str,
         size: int,
-        data_type: VariableType = VariableType.SCALAR,
+        matrix_type: VariableType = VariableType.SCALAR,
         rhs_type: VariableType = VariableType.SCALAR,
+        ele_type: ElementType = ElementType.CELL,
         device: torch.device = None,
     ) -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
-        mat = SparseMatrix.zeros((size, size), data_type, device)
-        rhs = Field(size, "none", rhs_type, device)
+        mat = SparseMatrix.zeros((size, size), matrix_type, device)
+        rhs = Field(size, ele_type, rhs_type, device=device)
         return LinearEqs(variable, mat, rhs, device)
 
     # -----------------------------------------------
@@ -217,16 +218,16 @@ class LinearEqs:
             else:
                 method = "scipy"
 
-        if settings.DEVICE == "cpu":
+        if settings.DEVICE == "cpu" and method == "cupy":
             method = "scipy"
 
         if method == "torch" or method == "scipy":
             solutions = self._solve_by_scipy()
-        elif method == "numpy":  # NOTE: require back to dense np matrix.
+        elif method == "numpy":
             solutions = self._solve_by_numpy()
-        elif method == "cupy":  # NOTE: require gpu.
+        elif method == "cupy":
             solutions = self._solve_by_cupy()
-        elif method == "torch":  # NOTE: depend on custom compiled torch.
+        elif method == "torch":
             solutions = self._solve_by_scipy()
         else:
             raise ValueError(f"Unsupported algorithm {method}.")

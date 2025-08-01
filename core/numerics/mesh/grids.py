@@ -16,7 +16,11 @@ import pickle
 
 
 class Grid(Mesh):
-    """Base class for orthogonal structured grids."""
+    """Abstract base class for orthogonal structured grids.
+
+    For `Grid`, the topological relationships and geometric calculations are simplified:
+    - The `Element`'s id will be equal to its index.
+    """
 
     def __init__(self):
         super().__init__()
@@ -311,15 +315,31 @@ class Grid2D(Grid):
         upper_right: Coordinate,
         num_x: int,
         num_y: int,
+        mode: str = None,
+        **kwargs
     ):
         """
         Initialize a 2D structured grid.
 
         Args:
             lower_left: The lower left corner of the grid.
-            upper_right: The upper right corner of the grid.
+            upper_right: The upper right corner.
             num_x: The number of nodes in the x-direction.
             num_y: The number of nodes in the y-direction.
+            mode: The node distribution mode.
+            kwargs: The extra settings corresponding to `mode`.
+
+        Note:
+            if `mode` is None, the extra settings would be invalid.
+            if `mode` is xxx, the following configs needed:
+                + dx (float):
+                + dy (float):
+            if `mode` is xxx: the following configs needed:
+                + ratio_x (float):
+                + ratio_x (float):
+            if `mode` is xxx: the following configs needed:
+                + pos_x (list):
+                + pos_y (list):
         """
         super().__init__()
         self._ll = lower_left
@@ -355,7 +375,7 @@ class Grid2D(Grid):
                 # face 1, n_lu -> n_ru
                 if i < self._nx - 1:
                     n_ru = self._nodes[(i + 1) * self._ny + j]
-                    nodes = [n_lu.id, n_ru.id]
+                    nodes = sorted([n_lu.id, n_ru.id], reverse=True)
                     center = 0.5 * (n_lu.coordinate + n_ru.coordinate)
                     face1 = Face(fid, center, nodes)
                     self._faces.append(face1)
@@ -364,7 +384,7 @@ class Grid2D(Grid):
                 # face 2, n_lu -> n_ld
                 if j < self._ny - 1:
                     n_ld = self._nodes[i * self._ny + j + 1]
-                    nodes = [n_lu.id, n_ld.id]
+                    nodes = sorted([n_lu.id, n_ld.id])
                     center = 0.5 * (n_lu.coordinate + n_ld.coordinate)
                     face2 = Face(fid, center, nodes)
                     self._faces.append(face2)

@@ -71,7 +71,7 @@ class ImageSetPlayer:
 
         return image_files
 
-    def play(self):
+    def play(self, show: bool = True, save: bool = False):
         """
         Play the image set.
         """
@@ -91,21 +91,14 @@ class ImageSetPlayer:
             init_func=_init,
             frames=len(self._images),
             interval=self._pause,
-            blit=True,
+            blit=False,
             repeat=False,
         )
 
-        plt.show()
+        if save:
+            gif_path = os.path.join(self._image_dir, "animation.gif")
+            ani.save(gif_path, writer="pillow")
+
+        if show:
+            plt.show()
         plt.close()
-
-
-if __name__ == "__main__":
-    from core.numerics.fields import NodeField, Scalar
-    import random
-
-    # Test ImageStreamPlayer
-
-    # Test ImageSetPlayer
-    img_dir = r".\tests\\results"
-    player = ImageSetPlayer(img_dir, pause=0.01)
-    player.play()
