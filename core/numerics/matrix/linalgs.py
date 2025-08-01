@@ -218,16 +218,16 @@ class LinearEqs:
             else:
                 method = "scipy"
 
-        if settings.DEVICE == "cpu":
+        if settings.DEVICE == "cpu" and method == "cupy":
             method = "scipy"
 
         if method == "torch" or method == "scipy":
             solutions = self._solve_by_scipy()
-        elif method == "numpy":  # NOTE: require back to dense np matrix.
+        elif method == "numpy":
             solutions = self._solve_by_numpy()
-        elif method == "cupy":  # NOTE: require gpu.
+        elif method == "cupy":
             solutions = self._solve_by_cupy()
-        elif method == "torch":  # NOTE: depend on custom compiled torch.
+        elif method == "torch":
             solutions = self._solve_by_scipy()
         else:
             raise ValueError(f"Unsupported algorithm {method}.")

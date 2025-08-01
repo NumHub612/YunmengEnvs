@@ -359,8 +359,10 @@ class TorchMatrix(Matrix):
 
     @property
     def diag(self) -> List[np.ndarray]:
-        diag_indices = self._indices[:, self._indices[0] == self._indices[1]]
-        diag_values = self._values.values()[diag_indices[0]]
+        row_indices = self._indices[0]
+        col_indices = self._indices[1]
+        diag_indices = torch.where(row_indices == col_indices)[0]
+        diag_values = self._values.values()[diag_indices]
         return [diag_values.cpu().numpy()]
 
     @property

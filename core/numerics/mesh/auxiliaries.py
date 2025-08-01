@@ -126,7 +126,9 @@ class MeshTopo:
                     for j in range(i + 1, len(nodes)):
                         neighbours[nodes[i]].add(nodes[j])
                         neighbours[nodes[j]].add(nodes[i])
-            self._node_neighbours = neighbours
+            self._node_neighbours = {}
+            for nid, nbs in neighbours.items():
+                self._node_neighbours[nid] = list(nbs)
         return self._node_neighbours
 
     @property
@@ -138,7 +140,32 @@ class MeshTopo:
             for cell in self._mesh.cells:
                 for fid in cell.faces:
                     face_cells[fid].add(cell.id)
-            self._face_cells = face_cells
+
+            self._face_cells = {}
+            for fid, cids in face_cells.items():
+                # Sort the cells left(owner), right(neighbour)
+                if len(cids) == 1:
+                    self._face_cells[fid] = list(cids)
+                    continue
+
+                nodes = self._mesh.faces[fid].nodes
+                nIdx0 = self.node_indices[nodes[0]]
+                nIdx1 = self.node_indices[nodes[1]]
+                nCoo0 = self._mesh.nodes[nIdx0].coordinate
+                nCoo1 = self._mesh.nodes[nIdx1].coordinate
+
+                cIds = list(cids)
+                cIdx0 = self.cell_indices[cIds[0]]
+                cCoo0 = self._mesh.cells[cIdx0].coordinate
+
+                v1 = (nCoo1 - nCoo0).to_np()
+                v2 = (cCoo0 - nCoo0).to_np()
+                res = v1[0] * v2[1] - v1[1] * v2[0]
+                if res < 0:
+                    self._face_cells[fid] = [cIds[1], cIds[0]]
+                else:
+                    self._face_cells[fid] = cIds
+
         return self._face_cells
 
     @property
@@ -149,7 +176,9 @@ class MeshTopo:
             for face in self._mesh.faces:
                 for nid in face.nodes:
                     node_faces[nid].add(face.id)
-            self._node_faces = node_faces
+            self._node_faces = {}
+            for nid, fids in node_faces.items():
+                self._node_faces[nid] = list(fids)
         return self._node_faces
 
     @property
@@ -162,7 +191,9 @@ class MeshTopo:
                 for fid in cell.faces:
                     for nid in face_nodes[fid]:
                         node_cells[nid].add(cell.id)
-            self._node_cells = node_cells
+            self._node_cells = {}
+            for nid, cids in node_cells.items():
+                self._node_cells[nid] = list(cids)
         return self._node_cells
 
     @property
@@ -175,7 +206,9 @@ class MeshTopo:
                 for fid in cell.faces:
                     for nid in face_nodes[fid]:
                         cell_nodes[cell.id].add(nid)
-            self._cell_nodes = cell_nodes
+            self._cell_nodes = {}
+            for cid, nids in cell_nodes.items():
+                self._cell_nodes[cid] = list(nids)
         return self._cell_nodes
 
     @property
@@ -188,7 +221,9 @@ class MeshTopo:
                 if len(cells) == 2:
                     cell_neighbours[cells[0]].add(cells[1])
                     cell_neighbours[cells[1]].add(cells[0])
-            self._cell_neighbours = cell_neighbours
+            self._cell_neighbours = {}
+            for cid, nbs in cell_neighbours.items():
+                self._cell_neighbours[cid] = list(nbs)
         return self._cell_neighbours
 
     # -----------------------------------------------
@@ -504,12 +539,14 @@ class MeshGeom:
         face_normals = [None] * self._mesh.face_count
         for i, face in enumerate(self._mesh.faces):
             nodes = self._mesh.get_nodes(face.nodes)
+            # Calculate the normal using the cross product of two vectors
+            # The normal is always pointing outward(left to right)
             normal = np.cross(
                 (nodes[1].coordinate - nodes[0].coordinate).to_np(),
                 [0, 0, 1],
             )
             normal /= np.linalg.norm(normal)
-            face_normals[i] = normal
+            face_normals[i] = Vector.from_data(normal)
         return face_normals
 
     def _calculate_normals_3d(self):
@@ -521,7 +558,7 @@ class MeshGeom:
                 (nodes[2].coordinate - nodes[1].coordinate).to_np(),
             )
             normal /= np.linalg.norm(normal)
-            face_normals[i] = normal
+            face_normals[i] = Vector.from_data(normal)
         return face_normals
 
     # -----------------------------------------------
@@ -696,7 +733,7 @@ class MeshGeom:
                 neighbours = self._mesh.get_cells(neighbours)
                 for nb in neighbours:
                     vec_np = (cell.coordinate - nb.coordinate).to_np()
-                    vec = Vector.from_np(vec_np)
+                    vec = Vector.from_data(vec_np)
                     vec /= vec.magnitude
                     cell_vecs[cell.id][nb.id] = vec
                     cell_vecs[nb.id][cell.id] = vec  # Symmetric matrix
@@ -712,7 +749,7 @@ class MeshGeom:
                 faces = self._mesh.get_faces(cell.faces)
                 for face in faces:
                     vec_np = (cell.coordinate - face.coordinate).to_np()
-                    vec = Vector.from_np(vec_np)
+                    vec = Vector.from_data(vec_np)
                     vec /= vec.magnitude
                     cell_face_vecs[cell.id][face.id] = vec
             self._cell2face_vects = cell_face_vecs

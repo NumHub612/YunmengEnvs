@@ -34,17 +34,6 @@ class IEquation(ABC):
     Interface for describing and discretizing pde equations.
     """
 
-    SUPPORTED_OPS = [
-        "LAPLACIAN",
-        "GRAD",
-        "DIV",
-        "CURL",
-        "DDT",
-        "D2DT2",
-        "SRC",
-        "FUNC",
-    ]
-
     @property
     @abstractmethod
     def id(self) -> str:
@@ -92,33 +81,5 @@ class IEquation(ABC):
     def discretize(self) -> LinearEqs:
         """
         Discretize the equations system.
-        """
-        pass
-
-
-class IOperator(ABC):
-    """
-    Interface for discretizing pde term to a numerical form.
-    """
-
-    @property
-    @abstractmethod
-    def type(self) -> str:
-        """
-        The type of the operator in `SUPPORTED_OPS`.
-        """
-        pass
-
-    @abstractmethod
-    def prepare(self, mesh: Mesh):
-        """
-        Prepare the operator for discretization.
-        """
-        pass
-
-    @abstractmethod
-    def run(self, source: Field) -> Field | LinearEqs:
-        """
-        Run the operator on each element.
         """
         pass

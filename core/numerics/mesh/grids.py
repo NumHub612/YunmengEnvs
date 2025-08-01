@@ -375,7 +375,7 @@ class Grid2D(Grid):
                 # face 1, n_lu -> n_ru
                 if i < self._nx - 1:
                     n_ru = self._nodes[(i + 1) * self._ny + j]
-                    nodes = [n_lu.id, n_ru.id]
+                    nodes = sorted([n_lu.id, n_ru.id], reverse=True)
                     center = 0.5 * (n_lu.coordinate + n_ru.coordinate)
                     face1 = Face(fid, center, nodes)
                     self._faces.append(face1)
@@ -384,7 +384,7 @@ class Grid2D(Grid):
                 # face 2, n_lu -> n_ld
                 if j < self._ny - 1:
                     n_ld = self._nodes[i * self._ny + j + 1]
-                    nodes = [n_lu.id, n_ld.id]
+                    nodes = sorted([n_lu.id, n_ld.id])
                     center = 0.5 * (n_lu.coordinate + n_ld.coordinate)
                     face2 = Face(fid, center, nodes)
                     self._faces.append(face2)

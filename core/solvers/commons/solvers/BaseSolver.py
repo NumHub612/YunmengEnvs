@@ -6,10 +6,12 @@ Base class for all solvers.
 """
 from core.solvers.interfaces import (
     IEquation,
+    IOperator,
     ISolver,
     ISolverCallback,
     IInitCondition,
     IBoundaryCondition,
+    OperatorType,
     SolverMeta,
     SolverStatus,
     SolverType,
