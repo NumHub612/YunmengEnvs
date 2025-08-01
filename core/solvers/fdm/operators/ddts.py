@@ -4,8 +4,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 DDt operators for the finite difference method.
 """
-from core.solvers.interfaces.IEquation import IOperator
-from core.numerics.matrix import LinearEqs, DenseMatrix
+from core.solvers.interfaces import IOperator
+from core.numerics.matrix import LinearEqs, SparseMatrix
 from core.numerics.fields import Field, NodeField, Variable, Vector, Tensor
 from core.numerics.mesh import Mesh
 
@@ -31,7 +31,7 @@ class Ddt01(IOperator):
         # create matrix
         coef = 1.0 / self._dt
 
-        mat = DenseMatrix.zeros((size, size))
+        mat = SparseMatrix.zeros((size, size))
         for i in range(size):
             mat[i, i] = coef
 
