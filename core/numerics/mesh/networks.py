@@ -4,6 +4,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Network structures mesh.
 """
+from core.numerics.mesh.meshes import Mesh
+from abc import abstractmethod
 
 
 class Network:
@@ -11,7 +13,12 @@ class Network:
     Network class.
     """
 
-    pass
+    @abstractmethod
+    def to_mesh(self) -> Mesh:
+        """
+        Convert network to mesh.
+        """
+        pass
 
 
 class RiverNet(Network):

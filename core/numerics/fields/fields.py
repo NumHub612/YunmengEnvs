@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Fields definition.
 """
-from core.numerics.fields import (
+from core.numerics.fields.variables import (
     Variable,
     VariableType,
     Scalar,
@@ -285,9 +285,9 @@ class Field:
                     f"Invalid value type: \
                         {other.type} (expected {self.dtype})"
                 )
-
-            for i in range(self.size):
-                self._values[i][:] = other.data
+            for values in self._values:
+                for i in range(self.size):
+                    values[i] = torch.from_numpy(other.data)
         else:
             raise TypeError(f"Can't assign with {type(other)}")
 

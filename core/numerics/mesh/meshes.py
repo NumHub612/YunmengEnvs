@@ -129,8 +129,8 @@ class Mesh(ABC):
         Each element corresponds to a cell:
 
         + 1 indicates the cell should be refined,
-        + -1 indicates the cell should be coarsened,
         + 0 indicates the cell should remain unchanged.
+        + -1 indicates the cell should be coarsened,
         """
         pass
 

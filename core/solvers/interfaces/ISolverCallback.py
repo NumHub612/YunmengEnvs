@@ -20,8 +20,16 @@ class ISolverCallback(ABC):
         """
         pass
 
+    @property
     @abstractmethod
-    def setup(self):
+    def id(self) -> str:
+        """
+        The callback id.
+        """
+        pass
+
+    @abstractmethod
+    def setup(self, solver: object, mesh: object, **kwargs):
         """
         Set up the callback method.
         """
@@ -37,21 +45,21 @@ class ISolverCallback(ABC):
     @abstractmethod
     def on_task_begin(self):
         """
-        Callback function called at the beginning of the task.
+        Callback function called at the task begin.
         """
         pass
 
     @abstractmethod
     def on_task_end(self):
         """
-        Callback function called at the end of task.
+        Callback function called at the task end.
         """
         pass
 
     @abstractmethod
     def on_step_begin(self):
         """
-        Callback function called at step begin.
+        Callback function called at the step begin.
         """
         pass
 
@@ -65,6 +73,6 @@ class ISolverCallback(ABC):
     @abstractmethod
     def on_step_end(self):
         """
-        Callback function called at the end of step.
+        Callback function called at the step end.
         """
         pass

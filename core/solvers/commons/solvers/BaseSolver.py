@@ -6,10 +6,15 @@ Base class for all solvers.
 """
 from core.solvers.interfaces import (
     IEquation,
+    IOperator,
     ISolver,
     ISolverCallback,
     IInitCondition,
     IBoundaryCondition,
+    OperatorType,
+    SolverMeta,
+    SolverStatus,
+    SolverType,
 )
 from core.numerics.fields import Field
 from core.numerics.mesh import Mesh, Node, Face, Cell
@@ -44,11 +49,19 @@ class BaseSolver(ISolver):
         self._default_bcs = None
         self._bcs = {}
 
+        self._status = SolverStatus()
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def status(self) -> SolverStatus:
+        return self._status
+
     def get_solution(self, field_name: str) -> Field:
         if field_name not in self._fields:
-            logger.warning(
-                f"Solver {self._id} solution for {field_name} is not available."
-            )
+            logger.error(f"Solver {self._id} solution {field_name} isn't available.")
             return None
 
         return self._fields[field_name]
@@ -57,7 +70,7 @@ class BaseSolver(ISolver):
         if not isinstance(callback, ISolverCallback):
             raise ValueError(f"Invalid callback: {callback}")
 
-        callback.setup(self.get_meta(), self._mesh)
+        callback.setup(self, self._mesh)
         self._callbacks.append(callback)
 
     def add_ic(self, var: str, ic: IInitCondition):
@@ -66,7 +79,8 @@ class BaseSolver(ISolver):
 
         if var in self._ics:
             logger.warning(
-                f"Solver {self._id} initial condition for {var} overwriting."
+                f"Solver {self._id} var {var} \
+                           initial condition overwrited."
             )
 
         self._ics[var] = ic
@@ -78,22 +92,14 @@ class BaseSolver(ISolver):
         for elem in elements:
             if not isinstance(elem, (Node, Face, Cell)):
                 raise ValueError(f"Invalid element: {elem}")
-            if isinstance(elem, Node):
-                if elem.id < 0 or elem.id > self._mesh.node_count:
-                    raise ValueError(f"Invalid node id: {elem.id}")
-            elif isinstance(elem, Face):
-                if elem.id < 0 or elem.id > self._mesh.face_count:
-                    raise ValueError(f"Invalid face id: {elem.id}")
-            elif isinstance(elem, Cell):
-                if elem.id < 0 or elem.id > self._mesh.cell_count:
-                    raise ValueError(f"Invalid cell id: {elem.id}")
 
             if elem.id not in self._bcs:
                 self._bcs[elem.id] = {}
 
             if var in self._bcs[elem.id]:
                 logger.warning(
-                    f"Solver {self._id} boundary condition for {var} on {elem.id} overwriting."
+                    f"Solver {self._id} var {var} boundary condition \
+                        on {elem.id} overwrited."
                 )
 
             self._bcs[elem.id][var] = bc

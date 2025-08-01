@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Constant boundary condition.
 """
-from core.solvers.interfaces import IBoundaryCondition
+from core.solvers.interfaces import IBoundaryCondition, BoundaryType
 from core.numerics.mesh import Element
 from core.numerics.fields import Variable
 from configs.settings import logger
@@ -18,6 +18,10 @@ class ConstantBoundary(IBoundaryCondition):
     @classmethod
     def get_name(cls) -> str:
         return "constant"
+
+    @classmethod
+    def get_type(cls) -> BoundaryType:
+        return BoundaryType.FIXED
 
     def __init__(self, id: str, value: Variable, flux: Variable):
         """
