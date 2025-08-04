@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 DDt operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
-from core.numerics.matrix import LinearEqs, SparseMatrix
+from core.numerics.mats import LinearEqs, SparseMatrix
 from core.numerics.fields import Field, NodeField, Variable, Vector, Tensor
 from core.numerics.mesh import Mesh
 

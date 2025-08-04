@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Grad operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
-from core.numerics.matrix import LinearEqs
+from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field, NodeField, Tensor, Vector
 from core.numerics.mesh import Grid
 

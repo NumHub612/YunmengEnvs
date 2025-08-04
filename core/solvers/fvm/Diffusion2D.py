@@ -10,7 +10,7 @@ from core.numerics.mesh import Grid2D, MeshTopo, MeshGeom
 from core.solvers.fvm.operators import Grad01
 from core.numerics.algos import FieldInterpolators as fis
 from core.numerics.fields import CellField, VariableType
-from core.numerics.matrix import LinearEqs
+from core.numerics.mats import LinearEqs
 from configs.settings import settings, logger
 
 import time

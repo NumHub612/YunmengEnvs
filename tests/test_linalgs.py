@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 import time
-from core.numerics.matrix import LinearEqs, SparseMatrix
+from core.numerics.mats import LinearEqs, SparseMatrix
 from core.numerics.fields import Field, ElementType, VariableType, Scalar
 from configs.settings import settings
 
