@@ -6,8 +6,8 @@ Callback for rendering the solver solutions.
 """
 from core.solvers.interfaces import ISolverCallback, ISolver
 from core.numerics.mesh import Mesh
-from core.visuals.plotter import plot_field, plot_mesh
-from core.visuals.animator import ImageSetPlayer
+from core.viewer.plotter import plot_field, plot_mesh
+from core.viewer.animator import ImageSetPlayer
 
 import os
 import shutil
