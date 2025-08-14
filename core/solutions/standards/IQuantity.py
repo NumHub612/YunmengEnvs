@@ -13,7 +13,7 @@ from typing import Optional
 
 class IQuantity(IValueDefinition):
     """
-    Class specifies values as an amount of some unit.
+    Class specifies values as an amount of units.
     """
 
     @abstractmethod

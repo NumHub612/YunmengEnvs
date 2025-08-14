@@ -30,7 +30,11 @@ class IDimension(ABC):
         pass
 
     @abstractmethod
-    def set_power(self, base_quantity: DimensionBase, power: float):
+    def set_power(
+        self,
+        base_quantity: DimensionBase,
+        power: float,
+    ):
         """
         Sets a power for a base dimension.
         """

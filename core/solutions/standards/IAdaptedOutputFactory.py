@@ -28,10 +28,7 @@ class IAdaptedOutputFactory(IIdentifiable):
 
     @abstractmethod
     def create_adapter(
-        self,
-        adapter_id: IIdentifiable,
-        adaptee: IOutput,
-        target: IInput,
+        self, adapter_id: IIdentifiable, adaptee: IOutput, target: IInput
     ) -> Optional[IAdaptedOutput]:
-        """Creates an adapter instance adapting the adaptee to target."""
+        """Creates an adapter adapting the adaptee to target."""
         pass

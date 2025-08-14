@@ -52,5 +52,5 @@ class IArgument(IIdentifiable):
     @property
     @abstractmethod
     def possible_values(self) -> List:
-        """Possible allowed values for the argument."""
+        """Possible allowed values."""
         pass

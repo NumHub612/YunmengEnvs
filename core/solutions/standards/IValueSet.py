@@ -13,6 +13,14 @@ from typing import Any, List
 class IValueSet(ABC):
     """Class represents a general(ordered) multi-dimensional set of values."""
 
+    @property
+    @abstractmethod
+    def value_definition(self) -> IValueDefinition:
+        """
+        Definition of the values in the value set.
+        """
+        pass
+
     @abstractmethod
     def get_number_of_indices(self) -> int:
         """
@@ -28,8 +36,8 @@ class IValueSet(ABC):
         """
         Returns the length of the dimension specified.
 
-        To get the size of the specified dimension, use zero-length int array as input
-        argument. Length of indice must be a least one
+        To get the size of the specified dimension, use zero-length
+        int array as input argument. Length of indice must be a least one
         smaller than the `get_number_of_indices()`.
 
         Parameters:
@@ -58,8 +66,8 @@ class IValueSet(ABC):
         """
         Removes the values specified by the given indices.
 
-        It is possible to remove not just a single value item, but also the
-        whole set of values for the given indices.
+        It is possible to remove not just a single value item, but also
+        the whole set of values for the given indices.
 
         Parameters:
             indices: Indices of specified dimension.
@@ -81,20 +89,13 @@ class IValueSet(ABC):
     def get_values_for_element(self, element_index: int) -> List[Any]:
         """
         Gets the values, for all times, for the given elementIndex.
-        If the data is spatial independent, element_index must be specified as 0.
+        If the data is spatial independent, element_index
+        must be specified as 0.
 
         Parameters:
             element_index: Index of element in `IElementSet`.
 
         Returns:
             The timeseries values.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def value_definition(self) -> IValueDefinition:
-        """
-        Definition of the values in the value set.
         """
         pass

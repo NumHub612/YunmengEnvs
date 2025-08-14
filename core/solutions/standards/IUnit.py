@@ -22,7 +22,7 @@ class IUnit(IDescribable):
     @property
     @abstractmethod
     def conversion_factor_to_si(self) -> float:
-        """Get the conversion factor to SI unit."""
+        """Get conversion factor to SI unit."""
         pass
 
     @property

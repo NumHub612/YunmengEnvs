@@ -44,5 +44,5 @@ class IAdaptedOutput(IOutput):
     @adaptee.setter
     @abstractmethod
     def adaptee(self, adaptee: IOutput):
-        """Sets an output item to be adapted."""
+        """Sets an output item."""
         pass
