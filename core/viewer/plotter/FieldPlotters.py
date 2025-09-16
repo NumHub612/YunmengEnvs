@@ -120,7 +120,7 @@ def plot_field(
             }
         }
 
-        PlotKits.plot_data_series(
+        PlotKits.plot_lines(
             x,
             y,
             save_dir=save_dir,

@@ -133,7 +133,10 @@ class MeshTopo:
 
     @property
     def face_cells(self) -> dict:
-        """Return the cells id connected to each face."""
+        """Return the cells id connected to each face.
+
+        Sorted to (left, right) or (owner, neighbour).
+        """
         if self._face_cells is None:
             faces_id = [face.id for face in self._mesh.faces]
             face_cells = {fid: set() for fid in faces_id}
