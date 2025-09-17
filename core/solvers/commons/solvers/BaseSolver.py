@@ -28,7 +28,7 @@ class BaseSolver(ISolver):
 
     def __init__(self, id: str, mesh: Mesh):
         """
-        Initialize the solver.
+        Solver.
 
         Args:
             id: The unique id of the solver instance.

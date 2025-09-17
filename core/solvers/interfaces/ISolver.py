@@ -51,7 +51,6 @@ class SolverStatus:
     elapsed_time: float = 0.0  # Time spent on the current step.
     residual: float = 0.0  # The max residual in current step.
     iteration: int = 0  # The iteration number.
-    linear_eqs: object = None  # The linear equations.
     time_step: float = 0.0  # The current calculation time step.
     progress: float = 0.0  # Progress percentage (0~1).
     finished: bool = False  # Whether the solver has finished.

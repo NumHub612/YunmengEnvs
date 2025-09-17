@@ -274,7 +274,7 @@ def plot_mesh_cloudmap(
     plotter = pv.Plotter(off_screen=not show, title=title)
     plotter.add_mesh(mesh, scalars=label, cmap=cmap, show_edges=show_edges)
 
-    # 显示 scalars 的具体数值
+    # show scalar values
     if show_scalars:
         scalars = np.around(scalars, decimals=3)
         if domain == "point":

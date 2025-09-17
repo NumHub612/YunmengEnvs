@@ -1,6 +1,8 @@
 from core.solvers.commons.boundaries.custom import *
 from core.solvers.commons.boundaries.constant import *
 from core.solvers.commons.boundaries.dirichlets import *
+from core.solvers.commons.boundaries.mixed import *
+from core.solvers.commons.boundaries.neumanns import *
 
 
 # register all the boundary conditions.

@@ -1,3 +1,11 @@
+from core.numerics.fields import (
+    NodeField,
+    CellField,
+    FaceField,
+    Scalar,
+    Vector,
+    VariableType,
+)
 from core.numerics.mesh import (
     Grid1D,
     Grid2D,
@@ -8,14 +16,7 @@ from core.numerics.mesh import (
     MeshTopo,
     MeshGeom,
 )
-from core.numerics.fields import (
-    NodeField,
-    CellField,
-    FaceField,
-    Scalar,
-    Vector,
-    VariableType,
-)
+from core.viewer.plotter import MatPlotters
 from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fvm
 from core.utils.SympifyNumExpr import lambdify_numexpr
@@ -37,7 +38,7 @@ class TestFvmEqs(unittest.TestCase):
         print("\n---------- Done \n")
 
     def setUp(self):
-        pass
+        self._output_dir = "./tests/results"
 
     def tearDown(self):
         pass
@@ -109,16 +110,8 @@ class TestFvmEqs(unittest.TestCase):
         # plt.show()
         plt.close()
 
-    def test_diffusion_2d(self):
-        """test Diffusion2D."""
-        # set mesh
-        low_left, upper_right = Coordinate(0, 0), Coordinate(0.833, 0.83)
-        nx, ny = 11, 11
-        grid = Grid2D(low_left, upper_right, nx, ny)
-        topo = MeshTopo(grid)
-
-        self._plot_grid_index(grid)
-
+    def _extract_boundaries(self, nx, ny, grid, topo):
+        """Extract boundary faces and nodes."""
         bc_faces = topo.boundary_faces
         bc_groups = {}
 
@@ -174,6 +167,18 @@ class TestFvmEqs(unittest.TestCase):
                 faces.remove(face)
         bc_groups["north"] = faces
 
+        return bc_groups
+
+    def test_diffusion_2d(self):
+        """test Diffusion2D."""
+        # set mesh
+        low_left, upper_right = Coordinate(0, 0), Coordinate(0.833, 0.83)
+        nx, ny = 5, 5
+        grid = Grid2D(low_left, upper_right, nx, ny)
+        topo = MeshTopo(grid)
+        bc_groups = self._extract_boundaries(nx, ny, grid, topo)
+        self._plot_grid_index(grid)
+
         # set initial condition
         ic = inits.UniformInitialization("ic1", Scalar(0.0))
         # cell_num = grid.cell_count
@@ -185,7 +190,7 @@ class TestFvmEqs(unittest.TestCase):
         bc2 = boundaries.DirichletBoundary("bc2", 20)
 
         # set callback
-        output_dir = "./tests/results"
+        output_dir = os.path.join(self._output_dir, "diff")
         confs = {
             "u": {
                 "style": "cloudmap",
@@ -216,102 +221,50 @@ class TestFvmEqs(unittest.TestCase):
     def test_convection_2d(self):
         """test Convection2D."""
         # set mesh
-        low_left, upper_right = Coordinate(0, 0), Coordinate(0.833, 0.83)
+        low_left, upper_right = Coordinate(0, 0), Coordinate(1.0, 1.0)
         nx, ny = 11, 11
         grid = Grid2D(low_left, upper_right, nx, ny)
         topo = MeshTopo(grid)
-
-        bc_faces = topo.boundary_faces
-        bc_groups = {}
-
-        faces = []
-        for j in range(ny - 1):
-            cid = grid.match_cell(0, j)
-            for fid in grid.cells[cid].faces:
-                if fid in bc_faces:
-                    faces.append(grid.faces[fid])
-        nid = grid.match_node(0, 0)
-        coo = grid.nodes[nid].coordinate
-        for face in faces:
-            if face.coordinate.x != coo.x:
-                faces.remove(face)
-        bc_groups["west"] = faces
-
-        faces = []
-        for j in range(ny - 1):
-            cid = grid.match_cell(nx - 2, j)
-            for fid in grid.cells[cid].faces:
-                if fid in bc_faces:
-                    faces.append(grid.faces[fid])
-        nid = grid.match_node(nx - 1, 0)
-        coo = grid.nodes[nid].coordinate
-        for face in faces:
-            if face.coordinate.x != coo.x:
-                faces.remove(face)
-        bc_groups["east"] = faces
-
-        faces = []
-        for i in range(nx - 1):
-            cid = grid.match_cell(i, 0)
-            for fid in grid.cells[cid].faces:
-                if fid in bc_faces:
-                    faces.append(grid.faces[fid])
-        nid = grid.match_node(0, 0)
-        coo = grid.nodes[nid].coordinate
-        for face in faces:
-            if face.coordinate.y != coo.y:
-                faces.remove(face)
-        bc_groups["south"] = faces
-
-        faces = []
-        for i in range(nx - 1):
-            cid = grid.match_cell(i, ny - 2)
-            for fid in grid.cells[cid].faces:
-                if fid in bc_faces:
-                    faces.append(grid.faces[fid])
-        nid = grid.match_node(0, ny - 1)
-        coo = grid.nodes[nid].coordinate
-        for face in faces:
-            if face.coordinate.y != coo.y:
-                faces.remove(face)
-        bc_groups["north"] = faces
+        bc_groups = self._extract_boundaries(nx, ny, grid, topo)
+        self._plot_grid_index(grid)
 
         # set initial condition
-        ic = inits.UniformInitialization("ic1", Scalar(0.0))
-        # cell_num = grid.cell_count
-        # init_field = CellField(cell_num, VariableType.SCALAR)
-        # ic = inits.HotstartInitialization("ic1", init_field)
+        ic1 = inits.UniformInitialization("ic1", Scalar(0.5))
+        ic2 = inits.UniformInitialization("ic2", Vector(1.0, 1.0))
 
         # set boundary condition
-        bc1 = boundaries.DirichletBoundary("bc1", 100)
-        bc2 = boundaries.DirichletBoundary("bc2", 20)
+        bc1 = boundaries.DirichletBoundary("bc1", 0)
+        bc2 = boundaries.DirichletBoundary("bc2", 1)
+        bc3 = boundaries.NeumannBoundary("bc3", Vector(0.0, 0.0))
 
         # set callback
-        output_dir = "./tests/results"
+        output_dir = os.path.join(self._output_dir, "conv")
         confs = {
-            "u": {
+            "phi": {
                 "style": "cloudmap",
                 "show_edges": True,
-            }
+                "show_scalars": False,
+            },
+            "u": {"style": "streamplot"},
         }
         cb1 = callbacks.ImageRender("cb1", output_dir, fields=confs)
 
         # set solver
-        solver = fvm.Convection2D("solver1", grid)
+        solver = fvm.Convection2D("solver2", grid)
         solver.add_callback(cb1)
-        solver.add_ic("u", ic)
-        solver.add_bc("u", bc_groups["west"], bc1)
-        solver.add_bc("u", bc_groups["east"], bc1)
-        solver.add_bc("u", bc_groups["south"], bc1)
-        solver.add_bc("u", bc_groups["north"], bc2)
+        solver.add_ic("phi", ic1)
+        solver.add_ic("u", ic2)
+        solver.add_bc("phi", bc_groups["west"], bc2)
+        solver.add_bc("phi", bc_groups["east"], bc3)
+        solver.add_bc("phi", bc_groups["south"], bc1)
+        solver.add_bc("phi", bc_groups["north"], bc3)
 
-        K = 100
-        solver.initialize(K)
+        solver.initialize()
 
         # run solver
-        is_done = False
-        while not is_done:
-            is_done, _, _ = solver.inference()
+        done = False
+        while not done:
+            done, _, _ = solver.inference()
 
         cb1.on_task_end()
 
@@ -323,7 +276,8 @@ class TestFvmEqs(unittest.TestCase):
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
-        suit.addTest(TestFvmEqs("test_diffusion_2d"))
+        # suit.addTest(TestFvmEqs("test_diffusion_2d"))
+        suit.addTest(TestFvmEqs("test_convection_2d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)
