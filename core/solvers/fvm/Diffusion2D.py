@@ -48,7 +48,7 @@ class Diffusion2D(BaseSolver):
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
 
-        self._default_bcs = {"u": boundaries.ConstantBoundary("u", 0.0, 0.0)}
+        self._default_bcs = {"u": boundaries.MixedBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
         self._operators = {"u": Grad01()}
         self._phi = 1.0

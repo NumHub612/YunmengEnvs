@@ -29,7 +29,7 @@ class Convection2D(BaseSolver):
         metas.equation_expr = "div(rho*u*phi) == 0"
         metas.dimension = "2d"
         metas.default_ics = {"phi": "UniformInitialization( 0.0)"}
-        metas.default_bcs = {"phi": "boundaries.ConstantBoundary(0.0, 0.0)"}
+        metas.default_bcs = {"phi": "boundaries.NaturalBoundary(0.0, 0.0)"}
         metas.fields = {
             "phi": {
                 "description": "Scalar phi field",
@@ -55,8 +55,8 @@ class Convection2D(BaseSolver):
         self._topo = mesh.get_topo_assistant()
 
         self._default_bcs = {
-            "phi": boundaries.ConstantBoundary("phi", 0.0, Vector()),
-            "u": boundaries.ConstantBoundary("u", Vector(), Vector()),
+            "phi": boundaries.MixedBoundary("phi", 0.0, Vector()),
+            "u": boundaries.MixedBoundary("u", Vector(), Vector()),
         }
         self._default_ics = {
             "phi": inits.UniformInitialization("phi", 0.0),

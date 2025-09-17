@@ -173,7 +173,7 @@ class TestFvmEqs(unittest.TestCase):
         """test Diffusion2D."""
         # set mesh
         low_left, upper_right = Coordinate(0, 0), Coordinate(0.833, 0.83)
-        nx, ny = 5, 5
+        nx, ny = 11, 11
         grid = Grid2D(low_left, upper_right, nx, ny)
         topo = MeshTopo(grid)
         bc_groups = self._extract_boundaries(nx, ny, grid, topo)
@@ -186,8 +186,8 @@ class TestFvmEqs(unittest.TestCase):
         # ic = inits.HotstartInitialization("ic1", init_field)
 
         # set boundary condition
-        bc1 = boundaries.DirichletBoundary("bc1", 100)
-        bc2 = boundaries.DirichletBoundary("bc2", 20)
+        bc1 = boundaries.FixedBoundary("bc1", 100)
+        bc2 = boundaries.FixedBoundary("bc2", 20)
 
         # set callback
         output_dir = os.path.join(self._output_dir, "diff")
@@ -233,9 +233,9 @@ class TestFvmEqs(unittest.TestCase):
         ic2 = inits.UniformInitialization("ic2", Vector(1.0, 1.0))
 
         # set boundary condition
-        bc1 = boundaries.DirichletBoundary("bc1", 0)
-        bc2 = boundaries.DirichletBoundary("bc2", 1)
-        bc3 = boundaries.NeumannBoundary("bc3", Vector(0.0, 0.0))
+        bc1 = boundaries.FixedBoundary("bc1", 0)
+        bc2 = boundaries.FixedBoundary("bc2", 1)
+        bc3 = boundaries.NaturalBoundary("bc3", Vector(0.0, 0.0))
 
         # set callback
         output_dir = os.path.join(self._output_dir, "conv")
@@ -276,7 +276,7 @@ class TestFvmEqs(unittest.TestCase):
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
-        # suit.addTest(TestFvmEqs("test_diffusion_2d"))
+        suit.addTest(TestFvmEqs("test_diffusion_2d"))
         suit.addTest(TestFvmEqs("test_convection_2d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
