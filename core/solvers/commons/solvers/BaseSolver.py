@@ -110,12 +110,6 @@ class BaseSolver(ISolver):
     def initialize(self):
         raise NotImplementedError()
 
-    def reset(self):
-        raise NotImplementedError()
-
-    def terminate(self):
-        raise NotImplementedError()
-
     def assimilate(self):
         raise NotImplementedError()
 

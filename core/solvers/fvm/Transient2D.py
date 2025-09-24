@@ -15,6 +15,7 @@ from configs.settings import settings, logger
 
 import time
 import numpy as np
+import copy
 
 
 class UnsteadyDiffusion(BaseSolver):
@@ -53,14 +54,19 @@ class UnsteadyDiffusion(BaseSolver):
         self._operators = {"phi": Grad01()}
         self._k = 1.0
         self._rho = 1.0
+        self._order = 1
+        self._max_iter = 100
+        self._tol = 1e-6
+        self._step = 0
 
         self._fields = {
             "phi": CellField(self._mesh.cell_count, VariableType.SCALAR),
-            "phi_grad_c": CellField(self._mesh.cell_count, VariableType.VECTOR),
-            "phi_grad_f": CellField(self._mesh.face_count, VariableType.VECTOR),
+            "phi_prev": CellField(self._mesh.cell_count, VariableType.SCALAR),
         }
 
-    def initialize(self, k: float):
+    def initialize(
+        self, k: float, order: int = 1, max_iter: int = 100, tol: float = 1e-6
+    ):
         logger.info("Initializing the unsteady 2D diffusion solver...")
 
         # Check initial conditions
@@ -81,9 +87,17 @@ class UnsteadyDiffusion(BaseSolver):
                      {face}, using default."
                 )
                 self._bcs[face] = self._default_bcs["phi"]
+        self._fields["phi_prev"] = copy.deepcopy(self._fields["phi"])
+
+        # Init or reset status
+        self._step = 0
+        self._status = SolverStatus()
 
         # Init parameters
+        self._max_iter = max_iter
+        self._tol = tol
         self._k = k
+        self._order = order
 
         # Init operators
         for _, op in self._operators.items():
@@ -93,27 +107,13 @@ class UnsteadyDiffusion(BaseSolver):
         for callback in self._callbacks:
             callback.on_task_begin()
 
-    def inference(self, dt: float = 1.0) -> tuple[bool, bool, SolverStatus]:
+    def inference(self, dt: float = 1.0) -> SolverStatus:
         logger.info("Inference the 2D diffusion solver...")
         start = time.perf_counter()
 
-        # Compute gradients
-        GradC = self._operators["phi"].run(self._fields["phi"])
-        self._fields["phi_grad_c"] = GradC
-
-        GradF = fis.interp_cell_to_face(GradC, self._mesh)
-        self._fields["phi_grad_f"] = GradF
-
         sys = LinearEqs.zeros("phi", self._mesh.cell_count)
         # Assemble time matrix
-        for cell in self._mesh.cells:
-            cid = cell.id
-            Vol = self._geom.cell_volumes[cid]
-            phi = self._fields["phi"][cid]
-            coef = self._rho * Vol / dt
-
-            sys.matrix[cid, cid] += coef
-            sys.rhs[cid] += coef * phi
+        self._handle_transient(sys, dt, self._order)
 
         # Aseemble boundary matrix
         for face in self._topo.boundary_faces:
@@ -154,19 +154,59 @@ class UnsteadyDiffusion(BaseSolver):
         solutions = sys.solve(method="numpy")
 
         # Update solution
+        self._fields["phi_prev"] = copy.deepcopy(self._fields["phi"])
         self._fields["phi"] = solutions
+        self._step += 1
 
         # Update status
+        diffs = self._fields["phi"] - self._fields["phi_prev"]
+        res = np.max(np.abs(diffs.data))
         self._status.elapsed_time = time.perf_counter() - start
-        self._status.progress = 1.0
+        self._status.finished = res <= self._tol or self._step >= self._max_iter
+        self._status.progress = (
+            self._step / self._max_iter if not self._status.finished else 1.0
+        )
         self._status.converged = True
-        self._status.finished = True
 
         # Call callbacks
         for callback in self._callbacks:
             callback.on_step()
 
-        return False, False, self.status
+        return self.status
+
+    def _handle_transient(self, sys: LinearEqs, dt: float, order: int):
+        if order == 1:
+            self._handle_transient_1st(sys, dt)
+        elif order == 2:
+            self._handle_transient_2nd(sys, dt)
+        else:
+            raise ValueError(f"Unsupported time discretization order: {order}.")
+
+    def _handle_transient_1st(self, sys: LinearEqs, dt: float):
+        # FOUE(first-order upwind scheme)
+        for cell in self._mesh.cells:
+            cid = cell.id
+            Vol = self._geom.cell_volumes[cid]
+            phi = self._fields["phi"][cid]
+            coef = self._rho * Vol / dt
+
+            sys.matrix[cid, cid] += coef
+            sys.rhs[cid] += coef * phi
+
+    def _handle_transient_2nd(self, sys: LinearEqs, dt: float):
+        # SOUE(second-order upwind scheme)
+        for cell in self._mesh.cells:
+            cid = cell.id
+            Vol = self._geom.cell_volumes[cid]
+            phi = self._fields["phi"][cid]
+            phi_prev = self._fields["phi_prev"][cid]
+            tmp = self._rho * Vol / (2.0 * dt)
+
+            fluxC = 3.0 * tmp
+            fluxV = 4.0 * tmp * phi - tmp * phi_prev
+
+            sys.matrix[cid, cid] += fluxC
+            sys.rhs[cid] += fluxV
 
     def _handle_boundary(self, face: int, bc):
         items = bc.evaluate()
@@ -271,12 +311,16 @@ class UnsteadyConvection(BaseSolver):
         self._operators = {"phi": Grad02()}
         self._rho = 1.0
         self._u = u
+        self._step = 0
+        self._max_iter = 100
+        self._tol = 1e-6
 
         self._fields = {
             "phi": CellField(self._mesh.cell_count, VariableType.SCALAR),
+            "phi_prev": CellField(self._mesh.cell_count, VariableType.SCALAR),
         }
 
-    def initialize(self):
+    def initialize(self, max_iter: int = 100, tol: float = 1e-6):
         logger.info("Initializing unsteady 2D convection solver...")
 
         # Check initial conditions
@@ -300,6 +344,15 @@ class UnsteadyConvection(BaseSolver):
                      {face}, using default."
                 )
                 self._bcs[face] = self._default_bcs["phi"]
+        self._fields["phi_prev"] = copy.deepcopy(self._fields["phi"])
+
+        # Init or reset status
+        self._step = 0
+        self._status = SolverStatus()
+
+        # Init parameters
+        self._max_iter = max_iter
+        self._tol = tol
 
         # Init operators
         for _, op in self._operators.items():
@@ -309,7 +362,7 @@ class UnsteadyConvection(BaseSolver):
         for callback in self._callbacks:
             callback.on_task_begin()
 
-    def inference(self, dt: float = 1.0) -> tuple[bool, bool, SolverStatus]:
+    def inference(self, dt: float = 1.0) -> SolverStatus:
         logger.info("Inference unsteady 2D convection solver...")
         start = time.perf_counter()
 
@@ -353,19 +406,26 @@ class UnsteadyConvection(BaseSolver):
         solutions = sys.solve(method="numpy")
 
         # Update solution
+        self._fields["phi_prev"] = copy.deepcopy(self._fields["phi"])
         self._fields["phi"] = solutions
 
         # Update status
+        diffs = self._fields["phi"] - self._fields["phi_prev"]
+        res = np.max(np.abs(diffs.data))
+        self._step += 1
+        self._status.residual = res
         self._status.elapsed_time = time.perf_counter() - start
-        self._status.progress = 1.0
+        self._status.finished = res <= self._tol or self._step >= self._max_iter
+        self._status.progress = (
+            self._step / self._max_iter if not self._status.finished else 1.0
+        )
         self._status.converged = True
-        self._status.finished = True
 
         # Call callbacks
         for callback in self._callbacks:
             callback.on_step()
 
-        return False, False, self.status
+        return self._status
 
     def _handle_boundary(self, face: int, bc: IBoundaryCondition):
         """Boundary for convection problem."""

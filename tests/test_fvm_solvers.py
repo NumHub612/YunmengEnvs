@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import unittest
+import shutil
 
 
 class TestFvmEqs(unittest.TestCase):
@@ -254,21 +255,25 @@ class TestFvmEqs(unittest.TestCase):
         solver.add_bc("phi", bc_groups["south"], bc1)
         solver.add_bc("phi", bc_groups["north"], bc2)
 
-        K = 1
-        solver.initialize(K)
-
-        # run solver
         steps = 10
+        K = 1
         dt = 0.01
-        for i in range(steps):
-            is_done, _, _ = solver.inference(dt)
-            if i % 10 == 0:
-                step = max(i, 1)
-                print(f"Step {step}/{steps} done.")
-            if is_done:
-                print(f"Converged at step {i+1}.")
-                break
+        # run at first order accuracy
+        solver.initialize(K, order=1, max_iter=steps)
+        print("Running solver at first order accuracy...")
 
+        status = None
+        while status is None or not status.finished:
+            status = solver.inference(dt)
+        cb1.on_task_end()
+
+        # run solver at second order accuracy
+        solver.initialize(K, order=2, max_iter=steps)
+        print("Running solver at second order accuracy...")
+
+        status = None
+        while status is None or not status.finished:
+            status = solver.inference(dt)
         cb1.on_task_end()
 
     def test_convection_2d(self):
@@ -359,32 +364,23 @@ class TestFvmEqs(unittest.TestCase):
         solver.add_bc("phi", bc_groups["south"], bc1)
         solver.add_bc("phi", bc_groups["north"], bc3)
 
-        solver.initialize()
+        steps = 10
+        solver.initialize(max_iter=steps)
 
         # run solver
-        steps = 10
         dt = 0.1
-        for i in range(steps):
-            is_done, _, _ = solver.inference(dt)
-            if i % 10 == 0:
-                step = max(i, 1)
-                print(f"Step {step}/{steps} done.")
-            if is_done:
-                print(f"Converged at step {i+1}.")
-                break
+        status = None
+        while status is None or not status.finished:
+            status = solver.inference(dt)
 
         cb1.on_task_end()
-
-    def test_transient_2d(self):
-        """test Transient2D."""
-        pass
 
 
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
         # suit.addTest(TestFvmEqs("test_diffusion_2d"))
-        # suit.addTest(TestFvmEqs("test_diffusion_unsteady"))
+        suit.addTest(TestFvmEqs("test_diffusion_unsteady"))
         # suit.addTest(TestFvmEqs("test_convection_2d"))
         suit.addTest(TestFvmEqs("test_convection_unsteady"))
 
