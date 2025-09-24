@@ -218,6 +218,59 @@ class TestFvmEqs(unittest.TestCase):
 
         cb1.on_task_end()
 
+    def test_diffusion_unsteady(self):
+        """test unsteady Diffusion."""
+        # set mesh
+        low_left, upper_right = Coordinate(0, 0), Coordinate(0.833, 0.83)
+        nx, ny = 31, 31
+        grid = Grid2D(low_left, upper_right, nx, ny)
+        topo = MeshTopo(grid)
+        bc_groups = self._extract_boundaries(nx, ny, grid, topo)
+        self._plot_grid_index(grid)
+
+        # set initial condition
+        ic = inits.UniformInitialization("ic1", Scalar(0.0))
+
+        # set boundary condition
+        bc1 = boundaries.FixedBoundary("bc1", 100)
+        bc2 = boundaries.FixedBoundary("bc2", 20)
+
+        # set callback
+        output_dir = os.path.join(self._output_dir, "diff2")
+        confs = {
+            "phi": {
+                "style": "cloudmap",
+                "show_edges": True,
+            }
+        }
+        cb1 = callbacks.ImageRender("cb1", output_dir, fields=confs)
+
+        # set solver
+        solver = fvm.UnsteadyDiffusion("solver1", grid)
+        solver.add_callback(cb1)
+        solver.add_ic("phi", ic)
+        solver.add_bc("phi", bc_groups["west"], bc1)
+        solver.add_bc("phi", bc_groups["east"], bc1)
+        solver.add_bc("phi", bc_groups["south"], bc1)
+        solver.add_bc("phi", bc_groups["north"], bc2)
+
+        K = 1
+        solver.initialize(K)
+
+        # run solver
+        steps = 10
+        dt = 0.01
+        for i in range(steps):
+            is_done, _, _ = solver.inference(dt)
+            if i % 10 == 0:
+                step = max(i, 1)
+                print(f"Step {step}/{steps} done.")
+            if is_done:
+                print(f"Converged at step {i+1}.")
+                break
+
+        cb1.on_task_end()
+
     def test_convection_2d(self):
         """test Convection2D."""
         # set mesh
@@ -276,8 +329,9 @@ class TestFvmEqs(unittest.TestCase):
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
-        suit.addTest(TestFvmEqs("test_diffusion_2d"))
-        suit.addTest(TestFvmEqs("test_convection_2d"))
+        # suit.addTest(TestFvmEqs("test_diffusion_2d"))
+        suit.addTest(TestFvmEqs("test_diffusion_unsteady"))
+        # suit.addTest(TestFvmEqs("test_convection_2d"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)

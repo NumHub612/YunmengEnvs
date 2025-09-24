@@ -1,6 +1,7 @@
 from core.solvers.interfaces.ISolver import ISolver
 from core.solvers.fvm.Diffusion2D import *
 from core.solvers.fvm.Convection2D import *
+from core.solvers.fvm.Transient2D import *
 
 
 # register all the fvm solvers here.
