@@ -2,7 +2,7 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Timeseries, curves and patterns.
+Times-, curve- and patter-series data structures.
 """
 import numpy as np
 
@@ -20,7 +20,7 @@ class Timeseries:
 
 class Curve:
     """
-    A curve is a function that maps a real number to a real number.
+    A curve is a function that maps two float dataseries.
     """
 
     def __init__(self, x: np.ndarray, y: np.ndarray):
