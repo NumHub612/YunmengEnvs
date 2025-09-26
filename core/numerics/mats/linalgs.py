@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Linear algebra class.
 """
-from core.numerics.matrix import Matrix, SparseMatrix
+from core.numerics.mats import Matrix, SparseMatrix
 from core.numerics.fields import Field, VariableType, ElementType
 from configs.settings import settings
 import numpy as np

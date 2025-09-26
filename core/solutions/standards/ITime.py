@@ -19,5 +19,5 @@ class ITime(ABC):
     @property
     @abstractmethod
     def duration_in_days(self) -> float:
-        """Duration in days for time interval."""
+        """Duration in days."""
         pass

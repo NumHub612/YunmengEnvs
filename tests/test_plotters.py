@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-from core.visuals.plotter import plot_field, plot_mesh
+from core.viewer.plotter import plot_field, plot_mesh
 from core.numerics.mesh import Coordinate, Grid1D, Grid2D, Grid3D, ElementType
 from core.numerics.fields import Field, NodeField, VariableType
 import unittest

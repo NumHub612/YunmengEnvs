@@ -29,5 +29,5 @@ class IInput(IBaseExchangeItem):
 
     @abstractmethod
     def remove_provider(self, provider):
-        """Removes specified provider from this input item."""
+        """Removes specified provider."""
         pass

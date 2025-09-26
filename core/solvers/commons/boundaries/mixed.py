@@ -10,7 +10,7 @@ from core.numerics.fields import Variable
 from configs.settings import logger
 
 
-class RobinnBoundary(IBoundaryCondition):
+class MixedBoundary(IBoundaryCondition):
     """
     Robinn boundary condition, providing the boundary informations:
     + convection transfer coefficient;

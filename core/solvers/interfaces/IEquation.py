@@ -10,7 +10,7 @@ provide standardized, configurable numerical discretization schemes, which
 are also driven by the `Solver`.
 For known problems, more efficient solver can be directly developed.
 """
-from core.numerics.matrix import LinearEqs
+from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field
 from core.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
@@ -73,7 +73,7 @@ class IEquation(ABC):
     @abstractmethod
     def get_variables(self) -> dict:
         """
-        Get the variables used in equations.
+        Get variables used in equations.
         """
         pass
 

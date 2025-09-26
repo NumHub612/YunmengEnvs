@@ -15,9 +15,9 @@ class IOutput(IBaseExchangeItem):
     """
     An output exchange item that can deliver values from an `ILinkableComponent`.
 
-    If an output does not provide the data in the way a consumer would like to have,
-    the output can be adapted by an `IAdaptedOutput`, which can transform
-    the data according to the consumer's wishes.
+    If an output item doesn't provide the data in the way a consumer would like
+    to have, the output can be adapted by an `IAdaptedOutput`, which can
+    transform the data according to the consumer's wishes.
     """
 
     # from core.solutions.standards.IAdaptedOutput import IAdaptedOutput
@@ -29,8 +29,8 @@ class IOutput(IBaseExchangeItem):
 
     @abstractmethod
     def add_consumer(self, consumer: IInput):
-        """Adds a consumer to the output item. Every input item needs
-        to add itself as a consumer first.
+        """Adds a consumer to the output item. Every input item
+        needs to add itself as a consumer first.
         """
         pass
 
@@ -53,6 +53,6 @@ class IOutput(IBaseExchangeItem):
     def add_adapter(self, adaptedOutput):
         """Adds an adapted output to the output item.
 
-        Every adapted output item needs to add itself as an adaptee.
+        Each adapted output item needs to add itself as an adaptee.
         """
         pass

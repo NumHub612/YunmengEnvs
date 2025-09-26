@@ -25,7 +25,7 @@ class IDescribable(ABC):
     @property
     @abstractmethod
     def description(self) -> str:
-        """Additional descriptive information about the entity."""
+        """Additional descriptive."""
         pass
 
     @description.setter

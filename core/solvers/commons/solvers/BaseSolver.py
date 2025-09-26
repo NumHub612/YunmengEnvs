@@ -28,7 +28,7 @@ class BaseSolver(ISolver):
 
     def __init__(self, id: str, mesh: Mesh):
         """
-        Initialize the solver.
+        Solver.
 
         Args:
             id: The unique id of the solver instance.
@@ -108,12 +108,6 @@ class BaseSolver(ISolver):
         raise NotImplementedError()
 
     def initialize(self):
-        raise NotImplementedError()
-
-    def reset(self):
-        raise NotImplementedError()
-
-    def terminate(self):
         raise NotImplementedError()
 
     def assimilate(self):

@@ -6,7 +6,7 @@ Basic and simple equation class for user customized pde equations.
 """
 from core.solvers.interfaces import IEquation, IOperator
 from core.numerics.fields import Variable, Field
-from core.numerics.matrix import LinearEqs
+from core.numerics.mats import LinearEqs
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import numpy as np

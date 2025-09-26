@@ -15,6 +15,7 @@ class VariableType(enum.Enum):
     SCALAR = "scalar"
     VECTOR = "vector"
     TENSOR = "tensor"
+    NONE = "none"
 
 
 class ElementType(enum.Enum):

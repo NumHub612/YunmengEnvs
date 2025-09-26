@@ -75,6 +75,8 @@ class ImageSetPlayer:
         """
         Play the image set.
         """
+        if len(self._images) == 0:
+            return
 
         def _init():
             self._ax.clear()
