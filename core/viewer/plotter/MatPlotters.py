@@ -93,10 +93,10 @@ def show_lineareqs_heatmap(
     """
     matrix = eqs.matrix.scalarize()[0]
     mat_np = matrix.to_dense()
-    rhs_np = eqs.rhs.data[0].numpy().reshape(-1, 1)
+    rhs_np = eqs.rhs.data[0].numpy()
 
     fig = plt.figure(figsize=figsize)
-    grid_spec = fig.add_gridspec(1, 2, width_ratios=[len(rhs_np), 1])
+    grid_spec = fig.add_gridspec(1, 2, width_ratios=[len(rhs_np), rhs_np.shape[1]])
 
     ax0 = fig.add_subplot(grid_spec[0, 0])
     sns.heatmap(mat_np, annot=True, cmap=cmap, cbar=False, ax=ax0)

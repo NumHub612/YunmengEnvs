@@ -107,11 +107,6 @@ class ImageRender(ISolverCallback):
         status, solutions = self._check_solver()
         self._plot_field(status, solutions)
 
-    def on_step(self, **kwargs):
-        self._frame += 1
-        status, solutions = self._check_solver()
-        self._plot_field(status, solutions)
-
     def _plot_field(self, solver_status, solver_solutions):
         """Plot the field solutions."""
         for fname, field in solver_solutions.items():
@@ -143,5 +138,10 @@ class ImageRender(ISolverCallback):
     def on_step_begin(self, **kwargs):
         pass
 
-    def on_step_end(self, **kwargs):
+    def on_step(self, **kwargs):
         pass
+
+    def on_step_end(self, **kwargs):
+        self._frame += 1
+        status, solutions = self._check_solver()
+        self._plot_field(status, solutions)
