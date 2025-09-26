@@ -375,14 +375,85 @@ class TestFvmEqs(unittest.TestCase):
 
         cb1.on_task_end()
 
+    def test_burgers(self):
+        """test Burgers2D."""
+        # set mesh
+        low_left, upper_right = Coordinate(0, 0), Coordinate(2, 2)
+        nx, ny = 21, 21
+        grid = Grid2D(low_left, upper_right, nx, ny)
+
+        start_x, end_x = 0.5, 1.0
+        start_y, end_y = 0.5, 1.0
+        init_groups = []
+        for cell in grid.cells:
+            if (
+                cell.coordinate.x >= start_x
+                and cell.coordinate.x <= end_x
+                and cell.coordinate.y >= start_y
+                and cell.coordinate.y <= end_y
+            ):
+                init_groups.append(cell.id)
+
+        topo = MeshTopo(grid)
+        bc_groups = self._extract_boundaries(nx, ny, grid, topo)
+
+        # set initial condition
+        cell_num = grid.cell_count
+        init_field = CellField(cell_num, VariableType.VECTOR, Vector(1, 1))
+        for i in init_groups:
+            init_field[i] = Vector(2, 2)
+
+        ic = inits.HotstartInitialization("ic1", init_field)
+
+        # set boundary condition
+        bc_value = Vector(1, 1)
+        bc1 = boundaries.NaturalBoundary("bc1", bc_value)
+        bc2 = boundaries.FixedBoundary("bc2", bc_value)
+
+        # set callback
+        output_dir = os.path.join(self._output_dir, "burgers")
+        confs = {
+            "u": {
+                "style": "cloudmap",
+                "dimension": "x",
+                "show_edges": True,
+                # "show_scalars": True,
+            },
+        }
+        cb1 = callbacks.ImageRender("cb1", output_dir, confs)
+
+        # set conditions
+        solver = fvm.UnsteadyBurgers("solver1", grid)
+        solver.add_callback(cb1)
+        solver.add_ic("u", ic)
+        solver.add_bc("u", bc_groups["west"], bc2)
+        solver.add_bc("u", bc_groups["south"], bc2)
+        solver.add_bc("u", bc_groups["east"], bc1)
+        solver.add_bc("u", bc_groups["north"], bc1)
+
+        # initialize solver
+        steps = 10
+        K = 0.1
+        dt = 0.04
+        order = 1
+        solver.initialize(k=K, order=order, max_iter=steps)
+
+        # run solver
+        status = None
+        while status is None or not status.finished:
+            status = solver.inference(dt)
+
+        cb1.on_task_end()
+
 
 if __name__ == "__main__":
     with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
         suit = unittest.TestSuite()
         # suit.addTest(TestFvmEqs("test_diffusion_2d"))
-        suit.addTest(TestFvmEqs("test_diffusion_unsteady"))
+        # suit.addTest(TestFvmEqs("test_diffusion_unsteady"))
         # suit.addTest(TestFvmEqs("test_convection_2d"))
-        suit.addTest(TestFvmEqs("test_convection_unsteady"))
+        # suit.addTest(TestFvmEqs("test_convection_unsteady"))
+        suit.addTest(TestFvmEqs("test_burgers"))
 
         runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
         runner.run(suit)

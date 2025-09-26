@@ -68,7 +68,7 @@ class ISolver(ABC):
     @abstractmethod
     def get_meta(cls) -> SolverMeta:
         """
-        The accessiable fields and other meta infomations of solver.
+        The meta infomations of solver.
 
         Notes:
             - The `fields` contains all the avaiable fields with followings:

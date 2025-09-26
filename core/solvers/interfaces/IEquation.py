@@ -73,7 +73,7 @@ class IEquation(ABC):
     @abstractmethod
     def get_variables(self) -> dict:
         """
-        Get the variables used in equations.
+        Get variables used in equations.
         """
         pass
 
