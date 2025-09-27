@@ -5,17 +5,29 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Basic plot kits for visualizing the data.
 """
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import pyvista as pv
 import vtk
+import seaborn as sns
 import numpy as np
 import os
 import copy
 
-plt.rcParams["font.sans-serif"] = ["SimHei"]
+# ---------------------------------------------------
+# matplotlib 2d plot kits
+# ---------------------------------------------------
+
+installed_fonts = [f.name for f in fm.fontManager.ttflist]
+if "SimHei" in installed_fonts:
+    plt.rcParams["font.sans-serif"] = ["SimHei"]
+elif "Microsoft YaHei" in installed_fonts:
+    plt.rcParams["font.sans-serif"] = ["Microsoft YaHei"]
+else:
+    plt.rcParams["font.sans-serif"] = ["sans-serif"]
 plt.rcParams["axes.unicode_minus"] = False
 
 
-def plot_data_series(
+def plot_lines(
     x: list | np.ndarray,
     ys: dict,
     *,
@@ -56,7 +68,7 @@ def plot_data_series(
                     "values": [2, 4, 6, 8, 9],
                 }
             }
-        >>> plot_data_series(x, ys)
+        >>> plot_lines(x, ys)
     ````
     """
     fig = plt.figure(figsize=figsize)
@@ -103,6 +115,106 @@ def plot_data_series(
     plt.close()
 
 
+def plot_heatmap(
+    matrix: np.ndarray,
+    title: str = "Heatmap",
+    cmap: str = "viridis",
+    figsize: tuple = (8, 6),
+    show: bool = True,
+    save_dir: str = None,
+):
+    """
+    Plot a heatmap of a matrix.
+
+    Args:
+        matrix: The matrix to be plotted.
+        title: The title of the plot.
+        cmap: The color map of the heatmap.
+        figsize: Figure size.
+        show: Whether to show the plot.
+        save_dir: Directory to save.
+    """
+    plt.figure(figsize=figsize)
+    sns.heatmap(matrix, annot=True, cmap=cmap)
+    plt.title(title)
+
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"{title}.png")
+        plt.savefig(save_path)
+    if show:
+        plt.show()
+    plt.close()
+
+
+def plot_scatter(
+    rows: np.ndarray,
+    cols: np.ndarray,
+    data: np.ndarray,
+    *,
+    title: str = "Scatter Plot",
+    figsize: tuple = (8, 6),
+    save_dir: str = None,
+    show: bool = True,
+    xlabel: str = "x",
+    ylabel: str = "y",
+    color: str = "blue",
+    marker: str = "o",
+    alpha: float = 0.5,
+    scale: float = 100.0,
+    grid: bool = True,
+):
+    """
+    Plot scatter chart.
+
+    Args:
+        rows: 1d array of x-axis values.
+        cols: 1d array of y-axis values.
+        data: 2d array of z-axis values.
+        title: Title of the plot.
+        figsize: Figure size.
+        save_dir: Directory to save the plot.
+        show: Whether to show the plot.
+        xlabel: Label of x-axis.
+        ylabel: Label of y-axis.
+        color: Color of the markers.
+        marker: Marker style.
+        alpha: Transparency of the markers.
+        scale: Scale of the markers.
+        grid: Whether to show grid.
+    """
+    plt.figure(figsize=figsize)
+    plt.scatter(
+        rows.flatten(),
+        cols.flatten(),
+        s=data.flatten() * scale,
+        cmap="viridis",
+        c=color,
+        marker=marker,
+        alpha=alpha,
+    )
+
+    plt.colorbar(label=ylabel)
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"{title}.png")
+        plt.savefig(save_path)
+    if grid:
+        plt.grid()
+    if show:
+        plt.show()
+    plt.close()
+
+
+# ---------------------------------------------------
+# pyvista 3d plot kits
+# ---------------------------------------------------
+
+
 def plot_mesh_cloudmap(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
@@ -118,6 +230,7 @@ def plot_mesh_cloudmap(
     cmap: str = "coolwarm",
     show_edges: bool = False,
     slice_set: dict = None,
+    show_scalars: bool = False,
 ):
     """
     Plot cloudmap with unstructured mesh.
@@ -136,6 +249,7 @@ def plot_mesh_cloudmap(
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
         slice_set: Choose slice style and configs.
+        show_scalars: Whether to show scalars.
 
     Notes:
         - `show` and `save_dir` are mutually exclusive.
@@ -159,6 +273,15 @@ def plot_mesh_cloudmap(
     # Create a plotter object
     plotter = pv.Plotter(off_screen=not show, title=title)
     plotter.add_mesh(mesh, scalars=label, cmap=cmap, show_edges=show_edges)
+
+    # show scalar values
+    if show_scalars:
+        scalars = np.around(scalars, decimals=3)
+        if domain == "point":
+            plotter.add_point_labels(points, scalars, name=label)
+        else:
+            centroids = mesh.cell_centers().points
+            plotter.add_point_labels(centroids, scalars, name=label)
 
     # Set title and save plot
     _save_plot(plotter, figsize, save_dir, title, show)
@@ -326,6 +449,11 @@ def plot_mesh_geometry(
     # Set title and save plot
     _save_plot(plotter, figsize, save_dir, title, show)
     plotter.close()
+
+
+# ---------------------------------------------------
+# plot utils
+# ---------------------------------------------------
 
 
 def _mesh_slice_set(mesh: pv.UnstructuredGrid, slice_set: dict):

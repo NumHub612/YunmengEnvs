@@ -215,7 +215,7 @@ class Field:
         dtype = None
         if values0.ndim == 1:
             dtype = VariableType.SCALAR
-            values = [value.reshape(-1, 1) for value in values]
+            values = values.reshape(-1, 1)
         elif values0.ndim == 2:
             if values0.shape[1] == 1:
                 dtype = VariableType.SCALAR
@@ -282,8 +282,7 @@ class Field:
         elif isinstance(other, Variable):
             if other.type != self.dtype:
                 raise TypeError(
-                    f"Invalid value type: \
-                        {other.type} (expected {self.dtype})"
+                    f"Invalid value type: {other.type} (expected {self.dtype})"
                 )
             for values in self._values:
                 for i in range(self.size):

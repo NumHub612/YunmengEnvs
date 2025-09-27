@@ -13,13 +13,14 @@ from typing import List
 
 class IQuality(IValueDefinition):
     """
-    Class describes qualitative data, where a value is specified as one category
+    Class describes qualitative data, where value is specified as one category
     within a number of predefined (possible) categories.
 
-    Qualitative data described items in terms of some quality or categorization that
-    may be 'informal' or may use relatively ill-defined characteristics such as
-    warmth and flavour. However, qualitative data can include well-defined aspects
-    such as gender, nationality or commodity type.
+    Qualitative data described items in terms of some quality or
+    categorization that may be 'informal' or may use relatively ill-defined
+    characteristics such as warmth and flavour. However,
+    qualitative data can include well-defined aspects such as gender,
+    nationality or commodity type.
     """
 
     @abstractmethod

@@ -28,6 +28,16 @@ class IBaseExchangeItem(ABC):
         """Resets the exchange item."""
         pass
 
+    @abstractmethod
+    def add_listener(self, func: Callable):
+        """Adds a listener to the exchange item."""
+        pass
+
+    @abstractmethod
+    def remove_listener(self, func: Callable):
+        """Removes the listener."""
+        pass
+
     @property
     @abstractmethod
     def value_definition(self) -> IValueDefinition:
@@ -74,14 +84,4 @@ class IBaseExchangeItem(ABC):
     @abstractmethod
     def component(self):
         """The owner of the exchange item."""
-        pass
-
-    @abstractmethod
-    def add_listener(self, func: Callable):
-        """Adds a listener to the exchange item."""
-        pass
-
-    @abstractmethod
-    def remove_listener(self, func: Callable):
-        """Removes the listener."""
         pass

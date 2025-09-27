@@ -12,7 +12,12 @@ import math
 
 
 class MeshTopo:
-    """Mesh topology class for describing the topology."""
+    """Mesh topology class for describing the topology.
+
+    Note:
+        - All properties express the topological relationships within the mesh
+        through element ids.
+    """
 
     def __init__(self, mesh):
         self.reset(mesh)
@@ -133,7 +138,10 @@ class MeshTopo:
 
     @property
     def face_cells(self) -> dict:
-        """Return the cells id connected to each face."""
+        """Return the cells id connected to each face.
+
+        Sorted to (left, right) or (owner, neighbour).
+        """
         if self._face_cells is None:
             faces_id = [face.id for face in self._mesh.faces]
             face_cells = {fid: set() for fid in faces_id}
@@ -323,7 +331,19 @@ class MeshTopo:
 
 
 class MeshGeom:
-    """Mesh geometry class for calculating the geometry."""
+    """Mesh geometry class for calculating the geometry.
+
+    Note:
+        - For `face_areas`, `face_perimeters`, `face_normals`,
+        they are all storaged as a list corresponding to the order of `mesh.faces`.
+        - For `face_areas`, in 2D mesh, the area is the perimeter.
+        - For `face_normals`, in 2D mesh, normal is left cell to right one.
+        - For `cell_volumes`, `cell_surfaces`, they are all storaged as a list
+        corresponding to the order of `mesh.cells`.
+        - For `cell_volumes`, in 2D mesh, the volume is the area.
+        - For all `_distances`, `_vectors`, they are storaged as a two-layers
+        dictionary, with both keys being element ids.
+    """
 
     def __init__(self, mesh):
         self.reset(mesh)
@@ -426,10 +446,14 @@ class MeshGeom:
         if len(points) < 3:
             raise ValueError("At least 3 points are required.")
 
+        # Sort the coordinates
         coords = [
             point.coordinate if isinstance(point, Element) else point
             for point in points
         ]
+        coords_dict = {i: coord for i, coord in enumerate(coords)}
+        sorted_ids = MeshGeom.sort_anticlockwise(coords_dict)
+        coords = [coords_dict[i] for i in sorted_ids]
 
         # Calculate the center of the coordinates
         center = MeshGeom.calculate_center(coords)
@@ -654,7 +678,7 @@ class MeshGeom:
         cell_surfaces = [0.0] * self._mesh.cell_count
         id_indices = self._topo.face_indices
         for i, cell in enumerate(self._mesh.cells):
-            surface = sum(self.face_areas[id_indices[f.id]] for f in cell.faces)
+            surface = sum(self.face_areas[id_indices[f]] for f in cell.faces)
             cell_surfaces[i] = surface
         return cell_surfaces
 

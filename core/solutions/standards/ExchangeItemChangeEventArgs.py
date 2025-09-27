@@ -24,7 +24,7 @@ class ExchangeItemChangeEventArgs(ABC):
     @exchange_item.setter
     @abstractmethod
     def exchange_item(self, obj: IBaseExchangeItem):
-        """Sets the exchange item that has been changed."""
+        """Sets the exchange item."""
         pass
 
     @property
@@ -36,5 +36,5 @@ class ExchangeItemChangeEventArgs(ABC):
     @message.setter
     @abstractmethod
     def message(self, value: str):
-        """Sets the message description of the change."""
+        """Sets the message description."""
         pass

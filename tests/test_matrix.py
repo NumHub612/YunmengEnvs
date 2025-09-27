@@ -7,8 +7,8 @@ import scipy.sparse as sp
 from scipy.sparse import dok_matrix
 from cupyx.scipy.sparse import coo_matrix
 from configs.settings import settings
-from core.numerics.fields import VariableType
-from core.numerics.matrix import CupyMatrix, TorchMatrix, SciMatrix, SparseMatrix
+from core.numerics.fields import VariableType, Scalar
+from core.numerics.mats import CupyMatrix, TorchMatrix, SciMatrix, SparseMatrix
 
 
 def check_cuda_env():
@@ -632,14 +632,14 @@ class TestSparseMatrix(unittest.TestCase):
         )
 
     def test_getitem(self):
-        self.assertEqual(self.sparse_matrix[(0, 0)][0], 1.0)
-        self.assertEqual(self.sparse_matrix[(1, 1)][0], 2.0)
-        self.assertEqual(self.sparse_matrix[(2, 2)][0], 3.0)
-        self.assertEqual(self.sparse_matrix[(0, 1)][0], 0.0)  # 非零元素位置应返回0
+        self.assertEqual(self.sparse_matrix[(0, 0)], Scalar(1.0))
+        self.assertEqual(self.sparse_matrix[(1, 1)], Scalar(2.0))
+        self.assertEqual(self.sparse_matrix[(2, 2)], Scalar(3.0))
+        self.assertEqual(self.sparse_matrix[(0, 1)], Scalar(0.0))  # 非零元素位置应返回0
 
     def test_setitem(self):
         self.sparse_matrix[(0, 1)] = 4.0
-        self.assertEqual(self.sparse_matrix[(0, 1)][0], 4.0)
+        self.assertEqual(self.sparse_matrix[(0, 1)], Scalar(4.0))
 
     def test_add(self):
         other_matrix = SparseMatrix(

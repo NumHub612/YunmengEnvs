@@ -10,15 +10,15 @@ from abc import abstractmethod
 
 
 class ISpatialDefinition(IDescribable):
-    """General spatial construct that all other spatial constructions extend from."""
+    """General spatial interface that all other spatial constructions extend."""
 
     @property
     @abstractmethod
     def spatial_reference_system(self) -> str:
         """
         Specifies the OGC Well-Known Text(WKT) representation of
-        spatial reference system to be used in association with the coordinates in
-        the `ISpatialDefinition`.
+        spatial reference system to be used in association
+        with the coordinates in the `ISpatialDefinition`.
         """
         pass
 
@@ -34,7 +34,7 @@ class ISpatialDefinition(IDescribable):
         """
         The version number for the spatial axis.
 
-        The version must be incremented if anything inside the spatial axis changed,
-        or if an entirely new spatial axis is provided.
+        The version must be incremented if anything inside
+        the spatial axis changed.
         """
         pass

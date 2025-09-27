@@ -12,6 +12,7 @@ from core.numerics.fields import Field
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import enum
+from typing import Any
 
 
 class SolverType(enum.Enum):
@@ -55,7 +56,7 @@ class SolverStatus:
     progress: float = 0.0  # Progress percentage (0~1).
     finished: bool = False  # Whether the solver has finished.
     converged: bool = False  # Whether the solver has converged.
-    msg: str = ""  # Any info messages, errors or warnings.
+    etc: Any = None  # Any extra information, error or warnings.
 
 
 class ISolver(ABC):
@@ -67,7 +68,7 @@ class ISolver(ABC):
     @abstractmethod
     def get_meta(cls) -> SolverMeta:
         """
-        The accessiable fields and other meta infomations of solver.
+        The meta infomations of solver.
 
         Notes:
             - The `fields` contains all the avaiable fields with followings:
@@ -144,21 +145,7 @@ class ISolver(ABC):
     @abstractmethod
     def initialize(self):
         """
-        Initialize the solver.
-        """
-        pass
-
-    @abstractmethod
-    def reset(self):
-        """
-        Reset the solver.
-        """
-        pass
-
-    @abstractmethod
-    def terminate(self):
-        """
-        Terminate the solver.
+        Initialize and reset the solver.
         """
         pass
 
@@ -169,7 +156,7 @@ class ISolver(ABC):
         Run by steps.
 
         Args:
-            data: The extra data to assimilate.
+            data: The assimilation data.
         """
         pass
 
@@ -183,12 +170,8 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def inference(self) -> tuple[bool, bool, SolverStatus]:
+    def inference(self) -> SolverStatus:
         """
-        Inference the solver to get the solutions.
-        Run by steps.
-
-        Returns:
-            A tuple of results with (is_done, is_terminated, status).
+        Advance the solver to the next time step to get the solutions.
         """
         pass
