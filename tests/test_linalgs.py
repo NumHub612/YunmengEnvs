@@ -107,8 +107,8 @@ class TestLinearEqs(unittest.TestCase):
         eqs2 = LinearEqs("x", mat2, rhs2, self.device)
 
         result = eqs1 + eqs2
-        self.assertEqual(result.matrix[1, 2], [7.0])
-        self.assertEqual(result.rhs[0], 0.0)
+        self.assertEqual(result.matrix[1, 2], Scalar(7.0))
+        self.assertEqual(result.rhs[0], Scalar(0.0))
 
     def test_subtraction(self):
         mat1 = SparseMatrix.from_data(
@@ -161,8 +161,8 @@ class TestLinearEqs(unittest.TestCase):
         eqs = LinearEqs("x", mat, rhs, self.device)
 
         result = -eqs
-        self.assertEqual(result.matrix[1, 2], [-2.0])
-        self.assertEqual(result.rhs[1], -1.0)
+        self.assertEqual(result.matrix[1, 2], Scalar(-2.0))
+        self.assertEqual(result.rhs[1], Scalar(-1.0))
 
     def test_solve(self):
         mat = SparseMatrix.from_data(

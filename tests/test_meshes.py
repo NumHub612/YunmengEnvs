@@ -148,15 +148,11 @@ class TestMeshTopo(unittest.TestCase):
                 [4, 7],
                 [2, 5],
                 [5, 8],
-                [1, 3],
-                [2, 4],
-                [4, 6],
-                [5, 7],
             ]
         )
         cells = np.array(
             [
-                [0, 7, 2, 8],
+                [0, 6, 2, 8],
                 [1, 8, 3, 10],
                 [2, 7, 4, 9],
                 [3, 9, 5, 11],
@@ -194,9 +190,9 @@ class TestMeshTopo(unittest.TestCase):
         self.assertTrue(isinstance(nnb, dict))
 
     def test_indices(self):
-        self.assertEqual(self.topo.face_id_indices[0], 0)
-        self.assertEqual(self.topo.node_id_indices[1], 1)
-        self.assertEqual(self.topo.cell_id_indices[0], 0)
+        self.assertEqual(self.topo.face_indices[0], 0)
+        self.assertEqual(self.topo.node_indices[1], 1)
+        self.assertEqual(self.topo.cell_indices[0], 0)
 
 
 class TestMeshGeom(unittest.TestCase):
