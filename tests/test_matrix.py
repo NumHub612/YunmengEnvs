@@ -7,7 +7,7 @@ import scipy.sparse as sp
 from scipy.sparse import dok_matrix
 from cupyx.scipy.sparse import coo_matrix
 from configs.settings import settings
-from core.numerics.fields import VariableType
+from core.numerics.fields import VariableType, Scalar
 from core.numerics.mats import CupyMatrix, TorchMatrix, SciMatrix, SparseMatrix
 
 
