@@ -17,7 +17,7 @@ from core.solvers.interfaces import (
     SolverType,
 )
 from core.numerics.fields import Field
-from core.numerics.mesh import Mesh, Node, Face, Cell
+from core.numerics.mesh import Mesh, Node, Face, Cell, Element
 from configs.settings import logger
 
 
@@ -28,7 +28,7 @@ class BaseSolver(ISolver):
 
     def __init__(self, id: str, mesh: Mesh):
         """
-        Solver.
+        Basic solver.
 
         Args:
             id: The unique id of the solver instance.
@@ -39,17 +39,17 @@ class BaseSolver(ISolver):
         if not isinstance(mesh, Mesh):
             raise ValueError(f"Invalid mesh: {mesh}")
         self._mesh = mesh
+        self._status = SolverStatus()
 
         self._callbacks = []
         self._fields = {}
+        self._operators = {}
 
         self._default_ics = None
         self._ics = {}
 
         self._default_bcs = None
         self._bcs = {}
-
-        self._status = SolverStatus()
 
     @property
     def id(self) -> str:
@@ -77,20 +77,25 @@ class BaseSolver(ISolver):
         if not isinstance(ic, IInitCondition):
             raise ValueError(f"Invalid initial condition: {ic}")
 
+        if var not in self.get_meta().fields:
+            logger.warning(
+                f"Solver {self._id} variable {var} is not in the available fields."
+            )
+            return
+
         if var in self._ics:
             logger.warning(
-                f"Solver {self._id} var {var} \
-                           initial condition overwrited."
+                f"Solver {self._id} variable {var} initial condition is overwrited."
             )
 
         self._ics[var] = ic
 
-    def add_bc(self, var: str, elements: list, bc: IBoundaryCondition):
+    def add_bc(self, var: str, elements: list[Element], bc: IBoundaryCondition):
         if not isinstance(bc, IBoundaryCondition):
             raise ValueError(f"Invalid boundary condition: {bc}")
 
         for elem in elements:
-            if not isinstance(elem, (Node, Face, Cell)):
+            if not isinstance(elem, Element):
                 raise ValueError(f"Invalid element: {elem}")
 
             if elem.id not in self._bcs:
@@ -98,11 +103,13 @@ class BaseSolver(ISolver):
 
             if var in self._bcs[elem.id]:
                 logger.warning(
-                    f"Solver {self._id} var {var} boundary condition \
-                        on {elem.id} overwrited."
+                    f"Solver {self._id} variable {var} boundary condition on "
+                    f"element {type(elem).__name__} {elem.id} overwrited."
                 )
 
             self._bcs[elem.id][var] = bc
+
+        # NOTE：check bc elements type in each driven solver.
 
     def set_problems(self, equations: list[IEquation]):
         raise NotImplementedError()

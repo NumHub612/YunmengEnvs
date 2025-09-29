@@ -2,16 +2,15 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Solution of the 2D source term equation using finite volume method.
+2D Burgers equation solver using finite volume method.
 """
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from core.solvers.commons import inits, boundaries, IBoundaryCondition
-from core.numerics.mesh import Grid2D
+from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
 from core.solvers.fvm.operators import Grad01, Grad02
 from core.numerics.algos import FieldInterpolators as fis
 from core.numerics.fields import Scalar, Vector, CellField, VariableType
 from core.numerics.mats import LinearEqs
-from core.viewer.plotter import MatPlotters
 from configs.settings import settings, logger
 
 import time
@@ -19,18 +18,21 @@ import numpy as np
 import copy
 
 
-class UnsteadyBurgers(BaseSolver):
+class Burgers2D(BaseSolver):
+    """
+    2D Burgers equation solver using finite volume method.
+    """
 
     @classmethod
     def get_meta(cls) -> SolverMeta:
         metas = SolverMeta()
-        metas.description = "Solver of unsteady 2D Burgers equation with source term."
+        metas.description = "Test solver of the 2d Burgers equation."
         metas.type = SolverType.FVM
-        metas.equation = "Unsteady 2D Burgers Equation"
+        metas.equation = "2d Burgers equation"
         metas.equation_expr = "ddt(rho*u)+div(rho*u*u)-div(k*grad(u))==src(Q(u))"
         metas.dimension = "2d"
         metas.default_ics = {"u": "uniform(0.0)"}
-        metas.default_bcs = {"u": "constant(0.0, 0.0)"}
+        metas.default_bcs = {"u": "neumann(0.0)"}
         metas.fields = {
             "u": {
                 "description": "vector field",
@@ -42,11 +44,13 @@ class UnsteadyBurgers(BaseSolver):
 
     @classmethod
     def get_name(cls) -> str:
-        return "unsteady_burgers"
+        return "Burgers2D"
 
-    def __init__(self, id: str, mesh: Grid2D):
+    def __init__(self, id: str, mesh: Mesh):
+        """
+        Constructor of 2D Burgers equation solver.
+        """
         super().__init__(id, mesh)
-
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
 
