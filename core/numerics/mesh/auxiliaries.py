@@ -387,24 +387,6 @@ class MeshTopo:
         return results
 
     # -----------------------------------------------
-    # --- generation methods ---
-    # -----------------------------------------------
-
-    def generate_projection(
-        self,
-        coordinate: Coordinate,
-        face_index: int,
-    ) -> Coordinate:
-        """Generate the projection on the given face."""
-        face = self._mesh.faces[face_index]
-        normal = face.normal
-        vec_np = (coordinate - face.coordinate).to_np()
-        proj_np = np.dot(vec_np, normal.to_np()) * normal.to_np()
-        proj_np = proj_np + face.coordinate.to_np()
-        proj_coord = Coordinate.from_np(proj_np)
-        return proj_coord
-
-    # -----------------------------------------------
     # --- mesh topo check methods ---
     # -----------------------------------------------
 
@@ -827,3 +809,29 @@ class MeshGeom:
                     cell_face_vecs[cell.id][face.id] = vec
             self._cell2face_vects = cell_face_vecs
         return self._cell2face_vects
+
+    # -----------------------------------------------
+    # --- generation methods ---
+    # -----------------------------------------------
+
+    def generate_projection(
+        self,
+        coordinate: Coordinate,
+        face: int,
+    ) -> Coordinate:
+        """Generate the projection on the given face from the given coordinate."""
+        face = self._mesh.faces[face]
+        normal = self.face_normals[face.id]
+        vec_np = (coordinate - face.coordinate).to_np()
+        proj_np = np.dot(vec_np, normal.to_np()) * normal.to_np()
+        proj_np = proj_np + face.coordinate.to_np()
+        proj_coord = Coordinate.from_np(proj_np)
+        return proj_coord
+
+    # -----------------------------------------------
+    # --- mesh geometry check methods ---
+    # -----------------------------------------------
+
+    def check_mesh_geometry(self):
+        """Check the geometry of the mesh."""
+        pass
