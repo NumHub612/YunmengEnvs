@@ -96,8 +96,8 @@ class TestGenericMesh(unittest.TestCase):
         self.assertEqual(sorted(indices), [0, 2, 6, 8])
         self.assertEqual(etype, ElementType.NODE)
         self.mesh.delete_group("corners")
-        with self.assertRaises(ValueError):
-            self.mesh.get_group("corners")
+        group = self.mesh.get_group("corners")
+        self.assertIsNone(group)
 
     def test_save_and_load(self):
         tmpdir = tempfile.mkdtemp()

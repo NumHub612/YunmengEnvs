@@ -104,17 +104,17 @@ class Mesh(ABC):
 
     @abstractmethod
     def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
-        """Get the nodes with the given id."""
+        """Get the nodes with the given ids."""
         pass
 
     @abstractmethod
     def get_faces(self, faces_ids: list[int]) -> list[Face]:
-        """Get the faces with the given id."""
+        """Get the faces with the given ids."""
         pass
 
     @abstractmethod
     def get_cells(self, cells_ids: list[int]) -> list[Cell]:
-        """Get the cells with the given id."""
+        """Get the cells with the given ids."""
         pass
 
     # -----------------------------------------------
@@ -139,23 +139,18 @@ class Mesh(ABC):
     # -----------------------------------------------
 
     @abstractmethod
-    def set_group(
-        self,
-        etype: ElementType,
-        group_name: str,
-        indices: list,
-    ):
-        """Set the group with the given name and indices ."""
+    def set_group(self, etype: ElementType, group_name: str, ids: list):
+        """Set the group with the given name and ids ."""
         pass
 
     @abstractmethod
     def delete_group(self, group_name: str):
-        """Delete the given node group."""
+        """Delete the given name group."""
         pass
 
     @abstractmethod
     def get_group(self, group_name: str) -> tuple[list, ElementType]:
-        """Return the element indices of given group."""
+        """Return the element ids of given group."""
         pass
 
     # -----------------------------------------------
@@ -236,18 +231,18 @@ class GenericMesh(Mesh):
         normals = []
         results = [None] * len(faces)
         for i, node_ids in enumerate(faces):
-            coors = {j: self._nodes[j].coordinate for j in node_ids}
-            center = MeshGeom.calculate_center(list(coors.values()))
+            nodes = self.get_nodes(node_ids)
+            center = MeshGeom.calculate_center(nodes)
 
             if len(node_ids) == 2:
                 self._dimension = MeshDim.DIM2
             else:
                 self._dimension = MeshDim.DIM3
-                normal, dir_axis = self._calculate_plane_normal(list(coors.values()))
-                node_ids = MeshGeom.sort_anticlockwise(coors, dir_axis)
+                normal = self._calculate_plane_normal(nodes)
+                nodes = MeshTopo.sort_anticlockwise(nodes)
+                node_ids = [n.id for n in nodes]
                 normals.append(normal)
 
-            # id is index.
             results[i] = Face(i, center, node_ids)
 
         if normals and all(sum(n) == 1 for n in normals):
@@ -259,43 +254,34 @@ class GenericMesh(Mesh):
         normals = []
         results = [None] * len(cells)
         for i, face_ids in enumerate(cells):
-            faces = [self._faces[j] for j in face_ids]
-            coors = {face.id: face.coordinate for face in faces}
-            center = MeshGeom.calculate_center(list(coors.values()))
+            faces = self.get_faces(face_ids)
+            center = MeshGeom.calculate_center(faces)
 
             if self._dimension == MeshDim.DIM2:
-                normal, dir_axis = self._calculate_plane_normal(list(coors.values()))
-                face_ids = MeshGeom.sort_anticlockwise(coors, dir_axis)
+                normal = self._calculate_plane_normal(faces)
+                faces = MeshTopo.sort_anticlockwise(faces)
+                face_ids = [f.id for f in faces]
                 normals.append(normal)
             else:
                 # only surport tetrahedron and hexahedron.
                 if len(faces) not in [4, 8]:
                     raise ValueError("Unsupported cell type.")
 
-            # id is index.
             results[i] = Cell(i, center, face_ids)
 
         if normals and all(sum(n) == 1 for n in normals):
             self._orthogonal = True
         return results
 
-    def _calculate_plane_normal(self, coors: list) -> tuple:
+    def _calculate_plane_normal(self, coords: list) -> tuple:
         """Calculate the normal of the plane"""
-        if len(coors) < 3:
+        if len(coords) < 3:
             raise ValueError("At least 3 coordinates are required.")
 
         # Calculate the normal using the shoelace formula
-        normal = np.cross(
-            (coors[1].to_np() - coors[0].to_np()),
-            (coors[2].to_np() - coors[1].to_np()),
-        )
-
-        # Check the direction of the normal
-        dir_index = np.argmax(np.abs(normal))
-        dir_map = {0: "x", 1: "y", 2: "z"}
-        dir_axis = dir_map.get(dir_index)
-
-        return normal, dir_axis
+        coords = [c.coordinate.to_np() for c in coords]
+        normal = np.cross(coords[1] - coords[0], coords[2] - coords[0])
+        return normal
 
     # -----------------------------------------------
     # --- properties ---
@@ -365,7 +351,7 @@ class GenericMesh(Mesh):
 
     def get_group(self, group_name):
         if group_name not in self._groups:
-            raise ValueError("Group does not exist.")
+            return None
         return self._groups[group_name]
 
     def delete_group(self, group_name):

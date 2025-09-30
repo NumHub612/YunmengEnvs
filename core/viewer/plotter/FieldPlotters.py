@@ -191,20 +191,22 @@ def _extract_mesh_data(mesh: Mesh):
         for cell in mesh.cells:
             node_ids = topo.cell_nodes[cell.id]
             nodes = mesh.get_nodes(node_ids)
-            coors = [n.coordinate for n in nodes]
-            indices = geom.sort_anticlockwise(dict(zip(node_ids, coors)))
-            cells.append([len(indices)] + indices)
+            nodes = topo.sort_anticlockwise(nodes)
+            idxes = [p.id for p in nodes]
+            cells.append([len(idxes)] + idxes)
     else:
         for cell in mesh.cells:
             nodes1 = mesh.faces[cell.faces[-1]].nodes
-            coors1 = [mesh.nodes[i].coordinate for i in nodes1]
+            coors1 = mesh.get_nodes(nodes1)
             nodes2 = mesh.faces[cell.faces[-2]].nodes
-            coors2 = [mesh.nodes[i].coordinate for i in nodes2]
+            coors2 = mesh.get_nodes(nodes2)
 
             # Points need to be sorted.
-            points1 = geom.sort_anticlockwise(dict(zip(nodes1, coors1)))
-            points2 = geom.sort_anticlockwise(dict(zip(nodes2, coors2)))
-            cell = points1 + points2
+            points1 = topo.sort_anticlockwise(coors1)
+            idxes1 = [p.id for p in points1]
+            points2 = topo.sort_anticlockwise(coors2)
+            idxes2 = [p.id for p in points2]
+            cell = idxes1 + idxes2
             cells.append([len(cell)] + cell)
 
     return cells, points, points_splited
