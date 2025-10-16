@@ -131,9 +131,9 @@ class LinearEqs:
     def __add__(self, other: "LinearEqs"):
         self._check_compatible(other)
         return LinearEqs(
-            self.variable,
             self._mat + other.matrix,
             self._rhs + other.rhs,
+            self.variable,
         )
 
     def __radd__(self, other):
@@ -148,17 +148,17 @@ class LinearEqs:
     def __sub__(self, other: "LinearEqs"):
         self._check_compatible(other)
         return LinearEqs(
-            self.variable,
             self._mat - other.matrix,
             self._rhs - other.rhs,
+            self.variable,
         )
 
     def __rsub__(self, other: "LinearEqs"):
         self._check_compatible(other)
         return LinearEqs(
-            self.variable,
             other.matrix - self._mat,
             other.rhs - self._rhs,
+            self.variable,
         )
 
     def __isub__(self, other: "LinearEqs"):
@@ -168,7 +168,7 @@ class LinearEqs:
         return self
 
     def __neg__(self):
-        return LinearEqs(self._var, -self._mat, -self._rhs)
+        return LinearEqs(-self._mat, -self._rhs, self._var)
 
     def _check_compatible(self, other):
         if not isinstance(other, LinearEqs):
