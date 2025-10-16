@@ -54,13 +54,14 @@ class Lap01(IOperator):
         self._k = k
 
     def run(self, source: Field) -> Field | LinearEqs:
+        variable = source.variable
         lap_eqs = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=source.dtype, variable=source.variable
+            self._mesh.cell_count, rhs_type=source.dtype, variable=variable
         )
 
         # Aseemble boundary matrix
         for face in self._topo.boundary_faces:
-            bc = self._bcs[face]["u"]
+            bc = self._bcs[face][variable]
             FluxC, FluxF, FluxV = self._handle_boundary(face, bc)
             fid = self._mesh.faces[face].id
             cid = self._topo.face_cells[fid][0]

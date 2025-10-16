@@ -116,7 +116,7 @@ class Burgers2D(BaseSolver):
             self._operators["ddt"] = Ddt02()
 
         for _, op in self._operators.items():
-            op.prepare(self._mesh, boundaries=self._bcs, k=self._k)
+            op.prepare(self._mesh, boundaries=self._bcs, k=self._k, rho=self._rho)
 
         # Call callbacks
         for callback in self._callbacks:
@@ -138,7 +138,7 @@ class Burgers2D(BaseSolver):
         sys += sys_t
 
         # Assemble convection matrix(div)
-        sys_c = self._handle_convection_term()
+        sys_c = self._operators["div"].run(self._fields["u"])
         sys += sys_c
 
         # Assemble diffusion matrix(laplacian)
@@ -186,98 +186,3 @@ class Burgers2D(BaseSolver):
             self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
         )
         return sys
-
-    def _handle_convection_term(self):
-        sys = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
-        )
-        # Assemble boundary matrix
-        for face in self._topo.boundary_faces:
-            bc = self._bcs[face]["u"]
-            FluxC, FluxF, FluxV = self._handle_boundary_c(face, bc)
-
-            fid = self._mesh.faces[face].id
-            cid = self._topo.face_cells[fid][0]
-
-            sys.matrix[cid, cid] += FluxC
-            sys.rhs[cid] -= FluxV
-
-        # Assemble interial matrix
-        for face in self._topo.interior_faces:
-            Sf = self._geom.face_areas[face]
-            normal = self._geom.face_normals[face]
-            cid1, cid2 = self._topo.face_cells[face]
-            u1 = self._fields["u"][cid1]
-            u2 = self._fields["u"][cid2]
-            u = 0.5 * (u1 + u2)
-            mf = self._rho * u * Sf * normal
-
-            if mf.value > 0.0:  # left cell is upstream
-                sys.matrix[cid1, cid1] += mf
-                sys.matrix[cid2, cid1] -= mf
-            else:  # right cell is upstream
-                sys.matrix[cid1, cid2] += mf
-                sys.matrix[cid2, cid2] -= mf
-
-        return sys
-
-    def _handle_boundary_c(self, fid: int, bc: IBoundaryCondition):
-        items = bc.evaluate()
-        if bc.get_type() == boundaries.BoundaryType.FIXED:
-            return self._boundary_1st_c(fid, items)
-        elif bc.get_type() == boundaries.BoundaryType.NATURAL:
-            return self._boundary_2nd_c(fid, items)
-        elif bc.get_type() == boundaries.BoundaryType.MIXED:
-            return self._boundary_3rd_c(fid, items)
-
-    def _boundary_1st_c(self, fid: int, bcs):
-        bc_value = bcs[0]
-        cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
-
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
-
-        # convection part
-        u = self._fields["u"][cid]  # TODO: interpolate from cell center
-        mf = self._rho * u * Sb * normal
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-
-        FluxV += -mf * bc_value if sign > 0.0 else mf * bc_value
-        return FluxC, FluxF, FluxV
-
-    def _boundary_2nd_c(self, fid: int, bcs):
-        bc_flux = bcs[1]
-        cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
-
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
-
-        # convection part
-        u = bc_flux
-        mf = self._rho * u * Sb * normal
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        FluxC = mf if sign > 0.0 else 0.0
-
-        return FluxC, FluxF, FluxV
-
-    def _boundary_3rd_c(self, fid: int, bcs):
-        bc_inf, bc_coef, _ = bcs
-        cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
-
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
-
-        # convection part
-        mf = self._rho * bc_coef * Sb * normal
-        FluxV += mf * bc_inf
-
-        return FluxC, FluxF, FluxV
