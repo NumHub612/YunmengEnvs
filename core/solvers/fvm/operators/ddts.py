@@ -35,12 +35,16 @@ class Ddt01(IOperator):
         self._topo = None
         self._geom = None
 
-    def prepare(self, mesh: Mesh, **kwargs):
+        self._rho = None
+
+    def prepare(self, mesh: Mesh, rho: float, **kwargs):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
 
-    def run(self, source: Field, time_step: float, rho: float) -> Field | LinearEqs:
+        self._rho = rho
+
+    def run(self, source: Field, time_step: float) -> Field | LinearEqs:
         ddt_eqs = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=source.dtype, variable=source.variable
         )
@@ -49,7 +53,7 @@ class Ddt01(IOperator):
             cidx = self._topo.cell_indices[cell.id]
             vol = self._geom.cell_volumes[cidx]
             val = source[cidx]
-            coef = rho * vol / time_step
+            coef = self._rho * vol / time_step
 
             ddt_eqs.matrix[cidx, cidx] += coef
             ddt_eqs.rhs[cidx] -= -coef * val
@@ -78,15 +82,19 @@ class Ddt02(IOperator):
         self._mesh = None
         self._topo = None
         self._geom = None
-        self._pre_field = None
 
-    def prepare(self, mesh: Mesh, **kwargs):
+        self._pre_field = None
+        self._rho = None
+
+    def prepare(self, mesh: Mesh, rho: float, **kwargs):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
-        self._pre_field = None
 
-    def run(self, source: Field, time_step: float, rho: float) -> Field | LinearEqs:
+        self._pre_field = None
+        self._rho = rho
+
+    def run(self, source: Field, time_step: float) -> Field | LinearEqs:
         if self._pre_field is None:
             self._pre_field = copy.deepcopy(source)
 
@@ -100,7 +108,7 @@ class Ddt02(IOperator):
             cur_v = source[cidx]
             pre_v = self._pre_field[cidx]
 
-            tmp = rho * vol / (2.0 * time_step)
+            tmp = self._rho * vol / (2.0 * time_step)
             fluxC = 3.0 * tmp
             fluxV = 4.0 * tmp * cur_v - tmp * pre_v
 

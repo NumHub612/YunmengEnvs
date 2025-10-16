@@ -63,10 +63,6 @@ class Burgers2D(BaseSolver):
             "laplacian": Lap01(),
         }
 
-        self._k = 1.0
-        self._rho = 1.0
-        self._order = 1
-
         self._max_iter = 100
         self._tol = 1e-6
         self._step = 0
@@ -108,15 +104,13 @@ class Burgers2D(BaseSolver):
         # Init parameters
         self._max_iter = max_iter
         self._tol = tol
-        self._k = k
-        self._order = order
 
         # Init operators
         if order != 1:
             self._operators["ddt"] = Ddt02()
 
         for _, op in self._operators.items():
-            op.prepare(self._mesh, boundaries=self._bcs, k=self._k, rho=self._rho)
+            op.prepare(self._mesh, boundaries=self._bcs, k=k, rho=1)
 
         # Call callbacks
         for callback in self._callbacks:
@@ -134,7 +128,7 @@ class Burgers2D(BaseSolver):
             self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
         )
         # Assemble time matrix(ddt)
-        sys_t = self._operators["ddt"].run(self._fields["u"], dt, self._rho)
+        sys_t = self._operators["ddt"].run(self._fields["u"], dt)
         sys += sys_t
 
         # Assemble convection matrix(div)
@@ -180,9 +174,3 @@ class Burgers2D(BaseSolver):
         self._status.finished = finished
         self._status.progress = process
         self._status.converged = True
-
-    def _handle_source_term(self):
-        sys = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
-        )
-        return sys
