@@ -14,16 +14,14 @@ import numpy as np
 
 class Div01(IOperator):
     """
-    First order implicit Euler scheme for the time derivative operator.
+
 
     scheme:
-        - implicit method.
-        - upwind scheme as time interpolation profile.
     """
 
     @classmethod
     def get_type(self) -> OperatorType:
-        return OperatorType.DDT
+        return OperatorType.DIV
 
     def get_name(cls) -> str:
         return "div01"

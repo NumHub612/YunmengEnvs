@@ -18,9 +18,9 @@ class Ddt01(IOperator):
     First order implicit Euler scheme(FOUE) for the time derivative operator.
 
     scheme:
-        - implicit method.
-        - upwind scheme as time interpolation profile.
-        - the medium was assumed to be isotropic.
+        - Implicit method.
+        - Upwind scheme as time interpolation profile.
+        - The medium was assumed to be isotropic.
     """
 
     @classmethod

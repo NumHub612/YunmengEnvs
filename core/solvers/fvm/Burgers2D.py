@@ -7,7 +7,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from core.solvers.commons import inits, boundaries, IBoundaryCondition
 from core.numerics.mesh import Mesh
-from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01
+from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01, Lap01
 from core.numerics.algos import FieldInterpolators as fis
 from core.numerics.fields import Scalar, Vector, CellField, VariableType
 from core.numerics.mats import LinearEqs
@@ -56,7 +56,12 @@ class Burgers2D(BaseSolver):
 
         self._default_bcs = {"u": boundaries.MixedBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
-        self._operators = {"ddt": Ddt01(), "grad": Grad01(), "div": Div01()}
+        self._operators = {
+            "ddt": Ddt01(),
+            "grad": Grad01(),
+            "div": Div01(),
+            "laplacian": Lap01(),
+        }
 
         self._k = 1.0
         self._rho = 1.0
@@ -111,7 +116,7 @@ class Burgers2D(BaseSolver):
             self._operators["ddt"] = Ddt02()
 
         for _, op in self._operators.items():
-            op.prepare(self._mesh)
+            op.prepare(self._mesh, boundaries=self._bcs, k=self._k)
 
         # Call callbacks
         for callback in self._callbacks:
@@ -137,7 +142,7 @@ class Burgers2D(BaseSolver):
         sys += sys_c
 
         # Assemble diffusion matrix(laplacian)
-        sys_d = self._handle_diffusion_term()
+        sys_d = self._operators["laplacian"].run(self._fields["u"])
         sys += sys_d
 
         # Assemble source term matrix(src)
@@ -182,43 +187,6 @@ class Burgers2D(BaseSolver):
         )
         return sys
 
-    def _handle_diffusion_term(self):
-        sys = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
-        )
-        # Aseemble boundary matrix
-        for face in self._topo.boundary_faces:
-            bc = self._bcs[face]["u"]
-            FluxC, FluxF, FluxV = self._handle_boundary_d(face, bc)
-            fid = self._mesh.faces[face].id
-            cid = self._topo.face_cells[fid][0]
-
-            sys.matrix[cid, cid] += FluxC
-            sys.rhs[cid] -= FluxV
-
-        # Assemble interial matrix
-        for face in self._topo.interior_faces:
-            fid = self._mesh.faces[face].id
-            Sf = self._geom.face_areas[face]
-            normal = self._geom.face_normals[face]
-            if abs(normal.x) > 1e-10:
-                sign = 1 if normal.x > 0 else -1
-            else:
-                sign = 1 if normal.y > 0 else -1
-            Sf = sign * Sf
-
-            cid1, cid2 = self._topo.face_cells[fid]
-            dist = self._geom.cell2cell_distances[cid1][cid2]
-            FluxC = self._k * Sf / dist
-            FluxF = -FluxC
-
-            sys.matrix[cid1, cid1] += FluxC
-            sys.matrix[cid1, cid2] += FluxF
-
-            sys.matrix[cid2, cid2] += FluxC
-            sys.matrix[cid2, cid1] += FluxF
-        return sys
-
     def _handle_convection_term(self):
         sys = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
@@ -252,71 +220,6 @@ class Burgers2D(BaseSolver):
                 sys.matrix[cid2, cid2] -= mf
 
         return sys
-
-    def _handle_boundary_d(self, fid: int, bc: IBoundaryCondition):
-        items = bc.evaluate()
-        if bc.get_type() == boundaries.BoundaryType.FIXED:
-            return self._boundary_1st_d(fid, items)
-        elif bc.get_type() == boundaries.BoundaryType.NATURAL:
-            # return self._boundary_2nd_d(fid, items)
-            value = items[1]
-            return self._boundary_1st_d(fid, (value, None, None))
-        elif bc.get_type() == boundaries.BoundaryType.MIXED:
-            return self._boundary_3rd_d(fid, items)
-
-    def _boundary_1st_d(self, fid: int, bcs):
-        bc_value = bcs[0]
-        cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
-
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
-        # diffusion part
-        dist = self._geom.cell2face_distances[cid][fid]
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        FluxC += self._k * sign * Sb / dist
-        FluxV += -FluxC * bc_value
-
-        return FluxC, FluxF, FluxV
-
-    def _boundary_2nd_d(self, fid: int, bcs):
-        bc_flux = bcs[1]
-        cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
-
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
-        # diffusion part
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        FluxV += bc_flux * Sb * sign
-
-        return FluxC, FluxF, FluxV
-
-    def _boundary_3rd_d(self, fid: int, bcs):
-        bc_inf, bc_coef, _ = bcs
-        cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
-
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
-        # diffusion part
-        dist = self._geom.cell2face_distances[cid][fid]
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        temp = self._k / dist
-        Req = sign * Sb * (bc_coef * temp) / (bc_coef + temp)
-        FluxC += Req
-        FluxV += -Req * bc_inf
-
-        return FluxC, FluxF, FluxV
 
     def _handle_boundary_c(self, fid: int, bc: IBoundaryCondition):
         items = bc.evaluate()
