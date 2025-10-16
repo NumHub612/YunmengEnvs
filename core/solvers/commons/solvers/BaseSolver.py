@@ -61,7 +61,7 @@ class BaseSolver(ISolver):
 
     def get_solution(self, field_name: str) -> Field:
         if field_name not in self._fields:
-            logger.error(f"Solver {self._id} solution {field_name} isn't available.")
+            logger.error(f"Solver {self._id} solution {field_name} not available.")
             return None
 
         return self._fields[field_name]
@@ -79,13 +79,13 @@ class BaseSolver(ISolver):
 
         if var not in self.get_meta().fields:
             logger.warning(
-                f"Solver {self._id} variable {var} is not in the available fields."
+                f"Solver {self._id} variable {var} not in the available fields."
             )
             return
 
         if var in self._ics:
             logger.warning(
-                f"Solver {self._id} variable {var} initial condition is overwrited."
+                f"Solver {self._id} variable {var} initial condition overwrited."
             )
 
         self._ics[var] = ic

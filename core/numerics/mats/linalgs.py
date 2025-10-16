@@ -25,14 +25,18 @@ class LinearEqs:
     """
 
     def __init__(
-        self, variable: str, mat: Matrix, rhs: Field, device: torch.device = None
+        self,
+        mat: Matrix,
+        rhs: Field,
+        variable: str = "none",
+        device: torch.device = None,
     ):
         """Linear equations solver.
 
         Args:
-            variable: The target variable.
             mat: The coefficient matrix of the linear equations.
             rhs: The right-hand side of the linear equations.
+            variable: The target variable.
             device: The device.
         """
         self._device = device or settings.DEVICE
@@ -62,17 +66,17 @@ class LinearEqs:
 
     @staticmethod
     def zeros(
-        variable: str,
         size: int,
         matrix_type: VariableType = VariableType.SCALAR,
         rhs_type: VariableType = VariableType.SCALAR,
         ele_type: ElementType = ElementType.CELL,
+        variable: str = "none",
         device: torch.device = None,
     ) -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
         mat = SparseMatrix.zeros((size, size), matrix_type, device)
         rhs = Field(size, ele_type, rhs_type, device=device)
-        return LinearEqs(variable, mat, rhs, device)
+        return LinearEqs(mat, rhs, variable, device)
 
     # -----------------------------------------------
     # --- properties ---
@@ -203,11 +207,11 @@ class LinearEqs:
         if len(mat_lst) == 1:
             for i, rhs in enumerate(rhs_lst):
                 var = f"{self.variable}_{i}"
-                eqs.append(LinearEqs(var, mat_lst[0], rhs))
+                eqs.append(LinearEqs(mat_lst[0], rhs, var))
         else:
             for mat, rhs, i in zip(mat_lst, rhs_lst, range(len(mat_lst))):
                 var = f"{self.variable}_{i}"
-                eqs.append(LinearEqs(var, mat, rhs))
+                eqs.append(LinearEqs(mat, rhs, var))
         return eqs
 
     def solve(self, method: str = None) -> Field:

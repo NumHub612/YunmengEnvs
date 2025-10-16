@@ -63,6 +63,7 @@ class Element:
     Element base class.
     """
 
+    # Element id contiguously from 0 or uncontiguous
     id: int
     coordinate: Coordinate
 
@@ -82,7 +83,7 @@ class Face(Element):
     Face element.
     """
 
-    # Sorted list of nodes on the face.
+    # Sorted list of node indices
     nodes: list[int]
 
 
@@ -92,4 +93,5 @@ class Cell(Element):
     Cell element.
     """
 
+    # List of face indices
     faces: list[int]

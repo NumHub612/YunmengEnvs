@@ -55,6 +55,67 @@ class MeshTopo:
         self._cell_indices = None
 
     # -----------------------------------------------
+    # --- static topology methods ---
+    # -----------------------------------------------
+
+    @staticmethod
+    def check_projection_axis(points: list) -> str:
+        """Check the projection axis (x, y, z)."""
+        coords = MeshTopo.extract_coordinates(points)
+
+        x_var = np.var([c.x for c in coords])
+        y_var = np.var([c.y for c in coords])
+        z_var = np.var([c.z for c in coords])
+
+        vars = [x_var, y_var, z_var]
+        axis = np.argsort(vars)[0]  # Axis with the smallest variance
+        axis = ["x", "y", "z"][axis]
+        return axis
+
+    @staticmethod
+    def sort_anticlockwise(points: list) -> list:
+        """Sort points in anticlockwise order."""
+        coords = {}
+        for i, point in enumerate(points):
+            if isinstance(point, Element):
+                coords[i] = point.coordinate
+            else:
+                coords[i] = point
+
+        center = MeshGeom.calculate_center(list(coords.values()))
+        axis = MeshTopo.check_projection_axis(points)
+        if axis.lower() == "z":
+            sorted_coords = sorted(
+                coords.items(),
+                key=lambda x: math.atan2(x[1].y - center.y, x[1].x - center.x),
+            )
+        elif axis.lower() == "y":
+            sorted_coords = sorted(
+                coords.items(),
+                key=lambda x: math.atan2(x[1].z - center.z, x[1].x - center.x),
+            )
+        elif axis.lower() == "x":
+            sorted_coords = sorted(
+                coords.items(),
+                key=lambda x: math.atan2(x[1].y - center.y, x[1].z - center.z),
+            )
+
+        return [points[i] for i, _ in sorted_coords]
+
+    @staticmethod
+    def extract_coordinates(elements: list) -> list:
+        """Extract the coordinates of each element."""
+        coords = copy.deepcopy(elements)
+        for i, element in enumerate(elements):
+            if isinstance(element, Element):
+                coords[i] = element.coordinate
+            elif isinstance(element, Coordinate):
+                continue
+            else:
+                raise ValueError(f"Invalid element type: {type(element)}.")
+        return coords
+
+    # -----------------------------------------------
     # --- boundaray and interior properties ---
     # -----------------------------------------------
 
@@ -163,7 +224,7 @@ class MeshTopo:
         return [(nodes[i], nodes[(i + 1) % n]) for i in range(n)]
 
     @property
-    def face_cells(self) -> dict:
+    def face_cells(self) -> dict[int, list[int]]:
         """Return the cells id connected to each face.
 
         Sorted to (left, right) or (owner, neighbour).
@@ -211,7 +272,7 @@ class MeshTopo:
         return cids
 
     @property
-    def node_faces(self) -> dict:
+    def node_faces(self) -> dict[int, list[int]]:
         """Return the faces id connected to each node."""
         if self._node_faces is None:
             node_faces = collections.defaultdict(list)
@@ -223,7 +284,7 @@ class MeshTopo:
         return self._node_faces
 
     @property
-    def node_cells(self) -> dict:
+    def node_cells(self) -> dict[int, list[int]]:
         """Return the cells id connected to each node."""
         if self._node_cells is None:
             face_nodes = {f.id: f.nodes for f in self._mesh.faces}
@@ -238,7 +299,7 @@ class MeshTopo:
         return self._node_cells
 
     @property
-    def cell_nodes(self) -> dict:
+    def cell_nodes(self) -> dict[int, list[int]]:
         """Return the nodes id connected to each cell."""
         if self._cell_nodes is None:
             face_nodes = {f.id: f.nodes for f in self._mesh.faces}
@@ -253,7 +314,7 @@ class MeshTopo:
         return self._cell_nodes
 
     @property
-    def cell_neighbours(self) -> dict:
+    def cell_neighbours(self) -> dict[int, list[int]]:
         """Return the neighbours of each cell."""
         if self._cell_neighbours is None:
             tmp = collections.defaultdict(list)
@@ -270,86 +331,25 @@ class MeshTopo:
     # -----------------------------------------------
 
     @property
-    def face_indices(self) -> dict:
+    def face_indices(self) -> dict[int, int]:
         """Return the indices of faces with their ids."""
         if self._face_indices is None:
             self._face_indices = {f.id: i for i, f in enumerate(self._mesh.faces)}
         return self._face_indices
 
     @property
-    def node_indices(self) -> dict:
+    def node_indices(self) -> dict[int, int]:
         """Return the indices of nodes with their ids."""
         if self._node_indices is None:
             self._node_indices = {n.id: i for i, n in enumerate(self._mesh.nodes)}
         return self._node_indices
 
     @property
-    def cell_indices(self) -> dict:
+    def cell_indices(self) -> dict[int, int]:
         """Return the indices of cells with their ids."""
         if self._cell_indices is None:
             self._cell_indices = {c.id: i for i, c in enumerate(self._mesh.cells)}
         return self._cell_indices
-
-    # -----------------------------------------------
-    # --- static topology methods ---
-    # -----------------------------------------------
-
-    @staticmethod
-    def check_projection_axis(points: list[Element | Coordinate]) -> str:
-        """Check the projection axis (x, y, z)."""
-        coords = MeshTopo.extract_coordinates(points)
-
-        x_var = np.var([c.x for c in coords])
-        y_var = np.var([c.y for c in coords])
-        z_var = np.var([c.z for c in coords])
-
-        vars = [x_var, y_var, z_var]
-        axis = np.argsort(vars)[0]  # Axis with the smallest variance
-        axis = ["x", "y", "z"][axis]
-        return axis
-
-    @staticmethod
-    def sort_anticlockwise(points: list[Element | Coordinate]) -> list:
-        """Sort points in anticlockwise order."""
-        coords = {}
-        for i, point in enumerate(points):
-            if isinstance(point, Element):
-                coords[i] = point.coordinate
-            else:
-                coords[i] = point
-
-        center = MeshGeom.calculate_center(list(coords.values()))
-        axis = MeshTopo.check_projection_axis(points)
-        if axis.lower() == "z":
-            sorted_coords = sorted(
-                coords.items(),
-                key=lambda x: math.atan2(x[1].y - center.y, x[1].x - center.x),
-            )
-        elif axis.lower() == "y":
-            sorted_coords = sorted(
-                coords.items(),
-                key=lambda x: math.atan2(x[1].z - center.z, x[1].x - center.x),
-            )
-        elif axis.lower() == "x":
-            sorted_coords = sorted(
-                coords.items(),
-                key=lambda x: math.atan2(x[1].y - center.y, x[1].z - center.z),
-            )
-
-        return [points[i] for i, _ in sorted_coords]
-
-    @staticmethod
-    def extract_coordinates(elements: list[Element | Coordinate]) -> list[Coordinate]:
-        """Extract the coordinates of each element."""
-        coords = copy.deepcopy(elements)
-        for i, element in enumerate(elements):
-            if isinstance(element, Element):
-                coords[i] = element.coordinate
-            elif isinstance(element, Coordinate):
-                continue
-            else:
-                raise ValueError(f"Invalid element type: {type(element)}.")
-        return coords
 
     # -----------------------------------------------
     # --- retrieval methods ---
@@ -472,7 +472,7 @@ class MeshGeom:
         return np.linalg.norm(point1.to_np() - point2.to_np())
 
     @staticmethod
-    def calculate_center(points: list[Element | Coordinate]) -> Coordinate:
+    def calculate_center(points: list) -> Coordinate:
         """Calculate the center of the given coordinates."""
         coords = MeshTopo.extract_coordinates(points)
         return Coordinate.from_np(
@@ -480,7 +480,7 @@ class MeshGeom:
         )
 
     @staticmethod
-    def calculate_area(points: list[Element | Coordinate]) -> float:
+    def calculate_area(points: list) -> float:
         """Calculate the area of the given coordinates."""
         if len(points) < 3:
             raise ValueError("At least 3 points are required.")
@@ -649,9 +649,9 @@ class MeshGeom:
 
         cell = self._mesh.cells[0]
         if len(cell.faces) == 4:
-            func = self._calcuate_tetrahedron_volume
+            func = self._tetrahedron_volume
         elif len(cell.faces) == 6:
-            func = self._calculate_hexahedron_volume
+            func = self._hexahedron_volume
         else:
             raise ValueError("Unsupported cell shape.")
 
@@ -660,7 +660,7 @@ class MeshGeom:
             cell_volumes[i] = volume
         return cell_volumes
 
-    def _calcuate_tetrahedron_volume(self, cell: Cell):
+    def _tetrahedron_volume(self, cell: Cell):
         nodes = self._topo.cell_nodes[cell.id]
         nodes = self._mesh.get_nodes(nodes)
         coors = [node.coordinate for node in nodes]
@@ -677,7 +677,7 @@ class MeshGeom:
         volume = abs(np.linalg.det(matrix)) / 6.0
         return volume
 
-    def _calculate_hexahedron_volume(self, cell: Cell):
+    def _hexahedron_volume(self, cell: Cell):
         faces = self._topo.cell_faces[cell.id]
         nodes = self._topo.cell_nodes[cell.id]
         if len(faces) != 6 or len(nodes) != 8:

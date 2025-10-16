@@ -6,8 +6,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 """
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from core.solvers.commons import inits, boundaries, IBoundaryCondition
-from core.numerics.mesh import Mesh, MeshTopo, MeshGeom
-from core.solvers.fvm.operators import Grad01, Grad02
+from core.numerics.mesh import Mesh
+from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01
 from core.numerics.algos import FieldInterpolators as fis
 from core.numerics.fields import Scalar, Vector, CellField, VariableType
 from core.numerics.mats import LinearEqs
@@ -56,7 +56,7 @@ class Burgers2D(BaseSolver):
 
         self._default_bcs = {"u": boundaries.MixedBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
-        self._operators = {"u": Grad01()}
+        self._operators = {"ddt": Ddt01(), "grad": Grad01(), "div": Div01()}
 
         self._k = 1.0
         self._rho = 1.0
@@ -67,13 +67,14 @@ class Burgers2D(BaseSolver):
         self._step = 0
 
         self._fields = {
-            "u": CellField(self._mesh.cell_count, VariableType.VECTOR),
-            "u_prev": CellField(self._mesh.cell_count, VariableType.VECTOR),
+            "u": CellField(self._mesh.cell_count, VariableType.VECTOR, variable="u"),
         }
 
     def initialize(
         self, k: float, order: int = 1, max_iter: int = 100, tol: float = 1e-6
     ):
+        # TODO: To split SloverParams, OpParams.
+
         logger.info("Initializing the unsteady burgers solver...")
 
         # Check initial conditions
@@ -85,7 +86,6 @@ class Burgers2D(BaseSolver):
 
         # Apply initial conditions
         self._ics["u"].apply(self._fields["u"])
-        self._fields["u_prev"] = copy.deepcopy(self._fields["u"])
 
         # Check boundary conditions
         for face in self._topo.boundary_faces:
@@ -107,6 +107,9 @@ class Burgers2D(BaseSolver):
         self._order = order
 
         # Init operators
+        if order != 1:
+            self._operators["ddt"] = Ddt02()
+
         for _, op in self._operators.items():
             op.prepare(self._mesh)
 
@@ -122,19 +125,12 @@ class Burgers2D(BaseSolver):
         for callback in self._callbacks:
             callback.on_step_begin()
 
-        sys = LinearEqs.zeros("u", self._mesh.cell_count, rhs_type=VariableType.VECTOR)
+        sys = LinearEqs.zeros(
+            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
+        )
         # Assemble time matrix(ddt)
-        sys_t = self._handle_transient_term(dt)
+        sys_t = self._operators["ddt"].run(self._fields["u"], dt, self._rho)
         sys += sys_t
-
-        # MatPlotters.show_lineareqs_heatmap(
-        #     sys,
-        #     title=f"mat1_{self._step}",
-        #     cmap="viridis",
-        #     figsize=(10, 6),
-        #     show=False,
-        #     save_dir="./tests/results",
-        # )
 
         # Assemble convection matrix(div)
         sys_c = self._handle_convection_term()
@@ -147,15 +143,6 @@ class Burgers2D(BaseSolver):
         # Assemble source term matrix(src)
         # sys_s = self._handle_source_term()
         # sys += sys_s
-
-        # MatPlotters.show_lineareqs_heatmap(
-        #     sys,
-        #     title=f"mat2_{self._step}",
-        #     cmap="viridis",
-        #     figsize=(10, 6),
-        #     show=False,
-        #     save_dir="./tests/results",
-        # )
 
         # Call callbacks
         for callback in self._callbacks:
@@ -189,52 +176,16 @@ class Burgers2D(BaseSolver):
         self._status.progress = process
         self._status.converged = True
 
-    def _handle_transient_term(self, dt: float):
-        if self._order == 1:
-            return self._transient_1st(dt)
-        elif self._order == 2:
-            return self._transient_2nd(dt)
-        else:
-            raise ValueError(f"Unsupported time discretization order: {self._order}.")
-
-    def _transient_1st(self, dt: float):
-        sys = LinearEqs.zeros("u", self._mesh.cell_count, rhs_type=VariableType.VECTOR)
-        # FOUE(first-order upwind scheme)
-        for cell in self._mesh.cells:
-            cid = cell.id
-            Vol = self._geom.cell_volumes[cid]
-            u = self._fields["u"][cid]
-            coef = self._rho * Vol / dt
-
-            sys.matrix[cid, cid] += coef
-            sys.rhs[cid] -= -coef * u
-
-        return sys
-
-    def _transient_2nd(self, dt: float):
-        sys = LinearEqs.zeros("u", self._mesh.cell_count, rhs_type=VariableType.VECTOR)
-        # SOUE(second-order upwind scheme)
-        for cell in self._mesh.cells:
-            cid = cell.id
-            Vol = self._geom.cell_volumes[cid]
-            u = self._fields["u"][cid]
-            u_prev = self._fields["u_prev"][cid]
-            tmp = self._rho * Vol / (2.0 * dt)
-
-            fluxC = 3.0 * tmp
-            fluxV = 4.0 * tmp * u - tmp * u_prev
-
-            sys.matrix[cid, cid] += fluxC
-            sys.rhs[cid] += fluxV
-
-        return sys
-
     def _handle_source_term(self):
-        sys = LinearEqs.zeros("u", self._mesh.cell_count, rhs_type=VariableType.VECTOR)
+        sys = LinearEqs.zeros(
+            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
+        )
         return sys
 
     def _handle_diffusion_term(self):
-        sys = LinearEqs.zeros("u", self._mesh.cell_count, rhs_type=VariableType.VECTOR)
+        sys = LinearEqs.zeros(
+            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
+        )
         # Aseemble boundary matrix
         for face in self._topo.boundary_faces:
             bc = self._bcs[face]["u"]
@@ -269,7 +220,9 @@ class Burgers2D(BaseSolver):
         return sys
 
     def _handle_convection_term(self):
-        sys = LinearEqs.zeros("u", self._mesh.cell_count, rhs_type=VariableType.VECTOR)
+        sys = LinearEqs.zeros(
+            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
+        )
         # Assemble boundary matrix
         for face in self._topo.boundary_faces:
             bc = self._bcs[face]["u"]
