@@ -48,7 +48,7 @@ class LinkableComponentStatus(Enum):
     and it will be able to provide the required output.
     """
 
-    WAITING_FOR_DATA = 6
+    WAITING = 6
     """
     The component wants to update itself, but is not yet able 
     to perform the actual computation, because it is still waiting for 

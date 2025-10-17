@@ -152,8 +152,8 @@ class ILinkableComponent(IIdentifiable):
 
         If there are messages while components status is `Valid`,
         the messages are purely informative. If there are messages
-        while the status's `Invalid`, at least one of the messages
-        indicates a fatal error.
+        while the status's `Invalid`, at least one of the
+        messages indicates a fatal error.
         """
         pass
 
@@ -161,9 +161,9 @@ class ILinkableComponent(IIdentifiable):
     def prepare(self):
         """Prepares the component for calls to the `Update()`.
 
-        Before `Prepare()` is called, the component are not required to
-        honor any type of action that retrieves values from the
-        component. After `Prepare()` is called,
+        Before `Prepare()` is called, the component aren't required
+        to honor any type of action that retrieves values from
+        the component. After `Prepare()` is called,
         the component must be ready for providing values.
 
         Immediatly after the method invoked, it changes
@@ -175,13 +175,13 @@ class ILinkableComponent(IIdentifiable):
 
     @abstractmethod
     def update(self):
-        """Updates the linkable component itself, thus reaching its next state.
+        """Updates the linkable component itself, reaching next state.
 
         Immediately after `Update()` is invoked, it changes the
-        component's status to `Updating`. If the method is performed
-        succesfully, the component sets its status to `Updated`, unless
-        after this update action is at the end of its computation,
-        in which case it will set its status to `Done`.
+        component's status to `Updating`. If the method's performed
+        succesfully, the component will set its status to `Updated`,
+        unless after this update action is at the end of its
+        computation, in which case it will set its status to `Done`.
 
         According to the 'pull-driven' approach,
         linkable components can be connected in a chain,
@@ -189,27 +189,25 @@ class ILinkableComponent(IIdentifiable):
         the chain trigger the entire stack of data exchange.
 
         The type of actions a component takes
-        during the `Update()` method depends on the type of component.
+        during `Update()` method depends on the type of component.
         A numerical model that progresses in time will typically
         compute a time step. A database would typically look at
         the consumers of its output items, and perform one or more
-        queries to be able to provide the values that
-        the consumers required.
+        queries to be able to provide the values that're required.
         """
         pass
 
     @abstractmethod
     def finish(self):
-        """Finishes the component computation, and then restart it if needed.
+        """Finishes the component computation, restart it if needed.
 
-        This method is and must be invoked as the last of any methods
-        in the `ILinkableComponent` interfaces.
+        This method is and must be invoked as the last of any
+        methods in the `ILinkableComponent` interfaces.
 
         Immediatly after this method is invoked, it changes the
         component's status to `Finishing`.
-        Once the finishing is completed, the component changes status
-        to `Finished` if it can't be restarted;
-        `Created`, otherwise.
+        Once the finishing is completed, the component changes
+        status to `Finished` if can't be restarted, or to `Created`.
         """
         pass
 
@@ -227,18 +225,18 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def input_items(self) -> List[IInput]:
+    def inputs(self) -> List[IInput]:
         """The input items."""
         pass
 
     @property
     @abstractmethod
-    def output_items(self) -> List[IOutput]:
+    def outputs(self) -> List[IOutput]:
         """The output items."""
         pass
 
     @property
     @abstractmethod
-    def adapter_factories(self) -> List[IAdaptedOutputFactory]:
-        """The adapted output factories."""
+    def CascadingUpdateCallsDisabled(self) -> bool:
+        """The flag to disable cascading updates in Loop-driven."""
         pass

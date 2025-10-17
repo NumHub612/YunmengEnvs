@@ -69,6 +69,7 @@ class Ddt02(IOperator):
         - implicit method.
         - upwind scheme as time interpolation profile.
         - the medium was assumed to be isotropic.
+        - the time step was assumed to be constant.
     """
 
     @classmethod

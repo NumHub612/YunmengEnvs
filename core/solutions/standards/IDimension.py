@@ -2,13 +2,17 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Interface for dimensions in physical quantities.
+To provide dimensions management in physical quantities.
 """
 from enum import Enum
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 
 class DimensionBase(Enum):
+    """
+    Base dimensions for physical quantities.
+    """
+
     Length = 0  # Base dimension length.
     Mass = 1  # Base dimension mass.
     Time = 2  # Base dimension time.
@@ -19,17 +23,18 @@ class DimensionBase(Enum):
     Currency = 7  # Base dimension currency.
 
 
-class IDimension(ABC):
-    """Interface for dimension-related operations."""
+@dataclass
+class IDimension:
+    """To provide dimension-related operations."""
 
-    @abstractmethod
+    powers: dict[DimensionBase, float] = {d: 0 for d in DimensionBase}
+
     def get_power(self, base_quantity: DimensionBase) -> float:
         """
         Gets the power for the requested dimension.
         """
-        pass
+        return self.powers[base_quantity]
 
-    @abstractmethod
     def set_power(
         self,
         base_quantity: DimensionBase,
@@ -38,4 +43,4 @@ class IDimension(ABC):
         """
         Sets a power for a base dimension.
         """
-        pass
+        self.powers[base_quantity] = power
