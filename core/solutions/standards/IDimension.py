@@ -13,14 +13,15 @@ class DimensionBase(Enum):
     Base dimensions for physical quantities.
     """
 
-    Length = 0  # Base dimension length.
-    Mass = 1  # Base dimension mass.
-    Time = 2  # Base dimension time.
-    ElectricCurrent = 3  # Base dimension electric current.
-    Temperature = 4  # Base dimension temperature.
-    AmountOfSubstance = 5  # Base dimension amount of substance.
-    LuminousIntensity = 6  # Base dimension luminous intensity.
-    Currency = 7  # Base dimension currency.
+    LENGTH = 0  # meters
+    MASS = 1  # kilograms
+    TIME = 2  # seconds
+    ELECTRICCURRENT = 3  # amperes
+    TEMPERATURE = 4  # kelvin
+    AMOUNTOFSUBSTANCE = 5  # moles
+    LUMINOUSINTENSITY = 6  # candelas
+    CURRENCY = 7  # money
+    UNITLESS = 8  # dimensionless
 
 
 @dataclass
@@ -33,7 +34,7 @@ class IDimension:
         """
         Gets the power for the requested dimension.
         """
-        return self.powers[base_quantity]
+        return self.powers.get(base_quantity, 0)
 
     def set_power(
         self,
@@ -44,3 +45,13 @@ class IDimension:
         Sets a power for a base dimension.
         """
         self.powers[base_quantity] = power
+
+    @staticmethod
+    def from_dict(dimensions: dict[DimensionBase, float]) -> "IDimension":
+        """
+        Makes a new IDimension object with the given dimensions set.
+        """
+        dim = IDimension()
+        for base_quantity, power in dimensions.items():
+            dim.set_power(base_quantity, power)
+        return dim

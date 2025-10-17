@@ -7,16 +7,18 @@ Interface for quantity values.
 from core.solutions.standards.IValueDefinition import IValueDefinition
 from core.solutions.standards.IUnit import IUnit
 
-from abc import abstractmethod
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any
 
 
+@dataclass
 class IQuantity(IValueDefinition):
     """
     Class specifies values as an amount of units.
     """
 
-    @abstractmethod
-    def get_unit(self) -> Optional[IUnit]:
-        """Unit of quantity."""
-        pass
+    # Numeric value of quantity.
+    value: Any = None
+
+    # Unit of quantity.
+    unit: IUnit = None

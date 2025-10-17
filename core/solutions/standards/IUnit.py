@@ -18,7 +18,7 @@ class IUnit(IDescribable):
     dimension: IDimension = None
 
     # Conversion factor to SI unit.
-    conversion_factor_to_si: float = 1.0
+    conversion: float = 1.0
 
     # Offset to SI unit.
-    offset_to_si: float = 0.0
+    offset: float = 0.0

@@ -18,4 +18,5 @@ class ICategory(IDescribable):
     A category defines one "class" within a "set of classes".
     """
 
+    # Category name
     value: Any = None
