@@ -11,5 +11,8 @@ from dataclasses import dataclass
 class ITime:
     """Time interface to support a time stamp as well as a time interval."""
 
+    # Time stamp in seconds since epoch (Jan 1, 1970)
     timestamp: float = 0.0
-    duration_in_days: float = 0.0
+
+    # Time interval in hours
+    duration_in_hours: float = 0.0

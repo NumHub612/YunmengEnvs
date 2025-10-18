@@ -17,5 +17,5 @@ class IValueDefinition(IDescribable):
     # Value type.
     value_type: type = None
 
-    # Default missing data value.
-    missing_data_value: Any = None
+    # Flag representing missing data.
+    missing_value: Any = None

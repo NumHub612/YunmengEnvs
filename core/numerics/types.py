@@ -8,9 +8,7 @@ import enum
 
 
 class VariableType(enum.Enum):
-    """
-    Variable type enumeration.
-    """
+    """Variable types in CFD."""
 
     SCALAR = "scalar"
     VECTOR = "vector"
@@ -19,7 +17,7 @@ class VariableType(enum.Enum):
 
 
 class ElementType(enum.Enum):
-    """The element type."""
+    """Element types in CFD."""
 
     CELL = "cell"
     FACE = "face"
@@ -27,8 +25,18 @@ class ElementType(enum.Enum):
     NONE = "none"
 
 
+class GeomType(enum.Enum):
+    """The geometry types."""
+
+    IdBased = 0
+    Point = 1
+    Polyline = 2
+    Polygon = 3
+    Polyhedron = 4
+
+
 class MeshDim(enum.Enum):
-    """The dimension of the mesh."""
+    """The mesh dimensions."""
 
     DIM1 = "1d"
     DIM2 = "2d"

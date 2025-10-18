@@ -2,36 +2,53 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Interface class for element sets.
+Data exchange between components is nearly always related to one or more elements
+in a space, either geo-referenced or not. An elementset can be a list of 2D or 3D
+spatial elements or as a special case, a list of ID based (non spatial) elements.
+Possible element types are defined in `ElementType`.
+
+For 3D elements (i.e. polyhedron) the shape can be queried by face. When the
+elementset is geo-referenced, coordinates (X, Y, Z) can be obtained for each
+node of an element.
+
+A geo-referenced elementset needs to have a valid 'SpatialReferenceSystem'
+property set in a `ISpatialDefinition`. This is a string that specifies the OGC
+WKT representation of a spatial reference. An empty string indicates that there
+in no spatial reference, which is only valid if the `ElementType` is `IdBased`.
+
+While an `IElementSet` can be used to query the geometric description of a
+model schematization, it does not necessarily provide all topological knowledge
+on inter-element connections.
 """
+from __future__ import annotations
 from core.solutions.standards.ISpatialDefinition import ISpatialDefinition
 
-from enum import Enum
 from abc import abstractmethod
-from typing import List
-
-
-class ElementType(Enum):
-    """Shape Type of elements in an `IElementSet`."""
-
-    IdBased = 0
-    Point = 1
-    Polyline = 2
-    Polygon = 3
-    Polyhedron = 4
 
 
 class IElementSet(ISpatialDefinition):
     """An list of elements having a common type."""
 
+    @property
     @abstractmethod
-    def get_element_index(self, element_id: str) -> int:
-        """Returns the index of the element with the given ID."""
+    def element_geom_type(self) -> GeomType:
+        """The geometry type of elements."""
+        pass
+
+    @property
+    @abstractmethod
+    def element_count(self) -> int:
+        """The number of elements."""
         pass
 
     @abstractmethod
-    def get_element_id(self, index: int) -> str:
-        """Returns the ID of the element at the given index."""
+    def get_element_index(self, element_id: str) -> int:
+        """Returns the index of the element."""
+        pass
+
+    @abstractmethod
+    def get_element_id(self, element_index: int) -> str:
+        """Returns the ID of the element."""
         pass
 
     @abstractmethod
@@ -45,33 +62,19 @@ class IElementSet(ISpatialDefinition):
         pass
 
     @abstractmethod
-    def get_face_node_indices(self, element_index: int, face_index: int) -> List[int]:
-        """Returns the indices of the nodes that make up the face."""
+    def get_face_node_indices(
+        self,
+        element_index: int,
+        face_index: int,
+    ) -> list[int]:
+        """Returns the nodes indices of the face."""
         pass
 
     @abstractmethod
-    def get_x(self, element_index: int, node_index: int) -> float:
-        """Returns the x-coordinate of the node."""
-        pass
-
-    @abstractmethod
-    def get_y(self, element_index: int, node_index: int) -> float:
-        """Returns the y-coordinate of the node."""
-        pass
-
-    @abstractmethod
-    def get_z(self, element_index: int, node_index: int) -> float:
-        """Returns the z-coordinate of the node."""
-        pass
-
-    @property
-    @abstractmethod
-    def element_type(self) -> ElementType:
-        """The type of elements in this set."""
-        pass
-
-    @property
-    @abstractmethod
-    def element_count(self) -> int:
-        """The number of elements in this set."""
+    def get_node_coordinates(
+        self,
+        element_index: int,
+        node_index: int,
+    ) -> list[float]:
+        """Returns the 3d coordinates of the node."""
         pass
