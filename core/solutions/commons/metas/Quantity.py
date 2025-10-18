@@ -10,6 +10,7 @@ from core.numerics.fields import Variable
 from enum import Enum
 
 from dataclasses import dataclass
+from typing import Any
 
 
 class PredifinedDimensions(Enum):
@@ -105,15 +106,30 @@ class Quantity(IQuantity):
     def __init__(
         self,
         value: float | bool | Variable,
-        default: float = None,
         unit: IUnit = None,
         caption: str = "",
         description: str = "",
+        missing_value: Any = None,
     ):
         super().__init__()
         self.value_type = type(value)
-        self.default = default
+        self.missing = missing_value
         self.value = value
         self.unit = unit
         self.description = description
         self.caption = caption
+
+    def to_si(self) -> float | bool | Variable:
+        """Convert the value to SI unit."""
+        if self.unit is None:
+            return self.value
+
+        return self.value * self.unit.conversion + self.unit.offset
+
+    def is_missing(self) -> bool:
+        """Check if the value is missing."""
+        if self.value is None:
+            return True
+        if self.value == self.missing:
+            return True
+        return False
