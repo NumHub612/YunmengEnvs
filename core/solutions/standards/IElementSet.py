@@ -43,22 +43,22 @@ class IElementSet(ISpatialDefinition):
 
     @abstractmethod
     def get_element_index(self, element_id: str) -> int:
-        """Returns the index of the element."""
+        """Returns the index of the element, or `None` if not found."""
         pass
 
     @abstractmethod
     def get_element_id(self, element_index: int) -> str:
-        """Returns the ID of the element."""
+        """Returns the ID of the element, or `None` if not found."""
         pass
 
     @abstractmethod
     def get_face_count(self, element_index: int) -> int:
-        """Returns the number of faces."""
+        """Returns the number of faces, or `None` if not polyhedron."""
         pass
 
     @abstractmethod
     def get_node_count(self, element_index: int) -> int:
-        """Returns the number of nodes."""
+        """Returns the number of nodes, or `None` if it's ID based."""
         pass
 
     @abstractmethod

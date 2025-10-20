@@ -12,14 +12,24 @@ from typing import Any
 class ValueSet(IValueSet):
     """ValueSet class."""
 
-    def __init__(self, value_definition: IValueDefinition, shape: tuple[int]):
+    def __init__(
+        self,
+        value_definition: IValueDefinition,
+        shape: tuple[int],
+        values: np.ndarray = None,
+    ):
         self._value_definition = value_definition
-        self._shape = [0, 0]
-        self._values = np.full(
-            shape,
-            value_definition.missing_value,
-            dtype=value_definition.value_type,
-        )
+        self._shape = shape
+        if values is not None:
+            if values.shape != shape:
+                raise ValueError("Invalid shape of values.")
+            self._values = np.array(values, dtype=value_definition.value_type)
+        else:
+            self._values = np.full(
+                shape,
+                value_definition.missing_data_value,
+                dtype=value_definition.value_type,
+            )
 
     @property
     def value_definition(self) -> IValueDefinition:
@@ -27,29 +37,18 @@ class ValueSet(IValueSet):
 
     @property
     def shape(self) -> tuple[int]:
-        return tuple(self._shape)
+        # TODO: check if all values are valid.
+        return self._values.shape
 
     def set_or_add_values(self, indices: tuple[int], values: Any):
         if len(indices) < 4:
             self._values[tuple(indices)] = values
-
-            # Update valid shape
-            if indices[0] >= self._shape[0]:
-                self._shape = (indices[0] + 1, *self._shape[1:])
-            if len(indices) > 1 and indices[1] >= self._shape[1]:
-                self._shape = (*self._shape[:1], indices[1] + 1)
         else:
             raise ValueError("Invalid indices.")
 
     def remove_values(self, indices: tuple[int]):
         if len(indices) < 4:
-            self._values[tuple(indices)] = self._value_definition.missing_value
-
-            # Update valid shape
-            if self._shape[0] > 1 and indices[0] == self._shape[0] - 1:
-                self._shape = (self._shape[0] - 1, *self._shape[1:])
-            if self._shape[1] > 1 and indices[1] == self._shape[1] - 1:
-                self._shape = (*self._shape[:1], self._shape[1] - 1)
+            self._values[tuple(indices)] = self._value_definition.missing_data_value
         else:
             raise ValueError("Invalid indices.")
 
@@ -58,3 +57,12 @@ class ValueSet(IValueSet):
 
     def get_values_for_time(self, time_index: list[int]) -> list[Any]:
         return self._values[time_index, :]
+
+    def __len__(self) -> int:
+        return self._values.shape[0]
+
+    def __getittem__(self, indices: tuple[int]) -> Any:
+        return self._values[tuple(indices)]
+
+    def __setitem__(self, indices: tuple[int], value: Any):
+        self._values[tuple(indices)] = value

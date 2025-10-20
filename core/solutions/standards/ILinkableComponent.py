@@ -5,121 +5,58 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Interface class for linkable modules connection and data transfer.
 """
 from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
-from core.solutions.standards.IAdaptedOutputFactory import IAdaptedOutputFactory
 from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IArgument import IArgument
 from core.solutions.standards.IInput import IInput
 from core.solutions.standards.IOutput import IOutput
 
 from abc import abstractmethod
-from typing import List
+from typing import Any
 
 
 class ILinkableComponent(IIdentifiable):
     """class for linkable modules connection and data transfer."""
 
+    @property
     @abstractmethod
-    def has_attribute(self, attribute_name: str) -> bool:
-        """Checks if the component has the specified attribute.
-
-        Args:
-            attribute_name: The name of the attribute to check.
-
-        Returns:
-            bool: True if the component has the attribute, False otherwise.
-        """
+    def arguments(self) -> list[IArgument]:
+        """Arguments of the component."""
         pass
 
+    @property
     @abstractmethod
-    def get_attribute(self, attribute_name: str) -> object:
-        """Gets the value of the specified attribute.
-
-        Args:
-            attribute_name: The name of the attribute to get.
-
-        Returns:
-            object: The value of the attribute.
-        """
+    def status(self) -> LinkableComponentStatus:
+        """The status of the component."""
         pass
 
+    @property
     @abstractmethod
-    def set_attribute(self, attribute_name: str, attribute_value: object):
-        """Sets the value of the specified attribute.
-
-        Args:
-            attribute_name: The name of the attribute to set.
-            attribute_value: The value of the attribute to set.
-        """
+    def outputs(self) -> list[IOutput]:
+        """The output items."""
         pass
 
+    @property
     @abstractmethod
-    def has_state(self, state_name: str, **kwargs) -> bool:
-        """Checks if the component has the specified state.
-
-        Args:
-            state_name: The name of the state to check.
-
-        Returns:
-            bool: True if the component has the state, False otherwise.
-        """
+    def inputs(self) -> list[IInput]:
+        """The input items."""
         pass
 
+    @property
     @abstractmethod
-    def get_state(self, state_name: str, **kwargs) -> object:
-        """Gets the value of the specified state.
-
-        Args:
-            state_name: The name of the state to get.
-
-        Returns:
-            object: The value of the state.
-        """
+    def attributes(self) -> dict[str, Any]:
+        """Dictionary of attributes."""
         pass
 
+    @property
     @abstractmethod
-    def set_state(self, state_name: str, state_value: object, **kwargs):
-        """Sets the value of the specified state.
-
-        Args:
-            state_name: The name of the state to set.
-            state_value: The value of the state to set.
-        """
+    def states(self) -> dict[str, Any]:
+        """Dictionary of states data."""
         pass
 
+    @property
     @abstractmethod
-    def has_data(self, data_name: str, **kwargs) -> bool:
-        """Checks if the component has the specified data.
-
-        Args:
-            data_name: The name of the data to check.
-
-        Returns:
-            bool: True if the component has the data, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def get_data(self, data_name: str, **kwargs) -> object:
-        """Gets the value of the specified data.
-
-        Args:
-            data_name: The name of the data to get.
-
-        Returns:
-            object: The value of the data.
-        """
-        pass
-
-    @abstractmethod
-    def has_element(self, element_name: str, **kwargs) -> bool:
-        """Checks if the component has the specified element.
-
-        Args:
-            element_name: The name of the element to check.
-
-        Returns:
-            bool: True if has the element, False otherwise.
-        """
+    def CascadingUpdateCallsDisabled(self) -> bool:
+        """The flag to disable cascading updates."""
         pass
 
     @abstractmethod
@@ -137,23 +74,23 @@ class ILinkableComponent(IIdentifiable):
         pass
 
     @abstractmethod
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validates the populated instance of the component.
 
-        The method will must be invoked after various provider/consumer
+        The method will must be invoked after various provider-consumer
         relations between this component's exchange items and the
         exchange items of other components
         present in the composition.
 
         Immediatly after this method is invoked, it changes
         the component's status to `Validating`. When the method has
-        finished, the status of the component has changed to
-        either `Valid` or `Invalid`.
+        finished, the status of the component has changed to either
+        `Valid` or `Invalid`.
 
         If there are messages while components status is `Valid`,
-        the messages are purely informative. If there are messages
-        while the status's `Invalid`, at least one of the
-        messages indicates a fatal error.
+        these messages are purely informative. If there're messages
+        while the status is `Invalid`, at least one of the messages
+        indicates a fatal error.
         """
         pass
 
@@ -174,14 +111,14 @@ class ILinkableComponent(IIdentifiable):
         pass
 
     @abstractmethod
-    def update(self):
-        """Updates the linkable component itself, reaching next state.
+    def update(self, required_outputs: list[IOutput]):
+        """Updates the linkable component itself and to next status.
 
         Immediately after `Update()` is invoked, it changes the
         component's status to `Updating`. If the method's performed
-        succesfully, the component will set its status to `Updated`,
+        succesfully, the component'll set its status to `Updated`,
         unless after this update action is at the end of its
-        computation, in which case it will set its status to `Done`.
+        computation, in which case it'll set its status to `Done`.
 
         According to the 'pull-driven' approach,
         linkable components can be connected in a chain,
@@ -193,7 +130,7 @@ class ILinkableComponent(IIdentifiable):
         A numerical model that progresses in time will typically
         compute a time step. A database would typically look at
         the consumers of its output items, and perform one or more
-        queries to be able to provide the values that're required.
+        queries to be able to provide the values that are required.
         """
         pass
 
@@ -209,34 +146,4 @@ class ILinkableComponent(IIdentifiable):
         Once the finishing is completed, the component changes
         status to `Finished` if can't be restarted, or to `Created`.
         """
-        pass
-
-    @property
-    @abstractmethod
-    def arguments(self) -> List[IArgument]:
-        """Arguments of the component."""
-        pass
-
-    @property
-    @abstractmethod
-    def status(self) -> LinkableComponentStatus:
-        """The status of the component."""
-        pass
-
-    @property
-    @abstractmethod
-    def inputs(self) -> List[IInput]:
-        """The input items."""
-        pass
-
-    @property
-    @abstractmethod
-    def outputs(self) -> List[IOutput]:
-        """The output items."""
-        pass
-
-    @property
-    @abstractmethod
-    def CascadingUpdateCallsDisabled(self) -> bool:
-        """The flag to disable cascading updates in Loop-driven."""
         pass

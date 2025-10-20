@@ -111,15 +111,12 @@ class Quantity(IQuantity):
         description: str = "",
         missing_value: Any = None,
     ):
-        super().__init__()
+        super().__init__(caption, description, None, missing_value)
         self.value_type = type(value)
-        self.missing = missing_value
         self.value = value
         self.unit = unit
-        self.description = description
-        self.caption = caption
 
-    def to_si(self) -> float | bool | Variable:
+    def to_si(self) -> Any:
         """Convert the value to SI unit."""
         if self.unit is None:
             return self.value
@@ -130,6 +127,6 @@ class Quantity(IQuantity):
         """Check if the value is missing."""
         if self.value is None:
             return True
-        if self.value == self.missing:
+        if self.value == self.missing_data_value:
             return True
         return False

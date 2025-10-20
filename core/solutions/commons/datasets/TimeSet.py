@@ -25,6 +25,10 @@ class TimeSet(ITimeSet):
         self._time_offset = time_offset
 
     @property
+    def times(self) -> list[ITime]:
+        return self._times
+
+    @property
     def size(self) -> int:
         """The size of the time set."""
         return len(self._times)
@@ -49,9 +53,6 @@ class TimeSet(ITimeSet):
         if time.timestamp + time.duration_in_hours > end_time:
             return False
         return True
-
-    def get_times(self) -> list[ITime]:
-        return self._times
 
     def remove_time(self, index: int) -> None:
         self._times.pop(index)

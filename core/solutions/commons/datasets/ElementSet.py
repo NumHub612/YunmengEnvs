@@ -67,7 +67,7 @@ class ElementSet(IElementSet):
         for i, element in enumerate(self._elements):
             if element.id == int(element_id):
                 return i
-        raise ValueError("Element not found.")
+        raise None
 
     def get_element_id(self, element_index: int) -> str | int:
         return self._elements[element_index].id
@@ -80,7 +80,7 @@ class ElementSet(IElementSet):
         elif self._etype == ElementType.CELL:
             return len(self._elements[element_index].faces)
         else:
-            raise ValueError("Unsupported element type.")
+            raise None
 
     def get_node_count(self, element_index: int) -> int:
         if self._etype == ElementType.NODE:
@@ -92,7 +92,7 @@ class ElementSet(IElementSet):
             cid = self._elements[element_index].id
             return len(topo.cell_nodes[cid])
         else:
-            raise ValueError("Unsupported element type.")
+            raise None
 
     def get_face_node_indices(self, element_index: int) -> list[int]:
         if self._etype == ElementType.NODE:
@@ -104,7 +104,7 @@ class ElementSet(IElementSet):
             cid = self._elements[element_index].id
             return topo.cell_nodes[cid]
         else:
-            raise ValueError("Unsupported element type.")
+            raise None
 
     def get_node_coordinates(self, element_index: int) -> list[Coordinate]:
         if self._etype == ElementType.NODE:
@@ -118,7 +118,13 @@ class ElementSet(IElementSet):
             nodes = topo.cell_nodes[cid]
             return [self._mesh.nodes[i].coordinate for i in nodes]
         else:
-            raise ValueError("Unsupported element type.")
+            raise None
+
+    def has_element(self, element_id: str | int) -> bool:
+        for element in self._elements:
+            if element.id == int(element_id):
+                return True
+        return False
 
 
 def check_mesh_element_geom(element: Element, mesh: Mesh) -> GeomType:

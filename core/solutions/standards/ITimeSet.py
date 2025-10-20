@@ -14,8 +14,9 @@ from abc import ABC, abstractmethod
 class ITimeSet(ABC):
     """Set of time stamps or time intervals used for data exchange."""
 
+    @property
     @abstractmethod
-    def get_times(self) -> list[ITime]:
+    def times(self) -> list[ITime]:
         """
         Time stamps or spans as available in of an output item,
         or as required by an input item.

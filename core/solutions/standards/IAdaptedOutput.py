@@ -8,7 +8,6 @@ from core.solutions.standards.IArgument import IArgument
 from core.solutions.standards.IOutput import IOutput
 
 from abc import abstractmethod
-from typing import List
 
 
 class IAdaptedOutput(IOutput):
@@ -31,7 +30,7 @@ class IAdaptedOutput(IOutput):
 
     @property
     @abstractmethod
-    def arguments(self) -> List[IArgument]:
+    def arguments(self) -> list[IArgument]:
         """Arguments of the adapter."""
         pass
 

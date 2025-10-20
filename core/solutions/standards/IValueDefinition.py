@@ -18,4 +18,4 @@ class IValueDefinition(IDescribable):
     value_type: type = None
 
     # Flag representing missing data.
-    missing_value: Any = None
+    missing_data_value: Any = None
