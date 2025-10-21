@@ -67,7 +67,7 @@ class LinkableComponentStatus(Enum):
 
     PREPARING = 8
     """
-    The component is preparing itself for the first `GetValues()`.
+    The component is preparing itself for the first `get_values()`.
     This state will end in status change to `UPDATED` or `FAILED`.
     """
 
@@ -87,7 +87,7 @@ class LinkableComponentStatus(Enum):
     DONE = 11
     """
     The last update process that component performed was final one.
-    A next call to the `Update()` method will leave 
+    A next call to the `update()` method will leave 
     the component's internal state unchanged.
     """
 

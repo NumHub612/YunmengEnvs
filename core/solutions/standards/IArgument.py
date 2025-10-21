@@ -6,6 +6,7 @@ Interface for arguments.
 """
 from core.solutions.standards.IIdentifiable import IIdentifiable
 
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,11 +24,20 @@ class IArgument(IIdentifiable):
     # Whether the value property can be edited.
     readonly: bool = False
 
-    # The current value of the argument.
-    value: Any = None
-
     # The default value of the argument.
-    default_value: Any = None
+    default: Any = None
 
     # Possible allowed values.
-    possible_values: list = None
+    possibles: list = None
+
+    @property
+    @abstractmethod
+    def value(self) -> Any:
+        """The current value of the argument."""
+        pass
+
+    @value.setter
+    @abstractmethod
+    def value(self, value: Any) -> None:
+        """Sets the value of the argument."""
+        pass

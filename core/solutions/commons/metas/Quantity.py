@@ -48,41 +48,6 @@ class PredifinedDimensions(Enum):
 class PredinedUnits(Enum):
     """Predefined units commonly used."""
 
-    DISCHARGE = IUnit(
-        "m3/s",
-        "discharge of cubic meter per second",
-        IDimension.from_dict({DimensionBase.LENGTH: 3, DimensionBase.TIME: -1}),
-        1.0,
-        0.0,
-    )
-    DENSITY = IUnit(
-        "kg/m3",
-        "density of mass per cubic meter",
-        IDimension.from_dict({DimensionBase.MASS: 1, DimensionBase.LENGTH: -3}),
-        1.0,
-        0.0,
-    )
-    CONCENTRATION = IUnit(
-        "mg/L",
-        "concentration of mass per cubic meter",
-        IDimension.from_dict({DimensionBase.MASS: 1, DimensionBase.LENGTH: -3}),
-        1.0,
-        0.0,
-    )
-    VELOCITY = IUnit(
-        "m/s",
-        "velocity",
-        IDimension.from_dict({DimensionBase.LENGTH: 1, DimensionBase.TIME: -1}),
-        1.0,
-        0.0,
-    )
-    MILLIMETER_PER_DAY = IUnit(
-        "mm/d",
-        "millimeter per day",
-        IDimension.from_dict({DimensionBase.LENGTH: 1, DimensionBase.TIME: -1}),
-        1.15741e-08,
-        0.0,
-    )
     METER = IUnit(
         "m",
         "meter",
@@ -95,6 +60,85 @@ class PredinedUnits(Enum):
         "liter",
         PredifinedDimensions.VOLUME.value,
         0.001,
+        0.0,
+    )
+    AREA = IUnit(
+        "m2",
+        "square meter",
+        PredifinedDimensions.AREA.value,
+        1.0,
+        0.0,
+    )
+    DISCHARGE = IUnit(
+        "m3/s",
+        "cubic meter per second",
+        IDimension.from_dict(
+            {
+                DimensionBase.LENGTH: 3,
+                DimensionBase.TIME: -1,
+            }
+        ),
+        1.0,
+        0.0,
+    )
+    DENSITY = IUnit(
+        "kg/m3",
+        "mass per cubic meter",
+        IDimension.from_dict(
+            {
+                DimensionBase.MASS: 1,
+                DimensionBase.LENGTH: -3,
+            }
+        ),
+        1.0,
+        0.0,
+    )
+    CONCENTRATION = IUnit(
+        "mg/L",
+        "mass per cubic meter",
+        IDimension.from_dict(
+            {
+                DimensionBase.MASS: 1,
+                DimensionBase.LENGTH: -3,
+            }
+        ),
+        1.0,
+        0.0,
+    )
+    VELOCITY = IUnit(
+        "m/s",
+        "velocity",
+        IDimension.from_dict(
+            {
+                DimensionBase.LENGTH: 1,
+                DimensionBase.TIME: -1,
+            }
+        ),
+        1.0,
+        0.0,
+    )
+    MILLIMETER_PER_DAY = IUnit(
+        "mm/d",
+        "millimeter per day",
+        IDimension.from_dict(
+            {
+                DimensionBase.LENGTH: 1,
+                DimensionBase.TIME: -1,
+            }
+        ),
+        1.15741e-08,
+        0.0,
+    )
+    MILLIMETER_PER_HOUR = IUnit(
+        "mm/h",
+        "millimeter per hour",
+        IDimension.from_dict(
+            {
+                DimensionBase.LENGTH: 1,
+                DimensionBase.TIME: -1,
+            }
+        ),
+        0.000277778,
         0.0,
     )
 

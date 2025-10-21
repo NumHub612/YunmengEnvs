@@ -31,22 +31,28 @@ class ElementSet(IElementSet):
     the elementset is recreated or reset each time.
     """
 
-    def __init__(self, mesh: Mesh, etype: ElementType, elements: list[int]):
+    def __init__(self, mesh: Mesh, etype: ElementType, elements: list = None):
         # TODO: Check if all elements are of the same type.
         # NOTE: Only support `Element` objects for now.
         self._mesh = mesh
         self._etype = etype
         self._elements = self._collect_elements(elements, etype)
-        self._geom_type = check_mesh_element_geom(self._elements[0], mesh)
+        self._geom_type = check_mesh_element_geom(self._elements, mesh)
 
-    def _collect_elements(self, indices: list[int], element_type: ElementType):
+    def _collect_elements(self, indices: list, element_type: ElementType):
         """Collect elements of the given type with the given indices."""
+        if self._mesh is None:
+            return indices
+
         if element_type == ElementType.NODE:
             elements = self._mesh.nodes
         elif element_type == ElementType.FACE:
             elements = self._mesh.faces
         elif element_type == ElementType.CELL:
             elements = self._mesh.cells
+
+        if not indices:
+            return elements
 
         objs = []
         for i in indices:
@@ -127,8 +133,12 @@ class ElementSet(IElementSet):
         return False
 
 
-def check_mesh_element_geom(element: Element, mesh: Mesh) -> GeomType:
+def check_mesh_element_geom(elements: list[Element], mesh: Mesh) -> GeomType:
     """Check the geometry type of an mesh element."""
+    if mesh is None:
+        return GeomType.IdBased
+
+    element = elements[0]
     if isinstance(element, Node):
         return GeomType.Point
     elif isinstance(element, Face):

@@ -41,7 +41,7 @@ class BaseOutput(IOutput):
         id: str,
         component: ILinkableComponent,
         value_definition: IValueDefinition,
-        elementset: IElementSet = None,
+        elementset: IElementSet,
         timeset: ITimeSet = None,
         caption: str = "",
         description: str = "",
@@ -51,7 +51,12 @@ class BaseOutput(IOutput):
         self._value_definition = value_definition
         self._elementset = elementset
         self._timeset = timeset
-        self._valueset: IValueSet = None
+        if self._timeset is None:
+            self._timeset = datasets.TimeSet(None, [datasets.ITime])
+        self._valueset: IValueSet = datasets.ValueSet(
+            value_definition,
+            (self._timeset.size, elementset.element_count),
+        )
 
         self._consumers: list[IInput] = []
         self._adapters: list[IOutput] = []

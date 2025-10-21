@@ -19,7 +19,7 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def arguments(self) -> list[IArgument]:
+    def arguments(self) -> dict[str, IArgument]:
         """Arguments of the component."""
         pass
 
@@ -43,12 +43,6 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def attributes(self) -> dict[str, Any]:
-        """Dictionary of attributes."""
-        pass
-
-    @property
-    @abstractmethod
     def states(self) -> dict[str, Any]:
         """Dictionary of states data."""
         pass
@@ -60,12 +54,22 @@ class ILinkableComponent(IIdentifiable):
         pass
 
     @abstractmethod
+    def setup(self):
+        """Sets up the instance of the component.
+
+        This method should be invoked before any other methods to do
+        any necessary configurations or preparations, such as
+        resetting arguments, configuring inputs and outputs items.
+        """
+        pass
+
+    @abstractmethod
     def initialize(self):
         """Initializes the component.
 
         The `Initialize()` will and must be invoked before any other
         methods in the `ILinkableComponent` interface is invoked
-        or accessed.
+        or accessed, except for the `setup()` method.
 
         Immediatly after the method is been invoked, it changes the
         linkable component's status to `INITIALIZING`. If component
@@ -86,7 +90,7 @@ class ILinkableComponent(IIdentifiable):
         `VALID` or `INVALID`.
 
         If there are any issues while validating the component,
-        the method returns a list of messages describing these issues.
+        the method returns list of messages describing these issues.
         """
         pass
 

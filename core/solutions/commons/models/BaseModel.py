@@ -13,7 +13,7 @@ from core.solutions.standards import (
     IIdentifiable,
     IManageState,
     LinkableComponentStatus,
-    LinkableComponentChangeEventArgs,
+    LinkableComponentStatusChangeEventArgs,
 )
 from core.solutions.commons import events
 from configs.settings import logger
@@ -30,17 +30,16 @@ class BaseModel(ILinkableComponent, IManageState):
     """
 
     def __init__(self):
-        self._arguments: list[IArgument] = []
+        self._arguments: dict[str, IArgument] = {}
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []
-        self._attributes: dict[str, any] = {}
         self._states: dict[str, any] = {}
         self._CascadingDisabled = False
         self._status = LinkableComponentStatus.CREATED
         self._event_manager = events.EventManager()
 
     @property
-    def arguments(self) -> list[IArgument]:
+    def arguments(self) -> dict[str, IArgument]:
         return self._arguments
 
     @property
@@ -56,10 +55,6 @@ class BaseModel(ILinkableComponent, IManageState):
         return self._outputs
 
     @property
-    def attributes(self) -> dict[str, any]:
-        return self._attributes
-
-    @property
     def states(self) -> dict[str, any]:
         return self._states
 
@@ -67,10 +62,20 @@ class BaseModel(ILinkableComponent, IManageState):
     def CascadingUpdateCallsDisabled(self) -> bool:
         return self._CascadingDisabled
 
+    def setup(
+        self,
+        inputs_config: list = None,
+        outputs_config: list = None,
+        args_config: list = None,
+        **kwargs,
+    ):
+        # NOTE: check the arguments, inputs, and outputs after the component is setup.
+        raise NotImplementedError()
+
     def initialize(self):
         raise NotImplementedError()
 
-    def validate(self):
+    def validate(self) -> list[str]:
         raise NotImplementedError()
 
     def prepare(self):
@@ -79,7 +84,7 @@ class BaseModel(ILinkableComponent, IManageState):
     def update(self, required_outputs: list[IOutput]):
         raise NotImplementedError()
 
-    def finalize(self):
+    def finish(self):
         raise NotImplementedError()
 
     def keep_current_state(self) -> IIdentifiable:
@@ -105,9 +110,9 @@ class BaseModel(ILinkableComponent, IManageState):
     ):
         """Notifies subscribers that the status has changed."""
         logger.info(
-            f"Component {self} status changed from {old_status} to {self.status}: {message}"
+            f"Component {self} changed from {old_status} to {new_status}: {message}"
         )
-        event_args = LinkableComponentChangeEventArgs(
+        event_args = LinkableComponentStatusChangeEventArgs(
             self, message, old_status, new_status
         )
         self._event_manager.invoke(event_args)

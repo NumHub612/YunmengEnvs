@@ -15,6 +15,7 @@ from core.solutions.standards import (
     IValueSet,
     ExchangeItemChangeEventArgs,
 )
+from core.solutions.commons import datasets
 from core.solutions.commons import events
 from configs.settings import logger
 
@@ -37,7 +38,7 @@ class BaseInput(IInput):
         id: str,
         component: ILinkableComponent,
         value_definition: IValueDefinition,
-        elementset: IElementSet = None,
+        elementset: IElementSet,
         timeset: ITimeSet = None,
         caption: str = "",
         description: str = "",
@@ -47,9 +48,15 @@ class BaseInput(IInput):
         self._component = component
         self._value_definition = value_definition
         self._elementset = elementset
+
         self._timeset = timeset
+        if self._timeset is None:
+            self._timeset = datasets.TimeSet(None, [datasets.ITime])
+
         self._provider = provider
-        self._valuset = None
+        self._valuset = datasets.ValueSet(
+            value_definition, (self._timeset.size, elementset.element_count)
+        )
         self._satisfied = False
         self._event_manager = events.EventManager()
 
