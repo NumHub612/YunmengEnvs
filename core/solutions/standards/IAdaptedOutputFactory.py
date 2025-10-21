@@ -10,7 +10,7 @@ from core.solutions.standards.IOutput import IOutput
 from core.solutions.standards.IInput import IInput
 
 from abc import abstractmethod
-from typing import List, Optional
+from typing import Optional
 
 
 class IAdaptedOutputFactory(IIdentifiable):
@@ -21,14 +21,17 @@ class IAdaptedOutputFactory(IIdentifiable):
     @abstractmethod
     def get_available_adapter_ids(
         self, adaptee: IOutput, target: IInput
-    ) -> List[IIdentifiable]:
+    ) -> list[IIdentifiable]:
         """Gets a list of identifier of the available `IAdaptedOutput`
         that can make the adaptee match the target."""
         pass
 
     @abstractmethod
     def create_adapter(
-        self, adapter_id: IIdentifiable, adaptee: IOutput, target: IInput
+        self,
+        adapter_id: IIdentifiable,
+        adaptee: IOutput,
+        target: IInput,
     ) -> Optional[IAdaptedOutput]:
         """Creates an adapter adapting the adaptee to target."""
         pass

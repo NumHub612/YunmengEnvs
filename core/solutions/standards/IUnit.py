@@ -7,26 +7,18 @@ Interface for unit.
 from core.solutions.standards.IDescribable import IDescribable
 from core.solutions.standards.IDimension import IDimension
 
-from abc import abstractmethod
+from dataclasses import dataclass
 
 
+@dataclass
 class IUnit(IDescribable):
     """Unit describes the physical unit."""
 
-    @property
-    @abstractmethod
-    def dimension(self) -> IDimension:
-        """Return the dimension of the unit."""
-        pass
+    # Dimension of the unit.
+    dimension: IDimension = None
 
-    @property
-    @abstractmethod
-    def conversion_factor_to_si(self) -> float:
-        """Get conversion factor to SI unit."""
-        pass
+    # Conversion factor to SI unit.
+    conversion: float = 1.0
 
-    @property
-    @abstractmethod
-    def offset_to_si(self) -> float:
-        """Get the offset to SI unit."""
-        pass
+    # Offset to SI unit.
+    offset: float = 0.0

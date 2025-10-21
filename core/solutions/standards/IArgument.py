@@ -7,29 +7,28 @@ Interface for arguments.
 from core.solutions.standards.IIdentifiable import IIdentifiable
 
 from abc import abstractmethod
-from typing import Any, List
+from dataclasses import dataclass
+from typing import Any
 
 
+@dataclass
 class IArgument(IIdentifiable):
     """Class for providing arguments."""
 
-    @property
-    @abstractmethod
-    def value_type(self) -> type:
-        """The type of the value of the argument."""
-        pass
+    # The type of the value of the argument.
+    value_type: type = None
 
-    @property
-    @abstractmethod
-    def optional(self) -> bool:
-        """Whether the argument is optional."""
-        pass
+    # Whether the argument is optional.
+    optional: bool = False
 
-    @property
-    @abstractmethod
-    def readonly(self) -> bool:
-        """Whether the value property can be edited."""
-        pass
+    # Whether the value property can be edited.
+    readonly: bool = False
+
+    # The default value of the argument.
+    default: Any = None
+
+    # Possible allowed values.
+    possibles: list = None
 
     @property
     @abstractmethod
@@ -39,18 +38,6 @@ class IArgument(IIdentifiable):
 
     @value.setter
     @abstractmethod
-    def value(self, value: Any):
-        """Sets the argument value, if settable."""
-        pass
-
-    @property
-    @abstractmethod
-    def default_value(self) -> Any:
-        """The default value of the argument."""
-        pass
-
-    @property
-    @abstractmethod
-    def possible_values(self) -> List:
-        """Possible allowed values."""
+    def value(self, value: Any) -> None:
+        """Sets the value of the argument."""
         pass

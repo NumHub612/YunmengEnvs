@@ -2,16 +2,17 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Interface for objects that have an id.
+To provide an id for an entity.
 """
 from core.solutions.standards.IDescribable import IDescribable
 
-from abc import abstractmethod
+from dataclasses import dataclass
 
 
+@dataclass
 class IIdentifiable(IDescribable):
     """
-    Interface for objects that have an id.
+    To provide an id for an entity.
 
     The Id must be unique within its context but does not need to be
     globally unique. e.g. the id of an input exchange item must
@@ -20,8 +21,4 @@ class IIdentifiable(IDescribable):
     of another `ILinkableComponent`.
     """
 
-    @property
-    @abstractmethod
-    def id(self) -> str:
-        """Id string."""
-        pass
+    id: str = ""

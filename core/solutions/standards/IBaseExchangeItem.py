@@ -4,84 +4,88 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface class for exchange items.
 """
-# from core.solutions.standards.ILinkableComponent import ILinkableComponent
+from __future__ import annotations
+from core.solutions.standards.ISpatialDefinition import ISpatialDefinition
 from core.solutions.standards.IValueDefinition import IValueDefinition
+from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IValueSet import IValueSet
-from core.solutions.standards.IElementSet import IElementSet
 from core.solutions.standards.ITimeSet import ITimeSet
+from core.solutions.standards.ExchangeItemChangeEventArgs import (
+    ExchangeItemChangeEventArgs,
+)
 
-from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from abc import abstractmethod
+from typing import Optional
 
 
-class IBaseExchangeItem(ABC):
-    """Class presenting a item that can be exchanged,
-    either as an input or output."""
+class IBaseExchangeItem(IIdentifiable):
+    """Class presenting a item that can be exchanged, defining Where, When, and What.
+    either as an input or output.
 
+    The owning component is responsible for assigning the element set, timeset and
+    value set to the exchange item, and also maintaining the consistency of the data.
+    """
+
+    @property
     @abstractmethod
-    def update(self) -> Optional[IValueSet]:
-        """Updates the exchange item."""
+    def spatial_definition(self) -> Optional[ISpatialDefinition]:
+        """The spatial definition of the exchange item.
+
+        The `ISpatialDefinition` should never be returned directly; all implementing
+        classes should return either `IElementSet`, or a custom
+        derived spatial definition interface.
+        """
         pass
 
+    @property
     @abstractmethod
-    def reset(self):
-        """Resets the exchange item."""
-        pass
-
-    @abstractmethod
-    def add_listener(self, func: Callable):
-        """Adds a listener to the exchange item."""
-        pass
-
-    @abstractmethod
-    def remove_listener(self, func: Callable):
-        """Removes the listener."""
+    def time_set(self) -> Optional[ITimeSet]:
+        """The time set of the exchange item."""
         pass
 
     @property
     @abstractmethod
     def value_definition(self) -> IValueDefinition:
-        """Definition of the values in the exchange item."""
+        """The value definition of exchange item.
+
+        The `IValueDefinition` should never be returned directly; all implementing
+        classes should return either `IQuality`, `IQuantity`, or a custom
+        derived value definition interface.
+        """
         pass
 
     @property
     @abstractmethod
     def values(self) -> IValueSet:
-        """The values."""
-        pass
+        """The values of the exchange item.
 
-    @values.setter
-    @abstractmethod
-    def values(self, value: IValueSet):
-        """Sets the exchange item's values."""
-        pass
+        For an input item, this is an implicit `get_values()` call on the provider.
+        It should be called during the `update()` method after
+        the component's `prepare()` phase.
 
-    @property
-    @abstractmethod
-    def elementset(self) -> IElementSet:
-        """The exchange item's elements."""
-        pass
-
-    @elementset.setter
-    @abstractmethod
-    def elementset(self, elements: IElementSet):
-        """Sets the exchange item's elements."""
+        For an output item, this is the 'original'  valueset provided,
+        without any adaptation logic. For the engine or adapter to directly
+        access the underlying data.
+        """
         pass
 
     @property
     @abstractmethod
-    def timeset(self) -> ITimeSet:
-        """The exchange item's time set."""
-        pass
+    def component(self) -> ILinkableComponent:
+        """The owner component of the exchange item.
 
-    @timeset.setter
-    @abstractmethod
-    def timeset(self, times: ITimeSet):
-        """Sets the exchange item's time set."""
+        For output exchange item, this is the component responsible for providing
+        the content of the output item. It's possible for an exchange item to
+        have no owner, in this case the method will return none.
+        """
         pass
 
     @property
     @abstractmethod
-    def component(self):
-        """The owner of the exchange item."""
+    def event_manager(self) -> EventManager:
+        """The event manager for this exchange item.
+
+        This event manager must be able to register event handlers that accepting
+        the `ExchangeItemChangeEventArgs` as argument.
+        """
         pass
