@@ -21,8 +21,16 @@ from configs.settings import logger
 from typing import Optional
 
 
-class Input(IInput):
-    """Input item which provides values for an `ILinkableComponent`."""
+class BaseInput(IInput):
+    """Base input item for all inputs.
+
+    While component A updating, it'll call its inputs `values` property
+    to obtain the required data. Therefore it's also responsible for
+    updating the input's `timeset`.
+
+    The input and the component are tightly coupled, which means the
+    former depends on the specific implementation of the latter.
+    """
 
     def __init__(
         self,
@@ -53,14 +61,6 @@ class Input(IInput):
     def time_set(self) -> Optional[ITimeSet]:
         return self._timeset
 
-    @time_set.setter
-    def time_set(self, timeset: ITimeSet):
-        """Resets the time set of the input."""
-        self._timeset = timeset
-        self._valuset = None
-        self._satisfied = False
-        self.notify_changed("Time set changed.")
-
     @property
     def value_definition(self) -> IValueDefinition:
         return self._value_definition
@@ -68,20 +68,6 @@ class Input(IInput):
     @property
     def provider(self) -> Optional[IOutput]:
         return self._provider
-
-    @provider.setter
-    def provider(self, provider: IOutput):
-        if self._provider is not None:
-            self._provider.remove_consumer(self)
-
-        self._provider = provider
-        if self._provider is not None:
-            self._provider.add_consumer(self)
-
-        self._valuset = None
-        self._satisfied = False
-
-        self.notify_changed("Provider changed.")
 
     @property
     def component(self) -> ILinkableComponent:
@@ -106,8 +92,5 @@ class Input(IInput):
     def notify_changed(self, message: str):
         """Broadcasts a change event."""
         logger.info(f"Input '{self.id}' changed: {message}")
-        if self._event_manager is None:
-            return
-
         event_args = ExchangeItemChangeEventArgs(self, message)
         self._event_manager.invoke(event_args)

@@ -25,8 +25,16 @@ from typing import Optional
 import numpy as np
 
 
-class Output(IOutput):
-    """A simple Output item that pulls its value from owner component."""
+class BaseOutput(IOutput):
+    """Base output item for all outputs.
+
+    When the output `get_values` method is invoked, it'll call the `update`
+    method of the owning component B to generate data and
+    obtain the data required.
+
+    The output item and the component are tightly coupled, which means the
+    former depends on the specific implementation of the latter.
+    """
 
     def __init__(
         self,
@@ -110,6 +118,9 @@ class Output(IOutput):
             self.notify_changed("Adapter removed.")
 
     def get_values(self, querier: IBaseExchangeItem) -> IValueSet:
+        # NOTE: This is a simplified pull-based implementation.
+        # The implementation class may override this method for more complex logic.
+
         # Prevent re-entrance deadlock
         if self._in_get_values:
             return self._guess_extrapolate(querier)
@@ -267,8 +278,5 @@ class Output(IOutput):
     def notify_changed(self, message: str):
         """Notifies all consumers that the output item has changed."""
         logger.info(f"Output item {self.id} has changed: {message}")
-        if self._event_manager is None:
-            return
-
         event_args = ExchangeItemChangeEventArgs(self, message)
         self._event_manager.invoke(event_args)

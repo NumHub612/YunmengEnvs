@@ -22,8 +22,8 @@ class IBaseExchangeItem(IIdentifiable):
     """Class presenting a item that can be exchanged, defining Where, When, and What.
     either as an input or output.
 
-    An exchange item is responsible for matching it with elementset and timeset when
-    the valueset is not None.
+    The owning component is responsible for assigning the element set, timeset and
+    value set to the exchange item, and also maintaining the consistency of the data.
     """
 
     @property
@@ -32,7 +32,7 @@ class IBaseExchangeItem(IIdentifiable):
         """The spatial definition of the exchange item.
 
         The `ISpatialDefinition` should never be returned directly; all implementing
-        classes should return either `IElementSet`,  or a custom
+        classes should return either `IElementSet`, or a custom
         derived spatial definition interface.
         """
         pass

@@ -1,0 +1,113 @@
+# -*- encoding: utf-8 -*-
+"""
+Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+
+Base model for all linkable components.
+"""
+from core.solutions.standards import (
+    ILinkableComponent,
+    IArgument,
+    IInput,
+    IOutput,
+    IUnit,
+    IIdentifiable,
+    IManageState,
+    LinkableComponentStatus,
+    LinkableComponentChangeEventArgs,
+)
+from core.solutions.commons import events
+from configs.settings import logger
+
+
+class BaseModel(ILinkableComponent, IManageState):
+    """Base model for all linkable components.
+
+    In a typical pull-driven scenario, the component A `update` method would
+    call the `values` property of its input items, which in turn calls
+    the `get_values` method of the bound output item. This method then calls
+    the `update` method of the owner, component B, to update the data,
+    and after retrieving the data, it propagates back along this calls chain.
+    """
+
+    def __init__(self):
+        self._arguments: list[IArgument] = []
+        self._inputs: list[IInput] = []
+        self._outputs: list[IOutput] = []
+        self._attributes: dict[str, any] = {}
+        self._states: dict[str, any] = {}
+        self._CascadingDisabled = False
+        self._status = LinkableComponentStatus.CREATED
+        self._event_manager = events.EventManager()
+
+    @property
+    def arguments(self) -> list[IArgument]:
+        return self._arguments
+
+    @property
+    def status(self) -> LinkableComponentStatus:
+        return self._status
+
+    @property
+    def inputs(self) -> list[IInput]:
+        return self._inputs
+
+    @property
+    def outputs(self) -> list[IOutput]:
+        return self._outputs
+
+    @property
+    def attributes(self) -> dict[str, any]:
+        return self._attributes
+
+    @property
+    def states(self) -> dict[str, any]:
+        return self._states
+
+    @property
+    def CascadingUpdateCallsDisabled(self) -> bool:
+        return self._CascadingDisabled
+
+    def initialize(self):
+        raise NotImplementedError()
+
+    def validate(self):
+        raise NotImplementedError()
+
+    def prepare(self):
+        raise NotImplementedError()
+
+    def update(self, required_outputs: list[IOutput]):
+        raise NotImplementedError()
+
+    def finalize(self):
+        raise NotImplementedError()
+
+    def keep_current_state(self) -> IIdentifiable:
+        raise NotImplementedError()
+
+    def restore_state(self, state_id: IIdentifiable):
+        raise NotImplementedError()
+
+    def clear_state(self, state_id: IIdentifiable):
+        raise NotImplementedError()
+
+    def save_state(self, state_id: IIdentifiable, path: str):
+        raise NotImplementedError()
+
+    def load_state(self, path: str) -> IIdentifiable:
+        raise NotImplementedError()
+
+    def notify_status_changed(
+        self,
+        old_status: LinkableComponentStatus,
+        new_status: LinkableComponentStatus,
+        message: str,
+    ):
+        """Notifies subscribers that the status has changed."""
+        logger.info(
+            f"Component {self} status changed from {old_status} to {self.status}: {message}"
+        )
+        event_args = LinkableComponentChangeEventArgs(
+            self, message, old_status, new_status
+        )
+        self._event_manager.invoke(event_args)

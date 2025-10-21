@@ -65,11 +65,11 @@ class ILinkableComponent(IIdentifiable):
 
         The `Initialize()` will and must be invoked before any other
         methods in the `ILinkableComponent` interface is invoked
-        or accessed, except for the `GetArguments`.
+        or accessed.
 
         Immediatly after the method is been invoked, it changes the
-        linkable component's status to `Initializing`. If component
-        initializes succesfully, it changed to `Initialized`.
+        linkable component's status to `INITIALIZING`. If component
+        initializes succesfully, it changed to `INITIALIZED`.
         """
         pass
 
@@ -78,59 +78,55 @@ class ILinkableComponent(IIdentifiable):
         """Validates the populated instance of the component.
 
         The method will must be invoked after various provider-consumer
-        relations between this component's exchange items and the
-        exchange items of other components
-        present in the composition.
+        relations between these components' exchange items.
 
         Immediatly after this method is invoked, it changes
-        the component's status to `Validating`. When the method has
+        the component's status to `VALIDATING`. When the method has
         finished, the status of the component has changed to either
-        `Valid` or `Invalid`.
+        `VALID` or `INVALID`.
 
-        If there are messages while components status is `Valid`,
-        these messages are purely informative. If there're messages
-        while the status is `Invalid`, at least one of the messages
-        indicates a fatal error.
+        If there are any issues while validating the component,
+        the method returns a list of messages describing these issues.
         """
         pass
 
     @abstractmethod
     def prepare(self):
-        """Prepares the component for calls to the `Update()`.
+        """Prepares the component for calls to the `update()`.
 
-        Before `Prepare()` is called, the component aren't required
+        Before `prepare()` is called, the component aren't required
         to honor any type of action that retrieves values from
-        the component. After `Prepare()` is called,
+        the component. After `prepare()` is called,
         the component must be ready for providing values.
 
         Immediatly after the method invoked, it changes
-        the component's status to `Preparing`. When the method has
+        the component's status to `PREPARING`. When the method has
         finished, the status of the component has changed to
-        either `Updated` or `Failed`.
+        either `UPDATED` or `FAILED`.
         """
         pass
 
     @abstractmethod
     def update(self, required_outputs: list[IOutput]):
-        """Updates the linkable component itself and to next status.
+        """Updates the component to next status.
 
-        Immediately after `Update()` is invoked, it changes the
-        component's status to `Updating`. If the method's performed
-        succesfully, the component'll set its status to `Updated`,
+        Immediately after the method is invoked, it changes the
+        component's status to `UPDATING`. If the method's performed
+        succesfully, the component'll set its status to `UPDATED`,
         unless after this update action is at the end of its
-        computation, in which case it'll set its status to `Done`.
+        computation, in which case it'll set its status to `DONE`.
 
         According to the 'pull-driven' approach,
         linkable components can be connected in a chain,
-        where invoking `Update()` method on the last component in
+        where invoking `update()` method on the last component in
         the chain trigger the entire stack of data exchange.
 
         The type of actions a component takes
-        during `Update()` method depends on the type of component.
+        during `update()` method depends on the type of component.
         A numerical model that progresses in time will typically
-        compute a time step. A database would typically look at
-        the consumers of its output items, and perform one or more
-        queries to be able to provide the values that are required.
+        compute a timestep. A database will typically look at the
+        consumers of its outputs, and perform one or more queries
+        to be able to provide the values that are required.
         """
         pass
 
@@ -142,8 +138,8 @@ class ILinkableComponent(IIdentifiable):
         methods in the `ILinkableComponent` interfaces.
 
         Immediatly after this method is invoked, it changes the
-        component's status to `Finishing`.
+        component status to `FINISHING`.
         Once the finishing is completed, the component changes
-        status to `Finished` if can't be restarted, or to `Created`.
+        status to `FINISHED` if can't be restarted, or to `CREATED`.
         """
         pass

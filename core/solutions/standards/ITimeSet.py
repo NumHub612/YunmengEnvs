@@ -61,7 +61,7 @@ class ITimeSet(ABC):
         For an input item, it will never go backfurther in time than
         the time horizon's begin time: time_horizon.timestamp.
         Also, it will never go further ahead than the time horizon's
-        end time::
+        end time:
         time_horizon.timestamp + time_horizon.duration_in_days.
 
         For an output item, thus for an adapted output, time horizon
