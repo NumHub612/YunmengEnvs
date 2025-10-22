@@ -59,9 +59,17 @@ class BaseOutput(IOutput):
         )
 
         self._consumers: list[IInput] = []
-        self._adapters: list[IOutput] = []
+        self._adapters: list[IAdaptedOutput] = []
         self._in_get_values: bool = False
         self._event_manager = events.EventManager()
+
+    def __del__(self):
+        if not self._consumers:
+            for consumer in self._consumers:
+                consumer.provider = None
+        if not self._adapters:
+            for adapter in self._adapters:
+                adapter.adaptee = None
 
     @property
     def spatial_definition(self) -> Optional[ISpatialDefinition]:

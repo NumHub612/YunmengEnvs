@@ -65,6 +65,10 @@ class RunoffModel(models.BaseModel):
         args_config: list = None,
         **kwargs,
     ):
+        # 检查模型状态，不允许任意重置
+        if self._status != models.LinkableComponentStatus.CREATED:
+            raise ValueError("模型已经初始化过了，不能再次初始化")
+
         # 动态组装inputs/outputs，每个组件的input/output定义方式由文档说明
         # NOTE: 当组件setup()之后，外部通过遍历inputs/outputs属性，
         # 完成provider/consumer的绑定。
@@ -123,9 +127,8 @@ class RunoffModel(models.BaseModel):
                 self._arguments[arg_name].value = arg_value
 
     def initialize(self):
-        self._status = models.LinkableComponentStatus.INITIALIZING
+        self.set_status(models.LinkableComponentStatus.INITIALIZING, "初始化模型")
 
-        print("初始化水文模型...")
         self._start = datetime.datetime.strptime(
             self._arguments["start_time"].value, "%Y-%m-%d %H:%M:%S"
         )
@@ -137,12 +140,11 @@ class RunoffModel(models.BaseModel):
             hours=int(self._arguments["time_step"].value)
         )
 
-        self._status = models.LinkableComponentStatus.INITIALIZED
+        self.set_status(models.LinkableComponentStatus.INITIALIZED, "模型初始化完成")
 
     def validate(self) -> list[str]:
-        self._status = models.LinkableComponentStatus.VALIDATING
+        self.set_status(models.LinkableComponentStatus.VALIDATING, "验证模型")
 
-        print("验证水文模型...")
         errors = []
         if self._start >= self._end:
             errors.append("起始时间必须早于结束时间")
@@ -151,13 +153,12 @@ class RunoffModel(models.BaseModel):
         if self._const_rain < 0:
             errors.append("常数降雨必须大于等于0")
 
-        self._status = models.LinkableComponentStatus.VALID
+        self.set_status(models.LinkableComponentStatus.VALID, "模型验证完成")
         return errors
 
     def prepare(self):
-        self._status = models.LinkableComponentStatus.PREPARING
+        self.set_status(models.LinkableComponentStatus.PREPARING, "准备模型")
 
-        print("准备水文模型...")
         # 准备状态变量
         rainfall_def = metas.Quantity(
             0.0,
@@ -189,19 +190,21 @@ class RunoffModel(models.BaseModel):
         for output in self._outputs:
             output.add_data(self._current_time, 0.0)
 
-        self._status = models.LinkableComponentStatus.UPDATED
+        self.set_status(models.LinkableComponentStatus.UPDATED, "模型准备完成")
 
     def update(self, required_outputs: list[links.IOutput]):
         # 从inputs中取出数据
-        self._status = models.LinkableComponentStatus.WAITING
+        self.set_status(models.LinkableComponentStatus.WAITING, "模型等待数据")
         total_extra_rain = 0.0
         for input in self._inputs:
+            # 配置时间
             input.set_time(self._current_time)
+            # 拉取数据
             rain = input.values
             total_extra_rain += rain[0, 0].to_si()
 
         # 简单线性产流：Q = scale * alpha * P * area / 3600
-        self._status = models.LinkableComponentStatus.UPDATING
+        self.set_status(models.LinkableComponentStatus.UPDATING, "模型更新中")
         alpha = 0.6 if self._arguments["land_type"].value == "urban" else 0.3
         rain = self._states["rainfall"][0, 0].to_si()  # m/s
         total_rain = rain + total_extra_rain
@@ -222,21 +225,20 @@ class RunoffModel(models.BaseModel):
         for output in self._outputs:
             output.add_data(self._current_time, q)
 
-        self._status = models.LinkableComponentStatus.UPDATED
+        self.set_status(models.LinkableComponentStatus.UPDATED, "模型更新完成")
 
         # 检查是否已完成
         if self._current_time >= self._end:
-            self._status = models.LinkableComponentStatus.DONE
+            self.set_status(models.LinkableComponentStatus.DONE, "模型完成")
 
     def finish(self):
-        self._status = models.LinkableComponentStatus.FINISHING
+        self.set_status(models.LinkableComponentStatus.FINISHING, "模型结束中")
 
-        print("完成水文模型...")
         # 输出结果
         for name, values in self._states.values():
             print(f"{name}: {values}")
 
-        self._status = models.LinkableComponentStatus.FINISHED
+        self.set_status(models.LinkableComponentStatus.FINISHED, "模型结束")
 
 
 class RunoffInput(links.BaseInput):

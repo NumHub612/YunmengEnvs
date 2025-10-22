@@ -60,6 +60,10 @@ class BaseInput(IInput):
         self._satisfied = False
         self._event_manager = events.EventManager()
 
+    def __del__(self):
+        if self._provider is not None:
+            self._provider.remove_consumer(self)
+
     @property
     def spatial_definition(self) -> Optional[ISpatialDefinition]:
         return self._elementset
