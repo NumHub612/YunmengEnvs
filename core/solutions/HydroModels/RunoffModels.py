@@ -235,7 +235,7 @@ class RunoffModel(models.BaseModel):
         self.set_status(models.LinkableComponentStatus.FINISHING, "模型结束中")
 
         # 输出结果
-        for name, values in self._states.values():
+        for name, values in self._states.items():
             print(f"{name}: {values}")
 
         self.set_status(models.LinkableComponentStatus.FINISHED, "模型结束")
