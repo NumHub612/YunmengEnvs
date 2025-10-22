@@ -80,6 +80,14 @@ class BaseInput(IInput):
     def provider(self) -> Optional[IOutput]:
         return self._provider
 
+    @provider.setter
+    def provider(self, provider: IOutput):
+        if self._provider is not None:
+            self._provider.remove_consumer(self)
+        self._provider = provider
+        if self._provider is not None:
+            self._provider.add_consumer(self)
+
     @property
     def component(self) -> ILinkableComponent:
         return self._component

@@ -135,10 +135,9 @@ class RunoffModel(models.BaseModel):
         self._end = datetime.datetime.strptime(
             self._arguments["end_time"].value, "%Y-%m-%d %H:%M:%S"
         )
+        h, m, s = map(float, self._arguments["time_step"].value.split(":"))
+        self._time_step = datetime.timedelta(hours=h, minutes=m, seconds=s)
         self._current_time = self._start
-        self._time_step = datetime.timedelta(
-            hours=int(self._arguments["time_step"].value)
-        )
 
         self.set_status(models.LinkableComponentStatus.INITIALIZED, "模型初始化完成")
 
@@ -188,7 +187,7 @@ class RunoffModel(models.BaseModel):
 
         # 激活outputs
         for output in self._outputs:
-            output.add_data(self._current_time, 0.0)
+            output.add_data(self._current_time.timestamp(), 0.0)
 
         self.set_status(models.LinkableComponentStatus.UPDATED, "模型准备完成")
 
@@ -198,17 +197,18 @@ class RunoffModel(models.BaseModel):
         total_extra_rain = 0.0
         for input in self._inputs:
             # 配置时间
-            input.set_time(self._current_time)
+            input.set_time(self._current_time.timestamp())
             # 拉取数据
             rain = input.values
-            total_extra_rain += rain[0, 0].to_si()
+            # total_extra_rain += rain[0, 0].to_si() # 当前没有严格实现ValueSet
+            total_extra_rain += rain[0, 0]
 
         # 简单线性产流：Q = scale * alpha * P * area / 3600
         self.set_status(models.LinkableComponentStatus.UPDATING, "模型更新中")
         alpha = 0.6 if self._arguments["land_type"].value == "urban" else 0.3
-        rain = self._states["rainfall"][0, 0].to_si()  # m/s
+        rain = self._states["rainfall"][0, 0]
         total_rain = rain + total_extra_rain
-        rain_mps = total_rain * 1000  # m/s -> mm/s
+        rain_mps = total_rain
         q = (
             self._arguments["scale"].value
             * alpha
@@ -223,7 +223,7 @@ class RunoffModel(models.BaseModel):
 
         # 更新outputs
         for output in self._outputs:
-            output.add_data(self._current_time, q)
+            output.add_data(self._current_time.timestamp(), q)
 
         self.set_status(models.LinkableComponentStatus.UPDATED, "模型更新完成")
 
@@ -244,7 +244,8 @@ class RunoffModel(models.BaseModel):
 class RunoffInput(links.BaseInput):
     """降雨站输入项"""
 
-    def set_time(self, time: datasets.ITime):
+    def set_time(self, timestamp: float):
+        time = metas.ITime(timestamp)
         self._timeset = datasets.TimeSet(None, [time])
         self._valueset = None
         self._satisfied = False
@@ -262,7 +263,7 @@ class RunoffOutput(links.BaseOutput):
         self._in_get_values = True
         req_time = querier.time_set.times[0].timestamp
 
-        while self._timeset.times[-1] < req_time:
+        while self._timeset.times[-1].timestamp < req_time:
             self._component.update([self])
 
         self._in_get_values = False
@@ -275,8 +276,11 @@ class RunoffOutput(links.BaseOutput):
 
         if req_index == -1:
             return self._valueset[-1]
-        return self._valueset.get_values_for_time(req_index)
+        return self._valueset.get_values_for_time(req_index).reshape((1, -1))
 
-    def add_data(self, time: datasets.ITime, value: float):
+    def add_data(self, timestamp: float, value: float):
+        time = metas.ITime(timestamp)
         self._timeset.add_time(time)
-        self._valueset.set_or_add_values((-1, -1), value)
+        count = self._timeset.size
+        self._valueset.set_or_add_values((count,), value)
+        self.notify_changed("add_data")
