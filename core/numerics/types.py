@@ -21,8 +21,9 @@ class ElementType(enum.Enum):
 
     CELL = "cell"
     FACE = "face"
+    EDGE = "edge"
     NODE = "node"
-    NONE = "none"
+    NONE = "none"  # might be useful for id-based elements
 
 
 class GeomType(enum.Enum):

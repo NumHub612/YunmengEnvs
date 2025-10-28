@@ -78,6 +78,16 @@ class Node(Element):
 
 
 @dataclass
+class Edge(Element):
+    """
+    Edge element, NOT used yet.
+    """
+
+    node1: int
+    node2: int
+
+
+@dataclass
 class Face(Element):
     """
     Face element.

@@ -13,6 +13,7 @@ import numpy as np
 import torch
 import os
 import pickle
+from shapely.geometry import Polygon
 
 
 class Mesh(ABC):
@@ -372,3 +373,10 @@ class GenericMesh(Mesh):
         with open(mesh_file, "rb") as f:
             mesh = pickle.load(f)
         return mesh
+
+
+class GridMesh(Mesh):
+    """Catesian cut-cell and boundary refined grid mesh."""
+
+    def __init__(self, rect: tuple, poly: Polygon, max_depth: int = 6):
+        pass
