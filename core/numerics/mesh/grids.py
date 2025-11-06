@@ -705,3 +705,10 @@ class Grid3D(Grid):
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
         return [east, west, north, south, up, down]
+
+
+class QuadGrid2D(Grid2D):
+    """2D structured grid with quadrilateral cells."""
+
+    def __init__(self):
+        pass

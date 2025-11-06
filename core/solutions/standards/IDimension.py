@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 To provide dimensions management in physical quantities.
 """
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 class DimensionBase(Enum):
@@ -28,7 +28,7 @@ class DimensionBase(Enum):
 class IDimension:
     """To provide dimension-related operations."""
 
-    powers: dict[DimensionBase, float] = {d: 0 for d in DimensionBase}
+    powers: dict[DimensionBase, float] = field(default_factory=dict)
 
     def get_power(self, base_quantity: DimensionBase) -> float:
         """

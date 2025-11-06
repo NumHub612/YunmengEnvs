@@ -59,9 +59,17 @@ class BaseOutput(IOutput):
         )
 
         self._consumers: list[IInput] = []
-        self._adapters: list[IOutput] = []
+        self._adapters: list[IAdaptedOutput] = []
         self._in_get_values: bool = False
         self._event_manager = events.EventManager()
+
+    def __del__(self):
+        if not self._consumers:
+            for consumer in self._consumers:
+                consumer.provider = None
+        if not self._adapters:
+            for adapter in self._adapters:
+                adapter.adaptee = None
 
     @property
     def spatial_definition(self) -> Optional[ISpatialDefinition]:
@@ -139,7 +147,7 @@ class BaseOutput(IOutput):
             # 1. time: future → push component until that time
             if req_time > cur_time:
                 while self._current_time() < req_time:
-                    self._pull_component()
+                    self._component.update([self])
                 cur_time = self._current_time()
 
             # 2. time: past → check cache / interpolate
@@ -155,7 +163,7 @@ class BaseOutput(IOutput):
         finally:
             self._in_get_values = False
 
-    def _current_time(self) -> float:
+    def _current_time(self):
         """Gets the current time in Modified Julian Day (MJD)."""
         if self._timeset is None or len(self._timeset.times) == 0:
             return 0.0
@@ -170,20 +178,21 @@ class BaseOutput(IOutput):
         tolerance = 1e-6  # tolerance for time matching
         for i, t in enumerate(self._timeset.times):
             if abs(t.timestamp - req_time) <= tolerance:
-                cached = np.array(self._valueset[i])
+                cached = np.array(self._valueset[i, :])
                 break
         if cached is None:
             return None
 
         # match spatial definition
         element_indices = []
-        for i, elem in enumerate(querier.spatial_definition.elements):
-            idx = self._elementset.get_element_index(elem.id)
+        for i in range(querier.spatial_definition.element_count):
+            iid = self._elementset.get_element_id(i)
+            idx = self._elementset.get_element_index(iid)
             if idx is not None:
                 element_indices.append(idx)
         if len(element_indices) == 0:
             return None
-        cached = cached[element_indices]
+        cached = cached[element_indices].reshape(1, -1)
 
         # return valueset
         return datasets.ValueSet(
@@ -228,36 +237,6 @@ class BaseOutput(IOutput):
                 )
         return None
 
-    def _pull_component(self):
-        """Pulls the component to update itself to get time and values."""
-        self._component.update([self])
-
-        # NOTE: just for easier implementation, use implicit presumed
-        # attributes and states here.
-
-        # Use "current_time" as attribute name to get current time.
-        cur_time = self._component.attributes.get("current_time", None)
-        if cur_time is not None:
-            raise ValueError("Component no 'current_time' attribute.")
-
-        # Use `caption` as state name to get current values.
-        values = self._component.states.get(self.caption, None)
-        if values is None:
-            raise ValueError(f"Component no '{self.caption}' state.")
-
-        # Update time set and value set
-        if self._timeset is not None:
-            new_time = ITime(timestamp=cur_time)
-            self._timeset.times.append(new_time)
-        if self._valueset is None:
-            self._valueset = datasets.ValueSet(
-                self._value_definition,
-                (0, values.shape[1]),
-                values,
-            )
-
-        self.notify_changed("Component pulled.")
-
     def _shrink(self, querier: IBaseExchangeItem):
         """Shrinks the datas according to consumer's request."""
         # search the earliest time index
@@ -276,7 +255,7 @@ class BaseOutput(IOutput):
         if remove_indices:
             for idx in reversed(remove_indices):
                 self._timeset.remove_time(idx)
-                self._valueset.remove_values(idx)
+                self._valueset.remove_values([idx])
 
         self.notify_changed("Data shrunk.")
 

@@ -71,11 +71,16 @@ class ElementSet(IElementSet):
 
     def get_element_index(self, element_id: str | int) -> int:
         for i, element in enumerate(self._elements):
-            if element.id == int(element_id):
+            eid = element_id
+            if self._geom_type != GeomType.IdBased:
+                eid = element.id
+            if eid == int(element_id):
                 return i
         raise None
 
     def get_element_id(self, element_index: int) -> str | int:
+        if self._geom_type == GeomType.IdBased:
+            return self._elements[element_index]
         return self._elements[element_index].id
 
     def get_face_count(self, element_index: int) -> int:

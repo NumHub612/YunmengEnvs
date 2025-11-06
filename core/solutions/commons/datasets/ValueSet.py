@@ -41,16 +41,32 @@ class ValueSet(IValueSet):
         return self._values.shape
 
     def set_or_add_values(self, indices: tuple[int], values: Any):
-        if len(indices) < 4:
-            self._values[tuple(indices)] = values
+        # TODO: check if all values are valid.
+        # TODO: support various length of values.
+        if indices[0] >= self._shape[0]:
+            # add values for new time
+            values = np.array(values, dtype=self._value_definition.value_type).reshape(
+                1, -1
+            )
+            self._values = np.append(self._values, values, axis=0)
+        elif len(indices) == 2 and indices[1] >= self._shape[1]:
+            # add values for new element
+            values = np.array(values, dtype=self._value_definition.value_type).reshape(
+                1, -1
+            )
+            self._values = np.append(self._values, values, axis=1)
         else:
-            raise ValueError("Invalid indices.")
+            self._values[tuple(indices)] = values
 
     def remove_values(self, indices: tuple[int]):
-        if len(indices) < 4:
-            self._values[tuple(indices)] = self._value_definition.missing_data_value
+        if len(indices) == 1:
+            # remove values for a time
+            self._values = np.delete(self._values, indices[0], axis=0)
+        elif len(indices) == 2:
+            # remove values for an element
+            self._values = np.delete(self._values, indices[1], axis=1)
         else:
-            raise ValueError("Invalid indices.")
+            self._values[tuple(indices)] = self._value_definition.missing_data_value
 
     def get_values_for_element(self, element_index: int) -> list[Any]:
         return self._values[:, element_index]
@@ -61,7 +77,7 @@ class ValueSet(IValueSet):
     def __len__(self) -> int:
         return self._values.shape[0]
 
-    def __getittem__(self, indices: tuple[int]) -> Any:
+    def __getitem__(self, indices: tuple[int]) -> Any:
         return self._values[tuple(indices)]
 
     def __setitem__(self, indices: tuple[int], value: Any):

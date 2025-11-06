@@ -10,9 +10,6 @@ from core.solutions.standards.IValueDefinition import IValueDefinition
 from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IValueSet import IValueSet
 from core.solutions.standards.ITimeSet import ITimeSet
-from core.solutions.standards.ExchangeItemChangeEventArgs import (
-    ExchangeItemChangeEventArgs,
-)
 
 from abc import abstractmethod
 from typing import Optional

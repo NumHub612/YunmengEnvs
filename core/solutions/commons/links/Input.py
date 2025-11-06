@@ -60,6 +60,10 @@ class BaseInput(IInput):
         self._satisfied = False
         self._event_manager = events.EventManager()
 
+    def __del__(self):
+        if self._provider is not None:
+            self._provider.remove_consumer(self)
+
     @property
     def spatial_definition(self) -> Optional[ISpatialDefinition]:
         return self._elementset
@@ -75,6 +79,14 @@ class BaseInput(IInput):
     @property
     def provider(self) -> Optional[IOutput]:
         return self._provider
+
+    @provider.setter
+    def provider(self, provider: IOutput):
+        if self._provider is not None:
+            self._provider.remove_consumer(self)
+        self._provider = provider
+        if self._provider is not None:
+            self._provider.add_consumer(self)
 
     @property
     def component(self) -> ILinkableComponent:

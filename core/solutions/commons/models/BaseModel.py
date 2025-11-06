@@ -27,6 +27,14 @@ class BaseModel(ILinkableComponent, IManageState):
     the `get_values` method of the bound output item. This method then calls
     the `update` method of the owner, component B, to update the data,
     and after retrieving the data, it propagates back along this calls chain.
+
+    After the component is instantiated, `setup` method can provide dynamic
+    generation of inputs and outputs, but it requires freezing the link framework
+    after the `initialize` method is called.
+
+    Typically, the external scheduler should traverse the inputs/outputs
+    properties after the component `setup` to complete the consumer/provider
+    relationship binding.
     """
 
     def __init__(self):
@@ -69,7 +77,6 @@ class BaseModel(ILinkableComponent, IManageState):
         args_config: list = None,
         **kwargs,
     ):
-        # NOTE: check the arguments, inputs, and outputs after the component is setup.
         raise NotImplementedError()
 
     def initialize(self):
@@ -101,6 +108,12 @@ class BaseModel(ILinkableComponent, IManageState):
 
     def load_state(self, path: str) -> IIdentifiable:
         raise NotImplementedError()
+
+    def set_status(self, status: LinkableComponentStatus, message: str):
+        """设置状态"""
+        old_status = self._status
+        self._status = status
+        self.notify_status_changed(old_status, status, message)
 
     def notify_status_changed(
         self,
