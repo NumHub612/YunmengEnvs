@@ -58,3 +58,25 @@
 + [numerics package](./packages/numerics/docs/api.md)
 
 ---------------------------------------------------------------------------------
+
+## 参考资源
+
+我们在 `YunmengEnvs` 的开发中参考和学习了很多优秀的文献、教程和开源项目，非常感谢这些资源的作者和开发者们！
+
+**文献资料**
+
+```
+@techReport{,
+   author = {F Moukalled and L Mangani and M Darwish},
+   title = {Fluid Mechanics and Its Applications The Finite Volume Method in Computational Fluid Dynamics},
+   url = {http://www.springer.com/series/5980}
+}
+```
+
+**开源项目**
+
+**其他**
+
++ [曾导SJTU: 计算流体力学从0到1](https://www.bilibili.com/video/BV1Bo4y1s7NZ/?share_source=copy_web&vd_source=a5ec732bdccb0188ccb29fe2fd1d0348)
+
+---------------------------------------------------------------------------------

@@ -7,10 +7,10 @@ Interface for qualitative data.
 from core.solutions.standards.IValueDefinition import IValueDefinition
 from core.solutions.standards.ICategory import ICategory
 
-from abc import abstractmethod
-from typing import List
+from dataclasses import dataclass
 
 
+@dataclass
 class IQuality(IValueDefinition):
     """
     Class describes qualitative data, where value is specified as one category
@@ -23,16 +23,8 @@ class IQuality(IValueDefinition):
     nationality or commodity type.
     """
 
-    @abstractmethod
-    def get_categories(self) -> List[ICategory]:
-        """
-        Gets a list of the possible `ICategory` allowed.
-        """
-        pass
+    # List of possible categories for this quality.
+    categories: list[ICategory] = None
 
-    @abstractmethod
-    def is_ordered(self) -> bool:
-        """
-        Checks if this `IQuality` is defined by an ordered set or not.
-        """
-        pass
+    # Flag indicating if this quality is defined by an ordered set or not.
+    ordered: bool = False

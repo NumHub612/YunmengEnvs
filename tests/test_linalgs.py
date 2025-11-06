@@ -39,7 +39,7 @@ class TestLinearEqs(unittest.TestCase):
             data_type=VariableType.SCALAR,
             device=self.device,
         )
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
 
         self.assertEqual(eqs.variable, "x")
         self.assertEqual(eqs.matrix.shape, (3, 3))
@@ -58,7 +58,7 @@ class TestLinearEqs(unittest.TestCase):
             data_type=VariableType.SCALAR,
             device=self.device,
         )
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
 
         new_mat = SparseMatrix.from_data(
             (3, 3),
@@ -103,8 +103,8 @@ class TestLinearEqs(unittest.TestCase):
             data_type=VariableType.SCALAR,
             device=self.device,
         )
-        eqs1 = LinearEqs("x", mat1, rhs1, self.device)
-        eqs2 = LinearEqs("x", mat2, rhs2, self.device)
+        eqs1 = LinearEqs(mat1, rhs1, "x", self.device)
+        eqs2 = LinearEqs(mat2, rhs2, "x", self.device)
 
         result = eqs1 + eqs2
         self.assertEqual(result.matrix[1, 2], Scalar(7.0))
@@ -137,8 +137,8 @@ class TestLinearEqs(unittest.TestCase):
             data=Scalar(2.0),
             device=self.device,
         )
-        eqs1 = LinearEqs("x", mat1, rhs1, self.device)
-        eqs2 = LinearEqs("x", mat2, rhs2, self.device)
+        eqs1 = LinearEqs(mat1, rhs1, "x", self.device)
+        eqs2 = LinearEqs(mat2, rhs2, "x", self.device)
 
         result = eqs1 - eqs2
         self.assertEqual(result.matrix[1, 2], (mat1 - mat2)[1, 2])
@@ -158,7 +158,7 @@ class TestLinearEqs(unittest.TestCase):
             data=Scalar(1.0),
             device=self.device,
         )
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
 
         result = -eqs
         self.assertEqual(result.matrix[1, 2], Scalar(-2.0))
@@ -178,7 +178,7 @@ class TestLinearEqs(unittest.TestCase):
             device=self.device,
         )
 
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
         solution = eqs.solve()
 
         self.assertIsInstance(solution, Field)
@@ -192,7 +192,7 @@ class TestLinearEqs(unittest.TestCase):
             data_type=VariableType.SCALAR,
             device=self.device,
         )
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
 
         solution = eqs.solve()
         self.assertIsInstance(solution, Field)
@@ -213,7 +213,7 @@ class TestLinearEqs(unittest.TestCase):
             device=self.device,
         )
         with self.assertRaises(ValueError):
-            LinearEqs("x", mat, rhs, self.device)
+            LinearEqs(mat, rhs, "x", self.device)
 
     def test_incompatible_types(self):
         mat = SparseMatrix.from_data(
@@ -229,7 +229,7 @@ class TestLinearEqs(unittest.TestCase):
             device=self.device,
         )
         with self.assertRaises(ValueError):
-            LinearEqs("x", mat, rhs, self.device)
+            LinearEqs(mat, rhs, "x", self.device)
 
     def test_scalarize(self):
         mat = SparseMatrix.from_data(
@@ -244,7 +244,7 @@ class TestLinearEqs(unittest.TestCase):
             data_type=VariableType.SCALAR,
             device=self.device,
         )
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
 
         scalarized_eqs = eqs.scalarize()
         self.assertEqual(len(scalarized_eqs), 1)
@@ -263,7 +263,7 @@ class TestLinearEqs(unittest.TestCase):
             Scalar(1.0),
             device=self.device,
         )
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
 
         # Solve using cupy
         start_time = time.time()
@@ -302,7 +302,7 @@ class TestLinearEqs(unittest.TestCase):
             Scalar(2.0),
             device=self.device,
         )
-        eqs = LinearEqs("x", mat, rhs, self.device)
+        eqs = LinearEqs(mat, rhs, "x", self.device)
 
         # Solve using cupy
         start_time = time.time()

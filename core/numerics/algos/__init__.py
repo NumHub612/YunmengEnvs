@@ -1,1 +1,1 @@
-from .interps import *
+from core.numerics.algos.interps import *

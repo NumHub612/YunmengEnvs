@@ -4,20 +4,15 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface for time stamp and time interval.
 """
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 
-class ITime(ABC):
+@dataclass
+class ITime:
     """Time interface to support a time stamp as well as a time interval."""
 
-    @property
-    @abstractmethod
-    def timestamp(self) -> float:
-        """Time stamp."""
-        pass
+    # Time stamp in seconds since epoch (Jan 1, 1970)
+    timestamp: float = 0.0
 
-    @property
-    @abstractmethod
-    def duration_in_days(self) -> float:
-        """Duration in days."""
-        pass
+    # Time interval in hours
+    duration_in_hours: float = 0.0

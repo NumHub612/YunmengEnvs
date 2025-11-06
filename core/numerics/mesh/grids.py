@@ -130,7 +130,7 @@ class Grid(Mesh):
 
     def get_group(self, group_name):
         if group_name not in self._groups:
-            raise ValueError("Group does not exist.")
+            return None
         return self._groups[group_name]
 
     def delete_group(self, group_name):
@@ -402,11 +402,12 @@ class Grid2D(Grid):
                 else:
                     f_e = (i + 1) * (2 * (self._ny - 1) + 1) + j
 
-                faces = [f_n, f_w, f_s, f_e]
-                center = MeshGeom.calculate_center(
-                    [self._faces[id].coordinate for id in faces]
-                )
-                cell = Cell(cid, center, faces)
+                face_ids = [f_n, f_w, f_s, f_e]
+                faces = self.get_faces(face_ids)
+                faces = MeshTopo.sort_anticlockwise(faces)
+                center = MeshGeom.calculate_center(faces)
+                face_ids = [f.id for f in faces]
+                cell = Cell(cid, center, face_ids)
                 self._cells.append(cell)
                 cid += 1
 
@@ -538,12 +539,12 @@ class Grid3D(Grid):
                     n_rl = k * self._nx * self._ny + (j + 1) * self._nx + i
                     n_ru = (k + 1) * self._nx * self._ny + (j + 1) * self._nx + i
                     n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i
-                    nodes = [n_ll, n_rl, n_ru, n_lu]
-
-                    center = MeshGeom.calculate_center(
-                        [self._nodes[id].coordinate for id in nodes]
-                    )
-                    face = Face(fid, center, nodes)
+                    node_ids = [n_ll, n_rl, n_ru, n_lu]
+                    nodes = self.get_nodes(node_ids)
+                    nodes = MeshTopo.sort_anticlockwise(nodes)
+                    center = MeshGeom.calculate_center(nodes)
+                    node_ids = [n.id for n in nodes]
+                    face = Face(fid, center, node_ids)
                     self._faces.append(face)
                     fid += 1
 
@@ -556,12 +557,12 @@ class Grid3D(Grid):
                     n_ru = (k + 1) * self._nx * self._ny + j * self._nx + i
                     n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i + 1
                     n_ll = k * self._nx * self._ny + j * self._nx + i + 1
-                    nodes = [n_rl, n_ru, n_lu, n_ll]
-
-                    center = MeshGeom.calculate_center(
-                        [self._nodes[id].coordinate for id in nodes]
-                    )
-                    face = Face(fid, center, nodes)
+                    node_ids = [n_rl, n_ru, n_lu, n_ll]
+                    nodes = self.get_nodes(node_ids)
+                    nodes = MeshTopo.sort_anticlockwise(nodes)
+                    center = MeshGeom.calculate_center(nodes)
+                    node_ids = [n.id for n in nodes]
+                    face = Face(fid, center, node_ids)
                     self._faces.append(face)
                     fid += 1
 
@@ -572,12 +573,12 @@ class Grid3D(Grid):
                     n_ll = k * self._nx * self._ny + j * self._nx + i + 1
                     n_ul = k * self._nx * self._ny + (j + 1) * self._nx + i + 1
                     n_lr = k * self._nx * self._ny + (j + 1) * self._nx + i
-                    nodes = [n_lu, n_ll, n_ul, n_lr]
-
-                    center = MeshGeom.calculate_center(
-                        [self._nodes[id].coordinate for id in nodes]
-                    )
-                    face = Face(fid, center, nodes)
+                    node_ids = [n_lu, n_ll, n_ul, n_lr]
+                    nodes = self.get_nodes(node_ids)
+                    nodes = MeshTopo.sort_anticlockwise(nodes)
+                    center = MeshGeom.calculate_center(nodes)
+                    node_ids = [n.id for n in nodes]
+                    face = Face(fid, center, node_ids)
                     self._faces.append(face)
                     fid += 1
 
@@ -622,12 +623,10 @@ class Grid3D(Grid):
                             + j * (self._nx - 1)
                             + i
                         )
-                    faces = [f_n, f_s, f_w, f_e, f_d, f_u]
-
-                    center = MeshGeom.calculate_center(
-                        [self._faces[id].coordinate for id in faces]
-                    )
-                    cell = Cell(cid, center, faces)
+                    face_ids = [f_n, f_s, f_w, f_e, f_d, f_u]
+                    faces = self.get_faces(face_ids)
+                    center = MeshGeom.calculate_center(faces)
+                    cell = Cell(cid, center, face_ids)
                     self._cells.append(cell)
                     cid += 1
 
@@ -706,3 +705,10 @@ class Grid3D(Grid):
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
         return [east, west, north, south, up, down]
+
+
+class QuadGrid2D(Grid2D):
+    """2D structured grid with quadrilateral cells."""
+
+    def __init__(self):
+        pass

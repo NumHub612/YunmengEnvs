@@ -74,13 +74,13 @@ class ArrayInterpolators:
     """
 
     @staticmethod
-    def interp_linearly(arr: np.ndarray, xi: np.ndarray) -> np.ndarray:
+    def interp_linearly(arr: np.ndarray, xi: float | object) -> np.ndarray:
         """
         Interpolates an array using linear interpolation.
 
         Args:
             arr: The array to be interpolated.
-            xi: The coordinates of the interpolation points.
+            xi: The coordinate of the interpolation points.
 
         Returns:
             The interpolated array.
@@ -88,13 +88,13 @@ class ArrayInterpolators:
         pass
 
     @staticmethod
-    def interp_nearest(arr: np.ndarray, xi: np.ndarray) -> np.ndarray:
+    def interp_nearest(arr: np.ndarray, xi: float | object) -> np.ndarray:
         """
         Interpolates an array using nearest-neighbor interpolation.
 
         Args:
             arr: The array to be interpolated.
-            xi: The coordinates of the interpolation points.
+            xi: The coordinate of the interpolation points.
 
         Returns:
             The interpolated array.

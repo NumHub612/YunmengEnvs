@@ -5,217 +5,21 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Interface class for linkable modules connection and data transfer.
 """
 from core.solutions.standards.LinkableComponentStatus import LinkableComponentStatus
-from core.solutions.standards.IAdaptedOutputFactory import IAdaptedOutputFactory
 from core.solutions.standards.IIdentifiable import IIdentifiable
 from core.solutions.standards.IArgument import IArgument
 from core.solutions.standards.IInput import IInput
 from core.solutions.standards.IOutput import IOutput
 
 from abc import abstractmethod
-from typing import List
+from typing import Any
 
 
 class ILinkableComponent(IIdentifiable):
     """class for linkable modules connection and data transfer."""
 
-    @abstractmethod
-    def has_attribute(self, attribute_name: str) -> bool:
-        """Checks if the component has the specified attribute.
-
-        Args:
-            attribute_name: The name of the attribute to check.
-
-        Returns:
-            bool: True if the component has the attribute, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def get_attribute(self, attribute_name: str) -> object:
-        """Gets the value of the specified attribute.
-
-        Args:
-            attribute_name: The name of the attribute to get.
-
-        Returns:
-            object: The value of the attribute.
-        """
-        pass
-
-    @abstractmethod
-    def set_attribute(self, attribute_name: str, attribute_value: object):
-        """Sets the value of the specified attribute.
-
-        Args:
-            attribute_name: The name of the attribute to set.
-            attribute_value: The value of the attribute to set.
-        """
-        pass
-
-    @abstractmethod
-    def has_state(self, state_name: str, **kwargs) -> bool:
-        """Checks if the component has the specified state.
-
-        Args:
-            state_name: The name of the state to check.
-
-        Returns:
-            bool: True if the component has the state, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def get_state(self, state_name: str, **kwargs) -> object:
-        """Gets the value of the specified state.
-
-        Args:
-            state_name: The name of the state to get.
-
-        Returns:
-            object: The value of the state.
-        """
-        pass
-
-    @abstractmethod
-    def set_state(self, state_name: str, state_value: object, **kwargs):
-        """Sets the value of the specified state.
-
-        Args:
-            state_name: The name of the state to set.
-            state_value: The value of the state to set.
-        """
-        pass
-
-    @abstractmethod
-    def has_data(self, data_name: str, **kwargs) -> bool:
-        """Checks if the component has the specified data.
-
-        Args:
-            data_name: The name of the data to check.
-
-        Returns:
-            bool: True if the component has the data, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def get_data(self, data_name: str, **kwargs) -> object:
-        """Gets the value of the specified data.
-
-        Args:
-            data_name: The name of the data to get.
-
-        Returns:
-            object: The value of the data.
-        """
-        pass
-
-    @abstractmethod
-    def has_element(self, element_name: str, **kwargs) -> bool:
-        """Checks if the component has the specified element.
-
-        Args:
-            element_name: The name of the element to check.
-
-        Returns:
-            bool: True if has the element, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def initialize(self):
-        """Initializes the component.
-
-        The `Initialize()` will and must be invoked before any other
-        methods in the `ILinkableComponent` interface is invoked
-        or accessed, except for the `GetArguments`.
-
-        Immediatly after the method is been invoked, it changes the
-        linkable component's status to `Initializing`. If component
-        initializes succesfully, it changed to `Initialized`.
-        """
-        pass
-
-    @abstractmethod
-    def validate(self) -> List[str]:
-        """Validates the populated instance of the component.
-
-        The method will must be invoked after various provider/consumer
-        relations between this component's exchange items and the
-        exchange items of other components
-        present in the composition.
-
-        Immediatly after this method is invoked, it changes
-        the component's status to `Validating`. When the method has
-        finished, the status of the component has changed to
-        either `Valid` or `Invalid`.
-
-        If there are messages while components status is `Valid`,
-        the messages are purely informative. If there are messages
-        while the status's `Invalid`, at least one of the messages
-        indicates a fatal error.
-        """
-        pass
-
-    @abstractmethod
-    def prepare(self):
-        """Prepares the component for calls to the `Update()`.
-
-        Before `Prepare()` is called, the component are not required to
-        honor any type of action that retrieves values from the
-        component. After `Prepare()` is called,
-        the component must be ready for providing values.
-
-        Immediatly after the method invoked, it changes
-        the component's status to `Preparing`. When the method has
-        finished, the status of the component has changed to
-        either `Updated` or `Failed`.
-        """
-        pass
-
-    @abstractmethod
-    def update(self):
-        """Updates the linkable component itself, thus reaching its next state.
-
-        Immediately after `Update()` is invoked, it changes the
-        component's status to `Updating`. If the method is performed
-        succesfully, the component sets its status to `Updated`, unless
-        after this update action is at the end of its computation,
-        in which case it will set its status to `Done`.
-
-        According to the 'pull-driven' approach,
-        linkable components can be connected in a chain,
-        where invoking `Update()` method on the last component in
-        the chain trigger the entire stack of data exchange.
-
-        The type of actions a component takes
-        during the `Update()` method depends on the type of component.
-        A numerical model that progresses in time will typically
-        compute a time step. A database would typically look at
-        the consumers of its output items, and perform one or more
-        queries to be able to provide the values that
-        the consumers required.
-        """
-        pass
-
-    @abstractmethod
-    def finish(self):
-        """Finishes the component computation, and then restart it if needed.
-
-        This method is and must be invoked as the last of any methods
-        in the `ILinkableComponent` interfaces.
-
-        Immediatly after this method is invoked, it changes the
-        component's status to `Finishing`.
-        Once the finishing is completed, the component changes status
-        to `Finished` if it can't be restarted;
-        `Created`, otherwise.
-        """
-        pass
-
     @property
     @abstractmethod
-    def arguments(self) -> List[IArgument]:
+    def arguments(self) -> dict[str, IArgument]:
         """Arguments of the component."""
         pass
 
@@ -227,18 +31,119 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def input_items(self) -> List[IInput]:
-        """The input items."""
-        pass
-
-    @property
-    @abstractmethod
-    def output_items(self) -> List[IOutput]:
+    def outputs(self) -> list[IOutput]:
         """The output items."""
         pass
 
     @property
     @abstractmethod
-    def adapter_factories(self) -> List[IAdaptedOutputFactory]:
-        """The adapted output factories."""
+    def inputs(self) -> list[IInput]:
+        """The input items."""
+        pass
+
+    @property
+    @abstractmethod
+    def states(self) -> dict[str, Any]:
+        """Dictionary of states data."""
+        pass
+
+    @property
+    @abstractmethod
+    def CascadingUpdateCallsDisabled(self) -> bool:
+        """The flag to disable cascading updates."""
+        pass
+
+    @abstractmethod
+    def setup(self):
+        """Sets up the instance of the component.
+
+        This method should be invoked before any other methods to do
+        any necessary configurations or preparations, such as
+        resetting arguments, configuring inputs and outputs items.
+        """
+        pass
+
+    @abstractmethod
+    def initialize(self):
+        """Initializes the component.
+
+        The `Initialize()` will and must be invoked before any other
+        methods in the `ILinkableComponent` interface is invoked
+        or accessed, except for the `setup()` method.
+
+        Immediatly after the method is been invoked, it changes the
+        linkable component's status to `INITIALIZING`. If component
+        initializes succesfully, it changed to `INITIALIZED`.
+        """
+        pass
+
+    @abstractmethod
+    def validate(self) -> list[str]:
+        """Validates the populated instance of the component.
+
+        The method will must be invoked after various provider-consumer
+        relations between these components' exchange items.
+
+        Immediatly after this method is invoked, it changes
+        the component's status to `VALIDATING`. When the method has
+        finished, the status of the component has changed to either
+        `VALID` or `INVALID`.
+
+        If there are any issues while validating the component,
+        the method returns list of messages describing these issues.
+        """
+        pass
+
+    @abstractmethod
+    def prepare(self):
+        """Prepares the component for calls to the `update()`.
+
+        Before `prepare()` is called, the component aren't required
+        to honor any type of action that retrieves values from
+        the component. After `prepare()` is called,
+        the component must be ready for providing values.
+
+        Immediatly after the method invoked, it changes
+        the component's status to `PREPARING`. When the method has
+        finished, the status of the component has changed to
+        either `UPDATED` or `FAILED`.
+        """
+        pass
+
+    @abstractmethod
+    def update(self, required_outputs: list[IOutput]):
+        """Updates the component to next status.
+
+        Immediately after the method is invoked, it changes the
+        component's status to `UPDATING`. If the method's performed
+        succesfully, the component'll set its status to `UPDATED`,
+        unless after this update action is at the end of its
+        computation, in which case it'll set its status to `DONE`.
+
+        According to the 'pull-driven' approach,
+        linkable components can be connected in a chain,
+        where invoking `update()` method on the last component in
+        the chain trigger the entire stack of data exchange.
+
+        The type of actions a component takes
+        during `update()` method depends on the type of component.
+        A numerical model that progresses in time will typically
+        compute a timestep. A database will typically look at the
+        consumers of its outputs, and perform one or more queries
+        to be able to provide the values that are required.
+        """
+        pass
+
+    @abstractmethod
+    def finish(self):
+        """Finishes the component computation, restart it if needed.
+
+        This method is and must be invoked as the last of any
+        methods in the `ILinkableComponent` interfaces.
+
+        Immediatly after this method is invoked, it changes the
+        component status to `FINISHING`.
+        Once the finishing is completed, the component changes
+        status to `FINISHED` if can't be restarted, or to `CREATED`.
+        """
         pass

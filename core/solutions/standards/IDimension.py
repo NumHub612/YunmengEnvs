@@ -2,34 +2,40 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Interface for dimensions in physical quantities.
+To provide dimensions management in physical quantities.
 """
 from enum import Enum
-from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 
 class DimensionBase(Enum):
-    Length = 0  # Base dimension length.
-    Mass = 1  # Base dimension mass.
-    Time = 2  # Base dimension time.
-    ElectricCurrent = 3  # Base dimension electric current.
-    Temperature = 4  # Base dimension temperature.
-    AmountOfSubstance = 5  # Base dimension amount of substance.
-    LuminousIntensity = 6  # Base dimension luminous intensity.
-    Currency = 7  # Base dimension currency.
+    """
+    Base dimensions for physical quantities.
+    """
+
+    LENGTH = 0  # meters
+    MASS = 1  # kilograms
+    TIME = 2  # seconds
+    ELECTRICCURRENT = 3  # amperes
+    TEMPERATURE = 4  # kelvin
+    AMOUNTOFSUBSTANCE = 5  # moles
+    LUMINOUSINTENSITY = 6  # candelas
+    CURRENCY = 7  # money
+    UNITLESS = 8  # dimensionless
 
 
-class IDimension(ABC):
-    """Interface for dimension-related operations."""
+@dataclass
+class IDimension:
+    """To provide dimension-related operations."""
 
-    @abstractmethod
+    powers: dict[DimensionBase, float] = field(default_factory=dict)
+
     def get_power(self, base_quantity: DimensionBase) -> float:
         """
         Gets the power for the requested dimension.
         """
-        pass
+        return self.powers.get(base_quantity, 0)
 
-    @abstractmethod
     def set_power(
         self,
         base_quantity: DimensionBase,
@@ -38,4 +44,14 @@ class IDimension(ABC):
         """
         Sets a power for a base dimension.
         """
-        pass
+        self.powers[base_quantity] = power
+
+    @staticmethod
+    def from_dict(dimensions: dict[DimensionBase, float]) -> "IDimension":
+        """
+        Makes a new IDimension object with the given dimensions set.
+        """
+        dim = IDimension()
+        for base_quantity, power in dimensions.items():
+            dim.set_power(base_quantity, power)
+        return dim
