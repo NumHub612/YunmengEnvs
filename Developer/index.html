@@ -14,7 +14,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.20">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
     
     
       
@@ -22,7 +22,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.e53b48f4.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.84d31ad4.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
@@ -501,7 +501,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      关于模型开发过程和文档：一些待完善的建议
+      如何参与项目的开发
     </span>
   </a>
   
@@ -684,7 +684,7 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      关于模型开发过程和文档：一些待完善的建议
+      如何参与项目的开发
     </span>
   </a>
   
@@ -725,38 +725,32 @@
 
 
 <h1 id="developer-guide">Developer Guide<a class="headerlink" href="#developer-guide" title="Permanent link">&para;</a></h1>
-<p>云梦环境项目旨在用于学术以及教学用途，因此在设计各种算法和方案的实现细节时，编码的清晰度是重中之重。<br />
-尽管如此，它的所有数值和算法在很多方面都与面向工业的 CFD 代码中使用的数值和算法相似，并鼓励详尽的文档说明。</p>
+<p>云梦环境项目主要旨在用于学术以及实验用途，因此在设计各种算法和方案的实现细节时，编码的清晰度是重中之重。<br />
+尽管如此，它的所有数值和算法在很多方面都与面向工业的 CFD 代码相似。</p>
 <ul>
-<li><a href="#关于模型开发过程和文档一些待完善的建议">Tip1-关于模型开发过程和文档：一个待完善的开发建议</a></li>
-<li><a href="#关于项目的发布流程">Tip2-关于项目的发布流程</a></li>
-<li><a href="#关于项目的编码风格">Tip3-关于项目的编码风格</a></li>
+<li><a href="#关于项目的发布流程">Tip-关于项目的发布流程</a></li>
+<li><a href="#关于项目的编码风格">Tip-关于项目的编码风格</a></li>
+<li><a href="#如何参与项目的开发">Tip-如何参与项目的开发</a></li>
 </ul>
 <hr />
-<h2 id="_1">关于模型开发过程和文档：一些待完善的建议<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>一个模型的开发过程可能会经历以下几个阶段：</p>
-<p><strong>1<sup>st</sup>: 第一阶段</strong></p>
-<p>提出模型想法，说明开发目的或意义，提供一些基础开发资料、方向或思路；通常来说，<code>1st</code>仍处于前期讨论阶段，可以在项目仓库、知乎、课题小组或者其他平台提出，<br />
-作为一个 <code>issue</code>、一个 <code>提问</code>、一个 <code>报告</code>、一个 <code>动态</code> 发布。</p>
-<p><strong>2<sup>nd</sup>: 第二阶段</strong></p>
-<p>设计模型算法，解释理论依据，提供算法详细设计（计算链路闭环）。</p>
-<p>这个阶段可能主要聚焦在如何使想法落地，怎么样来设计一个完整的计算逻辑或计算链路？<br />
-这个阶段可能还需要初步的原型实现，敲代码和推公式交织进行。</p>
-<p><strong>3<sup>rd</sup>: 第三阶段</strong></p>
-<p>实施开发方案，定义模型数据和接口，完成模块开发和单元测试。</p>
-<p>进入 <code>3rd</code> 阶段通常表明模型的算法已经基本稳定，开始工程项目开发。一般的建议是，着手编码前梳理功能模块关系，确定模块集成接口，设计数据结构；同时，在开发过程中遵循一套代码规范和格式化方案，并及时完成单元测试、集成测试，注意代码覆盖度。</p>
-<p><strong>4<sup>th</sup>: 第四阶段</strong></p>
-<p>通过模型评估方案，测试模型准确性和稳定性，测试参数敏感性。</p>
-<p>在可靠的单元测试基础上，进一步地进行相对充分的模型用例测试(需要覆盖可预见的常见场景和部分极端场景)，测试模块的稳定性、适用性，分析模块的参数敏感性，进一步地测试模块的准确性及性能表现。</p>
-<p><strong>模型文档</strong></p>
-<p>为了提高模型和项目的可靠性和可维护性，一个模型组件的文档建议包含：</p>
-<ul>
-<li><code>算法详细设计</code>，说明算法原理和前提假设，提供完整的计算过程以及涉及的变量定义；</li>
-<li><code>模型接口说明</code>，说明组件接口，包括接口参数、接口功能和可能的异常等；</li>
-<li><code>测试评估报告</code>，提供各类测试结果分析报告；</li>
-<li><code>模型操作手册</code>，说明模型的输入输出格式，演示常见场景下组件使用。</li>
-</ul>
-<p>聚焦于模块的可靠性，<code>测试评估报告</code>中应该包括模型与现实的一致性、参数及前提假设的影响、参数真值以及其分布的影响分析，提供模型校核报告、参数敏感性评估报告、网格相关性评估报告，数值算法稳定性评估报告，模型性能评估报告。</p>
+<h2 id="_1">如何参与项目的开发<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>欢迎各位开发者参与云梦环境项目的开发，有以下几种方式可以参与：</p>
+<ol>
+<li>参与开发</li>
+</ol>
+<p>如果你对云梦环境项目感兴趣，想参与到项目的开发中来，可以先阅读<a href="https://github.com/yunmeng-meng/Yunmeng-Tools/blob/main/docs/Developer.md">开发者指南</a>了解项目的开发流程，然后在<a href="https://github.com/yunmeng-meng/Yunmeng-Tools">项目仓库</a>中提交你的代码。</p>
+<ol>
+<li>反馈问题 </li>
+</ol>
+<p>如果你在使用云梦环境项目过程中遇到问题，或者有好的建议，欢迎在<a href="https://github.com/yunmeng-meng/Yunmeng-Tools">项目仓库</a>中提交<a href="https://github.com/yunmeng-meng/Yunmeng-Tools/issues">issues</a>或者<a href="https://github.com/yunmeng-meng/Yunmeng-Tools/discussions">discussions</a>。</p>
+<ol>
+<li>参与讨论</li>
+</ol>
+<p>如果你对云梦环境项目有更深入的理解，或者想参与到项目的讨论中来，欢迎在<a href="https://github.com/yunmeng-meng/Yunmeng-Tools">项目仓库</a>中提交<a href="https://github.com/yunmeng-meng/Yunmeng-Tools/discussions">discussions</a>。</p>
+<ol>
+<li>参与文档编写</li>
+</ol>
+<p>如果你对云梦环境项目有更深入的理解，或者想参与到项目的文档编写中来，欢迎在<a href="https://github.com/yunmeng-meng/Yunmeng-Tools">项目仓库</a>中提交<a href="https://github.com/yunmeng-meng/Yunmeng-Tools/pulls">pull request</a>。  </p>
 <p><a href="#developer-guide"><i class="fa fa-home"></i></a></p>
 <hr />
 <h2 id="_2">关于项目的发布流程<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
@@ -765,21 +759,20 @@
 <ul>
 <li>提交频率</li>
 </ul>
-<p>每个提交应该只包含一个逻辑上的更改或修复，这样可以更容易追踪和理解每个提交的意图。
-建议将每个commit用时控制在 3 小时内，鼓励提高提交频率。
+<p>每个提交应该只包含一个逻辑上的更改或修复，这样可以更容易追踪和理解每个提交的意图。<br />
+建议将每个commit用时控制在 3 小时内，鼓励提高提交频率。<br />
 避免将多个不相关的更改混合在一个提交中，以免给代码审查和版本控制带来困扰。</p>
 <ul>
 <li>提交格式</li>
 </ul>
 <p>提交信息的格式通常是：“[类型]: 描述”。</p>
-<p><code>类型</code>指这个提交所属类别，可以是 <code>feat、fix、docs、style、refactor、test、chore</code> 等。<br />
+<p><code>类型</code>指这个提交所属类别，可以是 <code>feat、fix、doc、style、refactor、test、chore</code> 等。<br />
 <code>描述</code>是对提交的简短描述，应尽量清晰明了，突出关键信息。</p>
 <ul>
 <li>提交内容</li>
 </ul>
 <p>提交信息应该描述清楚修改的内容，不要使用模糊的词汇。
-尽量提供一些上下文信息，例如为什么做出这个更改、解决了什么问题、有什么影响等。
-如果有关联的问题（如<code>GitHub Issue</code>等）或任务，可以在提交信息中引用相关的编号。</p>
+尽量提供一些上下文信息，例如为什么做出这个更改、解决了什么问题、有什么影响等。如果有关联的问题（如<code>GitHub Issue</code>等）或任务，可以在提交信息中引用相关的编号。</p>
 <p><strong>Github原生开发</strong></p>
 <ul>
 <li>Actions 和 Security</li>
@@ -792,12 +785,12 @@
 <ul>
 <li>Discussions</li>
 </ul>
-<p>通过 github discussions 进行团队沟通交流。
+<p>通过 github discussions 进行团队沟通交流。<br />
 通过 issues 当然也可以讨论，不过更多是已确定的 feat 或 bug。</p>
 <ul>
 <li>Projects</li>
 </ul>
-<p>通过 github projects 进行开发计划和进度管理，控制版本发布 。</p>
+<p>通过 github projects 进行开发计划和进度管理，控制版本发布。</p>
 <p><a href="#developer-guide"><i class="fa fa-home"></i></a></p>
 <hr />
 <h2 id="_3">关于项目的编码风格<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
@@ -819,7 +812,7 @@
 <li>日志打印的规范性。</li>
 </ul>
 <p><strong>编码风格</strong></p>
-<p>绿洲项目中主要参考 <a href="https://zh-google-styleguide.readthedocs.io/en/latest/google-python-styleguide/python_style_rules.html">Google Python 风格指南</a>，主要追求：</p>
+<p>云梦环境项目中主要参考 <a href="https://zh-google-styleguide.readthedocs.io/en/latest/google-python-styleguide/python_style_rules.html">Google Python 风格指南</a>，主要追求：</p>
 <ol>
 <li>
 <p>一致性：遵循统一的编码风格，使得代码易于阅读和理解。</p>
