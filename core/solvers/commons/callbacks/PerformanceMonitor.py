@@ -66,7 +66,7 @@ class PerformanceMonitor(ISolverCallback):
         Get the CPU usage of the current process.
         """
         return {
-            "cpu_usage": psutil.Process(self._process).cpu_percent(),
+            "cpu_usage(%)": psutil.Process(self._process).cpu_percent(),
         }
 
     def _get_memory_usage(self) -> dict:
@@ -74,7 +74,7 @@ class PerformanceMonitor(ISolverCallback):
         Get the memory usage of the current process.
         """
         return {
-            "memory_usage": psutil.Process(self._process).memory_percent(),
+            "memory_usage(%)": psutil.Process(self._process).memory_percent(),
         }
 
     def _get_gpu_usage(self) -> dict:
@@ -94,8 +94,8 @@ class PerformanceMonitor(ISolverCallback):
             memory_usages = []
 
         return {
-            "memory_usage": memory_usages,
-            "used_memory": used_memories,
+            "memory_usage(%)": memory_usages,
+            "used_memory(MB)": used_memories,
         }
 
     def _get_platform_info(self) -> dict:

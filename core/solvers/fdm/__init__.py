@@ -1,4 +1,5 @@
 from core.solvers.interfaces.ISolver import ISolver
+from core.solvers.fdm.operators import fdm_operators
 from core.solvers.fdm.Burgers1D import *
 from core.solvers.fdm.Burgers2D import *
 from core.solvers.fdm.Burgers3D import *

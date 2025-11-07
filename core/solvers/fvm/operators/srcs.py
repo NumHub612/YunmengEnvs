@@ -41,4 +41,8 @@ class Src01(IOperator):
         self._geom = self._mesh.get_geom_assistant()
 
     def run(self, source: Field) -> Field | LinearEqs:
-        pass
+        variable = source.variable
+        src_eqs = LinearEqs.zeros(
+            self._mesh.cell_count, rhs_type=source.dtype, variable=variable
+        )
+        return src_eqs

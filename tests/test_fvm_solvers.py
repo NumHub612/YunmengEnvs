@@ -207,6 +207,8 @@ class TestFvmEqs(unittest.TestCase):
 
         # set callback
         output_dir = os.path.join(self._output_dir, "burgers")
+        cb2 = callbacks.PerformanceMonitor("burgers2d", output_dir, 1)
+
         confs = {
             "u": {
                 "style": "cloudmap",
@@ -220,6 +222,7 @@ class TestFvmEqs(unittest.TestCase):
         # set conditions
         solver = fvm.Burgers2D("solver1", grid)
         solver.add_callback(cb1)
+        solver.add_callback(cb2)
         solver.add_ic("u", ic)
         solver.add_bc("u", bc_groups["west"], bc2)
         solver.add_bc("u", bc_groups["south"], bc2)

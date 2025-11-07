@@ -6,10 +6,9 @@ Time derivative operators for the finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, NodeField, Tensor, Vector, VariableType
-from core.numerics.mesh import Mesh, ElementType
+from core.numerics.fields import Field
+from core.numerics.mesh import Mesh
 
-import numpy as np
 import copy
 
 
@@ -46,7 +45,9 @@ class Ddt01(IOperator):
 
     def run(self, source: Field, time_step: float) -> Field | LinearEqs:
         ddt_eqs = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=source.dtype, variable=source.variable
+            self._mesh.cell_count,
+            rhs_type=source.dtype,
+            variable=source.variable,
         )
 
         for cell in self._mesh.cells:
@@ -100,7 +101,9 @@ class Ddt02(IOperator):
             self._pre_field = copy.deepcopy(source)
 
         ddt_eqs = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=source.dtype, variable=source.variable
+            self._mesh.cell_count,
+            rhs_type=source.dtype,
+            variable=source.variable,
         )
 
         for cell in self._mesh.cells:

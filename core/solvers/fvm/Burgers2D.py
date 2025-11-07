@@ -7,7 +7,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from core.solvers.commons import inits, boundaries, IBoundaryCondition
 from core.numerics.mesh import Mesh
-from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01, Lap01
+from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01, Lap01, Src01
 from core.numerics.algos import FieldInterpolators as fis
 from core.numerics.fields import Scalar, Vector, CellField, VariableType
 from core.numerics.mats import LinearEqs
@@ -61,6 +61,7 @@ class Burgers2D(BaseSolver):
             "grad": Grad01(),
             "div": Div01(),
             "laplacian": Lap01(),
+            "src": Src01(),
         }
 
         self._max_iter = 100
@@ -140,8 +141,8 @@ class Burgers2D(BaseSolver):
         sys += sys_d
 
         # Assemble source term matrix(src)
-        # sys_s = self._handle_source_term()
-        # sys += sys_s
+        sys_s = self._operators["src"].run(self._fields["u"])
+        sys += sys_s
 
         # Call callbacks
         for callback in self._callbacks:
