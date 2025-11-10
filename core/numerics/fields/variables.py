@@ -18,7 +18,7 @@ class Variable:
     """
 
     # -----------------------------------------------
-    # --- abstract methods ---
+    # region class methods
     # -----------------------------------------------
 
     @classmethod
@@ -61,7 +61,7 @@ class Variable:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
@@ -97,7 +97,7 @@ class Variable:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- reload arithmetic operations ---
+    # region arithmetic operations
     # -----------------------------------------------
 
     @abstractmethod
@@ -157,7 +157,7 @@ class Variable:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- reload comparison operations ---
+    # region comparison operations
     # -----------------------------------------------
 
     @abstractmethod
@@ -167,6 +167,11 @@ class Variable:
     @abstractmethod
     def __ne__(self, other) -> bool:
         raise NotImplementedError()
+
+
+# -----------------------------------------------
+# region --- vector ---
+# -----------------------------------------------
 
 
 class Vector(Variable):
@@ -359,6 +364,11 @@ class Vector(Variable):
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
+
+
+# -----------------------------------------------
+# region --- scalar ---
+# -----------------------------------------------
 
 
 class Scalar(Variable):
@@ -556,6 +566,11 @@ class Scalar(Variable):
 
     def __str__(self):
         return f"Scalar({self.value})"
+
+
+# -----------------------------------------------
+# region --- tensor ---
+# -----------------------------------------------
 
 
 class Tensor(Variable):

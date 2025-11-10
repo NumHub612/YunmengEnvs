@@ -34,7 +34,7 @@ class Grid(Mesh):
         self._groups = {}
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
@@ -109,7 +109,7 @@ class Grid(Mesh):
         pass
 
     # -----------------------------------------------
-    # --- methods ---
+    # region methods
     # -----------------------------------------------
 
     def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
@@ -211,6 +211,11 @@ class Grid(Mesh):
         pass
 
 
+# -----------------------------------------------
+# region --- Grid1D ---
+# -----------------------------------------------
+
+
 class Grid1D(Grid):
     """1D uniform structured grid in x-direction.
 
@@ -304,6 +309,11 @@ class Grid1D(Grid):
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
+
+
+# -----------------------------------------------
+# region --- Grid2D ---
+# -----------------------------------------------
 
 
 class Grid2D(Grid):
@@ -475,6 +485,11 @@ class Grid2D(Grid):
         west = self.match_cell(i - 1, j)
         east = self.match_cell(i + 1, j)
         return [east, west, north, south, None, None]
+
+
+# -----------------------------------------------
+# region --- Grid3D ---
+# -----------------------------------------------
 
 
 class Grid3D(Grid):
@@ -705,6 +720,11 @@ class Grid3D(Grid):
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
         return [east, west, north, south, up, down]
+
+
+# -----------------------------------------------
+# region --- QuadGrid2D ---
+# -----------------------------------------------
 
 
 class QuadGrid2D(Grid2D):

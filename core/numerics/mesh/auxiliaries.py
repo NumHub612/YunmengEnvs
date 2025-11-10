@@ -16,6 +16,11 @@ import math
 import copy
 
 
+# -----------------------------------------------
+# region --- MeshTopo ---
+# -----------------------------------------------
+
+
 class MeshTopo:
     """Mesh topology class for describing the topology.
 
@@ -55,7 +60,7 @@ class MeshTopo:
         self._cell_indices = None
 
     # -----------------------------------------------
-    # --- static topology methods ---
+    # region static topo methods
     # -----------------------------------------------
 
     @staticmethod
@@ -116,7 +121,7 @@ class MeshTopo:
         return coords
 
     # -----------------------------------------------
-    # --- boundaray and interior properties ---
+    # region boundaray properties
     # -----------------------------------------------
 
     @property
@@ -182,7 +187,7 @@ class MeshTopo:
         return self._interior_cells
 
     # -----------------------------------------------
-    # --- connectivity properties ---
+    # region connectivity properties
     # -----------------------------------------------
 
     @property
@@ -327,7 +332,7 @@ class MeshTopo:
         return self._cell_neighbours
 
     # -----------------------------------------------
-    # --- indices methods ---
+    # region indices methods
     # -----------------------------------------------
 
     @property
@@ -352,7 +357,7 @@ class MeshTopo:
         return self._cell_indices
 
     # -----------------------------------------------
-    # --- retrieval methods ---
+    # region retrieval methods
     # -----------------------------------------------
 
     def search_nearest_elements(
@@ -387,7 +392,7 @@ class MeshTopo:
         return results
 
     # -----------------------------------------------
-    # --- mesh topo check methods ---
+    # region check methods
     # -----------------------------------------------
 
     def check_topo(self):
@@ -412,6 +417,11 @@ class MeshTopo:
     def _check_max_connectivity(self):
         """Check the max connectivity."""
         pass
+
+
+# -----------------------------------------------
+# region --- MeshGeom ---
+# -----------------------------------------------
 
 
 class MeshGeom:
@@ -457,7 +467,7 @@ class MeshGeom:
         self._cell2face_vects = None
 
     # -----------------------------------------------
-    # --- static geometry methods ---
+    # region static geom methods
     # -----------------------------------------------
 
     @staticmethod
@@ -518,7 +528,7 @@ class MeshGeom:
         return coordinates
 
     # -----------------------------------------------
-    # --- face properties ---
+    # region face properties
     # For the List properties, the order of the results is the same
     # as the order of the faces in mesh.
     # -----------------------------------------------
@@ -617,7 +627,7 @@ class MeshGeom:
         return face_normals
 
     # -----------------------------------------------
-    # --- cell properties ---
+    # region cell properties
     # For the List properties, the order of the results is the same
     # as the order of the cells in mesh.
     # -----------------------------------------------
@@ -714,7 +724,7 @@ class MeshGeom:
         return cell_surfaces
 
     # -----------------------------------------------
-    # --- distance properties ---
+    # region distance properties
     # -----------------------------------------------
 
     @property
@@ -775,7 +785,7 @@ class MeshGeom:
         return self._node2node_dists
 
     # -----------------------------------------------
-    # --- vector properties ---
+    # region vector properties
     # -----------------------------------------------
 
     @property
@@ -811,7 +821,7 @@ class MeshGeom:
         return self._cell2face_vects
 
     # -----------------------------------------------
-    # --- generation methods ---
+    # region generation methods
     # -----------------------------------------------
 
     def generate_projection(
@@ -829,7 +839,7 @@ class MeshGeom:
         return proj_coord
 
     # -----------------------------------------------
-    # --- mesh geometry check methods ---
+    # region check methods
     # -----------------------------------------------
 
     def check_mesh_geometry(self):

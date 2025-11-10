@@ -37,7 +37,7 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
@@ -100,7 +100,7 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # --- mesh query methods ---
+    # region mesh query methods
     # -----------------------------------------------
 
     @abstractmethod
@@ -119,7 +119,7 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # --- mesh modification methods ---
+    # region modification methods
     # -----------------------------------------------
 
     @abstractmethod
@@ -136,7 +136,7 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # --- additional methods ---
+    # region additional methods
     # -----------------------------------------------
 
     @abstractmethod
@@ -155,7 +155,7 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # --- extension methods ---
+    # region extension methods
     # -----------------------------------------------
 
     def get_topo_assistant(self) -> "MeshTopo":
@@ -169,6 +169,11 @@ class Mesh(ABC):
         if self._geom is None:
             self._geom = MeshGeom(self)
         return self._geom
+
+
+# -----------------------------------------------
+# region --- GenericMesh ---
+# -----------------------------------------------
 
 
 class GenericMesh(Mesh):
@@ -373,6 +378,11 @@ class GenericMesh(Mesh):
         with open(mesh_file, "rb") as f:
             mesh = pickle.load(f)
         return mesh
+
+
+# -----------------------------------------------
+# region --- GridMesh ---
+# -----------------------------------------------
 
 
 class GridMesh(Mesh):

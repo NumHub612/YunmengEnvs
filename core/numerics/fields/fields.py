@@ -145,7 +145,7 @@ class Field:
         return Field.from_data(data, device=device)
 
     # -----------------------------------------------
-    # --- Properties ---
+    # region Properties
     # -----------------------------------------------
 
     @property
@@ -198,7 +198,7 @@ class Field:
         return self._etype
 
     # -----------------------------------------------
-    # --- auxiliary methods ---
+    # region auxiliary methods
     # -----------------------------------------------
 
     @classmethod
@@ -315,7 +315,7 @@ class Field:
         return scalar_fields
 
     # -----------------------------------------------
-    # --- reload query methods ---
+    # region query methods
     # -----------------------------------------------
 
     def _get_local_indices(self, global_indices: int) -> tuple:
@@ -382,7 +382,7 @@ class Field:
                 yield v
 
     # -----------------------------------------------
-    # --- override arithmetic operations ---
+    # region arithmetic operations
     # -----------------------------------------------
 
     def _check_fields_compatible(self, other: "Field"):
@@ -652,6 +652,11 @@ class Field:
             self._gpus,
         )
         return result
+
+
+# -----------------------------------------------
+# region --- predefined fields ---
+# -----------------------------------------------
 
 
 class CellField(Field):
