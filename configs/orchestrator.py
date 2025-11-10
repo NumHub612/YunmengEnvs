@@ -1,7 +1,5 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
-
 Support yml configuration.
 """
 import os
@@ -10,8 +8,10 @@ import yaml
 
 class Orchestrator:
     """
-    Orchestrator class to load and parse yml configuration file.
+    Orchestrator class for loading and parsing yml configuration.
+
+    This class sets and checks the model configuration standards.
     """
 
-    def __init__(self, config_file: str):
+    def __init__(self, config_yml: str):
         pass

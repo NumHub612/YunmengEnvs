@@ -21,7 +21,7 @@ class ElementType(enum.Enum):
 
     CELL = "cell"
     FACE = "face"
-    EDGE = "edge"
+    EDGE = "edge"  # not used.
     NODE = "node"
     NONE = "none"  # might be useful for id-based elements
 

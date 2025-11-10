@@ -8,6 +8,20 @@ import logging.handlers
 import json
 import torch
 
+LOGO = """
+ __   __                                                   
+ \ \ / /  _   _   _ __    _ __ ___     ___   _ __     __ _ 
+  \ V /  | | | | | '_ \  | '_ ` _ \   / _ \ | '_ \   / _` |
+   | |   | |_| | | | | | | | | | | | |  __/ | | | | | (_| |
+   |_|    \__,_| |_| |_| |_| |_| |_|  \___| |_| |_|  \__, |
+                                                     |___/ 
+  _____                                                    
+ | ____|  _ __   __   __  ___                              
+ |  _|   | '_ \  \ \ / / / __|                             
+ | |___  | | | |  \ V /  \__ \                             
+ |_____| |_| |_|   \_/   |___/        -- v%s                                                                                                       
+"""
+
 
 # set up logging system
 def create_logger(name: str = "yunmengenvs", level=logging.INFO):
