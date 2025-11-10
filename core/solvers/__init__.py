@@ -10,6 +10,11 @@ from core.solvers.fdm import fdm_solvers, fdm_operators
 from core.solvers.fvm import fvm_solvers, fvm_operators
 
 ym_solvers = {
-    "fdm": {"solvers": fdm_solvers, "operators": fdm_operators},
-    "fvm": {"solvers": fvm_solvers, "operators": fvm_operators},
+    "fdm": fdm_solvers,
+    "fvm": fvm_solvers,
+}
+
+ym_operators = {
+    "fdm": fdm_operators,
+    "fvm": fvm_operators,
 }

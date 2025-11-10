@@ -9,25 +9,29 @@ Parameter tables for management of the configures.
 class ParamTable:
     """Flatten parameter table."""
 
-    def __init__(self, configs: dict, consts: dict):
-        """Flatten parameter table.
-
-        Args:
-            configs: The parameter table.
-            consts: The constant table.
-        """
+    def __init__(self, configs: dict):
         self._flatt = flatten(configs)
-        self._const = consts
 
     def get(self, key: str):
-        val = self._flatt.get(key)
-        return val
+        """Get the value of a parameter."""
+        if key in self._flatt:
+            return self._flatt[key]
+        else:
+            raise KeyError(f"Key {key} not found in parameter table.")
 
-    def clone(self):
-        return ParamTable(unflatten(self._flatt), self._const)
+    def count(self, key: str):
+        """Count the parameter occurrences."""
+        count = 0
+        if key in self._flatt:
+            count += 1
+        return count
+
+    def copy(self):
+        return ParamTable(unflatten(self._flatt))
 
 
-def flatten(configs, parent_key="", sep="."):
+def flatten(configs: dict, parent_key: str = "", sep: str = ".") -> dict:
+    """Flatten a nested dictionary."""
     items = {}
     for k, v in configs.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
@@ -38,7 +42,8 @@ def flatten(configs, parent_key="", sep="."):
     return items
 
 
-def unflatten(flattened, sep="."):
+def unflatten(flattened: dict, sep: str = ".") -> dict:
+    """Unflatten a flattened dictionary."""
     out = {}
     for k, v in flattened.items():
         parts = k.split(sep)

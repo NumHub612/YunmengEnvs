@@ -1,5 +1,4 @@
 from core.solutions.standards import ILinkableComponent
-from core.solutions.commons.links import Trigger
 from core.solutions.HydroModels import *
 
 
