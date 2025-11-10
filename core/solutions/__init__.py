@@ -1,13 +1,34 @@
 from core.solutions.standards import ILinkableComponent
-from core.solutions.HydroModels import *
+from core.solutions.commons import BaseModel
 
+import importlib
+import pkgutil
+import inspect
+from pathlib import Path
 
 # register all models here.
 ym_models = {}
-for name, obj in list(locals().items()):
-    if isinstance(obj, type) and issubclass(obj, ILinkableComponent):
-        if name == "ILinkableComponent":
-            continue
-        if name in ym_models:
-            raise ValueError(f"Duplicated model name: {name}.")
-        ym_models[name] = obj
+for _, module_name, _ in pkgutil.iter_modules([str(Path(__file__).parent)]):
+    if module_name.startswith("_"):
+        continue
+
+    module = importlib.import_module(f".{module_name}", __package__)
+    for name, obj in inspect.getmembers(module, inspect.isclass):
+        if (
+            issubclass(obj, ILinkableComponent)
+            and obj is not ILinkableComponent
+            and obj is not BaseModel
+        ):
+            if name in ym_models:
+                raise ValueError(f"Duplicated model name: {name}.")
+            globals()[name] = obj
+            ym_models[name] = obj
+
+# import all the fvm solvers here.
+__all__ = [
+    name
+    for name, obj in globals().items()
+    if inspect.isclass(obj)
+    and issubclass(obj, ILinkableComponent)
+    and obj is not ILinkableComponent
+]

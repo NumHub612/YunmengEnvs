@@ -5,6 +5,7 @@ from core.solvers.fvm.operators.grads import *
 from core.solvers.fvm.operators.d2dt2s import *
 from core.solvers.fvm.operators.ddts import *
 from core.solvers.fvm.operators.srcs import *
+from core.solvers.fvm.operators.funcs import *
 
 
 # register all the fvm operators
