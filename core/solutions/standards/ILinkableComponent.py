@@ -31,36 +31,25 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def outputs(self) -> list[IOutput]:
-        """The output items."""
-        pass
-
-    @property
-    @abstractmethod
     def inputs(self) -> list[IInput]:
         """The input items."""
         pass
 
     @property
     @abstractmethod
-    def states(self) -> dict[str, Any]:
-        """Dictionary of states data."""
+    def outputs(self) -> list[IOutput]:
+        """The output items."""
         pass
 
     @property
     @abstractmethod
-    def CascadingUpdateCallsDisabled(self) -> bool:
-        """The flag to disable cascading updates."""
+    def CascadingUpdate(self) -> bool:
+        """The flag to disable cascading update calls."""
         pass
 
+    @CascadingUpdate.setter
     @abstractmethod
-    def setup(self):
-        """Sets up the instance of the component.
-
-        This method should be invoked before any other methods to do
-        any necessary configurations or preparations, such as
-        resetting arguments, configuring inputs and outputs items.
-        """
+    def CascadingUpdate(self, value: bool):
         pass
 
     @abstractmethod
@@ -69,7 +58,7 @@ class ILinkableComponent(IIdentifiable):
 
         The `Initialize()` will and must be invoked before any other
         methods in the `ILinkableComponent` interface is invoked
-        or accessed, except for the `setup()` method.
+        or accessed.
 
         Immediatly after the method is been invoked, it changes the
         linkable component's status to `INITIALIZING`. If component
@@ -81,7 +70,7 @@ class ILinkableComponent(IIdentifiable):
     def validate(self) -> list[str]:
         """Validates the populated instance of the component.
 
-        The method will must be invoked after various provider-consumer
+        The method will be invoked after various provider-consumer
         relations between these components' exchange items.
 
         Immediatly after this method is invoked, it changes

@@ -357,7 +357,7 @@ class MeshTopo:
         return self._cell_indices
 
     # -----------------------------------------------
-    # region retrieval methods
+    # region topo methods
     # -----------------------------------------------
 
     def search_nearest_elements(
@@ -391,11 +391,27 @@ class MeshTopo:
         results = indexes[idx[valid]]
         return results
 
+    def check_patch_connectivity(
+        self,
+        elements: list[Element],
+        etype: ElementType,
+    ):
+        """Check the patch topological connectivity."""
+        pass
+
+    def collect_zone_elements(
+        self,
+        zone: list[Element],
+        etype: ElementType,
+    ) -> list[int]:
+        """Collect the elements in the given zone."""
+        pass
+
     # -----------------------------------------------
-    # region check methods
+    # region quality checks
     # -----------------------------------------------
 
-    def check_topo(self):
+    def check_topo_quality(self):
         """Check the topological relationships."""
         # Check isolated elements
         self._check_isolated_elements()

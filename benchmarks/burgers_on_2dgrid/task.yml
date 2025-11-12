@@ -1,15 +1,21 @@
 # ===============================================================================
 # 项目信息。
 # ===============================================================================
-PROJECT: Burgers2D
+# 项目名称, 用于区分不同项目，同时模型耦合时也作为模型名称。
+# 注意: 项目配置中大小写敏感。
+PROJECT: surfacewatermodel
+TYPE: SurfaceWaterModel
+# 项目简介，描述项目的功能，无实际功能。
 BRIEF: 2D Burgers Equation on Grid mesh for usage example.
 
 # ===============================================================================
 # 全局配置
 # ===============================================================================
 GLOBAL:
-  load_path: &load_path ./data # 加载路径
-  save_path: &save_path ./outs # 保存路径
+  # 加载路径，模型和网格数据加载的默认根路径，其他数据文件加载的第二路径
+  load_path: &load_path ./data
+  # 保存路径，模型和网格数据、以及输出结果保存的默认路径
+  save_path: &save_path ./outs
 
 # ===============================================================================
 # 时间域配置
@@ -18,82 +24,109 @@ TEMPORAL:
   # 起止时间
   start_time: "2025-11-08 00:00:00"
   end_time: "2025-11-09 00:00:00"
-  # 时间步长
+  # 时间步长(单位: 秒)
   time_step: 0.001
 
 # ===============================================================================
 # 空间域配置
 # ===============================================================================
 SPATIAL:
-  # 空间离散类型, 包括GRID-serial, MESH-serial, NETWORK-serial
+  # 空间离散类型, 包括GRID-serial, MESH-serial, NETWORK-serial，详见项目文档
+  # 通常使用 `type`/`method`来定义对象或方法，`params`来配置对象参数
   type: Grid2D
-  # 离散配置
+  # 加载和保存, 如果直接加载网格数据，则不需要配置后续项
+  load_from: null
+  save_to: *save_path
+  # 离散配置，配置项直接对应对象初始化以及接口参数，框架要求自动过滤无效参数
   params:
     lower_left: [0, 0]
     upper_right: [2, 2]
     nx: 401
     ny: 401
-  # 点串定义
+  # 点串定义，保存网格数据时，点串数据会被一起保存
+  # `expr` 是一个简单表达式，描述网格对象的位置，
+  # `spec` 是一个整数列表，直接表示网格对象的索引
+  # `from` 是数据文件路径，如果不为空，则会从文件中加载数据
   patches:
-    - name: &south south
+    - id: &south south
       type: face
       expr: "y == 0"
-    - name: &north north
+    - id: &north north
       type: face
       expr: "y == 2"
-    - name: &west west
+    - id: &west west
       type: face
       expr: "x == 0"
-    - name: &east east
+    - id: &east east
       type: face
       expr: "x == 2"
-    - name: strings
+    - id: &strings strings
       type: node
       spec: [0, 1, 3, 5]
-  # 子域定义
+  # 子域定义，保存网格数据时，子域数据会被一起保存
+  # 当同时有多种值定义时，生效优先级：`from`>`countour`>`expr`，
+  # 即越直接的定义优先级越高。
   zones:
-    - name: &zone zone
+    - id: &zone zone
       type: cell
       expr: "x >= 0.5 && x <= 1.0 && y >= 0.5 && y <= 1.0"
+      from: null
+      contour: *strings
 
 # ===============================================================================
 # 数据集配置
 # ===============================================================================
 DATAS:
+  # 数据类型有多种, 除`field`外，均可以直接指定;所有数据均可从文件中加载或表达式生成
   # 时间序列
   timeseries:
-    - name: ts1
+    - id: ts1
       xs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       ys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      expr: null
       from: null
   # 曲线数据
   curves:
-    - name: curve1
+    - id: curve1
       xs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       ys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      expr: null
       from: null
   # 模式数据
   patterns:
-    - name: pat1
+    - id: pat1
       xs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       ys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       from: null
+  # 表格数据, 当前版本仅支持到三维表格数据
+  tables:
+    - id: table1
+      xs: [0, 1, 2, 3]
+      ys: [0, 1, 2, 3]
+      zs: null
+      vs: [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]
+      expr: null
+      from: null
   # 流场数据
   fields:
-    - name: &u_field u_field
+    - &u_field
+      id: u_field
       domain: cell
       type: vector
       from: "hotstart.csv"
+      expr: null
 
 # ===============================================================================
-# 模型配置
+# 求解器配置
 # ===============================================================================
-MODEL:
+SOLVER:
+  # 物理模型
+  id: solver1
+  type: fvm::burgers2d
   # 加载和保存
   load_from: *load_path
   save_to: *save_path
-  # 物理模型
-  name: burgers2d
+  # 模型参数
   params:
     nu: 0.01
     rho: 1.0
@@ -120,80 +153,57 @@ MODEL:
   # 边界条件，只能使用框架提供的边界条件类型
   bcs:
     # Dirichlet边界条件
-    - bc1: u_bc1
+    - id: u_bc1
       patches: [*west, *east]
       var: u
-      type: fixed
+      method: fixed
       params:
         value: 0.0
     # Neumann边界条件
-    - bc2: u_bc2
+    - id: u_bc2
       patches: [*south, *north]
       var: u
-      type: natural
+      method: natural
       params:
         flux: 0.0
   # 回调函数，只能使用框架提供的回调函数类型
   cbs:
-    - profiler: profiler
+    - id: profiler
+      method: Profiler
       params:
         interval: 100
         output_dir: *save_path
-    - animator: animator
+    - id: animator
+      method: Animator
       params:
         output_dir: *save_path
         fields:
-          - var: u
+          - var: ux
             style: cloudmap
             dimesion: x
             show_edges: true
             show_scalars: true
 
 # ===============================================================================
-# 求解器配置
-# ===============================================================================
-SOLVER:
-  # 求解器类型和名称，详细配置见`OPERATORS`算子配置
-  type: fvm
-  name: burgers2d
-
-  # 配置项
-  params:
-    max_iter: 10000
-    tol: 1e-6
-    verbose: 1
-
-# ===============================================================================
 # 算子配置
 # ===============================================================================
 OPERATORS:
   # 梯度算子
-  - name: grad01
+  - method: grad01
+    params: null
   # 瞬态算子
-  - name: ddt02
+  - method: ddt02
     params:
       order: 2
   # 对流算子
-  - name: div01
+  - method: div01
+    params: null
   # 扩散算子
-  - name: lap01
+  - method: lap01
+    params: null
   # 源项算子
-  - name: src01
-
-# ===============================================================================
-# 输出配置
-# ===============================================================================
-OUTPUTS:
-  # 模型对象输出
-  save_model: true
-  save_mesh: true
-
-  # 模拟结果输出
-  output_format: csv # 输出格式
-  output_step: 100 # 输出步长
-  output_items: # 输出项
-    - var: u
-      file_name: u.csv
+  - method: src01
+    params: null
 
 # ===============================================================================
 # 自定义配置

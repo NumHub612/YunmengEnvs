@@ -9,8 +9,6 @@ from configs.settings import LOGO, logger
 
 from core.solutions.commons import Scheduler
 from core.solutions import ym_models
-from core.solvers import ym_solvers, ym_operators
-from core.solvers.commons import boundary_conditions, init_methods, callback_handlers
 
 import argparse
 import os
@@ -20,32 +18,26 @@ class YunmengEnvsApp:
     """YunmengEnvs application."""
 
     def __init__(self):
-        self.parser = argparse.ArgumentParser(description="YunmengEnvs")
-        self.parser.add_argument("config", type=str, help="config yaml")
-        self.parser.add_argument(
+        self._parser = argparse.ArgumentParser(description="YunmengEnvs")
+        self._parser.add_argument("config", type=str, help="config yaml")
+        self._parser.add_argument(
             "--log-level",
             type=str,
             default="WARNING",
             choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
             help="log level",
         )
-        self.parser.add_argument(
+        self._parser.add_argument(
             "--gpus",
             nargs="+",
             type=int,
             help="GPU ids to use",
         )
-        self.parser.add_argument(
+        self._parser.add_argument(
             "--cpu",
             action="store_true",
-            default=False,
             help="always use CPU",
         )
-
-        self.args = self.parser.parse_args()
-        self.orchestrator = Orchestrator(self.args)
-        self.scheduler = Scheduler()
-        # self.scheduler.build()
 
     def prologue(self):
         version = self._get_version()
@@ -55,6 +47,21 @@ class YunmengEnvsApp:
         )
         print("https://github.com/NumHub612/YunmengEnvs\n")
 
+        try:
+            self._configer = Orchestrator(self._parser)
+            self._configer.activate()
+
+            self._scheduler = Scheduler(ym_models)
+            self._scheduler.setup(self._configer)
+            self._scheduler.initialize()
+
+            errors = self._scheduler.validate()
+            if errors:
+                raise ValueError(f"Scheduler validation failed: {errors}")
+        except Exception as e:
+            logger.exception(e)
+            raise e
+
     def _get_version(self):
         version_file = os.path.join(os.path.dirname(__file__), "VERSION")
         with open(version_file, "r") as f:
@@ -63,16 +70,19 @@ class YunmengEnvsApp:
 
     def run(self):
         try:
-            # self.orchestrator.run()
-            ...
+            self._scheduler.prepare()
+            self._scheduler.run()
+            self._scheduler.finish()
         except Exception as e:
             logger.exception(e)
             raise e
-        finally:
-            ...
-            # self.orchestrator.exit()
 
     def epilogue(self):
+        try:
+            self._scheduler.validate()
+        except Exception as e:
+            logger.exception(e)
+            raise e
         print("\nYunmengEnvs exited. Thanks for supporting YunmengEnvs!")
 
 

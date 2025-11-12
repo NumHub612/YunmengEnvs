@@ -39,3 +39,12 @@ class Pattern:
 
     def __init__(self):
         pass
+
+
+class Table:
+    """
+    A table is a multidimensional data structure.
+    """
+
+    def __init__(self):
+        pass

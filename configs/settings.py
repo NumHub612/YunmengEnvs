@@ -24,7 +24,7 @@ LOGO = """
 
 
 # set up logging system
-def create_logger(name: str = "yunmengenvs", level=logging.INFO):
+def create_logger(name: str = "yunmeng", level=logging.INFO):
     """Create a logger with the given name."""
     if name in logging.root.manager.loggerDict:
         logger = logging.getLogger(name)
@@ -33,7 +33,7 @@ def create_logger(name: str = "yunmengenvs", level=logging.INFO):
 
     logger = logging.getLogger(name)
     formatter = logging.Formatter(
-        "[%(asctime)s][%(name)s][%(levelname)s][%(process)d][%(thread)d]: %(message)s"
+        "[%(asctime)s][%(process)d][%(thread)d][%(name)s][%(levelname)s]:%(message)s"
     )
 
     log_file = os.path.abspath(os.path.join("./", "yunmeng.log"))
