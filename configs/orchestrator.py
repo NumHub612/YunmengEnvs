@@ -20,6 +20,7 @@ class Orchestrator:
     REQUIRED_LINK_FIELDS = ["MODELS", "LINKS", "SCHEDULES"]
     REQUIRED_MODEL_FIELDS = [
         "PROJECT",
+        "TYPE",
         "GLOBAL",
         "SPATIAL",
         "TEMPORAL",
@@ -35,42 +36,48 @@ class Orchestrator:
         self._config = {}
 
     @property
-    def models(self) -> dict:
-        """Model configurations."""
-        return self._config.get("MODELS", {})
+    def schedules(self) -> dict:
+        """Schedule configurations."""
+        return self._config.get("SCHEDULES", None)
 
     @property
     def links(self) -> dict:
         """Link configurations."""
-        return self._config.get("LINKS", {})
+        return self._config.get("LINKS", None)
 
     @property
-    def schedules(self) -> dict:
-        """Schedule configurations."""
-        return self._config.get("SCHEDULES", {})
+    def models(self) -> dict:
+        """Model configurations."""
+        return self._config.get("MODELS", None)
 
     def activate(self):
-        """
-        Parse and activate the configurations.
-        """
+        """Load and activate the configurations."""
         args = self._parser.parse_args()
         # Activate the settings
-        logger.setLevel(args.log_level)
-        if args.cpu:
-            settings.DEVICE = "cpu"
-        if args.gpus:
-            settings.GPUs = args.gpus
+        self._activate_settings(args)
 
         # Load the configurations
         config_file = args.config
         if not os.path.exists(config_file):
             raise ValueError(f"Config file {config_file} doesn't exist.")
+
         self._root = os.path.dirname(config_file)
         raw_configs = yaml.load(
             open(config_file, "r", encoding="utf-8"),
             Loader=yaml.FullLoader,
         )
+
         self._parse_configs(raw_configs)
+        summary = self.summary()
+        logger.info(f"Configs loaded:{summary}.")
+
+    def _activate_settings(self, args: ArgumentParser):
+        """Activate the settings."""
+        logger.setLevel(args.log_level)
+        if args.cpu:
+            settings.DEVICE = "cpu"
+        if args.gpus:
+            settings.GPUs = args.gpus
 
     def _parse_configs(self, configs: dict):
         """
@@ -98,6 +105,8 @@ class Orchestrator:
         if not configs:
             self._config["SCHEDULES"] = {}
             return
+
+        self._config["SCHEDULES"] = configs
 
     def _parse_model_configs(self, configs: dict):
         """
@@ -138,6 +147,7 @@ class Orchestrator:
                         raise ValueError(
                             f"Link {lid} data op {op} miss type or params."
                         )
+        self._config["LINKS"] = configs
 
     def _parse_task_configs(self, configs: dict):
         """
@@ -182,7 +192,7 @@ class Orchestrator:
 
         # Build the IO exchange items.
         io_config = self._parse_io_configs(configs)
-        model_config.update(io_config)
+        model_config.update({"IOS": io_config})
 
         return model_config
 
@@ -219,7 +229,7 @@ class Orchestrator:
 
         if "patches" in config:
             for patch in config["patches"]:
-                if {"id", "type"} <= patch.keys():
+                if not ({"id", "type"} <= patch.keys()):
                     raise ValueError("Patch configs miss patch id or type.")
                 if not ({"expr", "spec", "from"} & patch.keys()):
                     raise ValueError(f"Patch {patch['id']} has no data source.")
@@ -376,10 +386,11 @@ class Orchestrator:
         """
         Print the summary of the configurations.
         """
-        models_num = len(self.models)
         models_ids = list(self.models.keys())
-        links_num = len(self.links)
+        models_num = len(models_ids)
+
         links_ids = list(self.links.keys())
+        links_num = len(links_ids)
 
         summary = (
             f"Models: {models_num} ({models_ids}), \nLinks: {links_num} ({links_ids})"

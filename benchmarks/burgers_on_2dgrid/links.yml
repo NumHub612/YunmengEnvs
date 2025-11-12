@@ -2,7 +2,7 @@
 # 模型集配置。
 # ===============================================================================
 MODELS:
-  - id: "surfacewater"
+  - id: "surfacewatermodel"
     description: "surface water model"
     from: "./task.yml"
 
