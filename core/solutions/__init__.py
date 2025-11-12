@@ -11,6 +11,8 @@ ym_models = {}
 for _, module_name, _ in pkgutil.iter_modules([str(Path(__file__).parent)]):
     if module_name.startswith("_"):
         continue
+    if module_name == "standards" or module_name == "commons":
+        continue
 
     module = importlib.import_module(f".{module_name}", __package__)
     for name, obj in inspect.getmembers(module, inspect.isclass):

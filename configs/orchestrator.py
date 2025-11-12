@@ -38,17 +38,17 @@ class Orchestrator:
     @property
     def schedules(self) -> dict:
         """Schedule configurations."""
-        return self._config.get("SCHEDULES", None)
+        return self._config.get("SCHEDULES", {})
 
     @property
     def links(self) -> dict:
         """Link configurations."""
-        return self._config.get("LINKS", None)
+        return self._config.get("LINKS", {})
 
     @property
     def models(self) -> dict:
         """Model configurations."""
-        return self._config.get("MODELS", None)
+        return self._config.get("MODELS", {})
 
     def activate(self):
         """Load and activate the configurations."""

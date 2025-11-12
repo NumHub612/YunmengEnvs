@@ -84,7 +84,6 @@ class BaseModel(ILinkableComponent, IManageState):
         raise NotImplementedError()
 
     def set_status(self, status: LinkableComponentStatus, message: str):
-        logger.info(f"Component {self} changed to {status}: {message}")
         event_args = LinkableComponentStatusChangeEventArgs(
             self, message, self._status, status
         )
