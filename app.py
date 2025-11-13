@@ -78,11 +78,6 @@ class YunmengEnvsApp:
             raise e
 
     def epilogue(self):
-        try:
-            self._scheduler.validate()
-        except Exception as e:
-            logger.exception(e)
-            raise e
         print("\nYunmengEnvs exited. Thanks for supporting YunmengEnvs!")
 
 
