@@ -21,9 +21,10 @@ class Src01(IOperator):
     """
 
     @classmethod
-    def get_type(self) -> OperatorType:
+    def get_type(cls) -> OperatorType:
         return OperatorType.SRC
 
+    @classmethod
     def get_name(cls) -> str:
         return "src01"
 

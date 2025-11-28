@@ -28,9 +28,10 @@ class Lap01(IOperator):
     """
 
     @classmethod
-    def get_type(self) -> OperatorType:
+    def get_type(cls) -> OperatorType:
         return OperatorType.LAPLACIAN
 
+    @classmethod
     def get_name(cls) -> str:
         return "lap01"
 

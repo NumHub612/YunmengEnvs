@@ -35,7 +35,8 @@ class BaseModel(ILinkableComponent, IManageState):
     until the next time step is reached or the convergence is achieved.
     """
 
-    def __init__(self):
+    def __init__(self, model_id: str):
+        self._id = model_id
         self._arguments: dict[str, IArgument] = {}
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []

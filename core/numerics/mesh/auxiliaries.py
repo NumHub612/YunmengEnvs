@@ -391,49 +391,6 @@ class MeshTopo:
         results = indexes[idx[valid]]
         return results
 
-    def check_patch_connectivity(
-        self,
-        elements: list[Element],
-        etype: ElementType,
-    ):
-        """Check the patch topological connectivity."""
-        pass
-
-    def collect_zone_elements(
-        self,
-        zone: list[Element],
-        etype: ElementType,
-    ) -> list[int]:
-        """Collect the elements in the given zone."""
-        pass
-
-    # -----------------------------------------------
-    # region quality checks
-    # -----------------------------------------------
-
-    def check_topo_quality(self):
-        """Check the topological relationships."""
-        # Check isolated elements
-        self._check_isolated_elements()
-
-        # Check duplicated elements
-        self._check_duplicated_elements()
-
-        # Check max connectivity
-        self._check_max_connectivity()
-
-    def _check_isolated_elements(self):
-        """Check the isolated elements."""
-        pass
-
-    def _check_duplicated_elements(self):
-        """Check the duplicated elements."""
-        pass
-
-    def _check_max_connectivity(self):
-        """Check the max connectivity."""
-        pass
-
 
 # -----------------------------------------------
 # region --- MeshGeom ---
@@ -853,11 +810,3 @@ class MeshGeom:
         proj_np = proj_np + face.coordinate.to_np()
         proj_coord = Coordinate.from_np(proj_np)
         return proj_coord
-
-    # -----------------------------------------------
-    # region check methods
-    # -----------------------------------------------
-
-    def check_mesh_geometry(self):
-        """Check the geometry of the mesh."""
-        pass

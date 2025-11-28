@@ -40,7 +40,7 @@ class IOperator(ABC):
 
     @classmethod
     @abstractmethod
-    def get_type(self) -> OperatorType:
+    def get_type(cls) -> OperatorType:
         """
         The type of the operator.
         """

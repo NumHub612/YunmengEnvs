@@ -27,7 +27,7 @@ class Grad01(IOperator):
     """
 
     @classmethod
-    def get_type(self) -> OperatorType:
+    def get_type(cls) -> OperatorType:
         return OperatorType.GRAD
 
     @classmethod

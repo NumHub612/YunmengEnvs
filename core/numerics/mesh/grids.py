@@ -33,37 +33,31 @@ class Grid(Mesh):
     # -----------------------------------------------
 
     @property
-    @abstractmethod
     def nx(self) -> int:
         """Discretization size in the x-direction."""
         return self._nx
 
     @property
-    @abstractmethod
     def ny(self) -> int:
         """Discretization size in the y-direction."""
         return self._ny
 
     @property
-    @abstractmethod
     def nz(self) -> int:
         """Discretization size in the z-direction."""
         return self._nz
 
     @property
-    @abstractmethod
     def dx(self) -> float:
         """Discretization step in the x-direction."""
         return self._dx
 
     @property
-    @abstractmethod
     def dy(self) -> float:
         """Discretization step in the y-direction."""
         return self._dy
 
     @property
-    @abstractmethod
     def dz(self) -> float:
         """Discretization step in the z-direction."""
         return self._dz

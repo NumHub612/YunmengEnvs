@@ -153,18 +153,22 @@ class Mesh(ABC):
             raise ValueError("Element type: None.")
         if min_id < 0 or max_id >= elem_count:
             raise ValueError("Invalid group ids.")
-        self._groups[group_id] = ids
+        self._groups[group_id] = (etype, ids)
 
     def delete_group(self, group_id: str):
         """Delete the given name group."""
         if group_id in self._groups:
             self._groups.pop(group_id)
 
-    def get_group(self, group_id: str) -> tuple[list, ElementType]:
+    def get_group(self, group_id: str) -> tuple[ElementType, list]:
         """Return the element ids of given group."""
         if group_id not in self._groups:
             return None
         return self._groups[group_id]
+
+    def get_all_groups(self) -> dict[str, tuple]:
+        """Return all groups."""
+        return self._groups
 
     # -----------------------------------------------
     # region extension methods

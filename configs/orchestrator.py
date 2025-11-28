@@ -157,6 +157,7 @@ class Orchestrator:
         """
         # Load the model configuration
         model_root, model_file = self._search_file(configs["from"], self._root)
+        model_root = os.path.abspath(model_root)
         if model_file is None:
             raise ValueError(f"Model file {configs['from']} does not exist.")
 
@@ -181,6 +182,13 @@ class Orchestrator:
             generals = {}
         if "load_path" not in generals or generals["load_path"] is None:
             model_config["GLOBAL"]["load_path"] = model_root
+        elif generals["load_path"].startswith("."):
+            generals["load_path"] = os.path.join(model_root, generals["load_path"])
+
+        if "save_path" not in generals or generals["save_path"] is None:
+            model_config["GLOBAL"]["save_path"] = model_root
+        elif generals["save_path"].startswith("."):
+            generals["save_path"] = os.path.join(model_root, generals["save_path"])
 
         # Check each field.
         self._check_global_configs(model_config["GLOBAL"])

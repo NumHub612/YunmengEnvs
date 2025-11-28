@@ -78,7 +78,7 @@ class Scheduler:
         for mid, mcfg in system.models.items():
             model_type = mcfg.pop("TYPE")
             io_items = mcfg.pop("IOS")
-            model = self._registered_components[model_type](mcfg, io_items)
+            model = self._registered_components[model_type](mid, mcfg, io_items)
             self._models[mid] = model
             self._topo.add_node(mid, model=model)
 
@@ -91,7 +91,7 @@ class Scheduler:
         if "verbose" in settings:
             self._verbose = settings["verbose"]
 
-        self._log("setup done")
+        self._log("setup done", True)
         self._status = SchedulerStatus.LOADING
 
     def initialize(self):
@@ -124,20 +124,20 @@ class Scheduler:
 
             if "data_operations" in lcfg:
                 adapters = AdapterFactory()
-                ...
+                # TODO： configure adapters
 
             if mode == "PULL":
                 input.provider = output
             elif mode == "LOOP":
                 looper = LoopController()
-                ...
+                # TODO： configure looper
             else:
                 raise ValueError(f"Link {lid}: invalid mode {mode}")
 
         # Analyze trigger
         self._analyze_trigger()
 
-        self._log("initialize done")
+        self._log("initialize done", True)
 
     def _topo_order(self) -> list[str]:
         try:
@@ -159,7 +159,7 @@ class Scheduler:
         if errors:
             self._status = SchedulerStatus.FAILED
 
-        self._log(f"validate done with {len(errors)} errors")
+        self._log(f"validate done with {len(errors)} errors", True)
         return errors
 
     def prepare(self):
@@ -168,7 +168,7 @@ class Scheduler:
             self._models[cid].prepare()
 
         self._status = SchedulerStatus.READY
-        self._log("prepare done")
+        self._log("prepare done", True)
 
     def run(self):
         """Run scheduler until all components are done or failed."""
@@ -181,7 +181,7 @@ class Scheduler:
         self._status = SchedulerStatus.RUNNING
         self._main_loop()
 
-        self._log("run done")
+        self._log("run done", True)
 
     def _main_loop(self):
         while True:
@@ -206,6 +206,7 @@ class Scheduler:
 
             # Update to next step
             self._trigger.update([])
+            self._log("updated")
 
     def _hit_breakpoint(self) -> bool:
         """Check if scheduler hits any breakpoint."""
@@ -238,41 +239,49 @@ class Scheduler:
 
         self._status = SchedulerStatus.RUNNING
         self._main_loop()
-        self._log("resume done")
+        self._log("resume done", True)
 
     def finish(self):
         """Finish all components in order or reverse order."""
         for cid in reversed(self._topo_order()):
             self._models[cid].finish()
         self._status = SchedulerStatus.DONE
-        self._log("finish done")
+        self._log("finish done", True)
 
-    def _log(self, message: str = ""):
+    def _log(self, message: str = "", force: bool = False):
         """Log current status."""
         if not self._verbose or not self._log_freq:
             return
 
         elapsed_time = self.elapsed_time
-        if (
-            elapsed_time - self._log_time >= 1e-6
-            or self._status == SchedulerStatus.CREATED
-            or self._status == SchedulerStatus.DONE
-            or self._status == SchedulerStatus.FAILED
-            or self._status == SchedulerStatus.PAUSED
-        ):
-            if elapsed_time < 60.0:
-                time_str = f"{elapsed_time:06.3f}s"
-            elif elapsed_time < 3600.0:
-                mins = int(elapsed_time // 60.0)
-                secs = elapsed_time - 60.0 * mins
-                time_str = f"{mins:02d}m{secs:06.3f}s"
-            else:
-                hours = int(elapsed_time // 3600.0)
-                mins = int((elapsed_time % 3600.0) // 60.0)
-                secs = elapsed_time - 3600.0 * hours - 60.0 * mins
-                time_str = f"{hours:02d}h{mins:02d}m{secs:06.3f}s"
-            print(f"{time_str}, {self.status.name}: {message}")
-            self._log_time += self._log_freq
+        date_str = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        if elapsed_time - self._log_time >= 1e-6 or force:
+            time_str = self._format_time(elapsed_time)
+            print(f"{date_str}, {time_str}, {self.status.name}: {message}")
+            while elapsed_time >= self._log_time:
+                self._log_time += self._log_freq
+
+    def _format_time(self, elapsed_time: float) -> str:
+        """Format time in readable string."""
+        if elapsed_time < 60.0:
+            time_str = f"{elapsed_time:06.3f}s"
+        elif elapsed_time < 3600.0:
+            mins = int(elapsed_time // 60.0)
+            secs = elapsed_time - 60.0 * mins
+            time_str = f"{mins:02d}m{secs:06.3f}s"
+        elif elapsed_time < 86400.0:
+            hours = int(elapsed_time // 3600.0)
+            mins = int((elapsed_time % 3600.0) // 60.0)
+            secs = elapsed_time - 3600.0 * hours - 60.0 * mins
+            time_str = f"{hours:02d}h{mins:02d}m{secs:06.3f}s"
+        else:
+            days = int(elapsed_time // 86400.0)
+            hours = int((elapsed_time % 86400.0) // 3600.0)
+            mins = int((elapsed_time % 3600.0) // 60.0)
+            secs = elapsed_time - 86400.0 * days - 3600.0 * hours - 60.0 * mins
+            time_str = f"{days}d{hours:02d}h{mins:02d}m{secs:06.3f}s"
+
+        return time_str
 
     def pause(self):
         """Pause scheduler."""

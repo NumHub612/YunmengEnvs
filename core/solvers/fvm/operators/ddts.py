@@ -23,9 +23,10 @@ class Ddt01(IOperator):
     """
 
     @classmethod
-    def get_type(self) -> OperatorType:
+    def get_type(cls) -> OperatorType:
         return OperatorType.DDT
 
+    @classmethod
     def get_name(cls) -> str:
         return "ddt01"
 
@@ -74,9 +75,10 @@ class Ddt02(IOperator):
     """
 
     @classmethod
-    def get_type(self) -> OperatorType:
+    def get_type(cls) -> OperatorType:
         return OperatorType.DDT
 
+    @classmethod
     def get_name(cls) -> str:
         return "ddt02"
 
