@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Interface for pde numerical operators.
 """
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Variable
+from core.numerics.fields import Field, Variable, DataHub
 from core.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 import enum
@@ -46,15 +46,22 @@ class IOperator(ABC):
         """
         pass
 
+    @property
+    def time_order(self) -> int:
+        """
+        The time order of the operator.
+        """
+        return 1
+
     @abstractmethod
-    def prepare(self, mesh: Mesh):
+    def prepare(self, mesh: Mesh, boundaries: dict):
         """
         Prepare the operator.
         """
         pass
 
     @abstractmethod
-    def run(self, source: Field) -> Variable | Field | LinearEqs:
+    def run(self, source: DataHub) -> Variable | Field | LinearEqs:
         """
         Run the operator on mesh.
         """

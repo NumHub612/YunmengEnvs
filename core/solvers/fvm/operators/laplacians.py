@@ -11,7 +11,7 @@ from core.solvers.interfaces import (
     BoundaryType,
 )
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Vector, Scalar
+from core.numerics.fields import Field, Vector, Scalar, DataHub
 from core.numerics.mesh import Grid
 
 import numpy as np
@@ -35,7 +35,7 @@ class Lap01(IOperator):
     def get_name(cls) -> str:
         return "lap01"
 
-    def __init__(self):
+    def __init__(self, k: float):
         self._mesh = None
         self._topo = None
         self._geom = None
@@ -43,7 +43,7 @@ class Lap01(IOperator):
         self._bcs = None
         self._k = None
 
-    def prepare(self, mesh: Grid, boundaries: dict, k: float, **kwargs):
+    def prepare(self, mesh: Grid, boundaries: dict):
         if not isinstance(mesh, Grid):
             raise ValueError("Fvm Grad01 operator only supports Grid.")
 
@@ -52,9 +52,9 @@ class Lap01(IOperator):
         self._geom = self._mesh.get_geom_assistant()
 
         self._bcs = boundaries
-        self._k = k
 
-    def run(self, source: Field) -> Field | LinearEqs:
+    def run(self, source: DataHub) -> Field | LinearEqs:
+        source = source.fetch().data
         variable = source.variable
         lap_eqs = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=source.dtype, variable=variable

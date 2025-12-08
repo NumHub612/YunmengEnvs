@@ -46,23 +46,16 @@ class Burgers2D(BaseSolver):
     def get_name(cls) -> str:
         return "Burgers2D"
 
-    def __init__(self, id: str, mesh: Mesh):
+    def __init__(self, id: str, mesh: Mesh, operators: dict):
         """
         Constructor of 2D Burgers equation solver.
         """
-        super().__init__(id, mesh)
+        super().__init__(id, mesh, operators)
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
 
         self._default_bcs = {"u": boundaries.MixedBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
-        self._operators = {
-            "ddt": Ddt01(),
-            "grad": Grad01(),
-            "div": Div01(),
-            "laplacian": Lap01(),
-            "src": Src01(),
-        }
 
         self._max_iter = 100
         self._tol = 1e-6
@@ -72,9 +65,7 @@ class Burgers2D(BaseSolver):
             "u": CellField(self._mesh.cell_count, VariableType.VECTOR, variable="u"),
         }
 
-    def initialize(
-        self, k: float, order: int = 1, max_iter: int = 100, tol: float = 1e-6
-    ):
+    def initialize(self, max_iter: int = 100, tol: float = 1e-6):
         # TODO: To split SloverParams, OpParams.
 
         logger.info("Initializing the unsteady burgers solver...")
@@ -107,11 +98,8 @@ class Burgers2D(BaseSolver):
         self._tol = tol
 
         # Init operators
-        if order != 1:
-            self._operators["ddt"] = Ddt02()
-
         for _, op in self._operators.items():
-            op.prepare(self._mesh, boundaries=self._bcs, k=k, rho=1)
+            op.prepare(self._mesh, boundaries=self._bcs)
 
         # Call callbacks
         for callback in self._callbacks:

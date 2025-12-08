@@ -7,6 +7,7 @@ Surface water model.
 from core.solutions.commons import models, datasets, links, metas
 from core.numerics.mesh import Grid2D, ElementType, Coordinate, MeshFilter, MeshChecker
 from core.numerics.fields import (
+    VariableType,
     Vector,
     Field,
     DataHub,
@@ -14,6 +15,8 @@ from core.numerics.fields import (
     Curve,
     Pattern,
     Table,
+    make_field_from_data,
+    make_var_from_value,
 )
 from core.solutions.SurfaceWaterModel.IOItems import (
     SurfaceWaterModelInput,
@@ -22,6 +25,8 @@ from core.solutions.SurfaceWaterModel.IOItems import (
 from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fvm_solvers, fvm_operators
 from core.solvers.commons import boundary_conditions, init_methods, callback_handlers
+from core.utils.LoadData import load_data
+from configs.settings import logger
 
 import datetime as dt
 import numpy as np
@@ -48,9 +53,6 @@ class SurfaceWaterModel(models.BaseModel):
         self._current: dt.datetime = None
         self._dt: float = None
 
-        self._save_path = None
-        self._load_path = None
-
     def initialize(self):
         self.set_status(
             models.LinkableComponentStatus.INITIALIZING,
@@ -58,10 +60,7 @@ class SurfaceWaterModel(models.BaseModel):
         )
 
         # load- and save-path
-        generals = self._model_configs["GLOBAL"]
-        self._save_path = generals.get("save_path", "./")
-        os.makedirs(self._save_path, exist_ok=True)
-        self._load_path = generals.get("load_path", "./")
+        generals = self._model_configs["GLOBAL"] or {}
 
         # time-axis
         times = self._model_configs["TEMPORAL"]
@@ -70,31 +69,21 @@ class SurfaceWaterModel(models.BaseModel):
         self._dt = times["time_step"]
         self._current = self._start
 
-        # datas
-        self._load_datas()
-
         # mesh
         self._load_mesh()
 
-        # operators
+        # datas
+        self._load_datas()
+
+        # operators then solver
         self._load_operators()
-
-        # solver
-
-        # initial conditions
-
-        # boundaries
+        self._load_solver()
 
         # outputs
 
         # inputs
 
         self.set_status(models.LinkableComponentStatus.INITIALIZED, "initialized")
-
-    def _load_datas(self):
-        """Load datas from configuration."""
-        datas = self._model_configs["DATAS"]
-        self._datas = {}
 
     def _load_mesh(self):
         """Load mesh from configuration."""
@@ -114,7 +103,7 @@ class SurfaceWaterModel(models.BaseModel):
         patches = spatials.get("patches", [])
         for patch in patches:
             pid = patch["id"]
-            ptype = patch["type"]
+            ptype = patch["etype"]
             if ptype != "face":
                 raise ValueError(f"SurfaceWaterModel only supports face patches {pid}")
             ptype = ElementType.FACE
@@ -142,7 +131,7 @@ class SurfaceWaterModel(models.BaseModel):
         zones = spatials.get("zones", [])
         for zone in zones:
             zid = zone["id"]
-            ztype = zone["type"]
+            ztype = zone["etype"]
             if ztype != "cell":
                 raise ValueError("SurfaceWaterModel only supports cell zones")
             ztype = ElementType.CELL
@@ -164,6 +153,61 @@ class SurfaceWaterModel(models.BaseModel):
 
             self._mesh.set_group(ztype, zid, cell_ids)
 
+    def _load_datas(self):
+        """Load datas from configuration."""
+        datas = self._model_configs["DATAS"]
+        self._datas = {}
+
+        # timeseries
+        for ts in datas.get("timeseries", []):
+            pass
+
+        # curves
+        for curve in datas.get("curves", []):
+            pass
+
+        # patterns
+        for pattern in datas.get("patterns", []):
+            pass
+
+        # tables
+        for table in datas.get("tables", []):
+            pass
+
+        # fields
+        for field in datas.get("fields", []):
+            fid = field["id"]
+            var = field["var"]
+            domain = field["etype"]
+            dtype = field["dtype"]
+            f_from = field.get("from", None)
+            f_expr = field.get("expr", None)
+            if f_from is not None:
+                file_name, file_ext = os.path.splitext(f_from)
+                if file_ext != ".csv":
+                    raise ValueError(f"Unsupported data file type: {file_ext}")
+                data = load_data(f_from)
+                var_data = data[var].to_numpy()
+                field = make_field_from_data(domain, var_data)
+            elif f_expr is not None:
+                cell_count = self._mesh.cell_count
+                elem_type = ElementType.from_str(domain)
+                data_type = VariableType.from_str(dtype)
+                field = Field(cell_count, elem_type, data_type, variable=var)
+                for expr in f_expr:
+                    zone_id = expr["zone"]
+                    val = expr["value"]
+                    value = make_var_from_value(val, data_type)
+                    if zone_id is None:
+                        field.assign(value)
+                    else:
+                        _, cell_ids = self._mesh.get_group(zone_id)
+                        for cid in cell_ids:
+                            field[cid] = value
+            else:
+                raise ValueError("Invalid field definition.")
+            self._datas[fid] = field
+
     def _load_operators(self):
         """Load operators from configuration."""
         operators = self._model_configs["OPERATORS"]
@@ -180,6 +224,90 @@ class SurfaceWaterModel(models.BaseModel):
                 raise ValueError(f"Duplicated operator: {op_type}, {operator}.")
             self._operators[op_type] = instance
 
+    def _load_solver(self):
+        """Load solver from configuration."""
+        solvers = self._model_configs["SOLVER"]
+
+        # fvm solver
+        sid = solvers["id"]
+        params = solvers.get("params", {}) or {}
+        scheme, solver = solvers["type"].split("::")
+        if scheme != "fvm":
+            raise ValueError("SurfaceWaterModel only supports fvm scheme.")
+        self._solver = fvm_solvers[solver](sid, self._mesh, self._operators)
+
+        # initial conditions
+        ics = solvers.get("ics", []) or []
+        for ic in ics:
+            ic_instance = self._load_ic(ic)
+            if ic_instance is None:
+                continue
+            ic_var = ic["var"]
+            self._solver.add_ic(ic_var, ic_instance)
+
+        # boundaries
+        bcs = solvers.get("bcs", []) or []
+        for bc in bcs:
+            bc_instance, bc_elements = self._load_bc(bc)
+            if bc_instance is None:
+                continue
+            bc_var = bc["var"]
+            self._solver.add_bc(bc_var, bc_elements, bc_instance)
+
+        # callbacks
+        cbs = solvers.get("cbs", []) or []
+        for cb in cbs:
+            cb_instance = self._load_cb(cb)
+            if cb_instance is None:
+                continue
+            self._solver.add_callback(cb_instance)
+
+        # initialize
+        self._solver.initialize(**params)
+
+    def _load_ic(self, ic_confs: dict):
+        """Load initial conditions from configuration."""
+        ic_id = ic_confs["id"]
+        ic_type = ic_confs["method"]
+        ic_params = ic_confs.get("params", {})
+        ic_from = ic_confs.get("from", None)
+        if ic_type == "hotstart":
+            if ic_from is None:
+                raise ValueError("Hotstart initial condition requires data source.")
+            init_field = self._datas.get(ic_from, None)
+            if init_field is None:
+                logger.warning(f"Data source {ic_from} not found, passed.")
+                return None
+            ic_params = {"field": init_field}
+
+        ic_instance = init_methods[ic_type](ic_id, **ic_params)
+        return ic_instance
+
+    def _load_bc(self, bc_confs: dict):
+        """Load boundary conditions from configuration."""
+        bc_id = bc_confs["id"]
+        bc_type = bc_confs["method"]
+        bc_patches = bc_confs["patches"]
+        bc_params = bc_confs.get("params", {})
+
+        bc_elements = []
+        for patch in bc_patches:
+            _, face_ids = self._mesh.get_group(patch)
+            faces = self._mesh.get_faces(face_ids)
+            bc_elements.extend(faces)
+
+        bc_instance = boundary_conditions[bc_type](bc_id, **bc_params)
+        return bc_instance, bc_elements
+
+    def _load_cb(self, cb_confs: dict):
+        """Load callbacks from configuration."""
+        cb_id = cb_confs["id"]
+        cb_type = cb_confs["method"]
+        cb_params = cb_confs.get("params", {})
+
+        cb_instance = callback_handlers[cb_type](cb_id, **cb_params)
+        return cb_instance
+
     def validate(self) -> list[str]:
         self.set_status(models.LinkableComponentStatus.VALIDATING, "validating")
         errs = []
@@ -188,9 +316,6 @@ class SurfaceWaterModel(models.BaseModel):
             errs.append("Time range error: start_time >= end_time")
         if self._dt <= 0:
             errs.append("time_step must bigger than 0")
-
-        if not os.path.exists(self._load_path):
-            errs.append(f"load_path {self._load_path} doesn't exist")
 
         self.set_status(models.LinkableComponentStatus.VALID, "validated")
         return errs
@@ -239,11 +364,17 @@ class SurfaceWaterModel(models.BaseModel):
         if "save_to" in self._model_configs["SPATIAL"]:
             save_to = self._model_configs["SPATIAL"]["save_to"]
             if save_to:
-                mesh_file = os.path.join(
-                    self._save_path, save_to, f"{self._id}_mesh.pkl"
-                )
+                mesh_file = os.path.join(save_to, f"{self._id}_mesh.pkl")
                 mesh_file = os.path.abspath(mesh_file)
                 with open(mesh_file, "wb") as f:
                     pickle.dump(self._mesh, f)
+
+        if "save_to" in self._model_configs["SOLVER"]:
+            save_to = self._model_configs["SOLVER"]["save_to"]
+            if save_to:
+                solver_file = os.path.join(save_to, f"{self._id}_solver.pkl")
+                solver_file = os.path.abspath(solver_file)
+                with open(solver_file, "wb") as f:
+                    pickle.dump(self._solver, f)
 
         self.set_status(models.LinkableComponentStatus.FINISHED, "finished")

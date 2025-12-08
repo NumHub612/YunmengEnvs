@@ -26,13 +26,14 @@ class BaseSolver(ISolver):
     Basic solver.
     """
 
-    def __init__(self, id: str, mesh: Mesh):
+    def __init__(self, id: str, mesh: Mesh, operators: dict[str, IOperator] = None):
         """
         Basic solver.
 
         Args:
             id: The unique id of the solver instance.
             mesh: The mesh of the problem.
+            operators: The operators used.
         """
         self._id = id
 
@@ -43,7 +44,7 @@ class BaseSolver(ISolver):
 
         self._callbacks = []
         self._fields = {}
-        self._operators = {}
+        self._operators = operators
 
         self._default_ics = None
         self._ics = {}
@@ -59,12 +60,12 @@ class BaseSolver(ISolver):
     def status(self) -> SolverStatus:
         return self._status
 
-    def get_solution(self, field_name: str) -> Field:
-        if field_name not in self._fields:
-            logger.error(f"Solver {self._id} solution {field_name} not available.")
+    def get_solution(self, var_name: str) -> Field:
+        if var_name not in self._fields:
+            logger.error(f"Solver {self._id} solution {var_name} not available.")
             return None
 
-        return self._fields[field_name]
+        return self._fields[var_name]
 
     def add_callback(self, callback: ISolverCallback):
         if not isinstance(callback, ISolverCallback):
@@ -79,7 +80,7 @@ class BaseSolver(ISolver):
 
         if var not in self.get_meta().fields:
             logger.warning(
-                f"Solver {self._id} variable {var} not in the available fields."
+                f"Solver {self._id} variable {var} isn't in the available fields."
             )
             return
 

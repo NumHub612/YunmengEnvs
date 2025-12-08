@@ -11,7 +11,7 @@ from core.solvers.interfaces import (
     BoundaryType,
 )
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Scalar
+from core.numerics.fields import Field, Scalar, DataHub
 from core.numerics.mesh import Grid
 
 
@@ -28,8 +28,8 @@ class CFL01(IOperator):
     def get_type(cls) -> OperatorType:
         return OperatorType.FUNC
 
-    def prepare(self, mesh: Grid):
+    def prepare(self, mesh: Grid, boundaries: dict):
         pass
 
-    def run(self, source: Field) -> Scalar:
+    def run(self, source: DataHub) -> Scalar:
         pass

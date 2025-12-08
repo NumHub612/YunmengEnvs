@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix.
 """
-from core.numerics.fields import Variable, VariableType, Scalar, DTYPE_MAP
+from core.numerics.fields import Variable, VariableType, Scalar, resolve_var_class
 from configs.settings import settings, logger
 import scipy.sparse as sp
 from scipy.sparse import dok_matrix
@@ -1515,7 +1515,7 @@ class SparseMatrix(Matrix):
 
     def __getitem__(self, index: tuple) -> float | Variable:
         item = [v[index] for v in self._values]
-        val = DTYPE_MAP[self.dtype].from_data(np.array(item))
+        val = resolve_var_class(self.dtype).from_data(np.array(item))
         return val
 
     def __setitem__(self, index: tuple, value: float | Variable):

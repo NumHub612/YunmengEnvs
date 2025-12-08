@@ -12,6 +12,14 @@ from core.solutions import ym_models
 
 import argparse
 import os
+import sys
+
+
+def _no_tb_hook(etype, val, _tb):
+    sys.stderr.write(f"{etype.__name__}: {val}\n")
+
+
+sys.excepthook = _no_tb_hook
 
 
 class YunmengEnvsApp:
@@ -78,7 +86,7 @@ class YunmengEnvsApp:
             raise e
 
     def epilogue(self):
-        print("\nYunmengEnvs exited. Thanks for supporting YunmengEnvs!")
+        print("\nYunmengEnvs completed. Thanks for supporting, enjoy your journey!")
 
 
 if __name__ == "__main__":

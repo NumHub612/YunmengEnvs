@@ -47,6 +47,7 @@ class PerformanceMonitor(ISolverCallback):
         self._step = 0
 
         # start the performance monitoring process.
+        os.makedirs(output_dir, exist_ok=True)
         profile = f"{id}_profile.svg"
         profile = os.path.join(output_dir, profile)
         self._perf_process = subprocess.Popen(

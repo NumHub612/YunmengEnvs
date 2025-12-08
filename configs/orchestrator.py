@@ -180,15 +180,6 @@ class Orchestrator:
         generals = model_config["GLOBAL"]
         if generals is None:
             generals = {}
-        if "load_path" not in generals or generals["load_path"] is None:
-            model_config["GLOBAL"]["load_path"] = model_root
-        elif generals["load_path"].startswith("."):
-            generals["load_path"] = os.path.join(model_root, generals["load_path"])
-
-        if "save_path" not in generals or generals["save_path"] is None:
-            model_config["GLOBAL"]["save_path"] = model_root
-        elif generals["save_path"].startswith("."):
-            generals["save_path"] = os.path.join(model_root, generals["save_path"])
 
         # Check each field.
         self._check_global_configs(model_config["GLOBAL"])
@@ -237,15 +228,15 @@ class Orchestrator:
 
         if "patches" in config:
             for patch in config["patches"]:
-                if not ({"id", "type"} <= patch.keys()):
-                    raise ValueError("Patch configs miss patch id or type.")
+                if not ({"id", "etype"} <= patch.keys()):
+                    raise ValueError("Patch configs miss patch id or etype.")
                 if not ({"expr", "spec", "from"} & patch.keys()):
                     raise ValueError(f"Patch {patch['id']} has no data source.")
 
         if "zones" in config:
             for zone in config["zones"]:
-                if not ({"id", "type"} <= zone.keys()):
-                    raise ValueError("Zone configs miss zone id or type.")
+                if not ({"id", "etype"} <= zone.keys()):
+                    raise ValueError("Zone configs miss zone id or etype.")
                 if not ({"expr", "contour", "from"} & zone.keys()):
                     raise ValueError(f"Zone {zone['id']} has no data source.")
 
@@ -294,8 +285,10 @@ class Orchestrator:
 
         if "fields" in config:
             for field in config["fields"]:
-                if not ({"id", "domain", "type"} <= field.keys()):
-                    raise ValueError(f"Field configs {field} miss id, type or domain.")
+                if not ({"id", "var", "etype", "dtype"} <= field.keys()):
+                    raise ValueError(
+                        f"Field configs {field} miss id, var, etype or dtype."
+                    )
                 if not ({"expr", "from"} & field.keys()):
                     raise ValueError(f"Field {field['id']} has no data source.")
 
@@ -317,22 +310,22 @@ class Orchestrator:
             raise ValueError(f"Solver {sid} configs miss ics.")
         if config["ics"] is not None:
             for ic in config["ics"]:
-                if not ({"var", "method", "params"} <= ic.keys()):
-                    raise ValueError(f"IC {ic} miss var, method or params.")
+                if not ({"var", "method"} <= ic.keys()):
+                    raise ValueError(f"IC {ic} miss var, method.")
 
         if "bcs" not in config:
             raise ValueError(f"Solver {sid} configs miss bcs.")
         if config["bcs"] is not None:
             for bc in config["bcs"]:
-                if not ({"id", "patches", "var", "method", "params"} <= bc.keys()):
+                if not ({"id", "patches", "var", "method"} <= bc.keys()):
                     raise ValueError(f"BC {bc} miss config.")
 
         if "cbs" not in config:
             raise ValueError(f"Solver {sid} configs miss cbs.")
         if config["cbs"] is not None:
             for cb in config["cbs"]:
-                if not ({"id", "method", "params"} <= cb.keys()):
-                    raise ValueError(f"CB {cb} miss id, method or params.")
+                if not ({"id", "method"} <= cb.keys()):
+                    raise ValueError(f"CB {cb} miss id, method.")
 
     def _check_operators_configs(self, config: dict):
         """

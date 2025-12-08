@@ -27,10 +27,14 @@ class DataHub:
                 continue
             self._bufs[k].push(v)
 
-    def fetch(self, name: str, level: int = 0) -> BufferedField:
+    def fetch(self, level: int = 0, name: str = None) -> BufferedField:
         """Fetch the field at the given level."""
+        if name is None:
+            name = list(self._bufs.keys())[0]
+
         if name not in self._bufs:
             raise ValueError(f"Field {name} not found.")
+
         return self._bufs[name][level]
 
 

@@ -43,12 +43,6 @@ def create_logger(name: str = "yunmeng", level=logging.INFO):
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.WARNING)
-    logger.addHandler(console_handler)
-
     logger.setLevel(level)
     return logger
 

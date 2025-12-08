@@ -11,11 +11,7 @@ BRIEF: 2D Burgers Equation on Grid mesh for usage example.
 # ===============================================================================
 # 全局配置
 # ===============================================================================
-GLOBAL:
-  # 加载路径，模型和网格数据加载的默认根路径，其他数据文件加载的第二路径
-  load_path: ./data
-  # 保存路径，模型和网格数据、以及输出结果保存的默认路径
-  save_path: &save_path ./outs
+GLOBAL: null
 
 # ===============================================================================
 # 时间域配置
@@ -36,7 +32,7 @@ SPATIAL:
   type: Grid2D
   # 加载和保存, 如果直接加载网格数据，则不需要配置后续项(配置了也无效)
   load_from: null
-  save_to: ./
+  save_to: ./benchmarks/burgers_grid2d/outs
   # 离散配置，配置项直接对应对象初始化以及接口参数，框架要求自动过滤无效参数
   params:
     lower_left: [0, 0]
@@ -49,26 +45,26 @@ SPATIAL:
   # `from` 是json数据文件路径，如果不为空，则会从文件中加载指定数据
   patches:
     - id: &south south
-      type: face
+      etype: face
       expr: "y == 0"
     - id: &north north
-      type: face
+      etype: face
       expr: "y == 2"
     - id: &west west
-      type: face
+      etype: face
       expr: "x == 0"
     - id: &east east
-      type: face
+      etype: face
       expr: "x == 2"
     - id: strings
-      type: face
+      etype: face
       spec: [0, 1, 3, 5]
   # 子域定义，保存网格数据时，子域数据会被一起保存
   # 当同时有多种值定义时，生效优先级：`from`>`countour`>`expr`，
   # 即越直接的定义优先级越高。
   zones:
     - id: &zone zone
-      type: cell
+      etype: cell
       expr: "x >= 0.5 and x <= 1.0 and y >= 0.5 and y <= 1.0"
       from: null
 
@@ -108,80 +104,22 @@ DATAS:
       from: null
   # 流场数据
   fields:
-    - &u_field
-      id: u_field
-      domain: cell
-      type: vector
-      from: "hotstart.csv"
-      expr: null
-
-# ===============================================================================
-# 求解器配置
-# ===============================================================================
-SOLVER:
-  # 物理模型
-  id: solver1
-  type: fvm::burgers2d
-  # 加载和保存
-  load_from: null
-  save_to: ./
-  # 模型参数
-  params:
-    nu: 0.01
-    rho: 1.0
-    cfl: 0.5
-  # 初始条件，只能使用框架提供的初始化方法
-  ics:
-    # 热启动方式，网格或河网已知
-    - var: u
-      method: hotstart
-      params:
-        <<: *u_field
-    # 自定义方式，网格或河网未知
-    - var: phi
-      method: custom
-      params:
-        # 全局定义
-        - global: global
-          value: 1.0
-          expr: null
+    - id: &phi0 phi_field
+      var: phi
+      etype: cell
+      dtype: scalar
+      from: "./benchmarks/burgers_grid2d/data/hotstart.csv"
+    - id: &u0 u_field
+      var: u
+      etype: cell
+      dtype: vector
+      expr:
+        # 全局定义（null表示全局，顺序生效）
+        - zone: null
+          value: [1.0, 1.0, 0.0]
         # 区域定义（可以定义多个区域）
-        - zone1: *zone
-          value: 2.0
-          expr: null
-  # 边界条件，只能使用框架提供的边界条件类型
-  bcs:
-    # Dirichlet边界条件
-    - id: u_bc1
-      patches: [*west, *east]
-      var: u
-      method: fixed
-      params:
-        value: 0.0
-    # Neumann边界条件
-    - id: u_bc2
-      patches: [*south, *north]
-      var: u
-      method: natural
-      params:
-        flux: 0.0
-  # 回调函数，只能使用框架提供的回调函数类型
-  cbs:
-    - id: profiler
-      method: Profiler
-      params:
-        interval: 100
-        output_dir: ./profiler
-    - id: animator
-      method: Animator
-      params:
-        output_dir: ./animation
-        fields:
-          - var: ux
-            style: cloudmap
-            dimesion: x
-            show_edges: true
-            show_scalars: true
+        - zone: *zone
+          value: [2.0, 2.0, 0.0]
 
 # ===============================================================================
 # 算子配置
@@ -192,16 +130,85 @@ OPERATORS:
     params: null
   # 瞬态算子
   - method: fvm::ddt01
-    params: null
+    params:
+      rho: 1.0
   # 对流算子
   - method: fvm::div01
-    params: null
+    params:
+      rho: 1.0
   # 扩散算子
   - method: fvm::lap01
-    params: null
+    params:
+      k: 1.0
   # 源项算子
   - method: fvm::src01
     params: null
+
+# ===============================================================================
+# 求解器配置
+# ===============================================================================
+SOLVER:
+  # 物理模型
+  id: solver1
+  type: fvm::Burgers2D
+  # 加载和保存
+  load_from: null
+  save_to: null
+  # 模型参数
+  params:
+    max_iter: 100
+  # 初始条件，只能使用框架提供的初始化方法
+  ics:
+    # 热启动方式
+    - id: phi_ic1
+      var: phi
+      method: uniform
+      params:
+        value: 0.0
+        dtype: scalar
+    - id: phi_ic2
+      var: phi
+      method: hotstart
+      from: *phi0
+    - id: u_ic1
+      var: u
+      method: hotstart
+      from: *u0
+  # 边界条件，只能使用框架提供的边界条件类型
+  bcs:
+    # Dirichlet边界条件
+    - id: u_bc1
+      patches: [*west, *east]
+      var: u
+      method: dirichlet
+      params:
+        value: [1.0, 1.0, 0.0]
+        dtype: vector
+    # Neumann边界条件
+    - id: u_bc2
+      patches: [*south, *north]
+      var: u
+      method: neumann
+      params:
+        flux: [1.0, 1.0, 0.0]
+        dtype: vector
+  # 回调函数，只能使用框架提供的回调函数类型
+  cbs:
+    - id: profiler
+      method: PerformanceMonitor
+      params:
+        interval: 100
+        output_dir: ./benchmarks/burgers_grid2d/outs/profiler
+    - id: animator
+      method: render
+      params:
+        output_dir: ./benchmarks/burgers_grid2d/outs/animation
+        fields:
+          u:
+            style: cloudmap
+            dimension: x
+            show_edges: true
+            show_scalars: false
 
 # ===============================================================================
 # 自定义配置
