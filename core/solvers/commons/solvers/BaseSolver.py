@@ -124,5 +124,5 @@ class BaseSolver(ISolver):
     def optimize(self):
         raise NotImplementedError()
 
-    def inference(self):
+    def inference(self) -> SolverStatus:
         raise NotImplementedError()

@@ -53,5 +53,8 @@ class RingBuffer:
         self._i = (self._i + 1) % self._size
 
     def __getitem__(self, level: int):
-        i = (self._i - 1 - level) % self._size
+        if level == -1:
+            i = self._size - 1
+        else:
+            i = (self._i - 1 - level) % self._size
         return self._data[i]

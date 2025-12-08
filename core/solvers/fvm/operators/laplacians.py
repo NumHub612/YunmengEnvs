@@ -41,7 +41,7 @@ class Lap01(IOperator):
         self._geom = None
 
         self._bcs = None
-        self._k = None
+        self._k = k
 
     def prepare(self, mesh: Grid, boundaries: dict):
         if not isinstance(mesh, Grid):

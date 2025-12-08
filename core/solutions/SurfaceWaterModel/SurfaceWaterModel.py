@@ -22,6 +22,7 @@ from core.solutions.SurfaceWaterModel.IOItems import (
     SurfaceWaterModelInput,
     SurfaceWaterModelOutput,
 )
+from core.solvers.interfaces import ISolver, IOperator
 from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fvm_solvers, fvm_operators
 from core.solvers.commons import boundary_conditions, init_methods, callback_handlers
@@ -45,8 +46,8 @@ class SurfaceWaterModel(models.BaseModel):
         self._io_configs = io_configs
 
         self._mesh: Grid2D = None
-        self._solver = None
-        self._operators = {}
+        self._solver: ISolver = None
+        self._operators: dict[str, IOperator] = {}
 
         self._start: dt.datetime = None
         self._end: dt.datetime = None
@@ -322,35 +323,15 @@ class SurfaceWaterModel(models.BaseModel):
 
     def prepare(self):
         self.set_status(models.LinkableComponentStatus.PREPARING, "preparing")
-        # 把初始条件从第一个输入拉进来（若存在）
-        # if self._inputs:
-        #     ic_field = self._inputs[0].values  # 外部已挂初始场
-        #     # TODO: 把 ValueSet → CellField 赋给 solver
-        # else:
-        #     # 默认热启动
-        #     hot = inits.HotstartInitialization("ic", Vector(1, 1))
-        #     self._solver.add_ic("u", hot)
 
-        # # 预分配输出
-        # for out in self._outputs:
-        #     out.add_data(self._current_time.timestamp(), self._solver._fields["u"])
         self.set_status(models.LinkableComponentStatus.UPDATED, "prepared")
 
     def update(self, required_outputs: list[links.IOutput] = None):
         self.set_status(models.LinkableComponentStatus.WAITING, "waiting")
-        # # 拉取上游最新初始场（若有）
-        # if self._inputs:
-        #     ic_flat = self._inputs[0].values[0, :]  # (nCells*2,)
-        #     self._solver._fields["u"].data = ic_flat.reshape(-1, 2)
 
-        # self.set_status(models.LinkableComponentStatus.UPDATING, "updating")
-        # # 推进一个物理步
-        # status = self._solver.inference(self._dt)
+        self.set_status(models.LinkableComponentStatus.UPDATING, "updating")
+        status = self._solver.inference(self._dt)
         self._current += dt.timedelta(seconds=self._dt)
-
-        # # 写输出
-        # for out in self._outputs:
-        #     out.add_data(self._current_time.timestamp(), self._solver._fields["u"])
 
         if self._current >= self._end:
             self.set_status(models.LinkableComponentStatus.DONE, "updated")
