@@ -1,0 +1,96 @@
+# ===============================================================================
+# 模型集配置。
+# ===============================================================================
+MODELS:
+  - id: "surfacewater"
+    description: "surface water model"
+    from: "./task.yml"
+  - id: "runoff"
+    description: "runoff model"
+    from: "./null.yml"
+    inputs:
+      - id: "Rainfall"
+        description: "Rainfall data"
+        quantity:
+          description: "Rainfall rate"
+          unit: "mm/h"
+          dimension: { Length: 1, Time: -1 }
+        position:
+          description: "Thiessen polygons"
+          geom: "XYPolygon"
+          elements:
+            - coordinates:
+                [
+                  [480000, 6235000],
+                  [481000, 6235000],
+                  [481000, 6234000],
+                  [480000, 6234000],
+                ]
+    outputs:
+      - id: "Outflow"
+        description: "River outflow"
+        quantity:
+          id: "FlowRate"
+          description: "River flow"
+          unit: "m3/s"
+          dimension: { Length: 3, Time: -1 }
+        position:
+          id: "OutletPoint"
+          description: "Catchment outlet"
+          geom: "XYPoint"
+          elements:
+            - indecies: [12]
+  - id: "river"
+    description: "1D River model"
+    from: "./none.yml"
+    inputs:
+      - id: "LateralInflow"
+        description: "Lateral inflow from RR"
+        quantity:
+          id: "FlowRate"
+          description: "River flow"
+          unit: "m3/s"
+          dimension: { Length: 3, Time: -1 }
+        position:
+          id: "OutletPoint"
+          description: "Catchment outlet"
+          geom: "XYPoint"
+          elements:
+            - indecies: [12]
+
+# ===============================================================================
+# 耦合配置。
+# ===============================================================================
+LINKS:
+  # RR → River（水下流）
+  - id: "RR_to_River"
+    description: "Lateral inflow from RR to River"
+    if_use: False
+    mode: "PULL"
+    source:
+      model: "runoff"
+      item: "Outflow"
+    target:
+      model: "river"
+      item: "LateralInflow"
+    # 可选：时空映射/单位转换
+    data_operations:
+      - type: "TemporalInterpolation"
+        params:
+          mode: "Linear"
+      - type: "SpatialMapping"
+        params:
+          mode: "Nearest"
+
+# ===============================================================================
+# 调度配置。
+# ===============================================================================
+SCHEDULES:
+  # 时间选项
+  time_horizon:
+    start: "2025-11-08 10:00:00"
+    end: "2025-11-08 12:00:00"
+    step: 300
+
+  # 运行选项
+  run_options: null

@@ -61,7 +61,7 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def run(self, source: DataHub) -> Variable | Field | LinearEqs:
+    def run(self, source: DataHub) -> Field | LinearEqs:
         """
         Run the operator on mesh.
         """

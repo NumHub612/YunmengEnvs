@@ -2,7 +2,7 @@ import unittest
 import os
 import sys
 
-from core.solutions.HydroModels import (
+from core.solutions.HydrologicalModels import (
     RiverModel,
     RiverInput,
     RiverOutput,
