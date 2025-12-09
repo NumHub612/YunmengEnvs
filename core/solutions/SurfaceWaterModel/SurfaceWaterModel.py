@@ -29,6 +29,7 @@ from core.solvers.commons import boundary_conditions, init_methods, callback_han
 from core.utils.LoadData import load_data
 from configs.settings import logger
 
+from dateutil.parser import parse
 import datetime as dt
 import numpy as np
 import pickle
@@ -65,8 +66,8 @@ class SurfaceWaterModel(models.BaseModel):
 
         # time-axis
         times = self._model_configs["TEMPORAL"]
-        self._start = dt.datetime.strptime(times["start_time"], "%Y-%m-%d %H:%M:%S")
-        self._end = dt.datetime.strptime(times["end_time"], "%Y-%m-%d %H:%M:%S")
+        self._start = parse(times["start_time"])
+        self._end = parse(times["end_time"])
         self._dt = times["time_step"]
         self._current = self._start
 

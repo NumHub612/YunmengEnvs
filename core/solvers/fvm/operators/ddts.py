@@ -99,9 +99,9 @@ class Ddt02(IOperator):
         self._geom = self._mesh.get_geom_assistant()
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        pre_source = source.fetch(0)
+        pre_source = source.fetch(1)
         pre_data = pre_source.data
-        cur_source = source.fetch(1)
+        cur_source = source.fetch(0)
         cur_data = cur_source.data
 
         ddt_eqs = LinearEqs.zeros(

@@ -8,7 +8,7 @@ from core.numerics.fields import Field
 from typing import NamedTuple
 
 
-class BufferedField(NamedTuple):
+class Sample(NamedTuple):
     timestamp: float
     timestep: float
     data: Field
@@ -27,8 +27,11 @@ class DataHub:
                 continue
             self._bufs[k].push(v)
 
-    def fetch(self, level: int = 0, name: str = None) -> BufferedField:
-        """Fetch the field at the given level."""
+    def fetch(self, level: int = 0, name: str = None) -> Sample:
+        """Fetch the field at the given level.
+
+        NOTE: level=0 表示最新, level=1 表示前一个，以此类推.
+        """
         if name is None:
             name = list(self._bufs.keys())[0]
 
@@ -46,15 +49,15 @@ class RingBuffer:
         self._size = size
         self._i = 0
 
-    def push(self, obj: BufferedField):
-        if not isinstance(obj, BufferedField):
+    def push(self, obj: Sample):
+        if not isinstance(obj, Sample):
             raise TypeError(f"Invalid type {type(obj)}.")
         self._data[self._i] = obj
         self._i = (self._i + 1) % self._size
 
     def __getitem__(self, level: int):
-        if level == -1:
-            i = self._size - 1
-        else:
-            i = (self._i - 1 - level) % self._size
+        if level >= self._size or level < 0:
+            raise IndexError(f"Index {level} out of range.")
+
+        i = (self._i - 1 - level) % self._size
         return self._data[i]
