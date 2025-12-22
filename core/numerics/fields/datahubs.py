@@ -9,13 +9,18 @@ from typing import NamedTuple
 
 
 class Sample(NamedTuple):
+    """A sample of the field at a certain time step."""
+
     timestamp: float
     timestep: float
     data: Field
 
 
 class DataHub:
-    """Datahub for managing the fields and its history."""
+    """Datahub for managing the fields and its history.
+
+    NOTE: Not modify the sample data in place.
+    """
 
     def __init__(self, fields: list[str], levels: int):
         self._bufs = {f: RingBuffer(levels) for f in fields}
@@ -50,7 +55,9 @@ class DataHub:
     def fetch(self, level: int = 0, name: str = None) -> Sample:
         """Fetch the field at the given level.
 
-        NOTE: level=0 表示最新, level=1 表示前一个，以此类推.
+        NOTE: level=0 present the latest data,
+        level=1 present the previous data,
+        and so on.
         """
         if name is None:
             name = list(self._bufs.keys())[0]

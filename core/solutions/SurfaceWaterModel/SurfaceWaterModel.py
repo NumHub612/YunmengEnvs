@@ -8,9 +8,7 @@ from core.solutions.commons import models, datasets, links, metas
 from core.numerics.mesh import Grid2D, ElementType, Coordinate, MeshFilter, MeshChecker
 from core.numerics.fields import (
     VariableType,
-    Vector,
     Field,
-    DataHub,
     Timeseries,
     Curve,
     Pattern,
@@ -18,20 +16,15 @@ from core.numerics.fields import (
     make_field_from_data,
     make_var_from_value,
 )
-from core.solutions.SurfaceWaterModel.IOItems import (
-    SurfaceWaterModelInput,
-    SurfaceWaterModelOutput,
-)
 from core.solvers.interfaces import ISolver, IOperator
-from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fvm_solvers, fvm_operators
 from core.solvers.commons import boundary_conditions, init_methods, callback_handlers
 from core.utils.LoadData import load_data
 from configs.settings import logger
 
 from dateutil.parser import parse
+from typing import Any
 import datetime as dt
-import numpy as np
 import pickle
 import os
 import json
@@ -360,3 +353,21 @@ class SurfaceWaterModel(models.BaseModel):
                     pickle.dump(self._solver, f)
 
         self.set_status(models.LinkableComponentStatus.FINISHED, "finished")
+
+
+class SurfaceWaterModelInput(links.BaseInput):
+    def set_time(self, timestamp: float):
+        time = metas.ITime(timestamp)
+        self._timeset = datasets.TimeSet(None, [time])
+        self._valueset = None
+        self._satisfied = False
+        self.notify_changed("surface water model input time reseted")
+
+
+class SurfaceWaterModelOutput(links.BaseOutput):
+    def add_data(self, timestamp: float, value: Any):
+        time = metas.ITime(timestamp)
+        self._timeset.add_time(time)
+        tcount = self._timeset.size
+        self._valueset.set_or_add_values((tcount,), value)
+        self.notify_changed("surface water model output added data")

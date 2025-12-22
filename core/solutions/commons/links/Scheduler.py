@@ -10,8 +10,7 @@ from core.solutions.standards import (
     IInput,
     LinkableComponentStatus,
 )
-from core.solutions.commons.links import LoopController, AdapterFactory
-from configs.orchestrator import Orchestrator
+from core.solutions.commons.links import Orchestrator, LoopController, AdapterFactory
 
 from typing import Union, Tuple, Callable
 from enum import Enum

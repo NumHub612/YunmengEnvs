@@ -4,11 +4,9 @@ Copyright (C) 2024, The YunMengEnvs Project Contributors. Welcome aboard Yunmeng
 
 YunmengEnvs entrence.
 """
-from configs.orchestrator import Orchestrator
-from configs.settings import LOGO, logger
-
-from core.solutions.commons import Scheduler
+from core.solutions.commons import links
 from core.solutions import ym_models
+from configs.settings import LOGO, logger
 
 import argparse
 import os
@@ -56,10 +54,10 @@ class YunmengEnvsApp:
         print("https://github.com/NumHub612/YunmengEnvs\n")
 
         try:
-            self._configer = Orchestrator(self._parser)
+            self._configer = links.Orchestrator(self._parser)
             self._configer.activate()
 
-            self._scheduler = Scheduler(ym_models)
+            self._scheduler = links.Scheduler(ym_models)
             self._scheduler.setup(self._configer)
             self._scheduler.initialize()
 

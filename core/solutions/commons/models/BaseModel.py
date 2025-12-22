@@ -9,14 +9,12 @@ from core.solutions.standards import (
     IArgument,
     IInput,
     IOutput,
-    IUnit,
     IIdentifiable,
     IManageState,
     LinkableComponentStatus,
     LinkableComponentStatusChangeEventArgs,
 )
 from core.solutions.commons import events
-from configs.settings import logger
 from typing import Any
 
 
