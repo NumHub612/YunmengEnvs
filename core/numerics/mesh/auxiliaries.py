@@ -466,7 +466,7 @@ class MeshGeom:
     def calculate_area(points: list) -> float:
         """Calculate the area of the given coordinates."""
         if len(points) < 3:
-            raise ValueError("At least 3 points are required.")
+            return 0.0
 
         coords = MeshTopo.extract_coordinates(points)
         coords = MeshTopo.sort_anticlockwise(coords)

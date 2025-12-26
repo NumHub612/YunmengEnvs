@@ -46,16 +46,16 @@ SPATIAL:
   patches:
     - id: &south south
       etype: face
-      expr: "y == 0"
+      expr: "lambda x, y, z: y == 0"
     - id: &north north
       etype: face
-      expr: "y == 2"
+      expr: "lambda x, y, z: y == 2"
     - id: &west west
       etype: face
-      expr: "x == 0"
+      expr: "lambda x, y, z: x == 0"
     - id: &east east
       etype: face
-      expr: "x == 2"
+      expr: "lambda x, y, z: x == 2"
     - id: strings
       etype: face
       spec: [0, 1, 3, 5]
