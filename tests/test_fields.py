@@ -5,7 +5,7 @@ import time
 import numpy as np
 import random
 from configs.settings import settings
-from core.numerics.fields import Field, ElementType, VariableType, DTYPE_MAP
+from core.numerics.fields import Field, ElementType, VariableType, resolve_var_class
 
 
 class TestFields(unittest.TestCase):
@@ -210,7 +210,7 @@ class TestFields(unittest.TestCase):
                 gpus=default_gpu,
             )
             index = 50
-            var = DTYPE_MAP[dtype].from_data(data[index])
+            var = resolve_var_class(dtype).from_data(data[index])
             self.assertTrue(np.allclose(field2[index].data, var.data))
 
     def performance_test(self):

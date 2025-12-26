@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix.
 """
-from core.numerics.fields import Variable, VariableType, Scalar, DTYPE_MAP
+from core.numerics.fields import Variable, VariableType, Scalar, resolve_var_class
 from configs.settings import settings, logger
 import scipy.sparse as sp
 from scipy.sparse import dok_matrix
@@ -27,19 +27,19 @@ class Matrix:
     Abstract matrix class.
     """
 
-    @abstractmethod
-    def save(self, file_path: str):
-        """Save the matrix to a file."""
-        raise NotImplementedError()
-
     @classmethod
     @abstractmethod
     def load(cls, file_path: str) -> "Matrix":
         """Load a matrix from a file."""
         raise NotImplementedError()
 
+    @abstractmethod
+    def save(self, file_path: str):
+        """Save the matrix to a file."""
+        raise NotImplementedError()
+
     # -----------------------------------------------
-    # --- class methods ---
+    # region class methods
     # -----------------------------------------------
 
     @classmethod
@@ -77,7 +77,7 @@ class Matrix:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
@@ -129,7 +129,7 @@ class Matrix:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- matrix methods ---
+    # region matrix methods
     # -----------------------------------------------
 
     @abstractmethod
@@ -148,7 +148,7 @@ class Matrix:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- overload methods ---
+    # region operator methods
     # -----------------------------------------------
 
     @abstractmethod
@@ -214,6 +214,11 @@ class Matrix:
     @abstractmethod
     def __abs__(self):
         raise NotImplementedError()
+
+
+# -----------------------------------------------
+# region --- TorchMatrix ---
+# -----------------------------------------------
 
 
 class TorchMatrix(Matrix):
@@ -624,6 +629,11 @@ class TorchMatrix(Matrix):
         )
 
 
+# -----------------------------------------------
+# region --- CupyMatrix ---
+# -----------------------------------------------
+
+
 class CupyMatrix(Matrix):
     """
     Cupy matrix class supported Scalar type matrix only.
@@ -915,6 +925,11 @@ class CupyMatrix(Matrix):
 
     def __abs__(self):
         return CupyMatrix.from_matrix(cp.abs(self._data))
+
+
+# -----------------------------------------------
+# region --- SciMatrix ---
+# -----------------------------------------------
 
 
 class SciMatrix(Matrix):
@@ -1226,6 +1241,11 @@ class SciMatrix(Matrix):
         return [self]
 
 
+# -----------------------------------------------
+# region --- SparseMatrix ---
+# -----------------------------------------------
+
+
 class SparseMatrix(Matrix):
     """
     Sparse matrix class implemented
@@ -1495,7 +1515,7 @@ class SparseMatrix(Matrix):
 
     def __getitem__(self, index: tuple) -> float | Variable:
         item = [v[index] for v in self._values]
-        val = DTYPE_MAP[self.dtype].from_data(np.array(item))
+        val = resolve_var_class(self.dtype).from_data(np.array(item))
         return val
 
     def __setitem__(self, index: tuple, value: float | Variable):

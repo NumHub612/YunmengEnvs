@@ -1,15 +1,27 @@
+from core.solvers.fdm.operators import fdm_operators
 from core.solvers.interfaces.ISolver import ISolver
-from core.solvers.fdm.Burgers1D import *
-from core.solvers.fdm.Burgers2D import *
-from core.solvers.fdm.Burgers3D import *
+from core.solvers.commons import BaseSolver
 
+import importlib
+import pkgutil
+import inspect
+from pathlib import Path
 
 # register all the fdm solvers here.
 fdm_solvers = {}
-for name, obj in list(locals().items()):
-    if isinstance(obj, type) and issubclass(obj, ISolver):
-        if name == "ISolver":
-            continue
-        if name in fdm_solvers:
-            raise ValueError(f"Duplicated solver: {name}.")
-        fdm_solvers[obj.get_name()] = obj
+for _, module_name, _ in pkgutil.iter_modules([str(Path(__file__).parent)]):
+    if module_name.startswith("_"):
+        continue
+
+    module = importlib.import_module(f".{module_name}", __package__)
+    for name, obj in inspect.getmembers(module, inspect.isclass):
+        if issubclass(obj, ISolver) and obj is not ISolver and obj is not BaseSolver:
+            globals()[name] = obj
+            fdm_solvers[obj.get_name()] = obj
+
+# import all the fdm solvers here.
+__all__ = [
+    name
+    for name, obj in globals().items()
+    if inspect.isclass(obj) and issubclass(obj, ISolver) and obj is not ISolver
+]

@@ -6,9 +6,15 @@ from core.solvers.commons.boundaries import boundary_conditions
 from core.solvers.commons.inits import init_methods
 from core.solvers.commons.callbacks import callback_handlers
 
-from core.solvers.fdm import fdm_solvers
+from core.solvers.fdm import fdm_solvers, fdm_operators
+from core.solvers.fvm import fvm_solvers, fvm_operators
 
-# register all the solvers here.
-solver_routines = {
+ym_solvers = {
     "fdm": fdm_solvers,
+    "fvm": fvm_solvers,
+}
+
+ym_operators = {
+    "fdm": fdm_operators,
+    "fvm": fvm_operators,
 }

@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh.elements import Coordinate, Node, Face, Cell
+from core.numerics.mesh.elements import Coordinate, Element, Node, Face, Cell
 from core.numerics.mesh.auxiliaries import MeshTopo, MeshGeom
 from core.numerics.types import MeshDim, ElementType
 
@@ -17,27 +17,40 @@ from shapely.geometry import Polygon
 
 
 class Mesh(ABC):
-    """Abstract mesh class for describing the topology."""
+    """Abstract mesh class for describing the topology.
+
+    - The element IDs in the mesh are required to be consecutively numbered,
+    except for AMR types.
+    - MESH currently only has three levels of objects: node, face, and cell.
+    """
 
     def __init__(self):
         self._version = 1
+        self._dim = MeshDim.NONE
+        self._orthogonal = False
 
-        self._topo = None
-        self._geom = None
+        self._nodes = []
+        self._faces = []
+        self._cells = []
+        self._groups = {}
 
-    @abstractmethod
+        self._topo = MeshTopo(self)
+        self._geom = MeshGeom(self)
+
     def save(self, file_path: str):
-        """Save the mesh to the given file path."""
-        pass
+        """Save the mesh instance."""
+        with open(file_path, "wb") as f:
+            pickle.dump(self, f)
 
     @staticmethod
-    @abstractmethod
     def load(file_path: str) -> "Mesh":
-        """Load the mesh from local."""
-        pass
+        """Load the mesh instance."""
+        with open(file_path, "rb") as f:
+            mesh = pickle.load(f)
+        return mesh
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
@@ -46,80 +59,63 @@ class Mesh(ABC):
         return self._version
 
     @property
-    @abstractmethod
     def dimension(self) -> MeshDim:
-        """Return the mesh dimension."""
-        pass
+        """Return mesh dimension."""
+        return self._dim
 
     @property
-    @abstractmethod
     def orthogonal(self) -> bool:
-        """Return if the mesh is orthogonal."""
-        pass
+        """Return mesh orthogonality."""
+        return self._orthogonal
 
     @property
-    @abstractmethod
     def node_count(self) -> int:
-        """Return the number of nodes."""
-        pass
+        """Return number of nodes."""
+        return len(self._nodes)
 
     @property
-    @abstractmethod
     def nodes(self) -> list[Node]:
         """Return all nodes."""
-        pass
-
-    @nodes.setter
-    @abstractmethod
-    def nodes(self, nodes: list[Node]):
-        """Reset the nodes."""
-        pass
+        return self._nodes
 
     @property
-    @abstractmethod
     def face_count(self) -> int:
-        """Return the number of faces."""
-        pass
+        """Return number of faces."""
+        return len(self._faces)
 
     @property
-    @abstractmethod
     def faces(self) -> list[Face]:
         """Return all faces."""
-        pass
+        return self._faces
 
     @property
-    @abstractmethod
     def cell_count(self) -> int:
-        """Return the number of cells."""
-        pass
+        """Return number of cells."""
+        return len(self._cells)
 
     @property
-    @abstractmethod
     def cells(self) -> list[Cell]:
         """Return all cells."""
-        pass
+        return self._cells
 
     # -----------------------------------------------
-    # --- mesh query methods ---
+    # region mesh query methods
     # -----------------------------------------------
 
-    @abstractmethod
     def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
         """Get the nodes with the given ids."""
-        pass
+        return [self._nodes[i] for i in nodes_ids]
 
-    @abstractmethod
     def get_faces(self, faces_ids: list[int]) -> list[Face]:
         """Get the faces with the given ids."""
-        pass
+        return [self._faces[i] for i in faces_ids]
 
-    @abstractmethod
     def get_cells(self, cells_ids: list[int]) -> list[Cell]:
         """Get the cells with the given ids."""
-        pass
+        return [self._cells[i] for i in cells_ids]
 
     # -----------------------------------------------
-    # --- mesh modification methods ---
+    # region modification methods
     # -----------------------------------------------
 
     @abstractmethod
@@ -136,26 +132,46 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # --- additional methods ---
+    # region additional methods
     # -----------------------------------------------
 
-    @abstractmethod
-    def set_group(self, etype: ElementType, group_name: str, ids: list):
-        """Set the group with the given name and ids ."""
-        pass
+    def set_group(self, etype: ElementType, group_id: str, ids: list):
+        """Set the group with the given element ids ."""
+        if not isinstance(etype, ElementType):
+            raise ValueError("Invalid element type.")
+        if group_id in self._groups:
+            raise ValueError("Group already exists.")
 
-    @abstractmethod
-    def delete_group(self, group_name: str):
+        min_id, max_id = min(ids), max(ids)
+        if etype == ElementType.NODE:
+            elem_count = self.node_count
+        elif etype == ElementType.FACE:
+            elem_count = self.face_count
+        elif etype == ElementType.CELL:
+            elem_count = self.cell_count
+        else:
+            raise ValueError("Element type: None.")
+        if min_id < 0 or max_id >= elem_count:
+            raise ValueError("Invalid group ids.")
+        self._groups[group_id] = (etype, ids)
+
+    def delete_group(self, group_id: str):
         """Delete the given name group."""
-        pass
+        if group_id in self._groups:
+            self._groups.pop(group_id)
 
-    @abstractmethod
-    def get_group(self, group_name: str) -> tuple[list, ElementType]:
+    def get_group(self, group_id: str) -> tuple[ElementType, list]:
         """Return the element ids of given group."""
-        pass
+        if group_id not in self._groups:
+            return None
+        return self._groups[group_id]
+
+    def get_all_groups(self) -> dict[str, tuple]:
+        """Return all groups."""
+        return self._groups
 
     # -----------------------------------------------
-    # --- extension methods ---
+    # region extension methods
     # -----------------------------------------------
 
     def get_topo_assistant(self) -> "MeshTopo":
@@ -169,6 +185,11 @@ class Mesh(ABC):
         if self._geom is None:
             self._geom = MeshGeom(self)
         return self._geom
+
+
+# -----------------------------------------------
+# region --- GenericMesh ---
+# -----------------------------------------------
 
 
 class GenericMesh(Mesh):
@@ -207,17 +228,11 @@ class GenericMesh(Mesh):
             >>> mesh = GenericMesh(nodes, faces, cells)
         """
         super().__init__()
-        self._dim = MeshDim.NONE
-        self._orthogonal = None
+        self._orthogonal = False
 
         self._nodes = self._generate_nodes(nodes)
         self._faces = self._generate_faces(faces)
         self._cells = self._generate_cells(cells)
-
-        self._topo = MeshTopo(self)
-        self._geom = MeshGeom(self)
-
-        self._groups = {}
 
     def _generate_nodes(self, nodes: list):
         """Generate the nodes of the mesh."""
@@ -284,95 +299,13 @@ class GenericMesh(Mesh):
         normal = np.cross(coords[1] - coords[0], coords[2] - coords[0])
         return normal
 
-    # -----------------------------------------------
-    # --- properties ---
-    # -----------------------------------------------
-
-    @property
-    def dimension(self) -> MeshDim:
-        return self._dimension
-
-    @property
-    def orthogonal(self) -> bool:
-        return False
-
-    @property
-    def node_count(self) -> int:
-        return len(self._nodes)
-
-    @property
-    def nodes(self) -> list[Node]:
-        return self._nodes
-
-    @nodes.setter
-    def nodes(self, nodes: list[Node]):
-        for node in nodes:
-            self._nodes[node.id] = node
-        self._geom.reset()
-        self._version += 1
-
-    @property
-    def face_count(self) -> int:
-        return len(self._faces)
-
-    @property
-    def faces(self) -> list[Face]:
-        return self._faces
-
-    @property
-    def cell_count(self) -> int:
-        return len(self._cells)
-
-    @property
-    def cells(self) -> list[Cell]:
-        return self._cells
-
-    # -----------------------------------------------
-    # --- methods ---
-    # -----------------------------------------------
-
     def update(self, mask_indices: list[int]):
         raise NotImplementedError("Generic mesh cannot be updated.")
 
-    def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
-        return [self._nodes[i] for i in nodes_ids]
 
-    def get_faces(self, faces_ids: list[int]) -> list[Face]:
-        return [self._faces[i] for i in faces_ids]
-
-    def get_cells(self, cells_ids: list[int]) -> list[Cell]:
-        return [self._cells[i] for i in cells_ids]
-
-    def set_group(self, etype, group_name, indices):
-        if not isinstance(etype, ElementType):
-            raise ValueError("Invalid element type.")
-        if group_name in self._groups:
-            raise ValueError("Group already exists.")
-        self._groups[group_name] = (indices, etype)
-
-    def get_group(self, group_name):
-        if group_name not in self._groups:
-            return None
-        return self._groups[group_name]
-
-    def delete_group(self, group_name):
-        if group_name in self._groups:
-            self._groups.pop(group_name)
-        else:
-            return None
-
-    def save(self, file_path: str):
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        mesh_file = os.path.join(file_path, "mesh.pkl")
-        with open(mesh_file, "wb") as f:
-            pickle.dump(self, f)
-
-    @staticmethod
-    def load(file_path: str) -> Mesh:
-        mesh_file = os.path.join(file_path, "mesh.pkl")
-        with open(mesh_file, "rb") as f:
-            mesh = pickle.load(f)
-        return mesh
+# -----------------------------------------------
+# region --- GridMesh ---
+# -----------------------------------------------
 
 
 class GridMesh(Mesh):

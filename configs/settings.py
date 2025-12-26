@@ -8,9 +8,23 @@ import logging.handlers
 import json
 import torch
 
+LOGO = """
+ __   __                                                   
+ \ \ / /  _   _   _ __    _ __ ___     ___   _ __     __ _ 
+  \ V /  | | | | | '_ \  | '_ ` _ \   / _ \ | '_ \   / _` |
+   | |   | |_| | | | | | | | | | | | |  __/ | | | | | (_| |   
+   |_|    \__,_| |_| |_| |_| |_| |_|  \___| |_| |_|  \__, |
+                                                     |___/ 
+  _____          ><(((('>                                  
+ | ____|  _ __   __   __  ___        ><(((('>                      
+ |  _|   | '_ \  \ \ / / / __|                          ><(((('>         
+ | |___  | | | |  \ V /  \__ \                           
+ |_____| |_| |_|   \_/   |___/       -- v%s                                                                                                      
+"""
+
 
 # set up logging system
-def create_logger(name: str = "yunmengenvs", level=logging.INFO):
+def create_logger(name: str = "yunmeng", level=logging.INFO):
     """Create a logger with the given name."""
     if name in logging.root.manager.loggerDict:
         logger = logging.getLogger(name)
@@ -19,7 +33,7 @@ def create_logger(name: str = "yunmengenvs", level=logging.INFO):
 
     logger = logging.getLogger(name)
     formatter = logging.Formatter(
-        "[%(asctime)s][%(name)s][%(levelname)s][%(process)d][%(thread)d]: %(message)s"
+        "[%(asctime)s][%(process)d][%(thread)d][%(name)s][%(levelname)s]:%(message)s"
     )
 
     log_file = os.path.abspath(os.path.join("./", "yunmeng.log"))
@@ -29,12 +43,6 @@ def create_logger(name: str = "yunmengenvs", level=logging.INFO):
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.WARNING)
-    logger.addHandler(console_handler)
-
     logger.setLevel(level)
     return logger
 

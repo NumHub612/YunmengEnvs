@@ -61,7 +61,7 @@ class LinearEqs:
         self._size = self._rhs.size
 
     # -----------------------------------------------
-    # --- static methods ---
+    # region static methods
     # -----------------------------------------------
 
     @staticmethod
@@ -79,7 +79,7 @@ class LinearEqs:
         return LinearEqs(mat, rhs, variable, device)
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
@@ -125,7 +125,7 @@ class LinearEqs:
         self._rhs = value
 
     # -----------------------------------------------
-    # --- overload methods ---
+    # region operations methods
     # -----------------------------------------------
 
     def __add__(self, other: "LinearEqs"):
@@ -195,7 +195,7 @@ class LinearEqs:
             )
 
     # -----------------------------------------------
-    # --- linear equations methods ---
+    # region solve methods
     # -----------------------------------------------
 
     def scalarize(self) -> list["LinearEqs"]:

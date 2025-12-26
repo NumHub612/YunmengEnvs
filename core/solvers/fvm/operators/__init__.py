@@ -5,13 +5,15 @@ from core.solvers.fvm.operators.grads import *
 from core.solvers.fvm.operators.d2dt2s import *
 from core.solvers.fvm.operators.ddts import *
 from core.solvers.fvm.operators.srcs import *
+from core.solvers.fvm.operators.funcs import *
 
 
 # register all the fvm operators
 fvm_operators = {}
-for name, obj in list(locals().items()):
+for _, obj in list(locals().items()):
     if isinstance(obj, type) and issubclass(obj, IOperator):
-        if name == "IOperator":
+        name = obj.get_name()
+        if name == None:
             continue
         if name in fvm_operators:
             raise ValueError(f"Duplicated fvm operator: {name}.")

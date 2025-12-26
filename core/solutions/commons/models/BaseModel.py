@@ -9,14 +9,13 @@ from core.solutions.standards import (
     IArgument,
     IInput,
     IOutput,
-    IUnit,
     IIdentifiable,
     IManageState,
     LinkableComponentStatus,
     LinkableComponentStatusChangeEventArgs,
 )
 from core.solutions.commons import events
-from configs.settings import logger
+from typing import Any
 
 
 class BaseModel(ILinkableComponent, IManageState):
@@ -28,26 +27,24 @@ class BaseModel(ILinkableComponent, IManageState):
     the `update` method of the owner, component B, to update the data,
     and after retrieving the data, it propagates back along this calls chain.
 
-    After the component is instantiated, `setup` method can provide dynamic
-    generation of inputs and outputs, but it requires freezing the link framework
-    after the `initialize` method is called.
-
-    Typically, the external scheduler should traverse the inputs/outputs
-    properties after the component `setup` to complete the consumer/provider
-    relationship binding.
+    While in Loop-driven scenario, there is a bidirectional data requirement
+    between coupled components, and data exchange would occur back and forth
+    multiple times within the same step (external loop or iterative loop)
+    until the next time step is reached or the convergence is achieved.
     """
 
-    def __init__(self):
-        self._arguments: dict[str, IArgument] = {}
+    def __init__(self, id: str):
+        self._id = id
+        self._arguments: list[IArgument] = []
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []
-        self._states: dict[str, any] = {}
-        self._CascadingDisabled = False
+
+        self._cascading = False
         self._status = LinkableComponentStatus.CREATED
         self._event_manager = events.EventManager()
 
     @property
-    def arguments(self) -> dict[str, IArgument]:
+    def arguments(self) -> list[IArgument]:
         return self._arguments
 
     @property
@@ -55,29 +52,20 @@ class BaseModel(ILinkableComponent, IManageState):
         return self._status
 
     @property
-    def inputs(self) -> list[IInput]:
-        return self._inputs
-
-    @property
     def outputs(self) -> list[IOutput]:
         return self._outputs
 
     @property
-    def states(self) -> dict[str, any]:
-        return self._states
+    def inputs(self) -> list[IInput]:
+        return self._inputs
 
     @property
-    def CascadingUpdateCallsDisabled(self) -> bool:
-        return self._CascadingDisabled
+    def CascadingUpdate(self) -> bool:
+        return self._cascading
 
-    def setup(
-        self,
-        inputs_config: list = None,
-        outputs_config: list = None,
-        args_config: list = None,
-        **kwargs,
-    ):
-        raise NotImplementedError()
+    @CascadingUpdate.setter
+    def CascadingUpdate(self, value: bool):
+        self._cascading = value
 
     def initialize(self):
         raise NotImplementedError()
@@ -94,6 +82,16 @@ class BaseModel(ILinkableComponent, IManageState):
     def finish(self):
         raise NotImplementedError()
 
+    def set_status(self, status: LinkableComponentStatus, message: str):
+        event_args = LinkableComponentStatusChangeEventArgs(
+            self, message, self._status, status
+        )
+        self._status = status
+        self._event_manager.invoke(event_args)
+
+    def load_state(self, path: str) -> IIdentifiable:
+        raise NotImplementedError()
+
     def keep_current_state(self) -> IIdentifiable:
         raise NotImplementedError()
 
@@ -105,27 +103,3 @@ class BaseModel(ILinkableComponent, IManageState):
 
     def save_state(self, state_id: IIdentifiable, path: str):
         raise NotImplementedError()
-
-    def load_state(self, path: str) -> IIdentifiable:
-        raise NotImplementedError()
-
-    def set_status(self, status: LinkableComponentStatus, message: str):
-        """设置状态"""
-        old_status = self._status
-        self._status = status
-        self.notify_status_changed(old_status, status, message)
-
-    def notify_status_changed(
-        self,
-        old_status: LinkableComponentStatus,
-        new_status: LinkableComponentStatus,
-        message: str,
-    ):
-        """Notifies subscribers that the status has changed."""
-        logger.info(
-            f"Component {self} changed from {old_status} to {new_status}: {message}"
-        )
-        event_args = LinkableComponentStatusChangeEventArgs(
-            self, message, old_status, new_status
-        )
-        self._event_manager.invoke(event_args)
