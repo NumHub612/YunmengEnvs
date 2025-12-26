@@ -19,7 +19,7 @@ class ILinkableComponent(IIdentifiable):
 
     @property
     @abstractmethod
-    def arguments(self) -> dict[str, IArgument]:
+    def arguments(self) -> list[IArgument]:
         """Arguments of the component."""
         pass
 

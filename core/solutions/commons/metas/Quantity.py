@@ -28,24 +28,24 @@ class PredifinedDimensions(Enum):
             DimensionBase.LENGTH: -1,
             DimensionBase.TIME: -2,
         }
-    )  # Momentum flux
+    )
     ENERGY_FLUX = IDimension.from_dict(
         {
             DimensionBase.MASS: 2,
             DimensionBase.LENGTH: -2,
             DimensionBase.TIME: -1,
         }
-    )  # Energy flux
+    )
     MASS_FLUX = IDimension.from_dict(
         {
             DimensionBase.MASS: 1,
             DimensionBase.LENGTH: -2,
             DimensionBase.TIME: -1,
         }
-    )  # Mass flux
+    )
 
 
-class PredinedUnits(Enum):
+class PredefinedUnits(Enum):
     """Predefined units commonly used."""
 
     METER = IUnit(
@@ -168,7 +168,7 @@ class Quantity(IQuantity):
         return self.value * self.unit.conversion + self.unit.offset
 
     def is_missing(self) -> bool:
-        """Check if the value is missing."""
+        """Check if the value missing."""
         if self.value is None:
             return True
         if self.value == self.missing_data_value:

@@ -6,243 +6,247 @@ Hydrologic model solution.
 """
 from core.solutions.commons import models, datasets, links, metas
 from core.numerics.mesh import Node, Coordinate, ElementType
-import datetime
+from core.numerics.fields import (
+    Timeseries,
+    Curve,
+    Pattern,
+    Table,
+)
+import datetime as dt
 import numpy as np
+from dateutil.parser import parse
 
 
 class RunoffModel(models.BaseModel):
-    """水文产流模型：输入降雨+用地类型，输出流域流量"""
+    """RunoffModel, input: rainfall and landtype, output: runoff."""
 
-    def __init__(
-        self,
-        location: tuple[float, float],
-        area_km2: float,
-        start_time: str,
-        end_time: str,
-        time_step: str,
-        const_rain: float = 0.0,
-        land_type: str = "farm",
-        scale: float = 1.0,
-    ):
-        super().__init__()
-        self._arguments = {
-            "start_time": metas.Argument("start_time", str, value=start_time),
-            "end_time": metas.Argument("end_time", str, value=end_time),
-            "time_step": metas.Argument(
-                "time_step", str, value=time_step, optional=True, default="1:00:00"
-            ),
-            "location": metas.Argument(
-                "location", tuple, value=location, readonly=True
-            ),
-            "area": metas.Argument(
-                "area", float, value=area_km2 * 1e6, readonly=True, default=0.0
-            ),
-            "land_type": metas.Argument(
+    def __init__(self, id: str, model_configs: dict, link_configs: dict):
+        super().__init__(id)
+        self._arguments = [
+            metas.Argument("area", float, readonly=False, default=0.0),
+            metas.Argument(
                 "land_type",
                 str,
-                value=land_type,
-                readonly=True,
+                readonly=False,
                 default="farm",
                 possibles=["urban", "forest", "farm", "water"],
             ),
-            "scale": metas.Argument(
-                "scale", float, value=scale, optional=True, default=1.0
-            ),
-        }
-        self._states = {"rainfall": None, "runoff": None}
+        ]
+
+        self._model_configs = model_configs
+        self._link_configs = link_configs
+        self._location = None
+        self._rainfall = None
+
         self._inputs: list[RunoffInput] = []
         self._outputs: list[RunoffOutput] = []
 
-        self._const_rain = const_rain
-        self._start = None
-        self._end = None
-        self._current_time = None
-
-    def setup(
-        self,
-        inputs_config: list = None,
-        outputs_config: list = None,
-        args_config: list = None,
-        **kwargs,
-    ):
-        # 检查模型状态，不允许任意重置
-        if self._status != models.LinkableComponentStatus.CREATED:
-            raise ValueError("模型已经初始化过了，不能再次初始化")
-
-        # 动态组装inputs/outputs，每个组件的input/output定义方式由文档说明
-        # NOTE: 当组件setup()之后，外部通过遍历inputs/outputs属性，
-        # 完成provider/consumer的绑定。
-        if inputs_config is not None:
-            # input的定义要精确具体对象和变量。
-            rainfall_def = metas.Quantity(
-                0.0,
-                metas.PredinedUnits.MILLIMETER_PER_HOUR.value,
-                caption="Rainfall",
-                description="Rainfall intensity",
-            )
-            for input_config in inputs_config:
-                rain_station = input_config.get("rain_station", "none")
-                location = input_config.get("location", (0.0, 0.0))
-
-                elem = Node(0, Coordinate(*location))
-                elems = datasets.ElementSet(None, None, [elem.id])
-
-                cur_input = RunoffInput(
-                    rain_station,
-                    self,
-                    rainfall_def,
-                    elems,
-                    None,
-                    "rainfall",
-                    "rainfall",
-                    None,
-                )
-                self.inputs.append(cur_input)
-
-        if outputs_config is not None:
-            # output的定义只要明确变量，一次输出所有对象。
-            runoff_def = metas.Quantity(
-                0.0,
-                metas.PredinedUnits.DISCHARGE.value,
-                caption="Runoff",
-                description="Runoff flow",
-            )
-            location = self._arguments["location"].value
-            elem = Node(0, Coordinate(*location))
-            elems = datasets.ElementSet(None, None, [elem.id])
-            for output_config in outputs_config:
-                runoff = output_config.get("runoff")
-
-                cur_output = RunoffOutput(
-                    runoff, self, runoff_def, elems, None, "runoff", "runoff"
-                )
-                self.outputs.append(cur_output)
-                break
-
-        # 更新配置参数
-        if args_config is not None:
-            for arg_config in args_config:
-                arg_name = arg_config.get("name")
-                arg_value = arg_config.get("value")
-                self._arguments[arg_name].value = arg_value
+        self._start: dt.datetime = None
+        self._end: dt.datetime = None
+        self._current: dt.datetime = None
+        self._dt: dt.timedelta = None
 
     def initialize(self):
-        self.set_status(models.LinkableComponentStatus.INITIALIZING, "初始化模型")
-
-        self._start = datetime.datetime.strptime(
-            self._arguments["start_time"].value, "%Y-%m-%d %H:%M:%S"
+        self.set_status(
+            models.LinkableComponentStatus.INITIALIZING,
+            f"Initializing RunoffModel: {self._id}",
         )
-        self._end = datetime.datetime.strptime(
-            self._arguments["end_time"].value, "%Y-%m-%d %H:%M:%S"
-        )
-        h, m, s = map(float, self._arguments["time_step"].value.split(":"))
-        self._time_step = datetime.timedelta(hours=h, minutes=m, seconds=s)
-        self._current_time = self._start
+        predefined_units = {unit.value.caption: unit for unit in metas.PredefinedUnits}
 
-        self.set_status(models.LinkableComponentStatus.INITIALIZED, "模型初始化完成")
+        # load- and save-path
+        envs = self._model_configs["ENV"]
+
+        # temporal
+        times = self._model_configs["TEMPORAL"]
+        self._start = parse(times["start_time"])
+        self._end = parse(times["end_time"])
+        self._dt = dt.timedelta(seconds=times["time_step"])
+        self._current = self._start
+
+        # spatial
+        spatials = self._model_configs["SPATIAL"]
+        mesh_type = spatials["type"]
+        if mesh_type != "NODE":
+            raise ValueError("RunoffModel doesn't support non-NODE spatial type.")
+        params = spatials["params"]
+        coor = Coordinate(params["x"], params["y"])
+        self._location = Node(self._id, coor)
+
+        # datas
+        self._load_datas()
+        self.set_status(
+            models.LinkableComponentStatus.INITIALIZED, f"{self._id} Initialized"
+        )
+
+        # customs
+        args = self._model_configs.get("CUSTOMS", {})
+        area = args["area_km2"]
+        landuse = args["land_type"]
+        self.arguments[0].value = area
+        self.arguments[1].value = landuse
+
+        # inputs
+        inputs_config = self._model_configs.get("inputs", None)
+        if inputs_config is not None:
+            for input_config in inputs_config:
+                station = input_config.get("id")
+                # quantity
+                quantity_config = input_config.get("quantity")
+                unit_name = quantity_config.get("unit", None)
+                if unit_name:
+                    unit = predefined_units.get(unit_name, None)
+                    if unit is None:
+                        raise ValueError(f"Unsupported unit {unit_name} in input.")
+                else:
+                    dimension = quantity_config.get("dimension", None)
+                    if dimension is None:
+                        raise ValueError("Quantity dimension is missing in input.")
+                    conversion = quantity_config.get("conversion", 1.0)
+                    offset = quantity_config.get("offset", 0.0)
+                    unit = metas.IUnit(
+                        None,
+                        None,
+                        metas.IDimension.from_dict(dimension),
+                        conversion,
+                        offset,
+                    )
+                quantity = metas.Quantity(quantity_config.get("value", 0.0), unit)
+
+                # location
+                elements = datasets.ElementSet(None, ElementType.NONE, [self._location])
+
+                cur_input = RunoffInput(station, self, quantity, elements)
+                self.inputs.append(cur_input)
+
+        # outputs
+        outputs_config = self._model_configs.get("outputs", None)
+        if outputs_config is not None:
+            for output_config in outputs_config:
+                outlet = output_config.get("id")
+                # quantity
+                quantity_config = output_config.get("quantity")
+                unit_name = quantity_config.get("unit", None)
+                if unit_name:
+                    unit = predefined_units.get(unit_name, None)
+                    if unit is None:
+                        raise ValueError(f"Unsupported unit {unit_name} in output.")
+                else:
+                    dimension = quantity_config.get("dimension", None)
+                    if dimension is None:
+                        raise ValueError("Quantity dimension is missing in output.")
+                    conversion = quantity_config.get("conversion", 1.0)
+                    offset = quantity_config.get("offset", 0.0)
+                    unit = metas.IUnit(
+                        None,
+                        None,
+                        metas.IDimension.from_dict(dimension),
+                        conversion,
+                        offset,
+                    )
+                quantity = metas.Quantity(quantity_config.get("value", 0.0), unit)
+
+                # location
+                elements = datasets.ElementSet(None, ElementType.NONE, [self._location])
+
+                cur_output = RunoffOutput(outlet, self, quantity, elements, None)
+                self.outputs.append(cur_output)
+                break  # currently only one output
+
+    def _load_datas(self):
+        """Load datas from configuration."""
+        datas = self._model_configs["DATAS"]
+
+        # timeseries
+        for ts in datas.get("timeseries", []):
+            ts_id = ts["id"]
+            xs = ts.get("xs", None)
+            ys = ts.get("ys", None)
+            ts_from = ts.get("from", None)
+            ts_expr = ts.get("expr", None)
+            if xs and ys:
+                ts_obj = Timeseries(ts_id, xs, ys)
+            elif ts_expr:
+                ts_obj = Timeseries.from_expr(ts_id, **ts_expr)
+            elif ts_from:
+                pass
+            else:
+                raise ValueError(f"Timeseries {ts_id} lack of source.")
+            self._rainfall = ts_obj
+            break  # currently only one rainfall timeseries
 
     def validate(self) -> list[str]:
-        self.set_status(models.LinkableComponentStatus.VALIDATING, "验证模型")
+        self.set_status(
+            models.LinkableComponentStatus.VALIDATING,
+            f"Validating RunoffModel: {self._id}",
+        )
 
         errors = []
         if self._start >= self._end:
-            errors.append("起始时间必须早于结束时间")
-        if self._time_step.total_seconds() <= 0:
-            errors.append("时间步长必须大于0")
-        if self._const_rain < 0:
-            errors.append("常数降雨必须大于等于0")
+            errors.append("Time range error: start_time >= end_time")
+        if self._dt.total_seconds() <= 0:
+            errors.append("time_step must bigger than 0")
 
-        self.set_status(models.LinkableComponentStatus.VALID, "模型验证完成")
+        self.set_status(models.LinkableComponentStatus.VALID, f"{self._id} Validated")
         return errors
 
     def prepare(self):
-        self.set_status(models.LinkableComponentStatus.PREPARING, "准备模型")
+        self.set_status(
+            models.LinkableComponentStatus.PREPARING,
+            f"Preparing RunoffModel: {self._id}",
+        )
 
-        # 准备状态变量
-        rainfall_def = metas.Quantity(
-            0.0,
-            metas.PredinedUnits.MILLIMETER_PER_HOUR.value,
-            caption="Rainfall",
-            description="Rainfall intensity",
-        )
-        rainfall = datasets.ValueSet(
-            rainfall_def,
-            (1, 1),
-            np.array([[self._const_rain]]),
-        )
-        self._states["rainfall"] = rainfall
-
-        runoff_def = metas.Quantity(
-            0.0,
-            metas.PredinedUnits.DISCHARGE.value,
-            caption="Runoff",
-            description="Runoff flow",
-        )
-        runoff = datasets.ValueSet(
-            runoff_def,
-            (1, 1),
-            np.array([[0.0]]),
-        )
-        self._states["runoff"] = runoff
-
-        # 激活outputs
+        # Prepare outputs
         for output in self._outputs:
-            output.add_data(self._current_time.timestamp(), 0.0)
+            output.add_data(self._current.timestamp(), 0.0)
 
-        self.set_status(models.LinkableComponentStatus.UPDATED, "模型准备完成")
+        self.set_status(models.LinkableComponentStatus.UPDATED, f"{self._id} Prepared")
 
     def update(self, required_outputs: list[links.IOutput]):
-        # 从inputs中取出数据
-        self.set_status(models.LinkableComponentStatus.WAITING, "模型等待数据")
+        # Get required inputs
+        self.set_status(
+            models.LinkableComponentStatus.WAITING, f"Waiting inputs: {self._id}"
+        )
+
         total_extra_rain = 0.0
         for input in self._inputs:
-            # 配置时间
-            input.set_time(self._current_time.timestamp())
-            # 拉取数据
+            # Set time
+            input.set_time(self._current.timestamp())
+            # Pull values
             rain = input.values
-            # total_extra_rain += rain[0, 0].to_si() # 当前没有严格实现ValueSet
-            total_extra_rain += rain[0, 0]
+            total_extra_rain += rain[0, 0].to_si()  # in m/s
 
-        # 简单线性产流：Q = scale * alpha * P * area / 3600
-        self.set_status(models.LinkableComponentStatus.UPDATING, "模型更新中")
-        alpha = 0.6 if self._arguments["land_type"].value == "urban" else 0.3
-        rain = self._states["rainfall"][0, 0]
-        total_rain = rain + total_extra_rain
-        rain_mps = total_rain
-        q = (
-            self._arguments["scale"].value
-            * alpha
-            * rain_mps
-            * self._arguments["area"].value
-            / 3600
-        )  # m3/s
+        # Update runoff: Q =  alpha * rainfall * area
+        self.set_status(
+            models.LinkableComponentStatus.UPDATING, f"Updating RunoffModel: {self._id}"
+        )
 
-        # 更新状态变量
-        self._current_time += self._time_step
-        self._states["runoff"][0, 0] = q
+        alpha = 0.6 if self._arguments[1].value == "urban" else 0.3
+        rain = self._rainfall.get_value(self._current.timestamp())  # in mm/h
+        total_rain = rain * 0.000277778 + total_extra_rain
+        q = alpha * total_rain * self._arguments[0].value * 1e6  # in m3/s
 
-        # 更新outputs
+        self._current += self._dt
+
+        # Update outputs
         for output in self._outputs:
-            output.add_data(self._current_time.timestamp(), q)
+            output.add_data(self._current.timestamp(), q)
 
-        self.set_status(models.LinkableComponentStatus.UPDATED, "模型更新完成")
+        self.set_status(models.LinkableComponentStatus.UPDATED, f"{self._id} Updated")
 
-        # 检查是否已完成
-        if self._current_time >= self._end:
-            self.set_status(models.LinkableComponentStatus.DONE, "模型完成")
+        # Check if finished
+        if self._current >= self._end:
+            self.set_status(models.LinkableComponentStatus.DONE, f"{self._id} Done")
 
     def finish(self):
-        self.set_status(models.LinkableComponentStatus.FINISHING, "模型结束中")
+        self.set_status(
+            models.LinkableComponentStatus.FINISHING,
+            f"Finishing RunoffModel: {self._id}",
+        )
 
-        # 输出结果
-        for name, values in self._states.items():
-            print(f"{name}: {values}")
-
-        self.set_status(models.LinkableComponentStatus.FINISHED, "模型结束")
+        self.set_status(models.LinkableComponentStatus.FINISHED, f"{self._id} Finished")
 
 
 class RunoffInput(links.BaseInput):
-    """降雨站输入项"""
 
     def set_time(self, timestamp: float):
         time = metas.ITime(timestamp)
@@ -254,7 +258,6 @@ class RunoffInput(links.BaseInput):
 
 
 class RunoffOutput(links.BaseOutput):
-    """流域流量输出项"""
 
     def get_values(self, querier: links.IBaseExchangeItem) -> datasets.IValueSet:
         if self._in_get_values:
@@ -276,7 +279,7 @@ class RunoffOutput(links.BaseOutput):
 
         if req_index == -1:
             return self._valueset[-1]
-        return self._valueset.get_values_for_time(req_index).reshape((1, -1))
+        return self._valueset.get_values_for_time(req_index)
 
     def add_data(self, timestamp: float, value: float):
         time = metas.ITime(timestamp)

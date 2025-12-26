@@ -34,10 +34,10 @@ class SurfaceWaterModel(models.BaseModel):
     """Surface water/shallow water/two-dimensional flow model,
     based on Grid2D grid and FVM algorithm Burgers equation."""
 
-    def __init__(self, model_id, model_configs: dict, io_configs: dict):
-        super().__init__(model_id)
+    def __init__(self, id: str, model_configs: dict, link_configs: dict):
+        super().__init__(id)
         self._model_configs = model_configs
-        self._io_configs = io_configs
+        self._link_configs = link_configs
 
         self._mesh: Grid2D = None
         self._solver: ISolver = None
@@ -55,7 +55,7 @@ class SurfaceWaterModel(models.BaseModel):
         )
 
         # load- and save-path
-        generals = self._model_configs["GLOBAL"] or {}
+        envs = self._model_configs["ENV"] or {}
 
         # time-axis
         times = self._model_configs["TEMPORAL"]

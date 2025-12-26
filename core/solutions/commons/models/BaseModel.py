@@ -33,18 +33,18 @@ class BaseModel(ILinkableComponent, IManageState):
     until the next time step is reached or the convergence is achieved.
     """
 
-    def __init__(self, model_id: str):
-        self._id = model_id
-        self._arguments: dict[str, IArgument] = {}
+    def __init__(self, id: str):
+        self._id = id
+        self._arguments: list[IArgument] = []
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []
-        self._datas: dict[str, Any] = {}
+
         self._cascading = False
         self._status = LinkableComponentStatus.CREATED
         self._event_manager = events.EventManager()
 
     @property
-    def arguments(self) -> dict[str, IArgument]:
+    def arguments(self) -> list[IArgument]:
         return self._arguments
 
     @property

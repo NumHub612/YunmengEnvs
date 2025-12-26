@@ -103,25 +103,28 @@ class Scheduler:
                 raise RuntimeError(f"{cid} initialize failed")
 
         # Establish links
-        for lid, lcfg in self._system_config.links.items():
-            is_used = lcfg.get("is_use", True)
-            mode = lcfg.get("mode", "PULL")
+        for link in self._system_config.links:
+            lid = link["id"]
+            is_used = link.get("is_use", True)
+            mode = link.get("mode", "PULL")
             if not is_used:
                 continue
-            if not ({"source", "target"} <= set(lcfg.keys())):
+            if not ({"source", "target"} <= set(link.keys())):
                 continue
 
-            provider = lcfg["source"]
+            provider = link["source"]
             if provider["model"] not in self._models:
                 raise ValueError(f"Link {lid}: provider model not found")
-            output = self._models[provider["model"]].outputs[provider["item"]]
+            idx = self._models[provider["model"]].outputs.index(provider["item"])
+            output = self._models[provider["model"]].outputs[idx]
 
-            consumer = lcfg["target"]
+            consumer = link["target"]
             if consumer["model"] not in self._models:
                 raise ValueError(f"Link {lid}: consumer model not found")
-            input = self._models[consumer["model"]].inputs[consumer["item"]]
+            idx = self._models[consumer["model"]].inputs.index(consumer["item"])
+            input = self._models[consumer["model"]].inputs[idx]
 
-            if "data_operations" in lcfg:
+            if "data_operations" in link:
                 adapters = AdapterFactory()
                 # TODO： configure adapters
 

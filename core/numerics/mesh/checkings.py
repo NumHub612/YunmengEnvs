@@ -25,7 +25,7 @@ class MeshFilter:
         Returns:
             list: The filtered face IDs.
         """
-        filter_func = eval(f"lambda x, y, z: {expr}")
+        filter_func = eval(expr)
 
         patch = []
         for face in mesh.faces:

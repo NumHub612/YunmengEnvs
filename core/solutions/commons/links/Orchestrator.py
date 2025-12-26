@@ -21,7 +21,7 @@ class Orchestrator:
     REQUIRED_MODEL_FIELDS = [
         "PROJECT",
         "TYPE",
-        "GLOBAL",
+        "ENV",
         "SPATIAL",
         "TEMPORAL",
         "DATAS",
@@ -41,9 +41,9 @@ class Orchestrator:
         return self._config.get("SCHEDULES", {})
 
     @property
-    def links(self) -> dict:
+    def links(self) -> list:
         """Link configurations."""
-        return self._config.get("LINKS", {})
+        return self._config.get("LINKS", [])
 
     @property
     def models(self) -> dict:
@@ -135,12 +135,10 @@ class Orchestrator:
             lid = link["id"]
             if not ({"source", "target"} <= link.keys()):
                 raise ValueError(f"Link {lid} miss source or target.")
-            for it in link.get("source", []):
-                if not ({"model", "item"} <= it.keys()):
-                    raise ValueError(f"Link {lid} provider {it} miss model or item.")
-            for it in link.get("target", []):
-                if not ({"model", "item"} <= it.keys()):
-                    raise ValueError(f"Link {lid} consumer {it} miss model or item.")
+            if not ({"model", "item"} <= link["source"].keys()):
+                raise ValueError(f"Link {lid} provider miss model or item.")
+            if not ({"model", "item"} <= link["target"].keys()):
+                raise ValueError(f"Link {lid} consumer miss model or item.")
             if "data_operations" in link:
                 for op in link["data_operations"]:
                     if not ({"type", "params"} <= op.keys()):
@@ -177,25 +175,25 @@ class Orchestrator:
             if field not in model_config:
                 raise ValueError(f"Field {field} is missing in {model_file}.")
 
-        generals = model_config["GLOBAL"]
-        if generals is None:
-            generals = {}
+        envs = model_config["ENV"]
+        if envs is None:
+            envs = {}
 
         # Check each field.
-        self._check_global_configs(model_config["GLOBAL"])
+        self._check_env_configs(model_config["ENV"])
         self._check_spatial_configs(model_config["SPATIAL"])
         self._check_temporal_configs(model_config["TEMPORAL"])
         self._check_datas_configs(model_config["DATAS"])
         self._check_solver_configs(model_config["SOLVER"])
         self._check_operators_configs(model_config["OPERATORS"])
 
-        # Build the IO exchange items.
+        # Build the Input-Output exchange items.
         io_config = self._parse_io_configs(configs)
         model_config.update({"IOS": io_config})
 
         return model_config
 
-    def _check_global_configs(self, config: dict):
+    def _check_env_configs(self, config: dict):
         """
         Check the global configurations.
         """
@@ -251,7 +249,7 @@ class Orchestrator:
             for ts in config["timeseries"]:
                 if "id" not in ts:
                     raise ValueError(f"Timeseries configs {ts} miss id.")
-                if not ({"xs", "ys"} <= ts.keys()) or not (
+                if not ({"xs", "ys"} <= ts.keys()) and not (
                     {"expr", "from"} & ts.keys()
                 ):
                     raise ValueError(f"Timeseries {ts['id']} has no data source.")
@@ -260,7 +258,7 @@ class Orchestrator:
             for curve in config["curves"]:
                 if "id" not in curve:
                     raise ValueError(f"Curve configs {curve} miss id.")
-                if not ({"xs", "ys"} <= curve.keys()) or not (
+                if not ({"xs", "ys"} <= curve.keys()) and not (
                     {"expr", "from"} & curve.keys()
                 ):
                     raise ValueError(f"Curve {curve['id']} has no data source.")
@@ -269,7 +267,7 @@ class Orchestrator:
             for pattern in config["patterns"]:
                 if "id" not in pattern:
                     raise ValueError(f"Pattern configs {pattern} miss id.")
-                if not ({"xs", "ys"} <= curve.keys()) or not (
+                if not ({"xs", "ys"} <= curve.keys()) and not (
                     {"expr", "from"} & curve.keys()
                 ):
                     raise ValueError(f"Pattern {pattern['id']} has no data source.")
@@ -278,7 +276,7 @@ class Orchestrator:
             for table in config["tables"]:
                 if "id" not in table:
                     raise ValueError(f"Table configs {table} miss id.")
-                if not ({"xs", "ys", "zs", "vs"} <= table.keys()) or not (
+                if not ({"xs", "ys", "zs", "vs"} <= table.keys()) and not (
                     {"expr", "from"} & table.keys()
                 ):
                     raise ValueError(f"Table {table['id']} has no data source.")
@@ -296,7 +294,8 @@ class Orchestrator:
         """
         Check the solver configurations.
         """
-        assert config is not None, "Solver configs should not be None."
+        if not config:
+            return
 
         if not ({"id", "type"} <= config.keys()):
             raise ValueError("Solver configs miss id and type.")
@@ -354,7 +353,7 @@ class Orchestrator:
                 if not ({"quantity", "quality"} & it.keys()):
                     raise ValueError(f"{item_type} {it_name} miss quantity or quality.")
                 if "quantity" in it:
-                    if not ({"unit", "dimension"} <= it.keys()):
+                    if not ({"unit", "dimension"} & it["quantity"].keys()):
                         raise ValueError(
                             f"{item_type} {it_name} miss unit or dimension."
                         )
@@ -390,7 +389,7 @@ class Orchestrator:
         models_ids = list(self.models.keys())
         models_num = len(models_ids)
 
-        links_ids = list(self.links.keys())
+        links_ids = [link["id"] for link in self.links]
         links_num = len(links_ids)
 
         summary = (
