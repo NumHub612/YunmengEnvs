@@ -31,12 +31,20 @@ class RunoffModel(models.BaseModel):
                 default="farm",
                 possibles=["urban", "forest", "farm", "water"],
             ),
+            metas.Argument(
+                "soil_type",
+                str,
+                readonly=False,
+                default="clay",
+                possibles=["clay", "silt", "sand"],
+            ),
         ]
 
         self._model_configs = model_configs
         self._link_configs = link_configs
         self._location = None
         self._rainfall = None
+        self._land_soil_table = None
 
         self._inputs: list[RunoffInput] = []
         self._outputs: list[RunoffOutput] = []
@@ -80,10 +88,9 @@ class RunoffModel(models.BaseModel):
 
         # customs
         args = self._model_configs.get("CUSTOMS", {})
-        area = args["area_km2"]
-        landuse = args["land_type"]
-        self.arguments[0].value = area
-        self.arguments[1].value = landuse
+        self.arguments[0].value = args["area_km2"]
+        self.arguments[1].value = args["land_type"]
+        self.arguments[2].value = args["soil_type"]
 
         # inputs
         inputs_config = self._model_configs.get("inputs", None)
@@ -174,6 +181,26 @@ class RunoffModel(models.BaseModel):
             self._rainfall = ts_obj
             break  # currently only one rainfall timeseries
 
+        # tables
+        for table in datas.get("tables", []):
+            table_id = table["id"]
+            xs = table.get("xs", None)
+            ys = table.get("ys", None)
+            zs = table.get("zs", None)
+            vs = table.get("vs", None)
+            table_from = table.get("from", None)
+            table_expr = table.get("expr", None)
+            if xs and ys and vs:
+                table_obj = Table(table_id, np.array(vs), np.array(xs), np.array(ys))
+            elif table_expr:
+                table_obj = Table.from_expr(table_expr)
+            elif table_from:
+                pass
+            else:
+                raise ValueError(f"Table {table_id} lack of source.")
+            self._land_soil_table = table_obj
+            break  # currently only one land-soil table
+
     def validate(self) -> list[str]:
         self.set_status(
             models.LinkableComponentStatus.VALIDATING,
@@ -185,6 +212,13 @@ class RunoffModel(models.BaseModel):
             errors.append("Time range error: start_time >= end_time")
         if self._dt.total_seconds() <= 0:
             errors.append("time_step must bigger than 0")
+
+        if self._location is None:
+            errors.append("Spatial location is missing.")
+        if self._rainfall is None:
+            errors.append("Rainfall timeseries is missing.")
+        if self._land_soil_table is None:
+            errors.append("Land-soil table is missing.")
 
         self.set_status(models.LinkableComponentStatus.VALID, f"{self._id} Validated")
         return errors
@@ -220,7 +254,9 @@ class RunoffModel(models.BaseModel):
             models.LinkableComponentStatus.UPDATING, f"Updating RunoffModel: {self._id}"
         )
 
-        alpha = 0.6 if self._arguments[1].value == "urban" else 0.3
+        alpha = self._land_soil_table.get_value(
+            self.arguments[1].value, self.arguments[2].value
+        )  # dimensionless
         rain = self._rainfall.get_value(self._current.timestamp())  # in mm/h
         total_rain = rain * 0.000277778 + total_extra_rain
         q = alpha * total_rain * self._arguments[0].value * 1e6  # in m3/s

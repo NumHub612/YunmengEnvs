@@ -296,23 +296,23 @@ class Table:
         z: Hashable = None,
     ) -> Any:
         """Get the table value at specific coordinates."""
-        index = [None, None, None]
+        index = []
 
         xi = np.where(self._x == x)[0]
         if len(xi) == 0:
             raise ValueError("X value not found in table.")
-        index[0] = xi[0]
+        index.append(xi[0])
 
         if self.ndim > 1:
             yi = np.where(self._y == y)[0]
             if len(yi) == 0:
                 raise ValueError("Y value not found in table.")
-            index[1] = yi[0]
+            index.append(yi[0])
 
         if self.ndim > 2:
             zi = np.where(self._z == z)[0]
             if len(zi) == 0:
                 raise ValueError("Z value not found in table.")
-            index[2] = zi[0]
+            index.append(zi[0])
 
         return self._data[tuple(index)]
