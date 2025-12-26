@@ -2,61 +2,68 @@
 # 模型集配置。
 # ===============================================================================
 MODELS:
-  - id: "surfacewater"
-    description: "surface water model"
-    from: "./task.yml"
   - id: "runoff"
-    description: "runoff model"
-    from: "./null.yml"
-    inputs:
-      - id: "Rainfall"
-        description: "Rainfall data"
-        quantity:
-          description: "Rainfall rate"
-          unit: "mm/h"
-          dimension: { Length: 1, Time: -1 }
-        position:
-          description: "Thiessen polygons"
-          geom: "XYPolygon"
-          elements:
-            - coordinates:
-                [
-                  [480000, 6235000],
-                  [481000, 6235000],
-                  [481000, 6234000],
-                  [480000, 6234000],
-                ]
+    description: "runoff model" # 所有description字段都仅是描述性文字，无功能作用
+    from: "./benchmarks/hydro_links/runoff.yml"
+    # 模型Output交换项
     outputs:
       - id: "Outflow"
-        description: "River outflow"
+        description: "Catchment outlet outflow"
+        # 交换数据定义（指定内置预定义变量，unit随之确定）
         quantity:
           id: "FlowRate"
-          description: "River flow"
-          unit: "m3/s"
-          dimension: { Length: 3, Time: -1 }
+          description: "Catchment runoff"
+          variable: "runoff" # 数据类型
+        # 交换位置定义（要求只能选择模型内对象id, geom随之确定）
         position:
-          id: "OutletPoint"
+          id: "Outlet"
           description: "Catchment outlet"
-          geom: "XYPoint"
-          elements:
-            - indecies: [12]
+          element: "outlet" # 对象类型
+          ids: null # 交换对象id列表
   - id: "river"
     description: "1D River model"
-    from: "./none.yml"
+    from: "./benchmarks/hydro_links/river.yml"
+    # 模型Input交换项
     inputs:
       - id: "LateralInflow"
         description: "Lateral inflow from RR"
         quantity:
           id: "FlowRate"
           description: "River flow"
-          unit: "m3/s"
-          dimension: { Length: 3, Time: -1 }
+          variable: "flow"
         position:
-          id: "OutletPoint"
+          id: "cross_section_3"
           description: "Catchment outlet"
-          geom: "XYPoint"
-          elements:
-            - indecies: [12]
+          element: "CrossSection"
+          ids: ["cross_3"]
+    # 模型Output交换项
+    outputs:
+      - id: "Outflow"
+        description: "River outflow"
+        # 交换数据定义
+        quantity:
+          id: "outflow"
+          description: "River flow"
+          variable: "flow"
+        # 交换位置定义
+        position:
+          id: "downstream"
+          description: "River outlet"
+          element: "CrossSection"
+          ids: ["cross_5"]
+      - id: "stage"
+        description: "Cross section stage"
+        # 交换数据定义
+        quantity:
+          id: "stage"
+          description: "River stage"
+          variable: "water_level"
+        # 交换位置定义
+        position:
+          id: "cross_section"
+          description: "River cross section"
+          element: "CrossSection"
+          ids: ["cross_3"]
 
 # ===============================================================================
 # 耦合配置。
@@ -73,7 +80,7 @@ LINKS:
     target:
       model: "river"
       item: "LateralInflow"
-    # 可选：时空映射/单位转换
+    # 可选：时空映射
     data_operations:
       - type: "TemporalInterpolation"
         params:
@@ -86,11 +93,6 @@ LINKS:
 # 调度配置。
 # ===============================================================================
 SCHEDULES:
-  # 时间选项
-  time_horizon:
-    start: "2025-11-08 10:00:00"
-    end: "2025-11-08 12:00:00"
-    step: 300
-
-  # 运行选项
-  run_options: null
+  log_freq: 10
+  timeout: 300
+  verbose: true

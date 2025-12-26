@@ -59,7 +59,9 @@ class RunoffModel(models.BaseModel):
             models.LinkableComponentStatus.INITIALIZING,
             f"Initializing RunoffModel: {self._id}",
         )
-        predefined_units = {unit.value.caption: unit for unit in metas.PredefinedUnits}
+        predefined_units = {
+            unit.value.caption: unit.value for unit in metas.PredefinedUnits
+        }
 
         # load- and save-path
         envs = self._model_configs["ENV"]
@@ -82,9 +84,6 @@ class RunoffModel(models.BaseModel):
 
         # datas
         self._load_datas()
-        self.set_status(
-            models.LinkableComponentStatus.INITIALIZED, f"{self._id} Initialized"
-        )
 
         # customs
         args = self._model_configs.get("CUSTOMS", {})
@@ -92,72 +91,30 @@ class RunoffModel(models.BaseModel):
         self.arguments[1].value = args["land_type"]
         self.arguments[2].value = args["soil_type"]
 
-        # inputs
-        inputs_config = self._model_configs.get("inputs", None)
-        if inputs_config is not None:
-            for input_config in inputs_config:
-                station = input_config.get("id")
-                # quantity
-                quantity_config = input_config.get("quantity")
-                unit_name = quantity_config.get("unit", None)
-                if unit_name:
-                    unit = predefined_units.get(unit_name, None)
-                    if unit is None:
-                        raise ValueError(f"Unsupported unit {unit_name} in input.")
-                else:
-                    dimension = quantity_config.get("dimension", None)
-                    if dimension is None:
-                        raise ValueError("Quantity dimension is missing in input.")
-                    conversion = quantity_config.get("conversion", 1.0)
-                    offset = quantity_config.get("offset", 0.0)
-                    unit = metas.IUnit(
-                        None,
-                        None,
-                        metas.IDimension.from_dict(dimension),
-                        conversion,
-                        offset,
-                    )
-                quantity = metas.Quantity(quantity_config.get("value", 0.0), unit)
-
-                # location
-                elements = datasets.ElementSet(None, ElementType.NONE, [self._location])
-
-                cur_input = RunoffInput(station, self, quantity, elements)
-                self.inputs.append(cur_input)
-
         # outputs
-        outputs_config = self._model_configs.get("outputs", None)
+        outputs_config = self._link_configs.get("outputs", None)
         if outputs_config is not None:
             for output_config in outputs_config:
                 outlet = output_config.get("id")
                 # quantity
                 quantity_config = output_config.get("quantity")
-                unit_name = quantity_config.get("unit", None)
-                if unit_name:
-                    unit = predefined_units.get(unit_name, None)
-                    if unit is None:
-                        raise ValueError(f"Unsupported unit {unit_name} in output.")
-                else:
-                    dimension = quantity_config.get("dimension", None)
-                    if dimension is None:
-                        raise ValueError("Quantity dimension is missing in output.")
-                    conversion = quantity_config.get("conversion", 1.0)
-                    offset = quantity_config.get("offset", 0.0)
-                    unit = metas.IUnit(
-                        None,
-                        None,
-                        metas.IDimension.from_dict(dimension),
-                        conversion,
-                        offset,
-                    )
-                quantity = metas.Quantity(quantity_config.get("value", 0.0), unit)
+                var = quantity_config.get("variable")
+                if var.upper() != "RUNOFF":
+                    raise ValueError("RunoffModel only supports runoff output.")
+
+                var_unit = predefined_units.get("m3/s")
+                quantity = metas.Quantity(0.0, var_unit)
 
                 # location
                 elements = datasets.ElementSet(None, ElementType.NONE, [self._location])
 
                 cur_output = RunoffOutput(outlet, self, quantity, elements, None)
-                self.outputs.append(cur_output)
+                self._outputs.append(cur_output)
                 break  # currently only one output
+
+        self.set_status(
+            models.LinkableComponentStatus.INITIALIZED, f"{self._id} Initialized"
+        )
 
     def _load_datas(self):
         """Load datas from configuration."""
@@ -246,8 +203,7 @@ class RunoffModel(models.BaseModel):
             # Set time
             input.set_time(self._current.timestamp())
             # Pull values
-            rain = input.values
-            total_extra_rain += rain[0, 0].to_si()  # in m/s
+            total_extra_rain += input.values[0, 0].to_si()  # in m/s
 
         # Update runoff: Q =  alpha * rainfall * area
         self.set_status(

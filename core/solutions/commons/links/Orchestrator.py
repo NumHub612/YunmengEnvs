@@ -353,17 +353,15 @@ class Orchestrator:
                 if not ({"quantity", "quality"} & it.keys()):
                     raise ValueError(f"{item_type} {it_name} miss quantity or quality.")
                 if "quantity" in it:
-                    if not ({"unit", "dimension"} & it["quantity"].keys()):
-                        raise ValueError(
-                            f"{item_type} {it_name} miss unit or dimension."
-                        )
-                if not ({"geom", "elements"} & it["position"].keys()):
-                    raise ValueError(f"{item_type} {it_name} miss geom or elements.")
+                    if "variable" not in it["quantity"]:
+                        raise ValueError(f"{item_type} {it_name} miss variable.")
+                if not ({"element", "ids"} & it["position"].keys()):
+                    raise ValueError(f"{item_type} {it_name} miss element or ids.")
 
         _check(inputs)
         _check(outputs, is_input=False)
 
-        io_config = {"inputs": {}, "outputs": {}}
+        io_config = {"inputs": inputs, "outputs": outputs}
         return io_config
 
     def _search_file(self, file_name: str, extra_path: str):

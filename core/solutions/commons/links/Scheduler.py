@@ -115,17 +115,33 @@ class Scheduler:
             provider = link["source"]
             if provider["model"] not in self._models:
                 raise ValueError(f"Link {lid}: provider model not found")
-            idx = self._models[provider["model"]].outputs.index(provider["item"])
-            output = self._models[provider["model"]].outputs[idx]
+            src_model = self._models[provider["model"]]
+            provider_id = provider["item"]
+            idx = None
+            for i, o in enumerate(src_model.outputs):
+                if o.id == provider_id:
+                    idx = i
+                    break
+            if idx is None:
+                raise ValueError(f"Link {lid}: provider item not found")
+            output = src_model.outputs[idx]
 
             consumer = link["target"]
             if consumer["model"] not in self._models:
                 raise ValueError(f"Link {lid}: consumer model not found")
-            idx = self._models[consumer["model"]].inputs.index(consumer["item"])
-            input = self._models[consumer["model"]].inputs[idx]
+            tar_model = self._models[consumer["model"]]
+            consumer_id = consumer["item"]
+            idx = None
+            for i, i_ in enumerate(tar_model.inputs):
+                if i_.id == consumer_id:
+                    idx = i
+                    break
+            if idx is None:
+                raise ValueError(f"Link {lid}: consumer item not found")
+            input = tar_model.inputs[idx]
 
             if "data_operations" in link:
-                adapters = AdapterFactory()
+                adapters = AdapterFactory("")
                 # TODO： configure adapters
 
             if mode == "PULL":
@@ -149,7 +165,7 @@ class Scheduler:
 
     def _analyze_trigger(self):
         """Analyze trigger from system network."""
-        self._trigger = self._models[self._topo_order()[0]]
+        self._trigger = self._models[self._topo_order()[-1]]
 
     def validate(self) -> dict[str, list[str]]:
         """Validate all components and return errors."""

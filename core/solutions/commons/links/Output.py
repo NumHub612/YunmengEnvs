@@ -261,6 +261,6 @@ class BaseOutput(IOutput):
 
     def notify_changed(self, message: str):
         """Notifies all consumers that the output item has changed."""
-        logger.info(f"Output item {self.id} has changed: {message}")
+        logger.debug(f"Output item {self.id} has changed: {message}")
         event_args = ExchangeItemChangeEventArgs(self, message)
         self._event_manager.invoke(event_args)

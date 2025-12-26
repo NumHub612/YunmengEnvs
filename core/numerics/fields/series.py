@@ -24,8 +24,8 @@ class Timeseries:
             time: The time array, must be monotonic, increasing and in seconds.
             data: The data array, must be 1d array.
         """
-        self._data = data.flatten()
-        self._time = time.flatten()
+        self._data = np.asarray(data).flatten()
+        self._time = np.asarray(time).flatten()
         self._id = id
 
         self._check()
@@ -74,9 +74,6 @@ class Timeseries:
             time: The time to get the data value.
             interp: The interpolation method, ["linear", "nearest].
         """
-        if time < self._time[0] or time > self._time[-1]:
-            raise ValueError("Time out of range.")
-
         if interp == "nearest":
             idx = np.abs(self._time - time).argmin()
             return self._data[idx]
@@ -102,8 +99,8 @@ class Curve:
             xs: The x array, must be monotonic.
             ys: The y array, must be 1d array.
         """
-        self._xs = xs.flatten()
-        self._ys = ys.flatten()
+        self._xs = np.asarray(xs).flatten()
+        self._ys = np.asarray(ys).flatten()
         self._id = id
 
         self._is_one2one = False
@@ -147,18 +144,12 @@ class Curve:
 
     def get_value(self, x: float) -> float:
         """Get the y value at a specific x."""
-        if x < self._xs[0] or x > self._xs[-1]:
-            raise ValueError("X out of range.")
-
         return np.interp(x, self._xs, self._ys)
 
     def inverse(self, y: float) -> float:
         """Get the x value at a specific y."""
         if not self._is_one2one:
             raise ValueError("Curve is not one-to-one, cannot inverse.")
-
-        if y < self._ys[0] or y > self._ys[-1]:
-            raise ValueError("Y out of range.")
 
         return np.interp(y, self._ys, self._xs)
 
@@ -184,7 +175,7 @@ class Pattern:
         """
         assert mode in ["s", "h", "d", "m"], "Invalid pattern mode."
         self._id = id
-        self._data = data.flatten()
+        self._data = np.asarray(data).flatten()
 
         self._modes = {"s": 1, "h": 3600, "d": 86400, "m": 2592000}
         dt = self._modes[mode]
@@ -245,10 +236,10 @@ class Table:
     ):
         self._id = id
 
-        self._x = x.flatten()
-        self._y = y.flatten() if y is not None else None
-        self._z = z.flatten() if z is not None else None
-        self._data = data
+        self._x = np.asarray(x).flatten()
+        self._y = np.asarray(y).flatten() if y is not None else None
+        self._z = np.asarray(z).flatten() if z is not None else None
+        self._data = np.asarray(data)
 
         self._check()
 

@@ -110,6 +110,6 @@ class BaseInput(IInput):
 
     def notify_changed(self, message: str):
         """Broadcasts a change event."""
-        logger.info(f"Input '{self.id}' changed: {message}")
+        logger.debug(f"Input '{self.id}' changed: {message}")
         event_args = ExchangeItemChangeEventArgs(self, message)
         self._event_manager.invoke(event_args)
