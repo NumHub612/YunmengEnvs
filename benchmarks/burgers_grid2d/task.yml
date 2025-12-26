@@ -1,0 +1,219 @@
+# ===============================================================================
+# 项目信息。
+# ===============================================================================
+# 项目名称, 用于区分不同项目，同时模型耦合时也作为模型名称。
+# 注意: 项目配置中大小写敏感。
+PROJECT: surfacewatermodel
+TYPE: SurfaceWaterModel
+# 项目简介，描述项目的功能，无实际功能。
+BRIEF: 2D Burgers Equation on Grid mesh for usage example.
+
+# ===============================================================================
+# 环境配置
+# ===============================================================================
+ENV: null
+
+# ===============================================================================
+# 时间域配置
+# ===============================================================================
+TEMPORAL:
+  # 起止时间
+  start_time: "2025-11-08 00:00:00"
+  end_time: "2025-11-08 00:00:00.4"
+  # 时间步长(单位: 秒)
+  time_step: 0.04
+
+# ===============================================================================
+# 空间域配置
+# ===============================================================================
+SPATIAL:
+  # 空间离散类型, 包括GRID-serial, MESH-serial, NETWORK-serial，详见项目文档
+  # 通常使用 `type`/`method`来定义对象或方法，`params`来配置对象参数
+  type: Grid2D
+  # 加载和保存, 如果直接加载网格数据，则不需要配置后续项(配置了也无效)
+  load_from: null
+  save_to: ./benchmarks/burgers_grid2d/outs
+  # 离散配置，配置项直接对应对象初始化以及接口参数，框架要求自动过滤无效参数
+  params:
+    lower_left: [0, 0]
+    upper_right: [2, 2]
+    nx: 11
+    ny: 11
+  # 点串定义，保存网格数据时，点串数据会被一起保存
+  # `expr` 是一个简单表达式，描述网格对象的位置，
+  # `spec` 是一个整数列表，直接表示网格对象的索引
+  # `from` 是json数据文件路径，如果不为空，则会从文件中加载指定数据
+  patches:
+    - id: &south south
+      etype: face
+      expr: "lambda x, y, z: y == 0"
+    - id: &north north
+      etype: face
+      expr: "lambda x, y, z: y == 2"
+    - id: &west west
+      etype: face
+      expr: "lambda x, y, z: x == 0"
+    - id: &east east
+      etype: face
+      expr: "lambda x, y, z: x == 2"
+    - id: strings
+      etype: face
+      spec: [0, 1, 3, 5]
+  # 子域定义，保存网格数据时，子域数据会被一起保存
+  # 当同时有多种值定义时，生效优先级：`from`>`countour`>`expr`，
+  # 即越直接的定义优先级越高。
+  zones:
+    - id: &zone zone
+      etype: cell
+      expr: "lambda x, y, z: x >= 0.5 and x <= 1.0 and y >= 0.5 and y <= 1.0"
+      from: null
+
+# ===============================================================================
+# 数据集配置
+# ===============================================================================
+DATAS:
+  # 数据类型有多种, 除`field`外，均可以直接指定;所有数据均可从文件中加载或表达式生成
+  # 时间序列
+  timeseries:
+    - id: ts1
+      xs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      ys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      expr: null
+      from: null
+  # 曲线数据
+  curves:
+    - id: curve1
+      xs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      ys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      expr: null
+      from: null
+  # 模式数据
+  patterns:
+    - id: pat1
+      mode: d
+      xs: [0, 1, 2, 3, 4, 5, 6]
+      ys: [0, 1, 2, 3, 4, 5, 6]
+      from: null
+  # 表格数据, 当前版本仅支持到三维表格数据
+  tables:
+    - id: table1
+      xs: [0, 1, 2, 3]
+      ys: [0, 1, 2, 3]
+      zs: null
+      vs: [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]
+      expr: null
+      from: null
+  # 流场数据
+  fields:
+    - id: &phi0 phi_field
+      var: phi
+      etype: cell
+      dtype: scalar
+      from: "./benchmarks/burgers_grid2d/data/hotstart.csv"
+    - id: &u0 u_field
+      var: u
+      etype: cell
+      dtype: vector
+      expr:
+        # 全局定义（null表示全局，顺序生效）
+        - zone: null
+          value: [1.0, 1.0, 0.0]
+        # 区域定义（可以定义多个区域）
+        - zone: *zone
+          value: [2.0, 2.0, 0.0]
+
+# ===============================================================================
+# 算子配置
+# ===============================================================================
+OPERATORS:
+  # 梯度算子
+  - method: fvm::grad01
+    params: null
+  # 瞬态算子
+  - method: fvm::ddt01
+    params:
+      rho: 1.0
+  # 对流算子
+  - method: fvm::div01
+    params:
+      rho: 1.0
+  # 扩散算子
+  - method: fvm::lap01
+    params:
+      k: 0.1
+  # 源项算子
+  - method: fvm::src01
+    params: null
+
+# ===============================================================================
+# 求解器配置
+# ===============================================================================
+SOLVER:
+  # 物理模型
+  id: solver1
+  type: fvm::Burgers2D
+  # 加载和保存
+  load_from: null
+  save_to: null
+  # 模型参数
+  params:
+    max_iter: 100
+  # 初始条件，只能使用框架提供的初始化方法
+  ics:
+    # 热启动方式
+    - id: phi_ic1
+      var: phi
+      method: uniform
+      params:
+        value: 0.0
+        dtype: scalar
+    - id: phi_ic2
+      var: phi
+      method: hotstart
+      from: *phi0
+    - id: u_ic1
+      var: u
+      method: hotstart
+      from: *u0
+  # 边界条件，只能使用框架提供的边界条件类型
+  bcs:
+    # Dirichlet边界条件
+    - id: u_bc1
+      patches: [*west, *east]
+      var: u
+      method: dirichlet
+      params:
+        value: [1.0, 1.0, 0.0]
+        dtype: vector
+    # Neumann边界条件
+    - id: u_bc2
+      patches: [*south, *north]
+      var: u
+      method: neumann
+      params:
+        flux: [1.0, 1.0, 0.0]
+        dtype: vector
+  # 回调函数，只能使用框架提供的回调函数类型
+  cbs:
+    - id: profiler
+      method: PerformanceMonitor
+      params:
+        interval: 100
+        output_dir: ./benchmarks/burgers_grid2d/outs/profiler
+    - id: animator
+      method: render
+      params:
+        output_dir: ./benchmarks/burgers_grid2d/outs/animation
+        fields:
+          u:
+            style: cloudmap
+            dimension: x
+            show_edges: true
+            show_scalars: false
+
+# ===============================================================================
+# 自定义配置
+# ===============================================================================
+CUSTOMS:
+  # 任何非标准的配置项都可以放到这里，会被框架自动加载，用于自定义扩展功能。
+  null

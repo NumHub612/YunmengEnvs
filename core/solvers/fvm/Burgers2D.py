@@ -7,9 +7,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from core.solvers.commons import inits, boundaries, IBoundaryCondition
 from core.numerics.mesh import Mesh
-from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01, Lap01
+from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01, Lap01, Src01
 from core.numerics.algos import FieldInterpolators as fis
-from core.numerics.fields import Scalar, Vector, CellField, VariableType
+from core.numerics.fields import CellField, VariableType, DataHub, Sample
 from core.numerics.mats import LinearEqs
 from configs.settings import settings, logger
 
@@ -46,34 +46,27 @@ class Burgers2D(BaseSolver):
     def get_name(cls) -> str:
         return "Burgers2D"
 
-    def __init__(self, id: str, mesh: Mesh):
+    def __init__(self, id: str, mesh: Mesh, operators: dict):
         """
         Constructor of 2D Burgers equation solver.
         """
-        super().__init__(id, mesh)
+        super().__init__(id, mesh, operators)
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
 
         self._default_bcs = {"u": boundaries.MixedBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
-        self._operators = {
-            "ddt": Ddt01(),
-            "grad": Grad01(),
-            "div": Div01(),
-            "laplacian": Lap01(),
-        }
 
         self._max_iter = 100
         self._tol = 1e-6
         self._step = 0
 
+        self._buf: DataHub = None
         self._fields = {
             "u": CellField(self._mesh.cell_count, VariableType.VECTOR, variable="u"),
         }
 
-    def initialize(
-        self, k: float, order: int = 1, max_iter: int = 100, tol: float = 1e-6
-    ):
+    def initialize(self, max_iter: int = 100, tol: float = 1e-6):
         # TODO: To split SloverParams, OpParams.
 
         logger.info("Initializing the unsteady burgers solver...")
@@ -106,11 +99,13 @@ class Burgers2D(BaseSolver):
         self._tol = tol
 
         # Init operators
-        if order != 1:
-            self._operators["ddt"] = Ddt02()
-
         for _, op in self._operators.items():
-            op.prepare(self._mesh, boundaries=self._bcs, k=k, rho=1)
+            op.prepare(self._mesh, boundaries=self._bcs)
+
+        time_order = max(self._operators["ddt"].time_order, 2)
+        self._buf = DataHub(["u"], time_order)
+        for _ in range(time_order):
+            self._buf.update(u=Sample(None, 0.04, self._fields["u"]))
 
         # Call callbacks
         for callback in self._callbacks:
@@ -124,24 +119,25 @@ class Burgers2D(BaseSolver):
         for callback in self._callbacks:
             callback.on_step_begin()
 
+        self._buf.update(u=Sample(start.real, dt, self._fields["u"]))  # TODO: deepcopy?
         sys = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
         )
         # Assemble time matrix(ddt)
-        sys_t = self._operators["ddt"].run(self._fields["u"], dt)
+        sys_t = self._operators["ddt"].run(self._buf)
         sys += sys_t
 
         # Assemble convection matrix(div)
-        sys_c = self._operators["div"].run(self._fields["u"])
+        sys_c = self._operators["div"].run(self._buf)
         sys += sys_c
 
         # Assemble diffusion matrix(laplacian)
-        sys_d = self._operators["laplacian"].run(self._fields["u"])
+        sys_d = self._operators["laplacian"].run(self._buf)
         sys += sys_d
 
         # Assemble source term matrix(src)
-        # sys_s = self._handle_source_term()
-        # sys += sys_s
+        sys_s = self._operators["src"].run(self._buf)
+        sys += sys_s
 
         # Call callbacks
         for callback in self._callbacks:
@@ -149,13 +145,11 @@ class Burgers2D(BaseSolver):
 
         # Solve linear system
         solutions = sys.solve(method="numpy")
-
-        self._fields["u_prev"] = copy.deepcopy(self._fields["u"])
         self._fields["u"] = solutions
         self._step += 1
 
         # Update status
-        diffs = self._fields["u"] - self._fields["u_prev"]
+        diffs = self._fields["u"] - self._buf.fetch(0, "u").data
         res = np.max(np.abs(diffs.data))
         time_cost = time.perf_counter() - start
         self._update_status(res, time_cost)

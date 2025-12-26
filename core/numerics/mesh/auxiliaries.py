@@ -16,6 +16,11 @@ import math
 import copy
 
 
+# -----------------------------------------------
+# region --- MeshTopo ---
+# -----------------------------------------------
+
+
 class MeshTopo:
     """Mesh topology class for describing the topology.
 
@@ -55,7 +60,7 @@ class MeshTopo:
         self._cell_indices = None
 
     # -----------------------------------------------
-    # --- static topology methods ---
+    # region static topo methods
     # -----------------------------------------------
 
     @staticmethod
@@ -116,7 +121,7 @@ class MeshTopo:
         return coords
 
     # -----------------------------------------------
-    # --- boundaray and interior properties ---
+    # region boundaray properties
     # -----------------------------------------------
 
     @property
@@ -182,7 +187,7 @@ class MeshTopo:
         return self._interior_cells
 
     # -----------------------------------------------
-    # --- connectivity properties ---
+    # region connectivity properties
     # -----------------------------------------------
 
     @property
@@ -327,7 +332,7 @@ class MeshTopo:
         return self._cell_neighbours
 
     # -----------------------------------------------
-    # --- indices methods ---
+    # region indices methods
     # -----------------------------------------------
 
     @property
@@ -352,7 +357,7 @@ class MeshTopo:
         return self._cell_indices
 
     # -----------------------------------------------
-    # --- retrieval methods ---
+    # region topo methods
     # -----------------------------------------------
 
     def search_nearest_elements(
@@ -386,32 +391,10 @@ class MeshTopo:
         results = indexes[idx[valid]]
         return results
 
-    # -----------------------------------------------
-    # --- mesh topo check methods ---
-    # -----------------------------------------------
 
-    def check_topo(self):
-        """Check the topological relationships."""
-        # Check isolated elements
-        self._check_isolated_elements()
-
-        # Check duplicated elements
-        self._check_duplicated_elements()
-
-        # Check max connectivity
-        self._check_max_connectivity()
-
-    def _check_isolated_elements(self):
-        """Check the isolated elements."""
-        pass
-
-    def _check_duplicated_elements(self):
-        """Check the duplicated elements."""
-        pass
-
-    def _check_max_connectivity(self):
-        """Check the max connectivity."""
-        pass
+# -----------------------------------------------
+# region --- MeshGeom ---
+# -----------------------------------------------
 
 
 class MeshGeom:
@@ -457,7 +440,7 @@ class MeshGeom:
         self._cell2face_vects = None
 
     # -----------------------------------------------
-    # --- static geometry methods ---
+    # region static geom methods
     # -----------------------------------------------
 
     @staticmethod
@@ -483,7 +466,7 @@ class MeshGeom:
     def calculate_area(points: list) -> float:
         """Calculate the area of the given coordinates."""
         if len(points) < 3:
-            raise ValueError("At least 3 points are required.")
+            return 0.0
 
         coords = MeshTopo.extract_coordinates(points)
         coords = MeshTopo.sort_anticlockwise(coords)
@@ -518,7 +501,7 @@ class MeshGeom:
         return coordinates
 
     # -----------------------------------------------
-    # --- face properties ---
+    # region face properties
     # For the List properties, the order of the results is the same
     # as the order of the faces in mesh.
     # -----------------------------------------------
@@ -617,7 +600,7 @@ class MeshGeom:
         return face_normals
 
     # -----------------------------------------------
-    # --- cell properties ---
+    # region cell properties
     # For the List properties, the order of the results is the same
     # as the order of the cells in mesh.
     # -----------------------------------------------
@@ -714,7 +697,7 @@ class MeshGeom:
         return cell_surfaces
 
     # -----------------------------------------------
-    # --- distance properties ---
+    # region distance properties
     # -----------------------------------------------
 
     @property
@@ -775,7 +758,7 @@ class MeshGeom:
         return self._node2node_dists
 
     # -----------------------------------------------
-    # --- vector properties ---
+    # region vector properties
     # -----------------------------------------------
 
     @property
@@ -811,7 +794,7 @@ class MeshGeom:
         return self._cell2face_vects
 
     # -----------------------------------------------
-    # --- generation methods ---
+    # region generation methods
     # -----------------------------------------------
 
     def generate_projection(
@@ -827,11 +810,3 @@ class MeshGeom:
         proj_np = proj_np + face.coordinate.to_np()
         proj_coord = Coordinate.from_np(proj_np)
         return proj_coord
-
-    # -----------------------------------------------
-    # --- mesh geometry check methods ---
-    # -----------------------------------------------
-
-    def check_mesh_geometry(self):
-        """Check the geometry of the mesh."""
-        pass

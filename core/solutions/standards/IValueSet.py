@@ -35,7 +35,7 @@ class IValueSet(ABC):
     @abstractmethod
     def shape(self) -> tuple[int]:
         """
-        Valid shape of the value set.
+        Current shape of the value set.
         """
         pass
 

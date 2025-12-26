@@ -201,12 +201,14 @@ class TestFvmEqs(unittest.TestCase):
         ic = inits.HotstartInitialization("ic1", init_field)
 
         # set boundary condition
-        bc_value = Vector(1, 1)
+        bc_value = np.array([1, 1, 0])
         bc1 = boundaries.NaturalBoundary("bc1", bc_value)
         bc2 = boundaries.FixedBoundary("bc2", bc_value)
 
         # set callback
         output_dir = os.path.join(self._output_dir, "burgers")
+        cb2 = callbacks.PerformanceMonitor("burgers2d", output_dir, 1)
+
         confs = {
             "u": {
                 "style": "cloudmap",
@@ -217,9 +219,19 @@ class TestFvmEqs(unittest.TestCase):
         }
         cb1 = callbacks.ImageRender("cb1", output_dir, confs)
 
+        # set operators
+        operators = {
+            "ddt": fvm.fvm_operators["ddt01"](rho=1.0),
+            "grad": fvm.fvm_operators["grad01"](),
+            "div": fvm.fvm_operators["div01"](rho=1.0),
+            "laplacian": fvm.fvm_operators["lap01"](k=0.1),
+            "src": fvm.fvm_operators["src01"](),
+        }
+
         # set conditions
-        solver = fvm.Burgers2D("solver1", grid)
+        solver = fvm.Burgers2D("solver1", grid, operators)
         solver.add_callback(cb1)
+        solver.add_callback(cb2)
         solver.add_ic("u", ic)
         solver.add_bc("u", bc_groups["west"], bc2)
         solver.add_bc("u", bc_groups["south"], bc2)
@@ -231,7 +243,7 @@ class TestFvmEqs(unittest.TestCase):
         K = 0.1
         dt = 0.04
         order = 1
-        solver.initialize(k=K, order=order, max_iter=steps)
+        solver.initialize(max_iter=steps)
 
         # run solver
         status = None

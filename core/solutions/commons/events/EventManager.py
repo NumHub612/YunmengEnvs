@@ -49,7 +49,7 @@ class EventManager:
                 try:
                     h(*args, **kwargs)
                 except Exception as e:
-                    logger.error(f"EventManager: {e}")
+                    logger.exception(e)
 
     def remove_handler(self, handler: EventHandler):
         """Unsubscribes an event handler."""

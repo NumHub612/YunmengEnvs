@@ -12,13 +12,61 @@ from configs.settings import settings
 from core.numerics.types import VariableType
 
 
+# -----------------------------------------------
+# region --- helper functions ---
+# -----------------------------------------------
+
+
+def resolve_var_class(spec: str | VariableType) -> type:
+    """
+    Resolve a spec (string or VariableType) to the Variable class.
+    """
+    # enum input
+    if isinstance(spec, VariableType):
+        if spec == VariableType.SCALAR:
+            return Scalar
+        if spec == VariableType.VECTOR:
+            return Vector
+        if spec == VariableType.TENSOR:
+            return Tensor
+        raise ValueError(f"Unsupported VariableType: {spec}")
+
+    # string input
+    _STR_TO_VAR_CLASS = {
+        "scalar": lambda: Scalar,
+        "vector": lambda: Vector,
+        "tensor": lambda: Tensor,
+    }
+    if isinstance(spec, str):
+        key = spec.strip().lower()
+        if key in ("scalar", "vector", "tensor"):
+            return _STR_TO_VAR_CLASS[key]()
+    raise TypeError(f"Unsupported spec type: {type(spec)}")
+
+
+def make_var_from_value(
+    value: torch.Tensor | np.ndarray, spec: str | VariableType = "scalar"
+) -> "Variable":
+    """
+    Create a Variable instance from raw `value` and `spec`.
+    """
+    cls = resolve_var_class(spec)
+    arr = np.atleast_1d(value).astype(float)
+    return cls.from_data(arr)
+
+
+# -----------------------------------------------
+# region --- variable ---
+# -----------------------------------------------
+
+
 class Variable:
     """
     Abstract variable class.
     """
 
     # -----------------------------------------------
-    # --- abstract methods ---
+    # region class methods
     # -----------------------------------------------
 
     @classmethod
@@ -61,7 +109,7 @@ class Variable:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
@@ -97,7 +145,7 @@ class Variable:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- reload arithmetic operations ---
+    # region arithmetic operations
     # -----------------------------------------------
 
     @abstractmethod
@@ -157,7 +205,7 @@ class Variable:
         raise NotImplementedError()
 
     # -----------------------------------------------
-    # --- reload comparison operations ---
+    # region comparison operations
     # -----------------------------------------------
 
     @abstractmethod
@@ -167,6 +215,11 @@ class Variable:
     @abstractmethod
     def __ne__(self, other) -> bool:
         raise NotImplementedError()
+
+
+# -----------------------------------------------
+# region --- vector ---
+# -----------------------------------------------
 
 
 class Vector(Variable):
@@ -359,6 +412,11 @@ class Vector(Variable):
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
+
+
+# -----------------------------------------------
+# region --- scalar ---
+# -----------------------------------------------
 
 
 class Scalar(Variable):
@@ -556,6 +614,11 @@ class Scalar(Variable):
 
     def __str__(self):
         return f"Scalar({self.value})"
+
+
+# -----------------------------------------------
+# region --- tensor ---
+# -----------------------------------------------
 
 
 class Tensor(Variable):
@@ -804,10 +867,3 @@ class Tensor(Variable):
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
-
-
-DTYPE_MAP = {
-    VariableType.SCALAR: Scalar,
-    VariableType.VECTOR: Vector,
-    VariableType.TENSOR: Tensor,
-}

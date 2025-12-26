@@ -10,7 +10,7 @@ from core.numerics.fields.variables import (
     Scalar,
     Vector,
     Tensor,
-    DTYPE_MAP,
+    resolve_var_class,
 )
 from core.numerics.types import ElementType
 from configs.settings import settings
@@ -18,6 +18,58 @@ from configs.settings import settings
 import numpy as np
 import torch
 import os
+
+# -----------------------------------------------
+# region --- helper functions ---
+# -----------------------------------------------
+
+
+def resolve_field_class(spec: str | ElementType) -> type:
+    """
+    Resolve the field class from the domain spec.
+    """
+    if isinstance(spec, ElementType):
+        if spec == ElementType.CELL:
+            return CellField
+        elif spec == ElementType.FACE:
+            return FaceField
+        elif spec == ElementType.NODE:
+            return NodeField
+        else:
+            raise ValueError(f"Unsupported element type: {spec}")
+
+    if isinstance(spec, str):
+        if spec == "cell":
+            return CellField
+        elif spec == "face":
+            return FaceField
+        elif spec == "node":
+            return NodeField
+        else:
+            raise ValueError(f"Unsupported element type: {spec}")
+    raise TypeError(f"Unsupported spec type: {type(spec)}")
+
+
+def make_field_from_data(
+    spec: str | ElementType, data: np.ndarray | torch.Tensor | list[torch.Tensor]
+) -> "Field":
+    """
+    Create a field from data.
+
+    Args:
+        spec: The field spec, e.g., "cell".
+        data: The data of the field.
+
+    Returns:
+        A field object.
+    """
+    field_class = resolve_field_class(spec)
+    return field_class.from_data(data)
+
+
+# -----------------------------------------------
+# region --- field ---
+# -----------------------------------------------
 
 
 class Field:
@@ -83,7 +135,7 @@ class Field:
             self._gpus = []
 
         if data is None:
-            default = DTYPE_MAP[data_type].zero().data
+            default = resolve_var_class(data_type).zero().data
             values = torch.full((size, *default.shape), 0.0, dtype=fptype)
             values[:] = torch.tensor(default.data)
         else:
@@ -145,7 +197,7 @@ class Field:
         return Field.from_data(data, device=device)
 
     # -----------------------------------------------
-    # --- Properties ---
+    # region Properties
     # -----------------------------------------------
 
     @property
@@ -198,7 +250,7 @@ class Field:
         return self._etype
 
     # -----------------------------------------------
-    # --- auxiliary methods ---
+    # region auxiliary methods
     # -----------------------------------------------
 
     @classmethod
@@ -315,7 +367,7 @@ class Field:
         return scalar_fields
 
     # -----------------------------------------------
-    # --- reload query methods ---
+    # region query methods
     # -----------------------------------------------
 
     def _get_local_indices(self, global_indices: int) -> tuple:
@@ -337,7 +389,7 @@ class Field:
                 raise IndexError(f"Index out of range: {index}")
 
             dev, idx = self._get_local_indices(index)
-            var = DTYPE_MAP[self.dtype].from_data(self._values[dev][idx])
+            var = resolve_var_class(self.dtype).from_data(self._values[dev][idx])
             return var
         elif isinstance(index, slice):
             start, stop, step = index.indices(self.size)
@@ -347,7 +399,7 @@ class Field:
             result = []
             for dev, idx in locals:
                 data = self._values[dev][idx]
-                var = DTYPE_MAP[self.dtype].from_data(data)
+                var = resolve_var_class(self.dtype).from_data(data)
                 result.append(var)
             return result
         else:
@@ -382,7 +434,7 @@ class Field:
                 yield v
 
     # -----------------------------------------------
-    # --- override arithmetic operations ---
+    # region arithmetic operations
     # -----------------------------------------------
 
     def _check_fields_compatible(self, other: "Field"):
@@ -652,6 +704,11 @@ class Field:
             self._gpus,
         )
         return result
+
+
+# -----------------------------------------------
+# region --- predefined fields ---
+# -----------------------------------------------
 
 
 class CellField(Field):

@@ -16,199 +16,91 @@ import pickle
 
 
 class Grid(Mesh):
-    """Abstract base class for orthogonal structured grids.
-
-    For `Grid`, the topological relationships and geometric calculations are simplified:
-    - The `Element`'s id will be equal to its index.
-    """
+    """Abstract class for orthogonal structured grids."""
 
     def __init__(self):
         super().__init__()
-        self._nodes = []
-        self._faces = []
-        self._cells = []
-
-        self._topo = MeshTopo(self)
-        self._geom = MeshGeom(self)
-
-        self._groups = {}
+        self._orthogonal = True
+        self._nx = None
+        self._ny = None
+        self._nz = None
+        self._dx = None
+        self._dy = None
+        self._dz = None
 
     # -----------------------------------------------
-    # --- properties ---
+    # region properties
     # -----------------------------------------------
 
     @property
-    def orthogonal(self) -> bool:
-        return True
-
-    @property
-    def node_count(self) -> int:
-        return len(self._nodes)
-
-    @property
-    def nodes(self) -> list[Node]:
-        return self._nodes
-
-    @nodes.setter
-    def nodes(self, nodes: list[Node]):
-        for node in nodes:
-            self._nodes[node.id] = node
-        self._geom.reset()
-        self._version += 1
-
-    @property
-    def face_count(self) -> int:
-        return len(self._faces)
-
-    @property
-    def faces(self) -> list[Face]:
-        return self._faces
-
-    @property
-    def cell_count(self) -> int:
-        return len(self._cells)
-
-    @property
-    def cells(self) -> list[Cell]:
-        return self._cells
-
-    @property
-    @abstractmethod
     def nx(self) -> int:
-        """The number of discretization size in the x-direction."""
-        pass
+        """Discretization size in the x-direction."""
+        return self._nx
 
     @property
-    @abstractmethod
     def ny(self) -> int:
-        """The number of discretization size in the y-direction."""
-        pass
+        """Discretization size in the y-direction."""
+        return self._ny
 
     @property
-    @abstractmethod
     def nz(self) -> int:
-        """The number of discretization size in the z-direction."""
-        pass
+        """Discretization size in the z-direction."""
+        return self._nz
 
     @property
-    @abstractmethod
     def dx(self) -> float:
-        """The spacing of the grid in the x-direction."""
-        pass
+        """Discretization step in the x-direction."""
+        return self._dx
 
     @property
-    @abstractmethod
     def dy(self) -> float:
-        """The spacing of the grid in the y-direction."""
-        pass
+        """Discretization step in the y-direction."""
+        return self._dy
 
     @property
-    @abstractmethod
     def dz(self) -> float:
-        """The spacing of the grid in the z-direction."""
-        pass
+        """Discretization step in the z-direction."""
+        return self._dz
 
     # -----------------------------------------------
-    # --- methods ---
+    # region methods
     # -----------------------------------------------
 
-    def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
-        return [self._nodes[i] for i in nodes_ids]
-
-    def get_faces(self, faces_ids: list[int]) -> list[Face]:
-        return [self._faces[i] for i in faces_ids]
-
-    def get_cells(self, cells_ids: list[int]) -> list[Cell]:
-        return [self._cells[i] for i in cells_ids]
-
-    def set_group(self, etype, group_name, indices):
-        if not isinstance(etype, ElementType):
-            raise ValueError("Invalid element type.")
-        if group_name in self._groups:
-            raise ValueError("Group already exists.")
-        self._groups[group_name] = (indices, etype)
-
-    def get_group(self, group_name):
-        if group_name not in self._groups:
-            return None
-        return self._groups[group_name]
-
-    def delete_group(self, group_name):
-        if group_name in self._groups:
-            self._groups.pop(group_name)
-        else:
-            return None
-
-    def save(self, file_path: str):
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        mesh_file = os.path.join(file_path, "mesh.pkl")
-        with open(mesh_file, "wb") as f:
-            pickle.dump(self, f)
-
-    @staticmethod
-    def load(file_path: str) -> Mesh:
-        mesh_file = os.path.join(file_path, "mesh.pkl")
-        with open(mesh_file, "rb") as f:
-            mesh = pickle.load(f)
-        return mesh
+    def update(self, mask_indices: list[int]):
+        raise NotImplementedError("Grid can't be updated.")
 
     @abstractmethod
     def match_node(self, i: int, j: int, k: int) -> int:
-        """
-        Match the global node index with the local indices.
-
-        Args:
-            i: The local index in the x-direction.
-            j: The local index in the y-direction.
-            k: The local index in the z-direction.
-
-        Returns:
-            The global node index.
-        """
+        """Match node with the local indices."""
         pass
 
     @abstractmethod
     def match_cell(self, i: int, j: int, k: int) -> int:
-        """
-        Match the global cell index with the local indices.
+        """Match cell with the local indices."""
+        pass
 
-        Args:
-            i: The local index in the x-direction.
-            j: The local index in the y-direction.
-            k: The local index in the z-direction.
+    @abstractmethod
+    def retrieve_node_neighbours(self, index: int) -> list[int]:
+        """Get the neighbours node indices.
 
-        Returns:
-            The global cell index.
+        The neighbours are sorted in the orders:
+        [east, west, north, south, top, bottom]
         """
         pass
 
     @abstractmethod
-    def retrieve_node_neighbours(self, index: int) -> list:
-        """
-        Get the neighbours node indices of the given node.
+    def retrieve_cell_neighbours(self, index: int) -> list[int]:
+        """Get the neighbours cell indices.
 
-        Args:
-            index: The global node index.
-
-        Notes:
-            - The neighbours are sorted in the orders:
-            [east, west, north, south, top, bottom]
+        The neighbour cells sorted in the orders:
+        [east, west, north, south, top, bottom]
         """
         pass
 
-    @abstractmethod
-    def retrieve_cell_neighbours(self, index: int) -> list:
-        """
-        Get the neighbours cell indices of the given cell.
 
-        Args:
-            index: The global cell index.
-
-        Notes:
-            - The neighbour cells sorted in the orders:
-            [east, west, north, south, top, bottom]
-        """
-        pass
+# -----------------------------------------------
+# region --- Grid1D ---
+# -----------------------------------------------
 
 
 class Grid1D(Grid):
@@ -229,14 +121,14 @@ class Grid1D(Grid):
             num: The number of nodes in the grid.
         """
         super().__init__()
+        self._dim = MeshDim.DIM1
         self._nx = num
-        self._dx = None
+        self._dx = (end.x - start.x) / (num - 1)
 
         self._generate(start, end, num)
 
     def _generate(self, start, end, num):
         # generate nodes
-        self._dx = (end.x - start.x) / (num - 1)
         for i in range(num):
             x = start.x + i * self._dx
             node = Node(i, Coordinate(x))
@@ -258,37 +150,6 @@ class Grid1D(Grid):
             cell = Cell(i, center, [i, i + 1])
             self._cells.append(cell)
 
-    @property
-    def dimension(self) -> MeshDim:
-        return MeshDim.DIM1
-
-    @property
-    def nx(self) -> int:
-        return self._nx
-
-    @property
-    def ny(self) -> int:
-        return None
-
-    @property
-    def nz(self) -> int:
-        return None
-
-    @property
-    def dx(self) -> float:
-        return self._dx
-
-    @property
-    def dy(self) -> float:
-        return None
-
-    @property
-    def dz(self) -> float:
-        return None
-
-    def update(self, mask_indices: list[int]):
-        raise NotImplementedError("Grid1D cannot be updated.")
-
     def match_node(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
@@ -304,6 +165,11 @@ class Grid1D(Grid):
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
+
+
+# -----------------------------------------------
+# region --- Grid2D ---
+# -----------------------------------------------
 
 
 class Grid2D(Grid):
@@ -342,6 +208,7 @@ class Grid2D(Grid):
                 + pos_y (list):
         """
         super().__init__()
+        self._dim = MeshDim.DIM2
         self._ll = lower_left
         self._ur = upper_right
         self._nx = num_x
@@ -411,37 +278,6 @@ class Grid2D(Grid):
                 self._cells.append(cell)
                 cid += 1
 
-    @property
-    def dimension(self) -> MeshDim:
-        return MeshDim.DIM2
-
-    @property
-    def nx(self) -> int:
-        return self._nx
-
-    @property
-    def ny(self) -> int:
-        return self._ny
-
-    @property
-    def nz(self) -> int:
-        return None
-
-    @property
-    def dx(self) -> float:
-        return self._dx
-
-    @property
-    def dy(self) -> float:
-        return self._dy
-
-    @property
-    def dz(self) -> float:
-        return None
-
-    def update(self, mask_indices: list[int]):
-        raise NotImplementedError("Grid2D cannot be updated.")
-
     def match_node(self, i: int, j: int, k: int = None) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
             return None
@@ -477,6 +313,11 @@ class Grid2D(Grid):
         return [east, west, north, south, None, None]
 
 
+# -----------------------------------------------
+# region --- Grid3D ---
+# -----------------------------------------------
+
+
 class Grid3D(Grid):
     """3D structured grid."""
 
@@ -499,6 +340,7 @@ class Grid3D(Grid):
             num_z: The number of nodes in the z-direction.
         """
         super().__init__()
+        self._dim = MeshDim.DIM3
         self._ll = lower_left_front
         self._ur = upper_right_back
         self._nx = num_x
@@ -630,37 +472,6 @@ class Grid3D(Grid):
                     self._cells.append(cell)
                     cid += 1
 
-    @property
-    def dimension(self) -> MeshDim:
-        return MeshDim.DIM3
-
-    @property
-    def nx(self) -> int:
-        return self._nx
-
-    @property
-    def ny(self) -> int:
-        return self._ny
-
-    @property
-    def nz(self) -> int:
-        return self._nz
-
-    @property
-    def dx(self) -> float:
-        return self._dx
-
-    @property
-    def dy(self) -> float:
-        return self._dy
-
-    @property
-    def dz(self) -> float:
-        return self._dz
-
-    def update(self, mask_indices: list[int]):
-        raise NotImplementedError("Grid3D cannot be updated.")
-
     def match_node(self, i: int, j: int, k: int) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny or k < 0 or k >= self._nz:
             return None
@@ -705,6 +516,11 @@ class Grid3D(Grid):
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
         return [east, west, north, south, up, down]
+
+
+# -----------------------------------------------
+# region --- QuadGrid2D ---
+# -----------------------------------------------
 
 
 class QuadGrid2D(Grid2D):

@@ -18,19 +18,18 @@ from typing import Any
 class SolverType(enum.Enum):
     """The solver type."""
 
-    FVM = "fvm"
-    FDM = "fdm"
-    FEM = "fem"
-    LBM = "lbm"
-    NN = "nn"
-    HYB = "hyb"
+    FDM = "fdm"  # Finite Difference Model.
+    FVM = "fvm"  # Finite Volume Model.
+    FEM = "fem"  # Finite Element Model.
+    LBM = "lbm"  # Lattice Boltzmann Model.
+    AIM = "aim"  # AI Model.
     UNKNOWN = "unknown"
 
 
 @dataclass
 class SolverMeta:
     """
-    The meta information of the solver.
+    The meta description of the solver.
     """
 
     description: str = ""  # A brief description about this solver.
@@ -74,7 +73,7 @@ class ISolver(ABC):
             - The `fields` contains all the avaiable fields with followings:
                 - description (str): A brief description.
                 - dtype (str): Data type, [scalar, vector, tensor].
-                - etype (str): Element type, [node, face, cell].
+                - etype (str): Element type, [node, face, cell, none].
         """
         pass
 
@@ -103,13 +102,6 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def get_solution(self, field_name: str) -> Field:
-        """
-        Get the solution of the solver.
-        """
-        pass
-
-    @abstractmethod
     def set_problems(self, equations: list[IEquation]):
         """
         Set the equations to be solved by the solver.
@@ -117,23 +109,30 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
+    def get_solution(self, var_name: str) -> Field:
+        """
+        Get the solution of the solver.
+        """
+        pass
+
+    @abstractmethod
     def add_callback(self, callback: ISolverCallback):
         """
-        Add a callback to be called during the solver.
+        Add a callback to be called in the solver.
         """
         pass
 
     @abstractmethod
     def add_ic(self, var: str, ic: IInitCondition):
         """
-        Add the initial condition.
+        Add an initial condition.
         """
         pass
 
     @abstractmethod
     def add_bc(self, var: str, elements: list, bc: IBoundaryCondition):
         """
-        Add the boundary condition for the solver.
+        Add a boundary condition for the solver.
 
         Args:
             var: Name of the variable to set the boundary condition.

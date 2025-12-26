@@ -11,7 +11,7 @@ from core.solvers.interfaces import (
     BoundaryType,
 )
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Vector, Scalar
+from core.numerics.fields import Field, DataHub, Vector, Scalar
 from core.numerics.mesh import Grid
 
 import numpy as np
@@ -27,21 +27,22 @@ class Div01(IOperator):
     """
 
     @classmethod
-    def get_type(self) -> OperatorType:
+    def get_type(cls) -> OperatorType:
         return OperatorType.DIV
 
+    @classmethod
     def get_name(cls) -> str:
         return "div01"
 
-    def __init__(self):
+    def __init__(self, rho: float):
         self._mesh = None
         self._topo = None
         self._geom = None
 
         self._bcs = None
-        self._rho = None
+        self._rho = rho
 
-    def prepare(self, mesh: Grid, boundaries: dict, rho: float, **kwargs):
+    def prepare(self, mesh: Grid, boundaries: dict):
         if not isinstance(mesh, Grid):
             raise ValueError("Fvm Grad01 operator only supports Grid.")
 
@@ -50,9 +51,9 @@ class Div01(IOperator):
         self._geom = self._mesh.get_geom_assistant()
 
         self._bcs = boundaries
-        self._rho = rho
 
-    def run(self, source: Field) -> Field | LinearEqs:
+    def run(self, source: DataHub) -> Field | LinearEqs:
+        source = source.fetch().data
         variable = source.variable
         div_eqs = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=source.dtype, variable=variable
