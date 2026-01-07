@@ -15,3 +15,4 @@ seaborn==0.13.2
 shapely==2.0.6
 py-spy==0.4.1
 netCDF4==1.7.2
+PyYAML==6.0.1
