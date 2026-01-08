@@ -73,8 +73,8 @@ class Lap01(IOperator):
         # Assemble interial matrix
         for face in self._topo.interior_faces:
             fid = self._mesh.faces[face].id
-            Sf = self._geom.face_areas[face]
-            normal = self._geom.face_normals[face]
+            Sf = self._geom.face_area[face]
+            normal = self._geom.face_normal[face]
             if abs(normal.x) > 1e-10:
                 sign = 1 if normal.x > 0 else -1
             else:
@@ -82,7 +82,7 @@ class Lap01(IOperator):
             Sf = sign * Sf
 
             cid1, cid2 = self._topo.face_cells[fid]
-            dist = self._geom.cell2cell_distances[cid1][cid2]
+            dist = self._geom.cell2cell_distance[cid1][cid2]
             FluxC = self._k * Sf / dist
             FluxF = -FluxC
 
@@ -107,12 +107,12 @@ class Lap01(IOperator):
     def _boundary_1st(self, fid: int, bcs):
         bc_value = bcs[0]
         cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
+        Sb = self._geom.face_area[fid]
+        normal = self._geom.face_normal[fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
         # diffusion part
-        dist = self._geom.cell2face_distances[cid][fid]
+        dist = self._geom.cell2face_distance[cid][fid]
         if abs(normal.x) > 1e-10:
             sign = 1 if normal.x > 0 else -1
         else:
@@ -125,8 +125,8 @@ class Lap01(IOperator):
     def _boundary_2nd(self, fid: int, bcs):
         bc_flux = bcs[1]
         cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
+        Sb = self._geom.face_area[fid]
+        normal = self._geom.face_normal[fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
         # diffusion part
@@ -141,12 +141,12 @@ class Lap01(IOperator):
     def _boundary_3rd(self, fid: int, bcs):
         bc_inf, bc_coef, _ = bcs
         cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
+        Sb = self._geom.face_area[fid]
+        normal = self._geom.face_normal[fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
         # diffusion part
-        dist = self._geom.cell2face_distances[cid][fid]
+        dist = self._geom.cell2face_distance[cid][fid]
         if abs(normal.x) > 1e-10:
             sign = 1 if normal.x > 0 else -1
         else:

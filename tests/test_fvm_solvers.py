@@ -98,7 +98,7 @@ class TestFvmEqs(unittest.TestCase):
         plt.close()
 
         geom = MeshGeom(grid)
-        normals = geom.face_normals
+        normals = geom.face_normal
         x = [f.coordinate.x for f in grid.faces]
         y = [f.coordinate.y for f in grid.faces]
         vx = [n.x for n in normals]

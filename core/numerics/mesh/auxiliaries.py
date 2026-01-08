@@ -507,14 +507,14 @@ class MeshGeom:
     # -----------------------------------------------
 
     @property
-    def face_areas(self) -> list:
-        """Return the areas of each face."""
+    def face_area(self) -> list:
+        """Return the area of each face."""
         if self._face_areas is None:
             if self._mesh.dimension == MeshDim.DIM1:
                 face_areas = [0.0] * self._mesh.face_count
             elif self._mesh.dimension == MeshDim.DIM2:
                 # Use the perimeter as the area for 2D mesh
-                face_areas = self.face_perimeters
+                face_areas = self.face_perimeter
             else:
                 face_areas = self._calculate_areas()
             self._face_areas = face_areas
@@ -529,8 +529,8 @@ class MeshGeom:
         return face_areas
 
     @property
-    def face_perimeters(self) -> list:
-        """Return the perimeters of each face."""
+    def face_perimeter(self) -> list:
+        """Return the perimeter of each face."""
         if self._face_perimeters is None:
             if self._mesh.dimension == MeshDim.DIM1:
                 face_perimeters = [0.0] * self._mesh.face_count
@@ -561,8 +561,8 @@ class MeshGeom:
         return face_perimeters
 
     @property
-    def face_normals(self) -> list:
-        """Return the normals of each face."""
+    def face_normal(self) -> list:
+        """Return the normal of each face."""
         if self._face_normals is None:
             if self._mesh.dimension == MeshDim.DIM1:
                 face_normals = [None] * self._mesh.face_count
@@ -606,8 +606,8 @@ class MeshGeom:
     # -----------------------------------------------
 
     @property
-    def cell_volumes(self) -> list:
-        """Return the volumes of each cell."""
+    def cell_volume(self) -> list:
+        """Return the volume of each cell."""
         if self._cell_volumes is None:
             if self._mesh.dimension == MeshDim.DIM1:
                 cell_volumes = [0.0] * self._mesh.cell_count
@@ -678,8 +678,8 @@ class MeshGeom:
         return volume
 
     @property
-    def cell_surfaces(self) -> list:
-        """Return the surfaces of each cell."""
+    def cell_surface(self) -> list:
+        """Return the surface of each cell."""
         if self._cell_surfaces is None:
             if self._mesh.dimension == MeshDim.DIM1:
                 cell_surfaces = [0.0] * self._mesh.cell_count
@@ -692,7 +692,7 @@ class MeshGeom:
         cell_surfaces = [0.0] * self._mesh.cell_count
         id_indices = self._topo.face_indices
         for i, cell in enumerate(self._mesh.cells):
-            surface = sum(self.face_areas[id_indices[f]] for f in cell.faces)
+            surface = sum(self.face_area[id_indices[f]] for f in cell.faces)
             cell_surfaces[i] = surface
         return cell_surfaces
 
@@ -701,7 +701,7 @@ class MeshGeom:
     # -----------------------------------------------
 
     @property
-    def cell2cell_distances(self) -> dict:
+    def cell2cell_distance(self) -> dict:
         """Return the distances between each pair of cells."""
         if self._cell2cell_dists is None:
             cell_dists = {c.id: {} for c in self._mesh.cells}
@@ -716,7 +716,7 @@ class MeshGeom:
         return self._cell2cell_dists
 
     @property
-    def cell2face_distances(self) -> dict:
+    def cell2face_distance(self) -> dict:
         """Return the distances between each cell and its faces."""
         if self._cell2face_dists is None:
             cell_face_dists = {c.id: {} for c in self._mesh.cells}
@@ -729,7 +729,7 @@ class MeshGeom:
         return self._cell2face_dists
 
     @property
-    def cell2node_distances(self) -> dict:
+    def cell2node_distance(self) -> dict:
         """Return the distances between each cell and its nodes."""
         if self._cell2node_dists is None:
             cell_node_dists = {c.id: {} for c in self._mesh.cells}
@@ -743,7 +743,7 @@ class MeshGeom:
         return self._cell2node_dists
 
     @property
-    def node2node_distances(self) -> dict:
+    def node2node_distance(self) -> dict:
         """Return the distances between each pair of nodes."""
         if self._node2node_dists is None:
             node_dists = {n.id: {} for n in self._mesh.nodes}
@@ -762,7 +762,7 @@ class MeshGeom:
     # -----------------------------------------------
 
     @property
-    def cell2cell_vectors(self) -> dict:
+    def cell2cell_vector(self) -> dict:
         """Return the unit vectors from each cell to its neighbours."""
         if self._cell2cell_vects is None:
             cell_vecs = {c.id: {} for c in self._mesh.cells}
@@ -779,7 +779,7 @@ class MeshGeom:
         return self._cell2cell_vects
 
     @property
-    def cell2face_vectors(self) -> dict:
+    def cell2face_vector(self) -> dict:
         """Return the unit vectors from each cell to its faces."""
         if self._cell2face_vects is None:
             cell_face_vecs = {c.id: {} for c in self._mesh.cells}
@@ -804,7 +804,7 @@ class MeshGeom:
     ) -> Coordinate:
         """Generate the projection on the given face from the given coordinate."""
         face = self._mesh.faces[face]
-        normal = self.face_normals[face.id]
+        normal = self.face_normal[face.id]
         vec_np = (coordinate - face.coordinate).to_np()
         proj_np = np.dot(vec_np, normal.to_np()) * normal.to_np()
         proj_np = proj_np + face.coordinate.to_np()

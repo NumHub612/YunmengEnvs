@@ -261,13 +261,13 @@ class TestMeshGeom(unittest.TestCase):
         self.assertAlmostEqual(center.y, 0.0)
 
     def test_face_areas(self):
-        areas = self.geom.face_areas
+        areas = self.geom.face_area
         self.assertEqual(len(areas), self.mesh.face_count)
         for a in areas:
             self.assertGreaterEqual(a, 0.0)
 
     def test_face_perimeters(self):
-        perims = self.geom.face_perimeters
+        perims = self.geom.face_perimeter
         self.assertEqual(len(perims), self.mesh.face_count)
 
     # def test_cell_volumes(self):

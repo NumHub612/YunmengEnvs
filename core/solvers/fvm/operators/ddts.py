@@ -53,7 +53,7 @@ class Ddt01(IOperator):
 
         for cell in self._mesh.cells:
             cidx = self._topo.cell_indices[cell.id]
-            vol = self._geom.cell_volumes[cidx]
+            vol = self._geom.cell_volume[cidx]
             val = data[cidx]
             coef = self._rho * vol / source.timestep
 
@@ -112,7 +112,7 @@ class Ddt02(IOperator):
 
         for cell in self._mesh.cells:
             cidx = self._topo.cell_indices[cell.id]
-            vol = self._geom.cell_volumes[cidx]
+            vol = self._geom.cell_volume[cidx]
             cur_v = cur_data[cidx]
             pre_v = pre_data[cidx]
 

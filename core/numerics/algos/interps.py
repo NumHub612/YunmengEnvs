@@ -41,8 +41,8 @@ class FieldInterpolators:
             cid1 = topo.cell_indices[c1]
             cid2 = topo.cell_indices[c2]
 
-            dist1 = geom.cell2face_distances[cid1][fid]
-            dist2 = geom.cell2face_distances[cid2][fid]
+            dist1 = geom.cell2face_distance[cid1][fid]
+            dist2 = geom.cell2face_distance[cid2][fid]
             ratio = dist1 / (dist1 + dist2)
 
             if method == "linear":
