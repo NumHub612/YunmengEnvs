@@ -507,7 +507,7 @@ class MeshGeom:
     # -----------------------------------------------
 
     @property
-    def face_area(self) -> list:
+    def face_area(self) -> list[float]:
         """Return the area of each face."""
         if self._face_areas is None:
             if self._mesh.dimension == MeshDim.DIM1:
@@ -561,7 +561,7 @@ class MeshGeom:
         return face_perimeters
 
     @property
-    def face_normal(self) -> list:
+    def face_normal(self) -> list[Vector]:
         """Return the normal of each face."""
         if self._face_normals is None:
             if self._mesh.dimension == MeshDim.DIM1:
@@ -774,12 +774,11 @@ class MeshGeom:
                     vec = Vector.from_data(vec_np)
                     vec /= vec.magnitude
                     cell_vecs[cell.id][nb.id] = vec
-                    cell_vecs[nb.id][cell.id] = vec  # Symmetric matrix
             self._cell2cell_vects = cell_vecs
         return self._cell2cell_vects
 
     @property
-    def cell2face_vector(self) -> dict:
+    def cell2face_vector(self) -> dict[str, dict[str, Vector]]:
         """Return the unit vectors from each cell to its faces."""
         if self._cell2face_vects is None:
             cell_face_vecs = {c.id: {} for c in self._mesh.cells}

@@ -51,7 +51,7 @@ class MeshFilter:
 
         if "expr" in conditions:
             expr = conditions["expr"]
-            filter_func = eval(f"lambda x, y, z: {expr}")
+            filter_func = eval(expr)
             for cell in mesh.cells:
                 if filter_func(cell.coordinate.x, cell.coordinate.y, cell.coordinate.z):
                     zone.append(cell.id)

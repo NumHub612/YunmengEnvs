@@ -98,9 +98,7 @@ class Lap01(IOperator):
         if bc.get_type() == BoundaryType.FIXED:
             return self._boundary_1st(fid, items)
         elif bc.get_type() == BoundaryType.NATURAL:
-            # return self._boundary_2nd(fid, items)
-            value = items[1]
-            return self._boundary_1st(fid, (value, None, None))
+            return self._boundary_2nd(fid, items)
         elif bc.get_type() == BoundaryType.MIXED:
             return self._boundary_3rd(fid, items)
 
@@ -109,36 +107,30 @@ class Lap01(IOperator):
         cid = self._topo.face_cells[fid][0]
         Sb = self._geom.face_area[fid]
         normal = self._geom.face_normal[fid]
+        Ncb = self._geom.cell2face_vector[cid][fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
         # diffusion part
+        sign = 1 if (normal * Ncb).value > 0 else -1
         dist = self._geom.cell2face_distance[cid][fid]
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        FluxC += self._k * sign * Sb / dist
+        FluxC += sign * self._k * Sb / dist
         FluxV += -FluxC * bc_value
 
         return FluxC, FluxF, FluxV
 
     def _boundary_2nd(self, fid: int, bcs):
         bc_flux = bcs[1]
-        cid = self._topo.face_cells[fid][0]
         Sb = self._geom.face_area[fid]
-        normal = self._geom.face_normal[fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
         # diffusion part
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        FluxV += bc_flux * Sb * sign
+        FluxV = bc_flux * Sb
 
         return FluxC, FluxF, FluxV
 
     def _boundary_3rd(self, fid: int, bcs):
+        raise NotImplementedError()
+
         bc_inf, bc_coef, _ = bcs
         cid = self._topo.face_cells[fid][0]
         Sb = self._geom.face_area[fid]
@@ -147,13 +139,5 @@ class Lap01(IOperator):
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
         # diffusion part
         dist = self._geom.cell2face_distance[cid][fid]
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        temp = self._k / dist
-        Req = sign * Sb * (bc_coef * temp) / (bc_coef + temp)
-        FluxC += Req
-        FluxV += -Req * bc_inf
 
         return FluxC, FluxF, FluxV

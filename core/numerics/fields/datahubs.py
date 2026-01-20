@@ -18,7 +18,6 @@ class Sample(NamedTuple):
 
 class DataHub:
     """Datahub for managing the fields and its history.
-
     NOTE: Not modify the sample data in place.
     """
 
@@ -28,12 +27,12 @@ class DataHub:
 
     @property
     def levels(self) -> int:
-        """Return the number of levels."""
+        """Return the max levels."""
         return self._size
 
     @property
     def fields(self) -> list[str]:
-        """Return the list of fields."""
+        """Return the field ids."""
         return list(self._bufs.keys())
 
     def clear(self):

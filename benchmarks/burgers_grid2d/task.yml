@@ -179,7 +179,7 @@ SOLVER:
   bcs:
     # Dirichlet边界条件
     - id: u_bc1
-      patches: [*west, *east]
+      patches: [*west, *south]
       var: u
       method: dirichlet
       params:
@@ -187,11 +187,11 @@ SOLVER:
         dtype: vector
     # Neumann边界条件
     - id: u_bc2
-      patches: [*south, *north]
+      patches: [*east, *north]
       var: u
-      method: neumann
+      method: dirichlet
       params:
-        flux: [1.0, 1.0, 0.0]
+        value: [1.0, 1.0, 0.0]
         dtype: vector
   # 回调函数，只能使用框架提供的回调函数类型
   cbs:

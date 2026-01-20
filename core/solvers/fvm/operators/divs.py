@@ -53,7 +53,7 @@ class Div01(IOperator):
         self._bcs = boundaries
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        source = source.fetch().data
+        source: Field = source.fetch().data
         variable = source.variable
         div_eqs = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=source.dtype, variable=variable
@@ -71,8 +71,8 @@ class Div01(IOperator):
 
         # Assemble interial matrix
         for face in self._topo.interior_faces:
-            Sf = self._geom.face_areas[face]
-            normal = self._geom.face_normals[face]
+            Sf = self._geom.face_area[face]
+            normal = self._geom.face_normal[face]
             cid1, cid2 = self._topo.face_cells[face]
             u1 = source[cid1]
             u2 = source[cid2]
@@ -99,47 +99,38 @@ class Div01(IOperator):
 
     def _boundary_1st(self, fid: int, bcs, field: Field):
         bc_value = bcs[0]
-        cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
+        Sb = self._geom.face_area[fid]
+        normal = self._geom.face_normal[fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
-
         # convection part
-        u = field[cid]  # TODO: interpolate from cell center
-        mf = self._rho * u * Sb * normal
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
+        mf = self._rho * bc_value * Sb * normal
+        FluxC = max(mf.value, 0.0)
+        FluxF = -max(-mf.value, 0.0)
 
-        FluxV += -mf * bc_value if sign > 0.0 else mf * bc_value
         return FluxC, FluxF, FluxV
 
     def _boundary_2nd(self, fid: int, bcs, field: Field):
         bc_flux = bcs[1]
         cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
+        Sb = self._geom.face_area[fid]
+        normal = self._geom.face_normal[fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
 
         # convection part
         u = bc_flux
         mf = self._rho * u * Sb * normal
-        if abs(normal.x) > 1e-10:
-            sign = 1 if normal.x > 0 else -1
-        else:
-            sign = 1 if normal.y > 0 else -1
-        FluxC = mf if sign > 0.0 else 0.0
 
         return FluxC, FluxF, FluxV
 
     def _boundary_3rd(self, fid: int, bcs, field: Field):
+        raise NotImplementedError()
+
         bc_inf, bc_coef, _ = bcs
         cid = self._topo.face_cells[fid][0]
-        Sb = self._geom.face_areas[fid]
-        normal = self._geom.face_normals[fid]
+        Sb = self._geom.face_area[fid]
+        normal = self._geom.face_normal[fid]
 
         FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
 
