@@ -109,7 +109,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def get_solution(self, var_name: str) -> Field:
+    def get_solution(self, variable: str) -> Field:
         """
         Get the solution of the solver.
         """

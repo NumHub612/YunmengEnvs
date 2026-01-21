@@ -42,6 +42,13 @@ class IEquation(ABC):
         """
         pass
 
+    @property
+    def symbols(self) -> dict[str, EqSymbol]:
+        """
+        The symbols used in the equation.
+        """
+        pass
+
     @abstractmethod
     def set_equations(self, equations: list[str], symbols: dict[str, EqSymbol]):
         """
@@ -71,15 +78,15 @@ class IEquation(ABC):
         pass
 
     @abstractmethod
-    def get_variables(self) -> dict:
+    def discretize(self) -> LinearEqs:
         """
-        Get variables used in equations.
+        Discretize the equations system.
         """
         pass
 
     @abstractmethod
-    def discretize(self) -> LinearEqs:
+    def summary(self) -> str:
         """
-        Discretize the equations system.
+        Print a summary of the equation.
         """
         pass

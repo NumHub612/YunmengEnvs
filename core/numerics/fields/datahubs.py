@@ -18,57 +18,73 @@ class Sample(NamedTuple):
 
 class DataHub:
     """Datahub for managing the fields and its history.
-    NOTE: Not modify the sample data in place.
+
+    NOTE:
+    - Not modify the sample data in place.
+    - Not update regisitered fields separately,
+    which may cause misalignment.
     """
 
     def __init__(self, fields: list[str], levels: int):
-        self._bufs = {f: RingBuffer(levels) for f in fields}
+        """Initialize the datahub with the given fields and levels."""
+        self._buffs = {f: RingBuffer(levels) for f in fields}
+        self._grads = {f: RingBuffer(levels) for f in fields}
         self._size = levels
 
-    @property
-    def levels(self) -> int:
-        """Return the max levels."""
-        return self._size
-
-    @property
-    def fields(self) -> list[str]:
-        """Return the field ids."""
-        return list(self._bufs.keys())
-
-    def clear(self):
-        """Clear the datahub."""
-        for buf in self._bufs.values():
-            buf.clear()
-
-    def update(self, **kwargs):
-        """Update the datahub with the new fields.
-
-        NOTE: It's possible to update regisitered fields separately,
-        which may cause misalignment.
-        """
-        for k, v in kwargs.items():
-            if k not in self._bufs:
-                continue
-            self._bufs[k].push(v)
-
-    def fetch(self, level: int = 0, name: str = None) -> Sample:
-        """Fetch the field at the given level.
+    def field(self, name: str, level: int = 0) -> Sample:
+        """Fetch the specified field at the given level.
 
         NOTE: level=0 present the latest data,
         level=1 present the previous data,
         and so on.
         """
-        if name is None:
-            name = list(self._bufs.keys())[0]
-        if name not in self._bufs:
-            raise ValueError(f"Field {name} not found.")
-        return self._bufs[name][level]
+        return self._buffs[name][level]
+
+    def grad(self, name: str, level: int = 0) -> Sample:
+        """Fetch the specified field's gradient at the given level.
+
+        NOTE: level=0 present the latest gradient,
+        level=1 present the previous gradient,
+        and so on.
+        """
+        return self._grads[name][level]
+
+    def has(self, name: str, level: int = 0) -> bool:
+        """Check if the datahub has the field and the given level."""
+        if name not in self._buffs:
+            return False
+        if level >= self._size or level < 0:
+            return False
+        return True
+
+    def clear(self):
+        """Clear the datahub."""
+        for buff in self._buffs.values():
+            buff.clear()
+        for grad in self._grads.values():
+            grad.clear()
+
+    def push_field(self, name: str, sample: Sample):
+        """Push origin field."""
+        self._buffs[name].push(sample)
+
+    def push_grad(self, name: str, sample: Sample):
+        """Push gradient."""
+        self._grads[name].push(sample)
+
+    def push(self, name: str, field: Sample, grad: Sample):
+        """Push both field and gradient."""
+        self.push_field(name, field)
+        self.push_grad(name, grad)
 
 
 class RingBuffer:
-    """RingBuffer for storing the fields and its history."""
+    """Class RingBuffer for managing the history of a field."""
 
-    def __init__(self, size: int):
+    def __init__(self, size: int = 1):
+        """Initialize the ring buffer."""
+        if size < 1:
+            raise ValueError("Size must be greater than 0.")
         self._i = 0
         self._size = size
         self._data = [None] * size
@@ -79,13 +95,13 @@ class RingBuffer:
 
     def push(self, obj: Sample):
         if not isinstance(obj, Sample):
-            raise TypeError(f"Invalid buffer type {type(obj)}.")
+            raise TypeError(f"Invalid buffer {type(obj)}.")
         self._data[self._i] = obj
         self._i = (self._i + 1) % self._size
 
     def __getitem__(self, level: int):
         if level >= self._size or level < 0:
-            raise IndexError(f"Index {level} out of range.")
+            raise IndexError(f"Level {level} out of range.")
         i = (self._i - 1 - level) % self._size
         return self._data[i]
 

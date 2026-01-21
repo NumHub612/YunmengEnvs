@@ -38,17 +38,19 @@ class Grad01(IOperator):
         self._mesh = None
         self._topo = None
         self._geom = None
+        self._var = ""
 
-    def prepare(self, mesh: Grid, boundaries: dict):
+    def prepare(self, vars: list[str], mesh: Grid, boundaries: dict):
         if not isinstance(mesh, Grid):
             raise ValueError("Fvm Grad01 operator only supports Grid.")
 
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._var = vars[0]
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        source = source.fetch().data
+        source = source.field(self._var).data
         src_type = source.dtype
         if src_type != VariableType.SCALAR and src_type != VariableType.VECTOR:
             raise ValueError(

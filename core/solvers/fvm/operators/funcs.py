@@ -28,7 +28,7 @@ class CFL01(IOperator):
     def get_type(cls) -> OperatorType:
         return OperatorType.FUNC
 
-    def prepare(self, mesh: Grid, boundaries: dict):
+    def prepare(self, vars: list[str], mesh: Grid, boundaries: dict):
         pass
 
     def run(self, source: DataHub) -> Scalar:

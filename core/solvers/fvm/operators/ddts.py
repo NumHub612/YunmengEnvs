@@ -36,14 +36,16 @@ class Ddt01(IOperator):
         self._geom = None
 
         self._rho = rho
+        self._var = ""
 
-    def prepare(self, mesh: Mesh, boundaries: dict):
+    def prepare(self, vars: list[str], mesh: Mesh, boundaries: dict):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._var = vars[0]
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        source = source.fetch()
+        source = source.field(self._var, 0)
         data = source.data
         ddt_eqs = LinearEqs.zeros(
             self._mesh.cell_count,
@@ -92,16 +94,19 @@ class Ddt02(IOperator):
         self._geom = None
 
         self._rho = rho
+        self._var = ""
 
-    def prepare(self, mesh: Mesh, boundaries: dict):
+    def prepare(self, vars: list[str], mesh: Mesh, boundaries: dict = None):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
 
+        self._var = vars[0]
+
     def run(self, source: DataHub) -> Field | LinearEqs:
-        pre_source = source.fetch(1)
+        pre_source = source.field(self._var, 1)
         pre_data = pre_source.data
-        cur_source = source.fetch(0)
+        cur_source = source.field(self._var, 0)
         cur_data = cur_source.data
 
         ddt_eqs = LinearEqs.zeros(

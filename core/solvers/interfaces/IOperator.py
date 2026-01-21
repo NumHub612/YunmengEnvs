@@ -54,7 +54,7 @@ class IOperator(ABC):
         return 1
 
     @abstractmethod
-    def prepare(self, mesh: Mesh, boundaries: dict):
+    def prepare(self, vars: list[str], mesh: Mesh, boundaries: dict):
         """
         Prepare the operator.
         """

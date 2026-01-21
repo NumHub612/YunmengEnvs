@@ -60,12 +60,12 @@ class BaseSolver(ISolver):
     def status(self) -> SolverStatus:
         return self._status
 
-    def get_solution(self, var_name: str) -> Field:
-        if var_name not in self._fields:
-            logger.error(f"Solver {self._id} solution {var_name} not available.")
+    def get_solution(self, variable: str) -> Field:
+        if variable not in self._fields:
+            logger.error(f"Solver {self._id} solution {variable} not available.")
             return None
 
-        return self._fields[var_name]
+        return self._fields[variable]
 
     def add_callback(self, callback: ISolverCallback):
         if not isinstance(callback, ISolverCallback):

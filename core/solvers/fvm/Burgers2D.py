@@ -100,12 +100,12 @@ class Burgers2D(BaseSolver):
 
         # Init operators
         for _, op in self._operators.items():
-            op.prepare(self._mesh, boundaries=self._bcs)
+            op.prepare(["u"], self._mesh, boundaries=self._bcs)
 
         time_order = max(self._operators["ddt"].time_order, 2)
         self._buf = DataHub(["u"], time_order)
         for _ in range(time_order):
-            self._buf.update(u=Sample(None, 0.04, self._fields["u"]))
+            self._buf.push_field("u", Sample(None, 0.04, self._fields["u"]))
 
         # Call callbacks
         for callback in self._callbacks:
@@ -119,7 +119,9 @@ class Burgers2D(BaseSolver):
         for callback in self._callbacks:
             callback.on_step_begin()
 
-        self._buf.update(u=Sample(start.real, dt, self._fields["u"]))  # TODO: deepcopy?
+        self._buf.push_field(
+            "u", Sample(start.real, dt, self._fields["u"])
+        )  # TODO: deepcopy?
         sys = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
         )
@@ -149,7 +151,7 @@ class Burgers2D(BaseSolver):
         self._step += 1
 
         # Update status
-        diffs = self._fields["u"] - self._buf.fetch(0, "u").data
+        diffs = self._fields["u"] - self._buf.field("u").data
         res = np.max(np.abs(diffs.data))
         time_cost = time.perf_counter() - start
         self._update_status(res, time_cost)

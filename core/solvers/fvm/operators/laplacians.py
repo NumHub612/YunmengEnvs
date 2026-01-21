@@ -42,8 +42,9 @@ class Lap01(IOperator):
 
         self._bcs = None
         self._k = k
+        self._var = ""
 
-    def prepare(self, mesh: Grid, boundaries: dict):
+    def prepare(self, vars: list[str], mesh: Grid, boundaries: dict):
         if not isinstance(mesh, Grid):
             raise ValueError("Fvm Grad01 operator only supports Grid.")
 
@@ -52,9 +53,10 @@ class Lap01(IOperator):
         self._geom = self._mesh.get_geom_assistant()
 
         self._bcs = boundaries
+        self._var = vars[0]
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        source = source.fetch().data
+        source = source.field(self._var).data
         variable = source.variable
         lap_eqs = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=source.dtype, variable=variable
