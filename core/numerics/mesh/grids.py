@@ -4,8 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 1d/2d/2d structured grids.
 """
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.mesh import Coordinate, Node, Face, Cell
+from core.numerics.mesh import Mesh, Coordinate, Node, Face, Cell
+from core.numerics.mesh.tools import calculate_center, sort_anticlockwise
 from core.numerics.types import ElementType, MeshDim
 from configs.settings import logger
 
@@ -271,8 +271,8 @@ class Grid2D(Grid):
 
                 face_ids = [f_n, f_w, f_s, f_e]
                 faces = self.get_faces(face_ids)
-                faces = MeshTopo.sort_anticlockwise(faces)
-                center = MeshGeom.calculate_center(faces)
+                faces = sort_anticlockwise(faces)
+                center = calculate_center(faces)
                 face_ids = [f.id for f in faces]
                 cell = Cell(cid, center, face_ids)
                 self._cells.append(cell)
@@ -383,8 +383,8 @@ class Grid3D(Grid):
                     n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i
                     node_ids = [n_ll, n_rl, n_ru, n_lu]
                     nodes = self.get_nodes(node_ids)
-                    nodes = MeshTopo.sort_anticlockwise(nodes)
-                    center = MeshGeom.calculate_center(nodes)
+                    nodes = sort_anticlockwise(nodes)
+                    center = calculate_center(nodes)
                     node_ids = [n.id for n in nodes]
                     face = Face(fid, center, node_ids)
                     self._faces.append(face)
@@ -401,8 +401,8 @@ class Grid3D(Grid):
                     n_ll = k * self._nx * self._ny + j * self._nx + i + 1
                     node_ids = [n_rl, n_ru, n_lu, n_ll]
                     nodes = self.get_nodes(node_ids)
-                    nodes = MeshTopo.sort_anticlockwise(nodes)
-                    center = MeshGeom.calculate_center(nodes)
+                    nodes = sort_anticlockwise(nodes)
+                    center = calculate_center(nodes)
                     node_ids = [n.id for n in nodes]
                     face = Face(fid, center, node_ids)
                     self._faces.append(face)
@@ -417,8 +417,8 @@ class Grid3D(Grid):
                     n_lr = k * self._nx * self._ny + (j + 1) * self._nx + i
                     node_ids = [n_lu, n_ll, n_ul, n_lr]
                     nodes = self.get_nodes(node_ids)
-                    nodes = MeshTopo.sort_anticlockwise(nodes)
-                    center = MeshGeom.calculate_center(nodes)
+                    nodes = sort_anticlockwise(nodes)
+                    center = calculate_center(nodes)
                     node_ids = [n.id for n in nodes]
                     face = Face(fid, center, node_ids)
                     self._faces.append(face)
@@ -467,7 +467,7 @@ class Grid3D(Grid):
                         )
                     face_ids = [f_n, f_s, f_w, f_e, f_d, f_u]
                     faces = self.get_faces(face_ids)
-                    center = MeshGeom.calculate_center(faces)
+                    center = calculate_center(faces)
                     cell = Cell(cid, center, face_ids)
                     self._cells.append(cell)
                     cid += 1

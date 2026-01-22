@@ -5,8 +5,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Abstract mesh class for describing the geometry and topology.
 """
 from core.numerics.mesh.elements import Coordinate, Element, Node, Face, Cell
-from core.numerics.mesh.auxiliaries import MeshTopo, MeshGeom
 from core.numerics.types import MeshDim, ElementType
+from core.numerics.mesh.topos import MeshTopo
+from core.numerics.mesh.geoms import MeshGeom
 
 from abc import ABC, abstractmethod
 import numpy as np
@@ -34,8 +35,8 @@ class Mesh(ABC):
         self._cells = []
         self._groups = {}
 
-        self._topo = MeshTopo(self)
-        self._geom = MeshGeom(self)
+        self._topo = None
+        self._geom = None
 
     def save(self, file_path: str):
         """Save the mesh instance."""
@@ -50,7 +51,7 @@ class Mesh(ABC):
         return mesh
 
     # -----------------------------------------------
-    # region properties
+    # properties
     # -----------------------------------------------
 
     @property
@@ -99,7 +100,7 @@ class Mesh(ABC):
         return self._cells
 
     # -----------------------------------------------
-    # region mesh query methods
+    # query methods
     # -----------------------------------------------
 
     def get_nodes(self, nodes_ids: list[int]) -> list[Node]:
@@ -115,7 +116,7 @@ class Mesh(ABC):
         return [self._cells[i] for i in cells_ids]
 
     # -----------------------------------------------
-    # region modification methods
+    # modify methods
     # -----------------------------------------------
 
     @abstractmethod
@@ -132,7 +133,7 @@ class Mesh(ABC):
         pass
 
     # -----------------------------------------------
-    # region additional methods
+    # additional methods
     # -----------------------------------------------
 
     def set_group(self, etype: ElementType, group_id: str, ids: list):
@@ -171,7 +172,7 @@ class Mesh(ABC):
         return self._groups
 
     # -----------------------------------------------
-    # region extension methods
+    # extension methods
     # -----------------------------------------------
 
     def get_topo_assistant(self) -> "MeshTopo":
@@ -188,7 +189,7 @@ class Mesh(ABC):
 
 
 # -----------------------------------------------
-# region --- GenericMesh ---
+# --- GenericMesh ---
 # -----------------------------------------------
 
 
@@ -304,7 +305,7 @@ class GenericMesh(Mesh):
 
 
 # -----------------------------------------------
-# region --- GridMesh ---
+# --- GridMesh ---
 # -----------------------------------------------
 
 

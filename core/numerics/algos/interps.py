@@ -9,13 +9,13 @@ from core.numerics.mesh import Mesh
 import numpy as np
 
 
-class FieldInterpolators:
+class InterpField:
     """
     Provides numerical algorithms for field interpolation.
     """
 
     @staticmethod
-    def interp_cell_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
+    def cell_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
         """
         Interpolates a field from cells to faces.
 
@@ -53,7 +53,7 @@ class FieldInterpolators:
         return result
 
     @staticmethod
-    def interp_node_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
+    def node_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
         """
         Interpolates a field from nodes to faces.
 
@@ -67,36 +67,17 @@ class FieldInterpolators:
         """
         pass
 
-
-class ArrayInterpolators:
-    """
-    Provides numerical algorithms for array interpolation.
-    """
-
     @staticmethod
-    def interp_linearly(arr: np.ndarray, xi: float | object) -> np.ndarray:
+    def face_to_cell(field: Field, mesh: Mesh, method: str = "linear") -> Field:
         """
-        Interpolates an array using linear interpolation.
+        Interpolates a field from faces to cells.
 
         Args:
-            arr: The array to be interpolated.
-            xi: The coordinate of the interpolation points.
+            field: The field to be interpolated.
+            mesh: The mesh to be used for interpolation.
+            method: The interpolation method.
 
         Returns:
-            The interpolated array.
-        """
-        pass
-
-    @staticmethod
-    def interp_nearest(arr: np.ndarray, xi: float | object) -> np.ndarray:
-        """
-        Interpolates an array using nearest-neighbor interpolation.
-
-        Args:
-            arr: The array to be interpolated.
-            xi: The coordinate of the interpolation points.
-
-        Returns:
-            The interpolated array.
+            The interpolated field.
         """
         pass

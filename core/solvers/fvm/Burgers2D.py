@@ -8,7 +8,6 @@ from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverTyp
 from core.solvers.commons import inits, boundaries, IBoundaryCondition
 from core.numerics.mesh import Mesh
 from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01, Lap01, Src01
-from core.numerics.algos import FieldInterpolators as fis
 from core.numerics.fields import CellField, VariableType, DataHub, Sample
 from core.numerics.mats import LinearEqs
 from configs.settings import settings, logger

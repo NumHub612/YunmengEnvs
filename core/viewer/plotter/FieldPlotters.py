@@ -5,6 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Plotters for visualizing the fluid fields.
 """
 from core.numerics.mesh import Mesh, MeshTopo, MeshGeom, MeshDim
+from core.numerics.mesh.tools import sort_anticlockwise
 from core.numerics.fields import Field, VariableType
 from core.viewer.plotter import PlotKits
 import numpy as np
@@ -191,7 +192,7 @@ def _extract_mesh_data(mesh: Mesh):
         for cell in mesh.cells:
             node_ids = topo.cell_nodes[cell.id]
             nodes = mesh.get_nodes(node_ids)
-            nodes = topo.sort_anticlockwise(nodes)
+            nodes = sort_anticlockwise(nodes)
             idxes = [p.id for p in nodes]
             cells.append([len(idxes)] + idxes)
     else:
@@ -202,9 +203,9 @@ def _extract_mesh_data(mesh: Mesh):
             coors2 = mesh.get_nodes(nodes2)
 
             # Points need to be sorted.
-            points1 = topo.sort_anticlockwise(coors1)
+            points1 = sort_anticlockwise(coors1)
             idxes1 = [p.id for p in points1]
-            points2 = topo.sort_anticlockwise(coors2)
+            points2 = sort_anticlockwise(coors2)
             idxes2 = [p.id for p in points2]
             cell = idxes1 + idxes2
             cells.append([len(cell)] + cell)
