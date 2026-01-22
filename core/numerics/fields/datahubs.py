@@ -5,10 +5,11 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Datahubs for managing of the fields and its history.
 """
 from core.numerics.fields import Field
-from typing import NamedTuple
+from dataclasses import dataclass
 
 
-class Sample(NamedTuple):
+@dataclass(slots=True, frozen=True, order=False)
+class Sample:
     """A sample of the field at a certain time step."""
 
     timestamp: float

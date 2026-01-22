@@ -726,15 +726,6 @@ class CellField(Field):
         variable: str = "none",
         **kwargs,
     ):
-        """
-        Initialize the cell field.
-
-        Args:
-            size: The number of all cells in the field.
-            data_type: The data type.
-            default: The default value of each cell.
-            variable: The variable name.
-        """
         super().__init__(
             size,
             ElementType.CELL,
