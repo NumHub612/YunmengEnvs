@@ -19,7 +19,7 @@ class TestFields(unittest.TestCase):
         print("\n---------- Done \n")
 
     def setUp(self):
-        self.device = torch.device(settings.DEVICE)
+        self.device = torch.device(settings.device)
         self.dtype = torch.float64
         if settings.FPTYPE == "fp16":
             self.dtype = torch.float16
@@ -197,8 +197,8 @@ class TestFields(unittest.TestCase):
             field1 = Field(
                 self.size, self.element_type, dtype, data, device=self.device
             )
-            if settings.GPUs:
-                default_gpu = [settings.GPUs[0]]
+            if settings.gpus:
+                default_gpu = [settings.gpus[0]]
             else:
                 default_gpu = []
             field2 = Field(
@@ -217,7 +217,7 @@ class TestFields(unittest.TestCase):
         size = 10_000_000
         element_type = ElementType.NODE
         device = self.device
-        gpus = settings.GPUs
+        gpus = settings.gpus
         print(f"Testing 1e7 element performance on {device}: {gpus}...")
 
         for dtype in [VariableType.SCALAR, VariableType.VECTOR, VariableType.TENSOR]:

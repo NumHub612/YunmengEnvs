@@ -390,7 +390,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.TOLERANCE:
+            if other.value < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             return Vector.from_data(self._value / other.value)
         else:
@@ -401,7 +401,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if self.magnitude < settings.TOLERANCE:
+            if self.magnitude < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             return Vector.from_data(other.value / self._value)
         else:
@@ -412,7 +412,7 @@ class Vector(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.TOLERANCE:
+            if other.value < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.value
             return self
@@ -429,7 +429,7 @@ class Vector(Variable):
         if not isinstance(other, Vector):
             return False
 
-        return np.allclose(self._value, other.data, atol=settings.TOLERANCE)
+        return np.allclose(self._value, other.data, atol=1.0e-6)
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
@@ -587,7 +587,7 @@ class Scalar(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.TOLERANCE:
+            if other.value < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             return Scalar(self.value / other.value)
         else:
@@ -598,7 +598,7 @@ class Scalar(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if self.value < settings.TOLERANCE:
+            if self.value < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             return Scalar(other.value / self.value)
         else:
@@ -609,7 +609,7 @@ class Scalar(Variable):
             self._value /= other
             return self
         elif isinstance(other, Scalar):
-            if other.value < settings.TOLERANCE:
+            if other.value < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.data
             return self
@@ -624,9 +624,9 @@ class Scalar(Variable):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Scalar):
-            return abs(self.value - other.value) < settings.TOLERANCE
+            return abs(self.value - other.value) < 1.0e-6
         elif isinstance(other, (int, float)):
-            return abs(self.value - other) < settings.TOLERANCE
+            return abs(self.value - other) < 1.0e-6
         else:
             return False
 
@@ -841,7 +841,7 @@ class Tensor(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if other.value < settings.TOLERANCE:
+            if other.value < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             return Tensor.from_data(self._value / other.data)
         else:
@@ -852,7 +852,7 @@ class Tensor(Variable):
             other = Scalar(other)
 
         if isinstance(other, Scalar):
-            if self.magnitude < settings.TOLERANCE:
+            if self.magnitude < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             return Tensor.from_data(other.data / self._value)
         else:
@@ -863,7 +863,7 @@ class Tensor(Variable):
             self._value /= other
             return self
         elif isinstance(other, Scalar):
-            if other.value < settings.TOLERANCE:
+            if other.value < 1.0e-6:
                 raise ZeroDivisionError("Division by zero.")
             self._value /= other.data
             return self
@@ -883,7 +883,7 @@ class Tensor(Variable):
         return np.allclose(
             self._value,
             other.data,
-            atol=settings.TOLERANCE,
+            atol=1.0e-6,
         )
 
     def __ne__(self, other) -> bool:

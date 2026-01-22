@@ -52,8 +52,6 @@ class RiverModel(models.BaseModel):
             models.LinkableComponentStatus.INITIALIZING,
             f"Initializing RiverModel: {self._id}",
         )
-        # load- and save-path
-        envs = self._model_configs["ENV"]
 
         # temporal
         times = self._model_configs["TEMPORAL"]

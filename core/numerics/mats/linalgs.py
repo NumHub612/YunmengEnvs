@@ -39,7 +39,7 @@ class LinearEqs:
             variable: The target variable.
             device: The device.
         """
-        self._device = device or settings.DEVICE
+        self._device = device or settings.device
         if isinstance(self._device, str):
             self._device = torch.device(self._device)
 
@@ -222,7 +222,7 @@ class LinearEqs:
             else:
                 method = "scipy"
 
-        if settings.DEVICE == "cpu" and method == "cupy":
+        if settings.device == "cpu" and method == "cupy":
             method = "scipy"
 
         if method == "torch" or method == "scipy":
@@ -263,9 +263,7 @@ class LinearEqs:
 
     def _solve_by_scipy(self) -> np.ndarray:
         """Solve the linear equations using scipy."""
-        fptype = np.float64 if settings.FPTYPE == "fp64" else np.float32
-        if settings.FPTYPE == "fp16":
-            fptype = np.float16
+        fptype = np.float64
 
         solutions = []
         for eqs in self.scalarize():
@@ -300,13 +298,13 @@ class LinearEqs:
                     if shape[0] < 10_000:
                         res = scipy_spsolve(mat, b).flatten()
                     else:
-                        tol, maxiter = settings.ITERATION
+                        tol, maxiter = 1.0e-6, 1000
                         res = scipy_cg(
                             mat,
                             b,
                             tol=tol,
                             maxiter=maxiter,
-                            atol=settings.TOLERANCE,
+                            atol=1.0e-6,
                         )[0].flatten()
                     solutions.append(res)
             except:
@@ -315,9 +313,7 @@ class LinearEqs:
 
     def _solve_by_torch(self) -> torch.Tensor:
         """Solve the linear equations using torch."""
-        fptype = torch.float64 if settings.FPTYPE == "fp64" else torch.float32
-        if settings.FPTYPE == "fp16":
-            fptype = torch.float16
+        fptype = torch.float64
 
         solutions = []
         for eqs in self.scalarize():
@@ -330,21 +326,21 @@ class LinearEqs:
                     mat = eqs.matrix.data
                     if isinstance(mat, coo_matrix):
                         data = torch.as_tensor(
-                            mat.data, device=settings.DEVICE, dtype=fptype
+                            mat.data, device=settings.device, dtype=fptype
                         )
                         indices = torch.as_tensor(
-                            cp.vstack((mat.row, mat.col)), device=settings.DEVICE
+                            cp.vstack((mat.row, mat.col)), device=settings.device
                         )
                         coo = torch.sparse_coo_tensor(indices, data, shape)
                         mat = coo.to_sparse_csr()
                     elif isinstance(mat, dok_matrix):
                         indices = torch.as_tensor(
-                            mat.nonzero(), device=settings.DEVICE, dtype=fptype
+                            mat.nonzero(), device=settings.device, dtype=fptype
                         )
                         data = torch.tensor(
                             np.array(list(mat.values())),
                             dtype=fptype,
-                            device=settings.DEVICE,
+                            device=settings.device,
                         )
                         coo = torch.sparse_coo_tensor(indices, data, shape)
                         mat = coo.to_sparse_csr()
@@ -358,9 +354,7 @@ class LinearEqs:
 
     def _solve_by_cupy(self) -> cp.ndarray:
         """Solve the linear equations using cupy."""
-        fptype = cp.float64 if settings.FPTYPE == "fp64" else cp.float32
-        if settings.FPTYPE == "fp16":
-            fptype = cp.float16
+        fptype = cp.float64
 
         solutions = []
         for eqs in self.scalarize():
@@ -398,13 +392,13 @@ class LinearEqs:
                     if shape[0] < 10_000:
                         res = cupy_spsolve(mat, b).flatten()
                     else:
-                        tol, maxiter = settings.ITERATION
+                        tol, maxiter = 1.0e-6, 1000
                         res = cupy_cg(
                             mat,
                             b,
                             tol=tol,
                             maxiter=maxiter,
-                            atol=settings.TOLERANCE,
+                            atol=1.0e-6,
                         )[0].flatten()
                     solutions.append(res)
             except:

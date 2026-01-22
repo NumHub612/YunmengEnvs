@@ -11,7 +11,7 @@ Packages = find_packages()
 
 
 setup(
-    name="yunmengenvs",
+    name="yunmeng",
     version=version,
     description="云梦环境流体力学解决方案",
     url="https://github.com/NumHub612/YunmengEnvs",

@@ -63,9 +63,6 @@ class RunoffModel(models.BaseModel):
             unit.value.caption: unit.value for unit in metas.PredefinedUnits
         }
 
-        # load- and save-path
-        envs = self._model_configs["ENV"]
-
         # temporal
         times = self._model_configs["TEMPORAL"]
         self._start = parse(times["start_time"])

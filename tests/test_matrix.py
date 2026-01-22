@@ -36,7 +36,7 @@ class TestTorchMatrix(unittest.TestCase):
         print("\n---------- Done \n")
 
     def setUp(self):
-        self.device = settings.DEVICE
+        self.device = settings.device
         self.dtype = torch.float64
         if settings.FPTYPE == "fp16":
             self.dtype = torch.float16

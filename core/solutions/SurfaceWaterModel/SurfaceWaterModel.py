@@ -54,9 +54,6 @@ class SurfaceWaterModel(models.BaseModel):
             "SurfaceWaterModel initializing",
         )
 
-        # load- and save-path
-        envs = self._model_configs["ENV"] or {}
-
         # time-axis
         times = self._model_configs["TEMPORAL"]
         self._start = parse(times["start_time"])

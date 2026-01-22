@@ -242,15 +242,13 @@ class TorchMatrix(Matrix):
             values: The values of the non-zero elements.
             device: The device to store the matrix.
         """
-        self._device = device or settings.DEVICE
+        self._device = device or settings.device
         if isinstance(self._device, str):
             self._device = torch.device(self._device)
 
         self._shape = shape
 
-        self._fptype = torch.float64 if settings.FPTYPE == "fp64" else torch.float32
-        if settings.FPTYPE == "fp16":
-            self._fptype = torch.float16
+        self._fptype = torch.float64
 
         if indices is None or values is None:
             self._values = torch.sparse_coo_tensor(
@@ -316,9 +314,7 @@ class TorchMatrix(Matrix):
             device=device,
         ).t()
 
-        fptype = torch.float64 if settings.FPTYPE == "fp64" else torch.float32
-        if settings.FPTYPE == "fp16":
-            fptype = torch.float16
+        fptype = torch.float64
 
         values = torch.ones(
             shape[0],
@@ -655,9 +651,7 @@ class CupyMatrix(Matrix):
             col_indices: The column indices of the non-zero elements.
             values: The values of the non-zero elements.
         """
-        fptype = cp.float64 if settings.FPTYPE == "fp64" else cp.float32
-        if settings.FPTYPE == "fp16":
-            fptype = cp.float16
+        fptype = cp.float64
 
         self._shape = shape
         if row_indices is None or col_indices is None or values is None:
@@ -955,9 +949,7 @@ class SciMatrix(Matrix):
         self._shape = shape
         self._data = None
 
-        fptype = np.float64 if settings.FPTYPE == "fp64" else np.float32
-        if settings.FPTYPE == "fp16":
-            fptype = np.float16
+        fptype = np.float64
 
         if row_indices is None or col_indices is None or values is None:
             self._data = dok_matrix(shape, dtype=fptype)
@@ -1279,12 +1271,12 @@ class SparseMatrix(Matrix):
             device: The device to store the matrix.
             backend: The backend to use for the matrix.
         """
-        self._device = device or settings.DEVICE
+        self._device = device or settings.device
         self._shape = shape
         self._dtype = data_type
         self._values = []
 
-        if settings.DEVICE != "cuda" and backend == "cupy":
+        if settings.device != "cuda" and backend == "cupy":
             backend = "torch"
             logger.warning("Using torch backend instead of cupy.")
 
@@ -1397,9 +1389,7 @@ class SparseMatrix(Matrix):
             device=device,
         ).t()
 
-        fptype = torch.float64 if settings.FPTYPE == "fp64" else torch.float32
-        if settings.FPTYPE == "fp16":
-            fptype = torch.float16
+        fptype = torch.float64
 
         size = cls.SIZE_MAP[data_type]
         values = torch.ones(

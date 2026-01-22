@@ -117,15 +117,12 @@ class Field:
         self._size = size
         self._gpus = []
 
-        self._device = device or settings.DEVICE
+        self._device = device or settings.device
         if isinstance(self._device, str):
             self._device = torch.device(self._device)
 
-        fptype = torch.float64 if settings.FPTYPE == "float64" else torch.float32
-        if settings.FPTYPE == "fp16":
-            fptype = torch.float16
-
-        gpus = gpus or settings.GPUs
+        fptype = torch.float64
+        gpus = gpus or settings.gpus
         for dev in gpus:
             if isinstance(dev, torch.device):
                 self._gpus.append(dev)

@@ -19,7 +19,7 @@ class TestLinearEqs(unittest.TestCase):
         print("\n---------- Done \n")
 
     def setUp(self):
-        self.device = torch.device(settings.DEVICE)
+        self.device = torch.device(settings.device)
         self.dtype = np.float64
         if settings.FPTYPE == "fp16":
             self.dtype = np.float16
