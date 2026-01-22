@@ -12,7 +12,7 @@ from core.numerics.fields.variables import (
     Tensor,
     resolve_var_class,
 )
-from core.numerics.types import ElementType
+from core.numerics.mesh import ElementType
 from configs.settings import settings
 
 import numpy as np

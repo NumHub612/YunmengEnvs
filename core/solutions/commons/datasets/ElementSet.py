@@ -5,10 +5,10 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 ElementSet class describes a collection of spatial elements.
 """
 from core.solutions.standards import IElementSet
-from core.numerics.types import GeomType
 from core.numerics.mesh import (
     Network,
     Mesh,
+    GeomType,
     ElementType,
     Element,
     Node,

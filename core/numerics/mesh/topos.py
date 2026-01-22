@@ -4,16 +4,12 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh.elements import Coordinate, Element, Cell
-from core.numerics.mesh.tools import calculate_center
-from core.numerics.types import MeshDim, ElementType
+from core.numerics.mesh.elements import MeshDim
 from configs.settings import logger
 
 import collections
 from scipy.spatial import cKDTree
 import numpy as np
-import math
-import copy
 
 
 class MeshTopo:

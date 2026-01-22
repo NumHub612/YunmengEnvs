@@ -4,9 +4,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh.elements import Coordinate, Element, Cell, Face
+from core.numerics.mesh.elements import Coordinate, Element, Cell, Face, ElementType
 from core.numerics.fields import Vector
-from core.numerics.types import MeshDim, ElementType
 from scipy.spatial import cKDTree
 import numpy as np
 import math

@@ -4,11 +4,21 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh.elements import Cell, Face, Node
+from core.numerics.mesh.elements import Cell, Face, Node, MeshDim
 from core.numerics.mesh.tools import calculate_distance, calculate_area
 from core.numerics.fields import Vector
-from core.numerics.types import MeshDim
 import numpy as np
+import enum
+
+
+class GeomType(enum.Enum):
+    """The geometry types."""
+
+    IdBased = 0
+    Point = 1
+    Polyline = 2
+    Polygon = 3
+    Polyhedron = 4
 
 
 class MeshGeom:

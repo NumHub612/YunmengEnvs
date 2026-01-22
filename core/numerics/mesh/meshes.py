@@ -4,15 +4,22 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from core.numerics.mesh.elements import Coordinate, Element, Node, Face, Cell
-from core.numerics.types import MeshDim, ElementType
+from core.numerics.mesh.elements import (
+    Coordinate,
+    Element,
+    Node,
+    Face,
+    Cell,
+    ElementType,
+    MeshDim,
+)
 from core.numerics.mesh.topos import MeshTopo
 from core.numerics.mesh.geoms import MeshGeom
 
 from abc import ABC, abstractmethod
 import numpy as np
 import torch
-import os
+import enum
 import pickle
 from shapely.geometry import Polygon
 

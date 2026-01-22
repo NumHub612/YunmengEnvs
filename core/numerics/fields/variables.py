@@ -7,9 +7,30 @@ Variables definition.
 from abc import abstractmethod
 import numpy as np
 import torch
+import enum
 
 from configs.settings import settings
-from core.numerics.types import VariableType
+
+
+class VariableType(enum.Enum):
+    """Variable types in CFD."""
+
+    SCALAR = "scalar"
+    VECTOR = "vector"
+    TENSOR = "tensor"
+    NONE = "none"
+
+    @staticmethod
+    def from_str(vtype: str) -> "VariableType":
+        """Convert a string to a VariableType."""
+        if vtype == "scalar":
+            return VariableType.SCALAR
+        elif vtype == "vector":
+            return VariableType.VECTOR
+        elif vtype == "tensor":
+            return VariableType.TENSOR
+        else:
+            return VariableType.NONE
 
 
 # -----------------------------------------------
