@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix.
 """
-from core.numerics.fields import Variable, VariableType, Scalar, resolve_var_class
+from core.numerics.fields import Variable, VariableType, Var
 from configs.settings import settings, logger
 import scipy.sparse as sp
 from scipy.sparse import dok_matrix
@@ -871,17 +871,13 @@ class CupyMatrix(Matrix):
             raise TypeError("Unsupported operand type for *")
 
     def __rmul__(self, other):
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = Scalar.value
+        if isinstance(other, (int, float)):
             return self.__mul__(other)
 
         raise TypeError("Unsupported operand type for *")
 
     def __imul__(self, other):
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = Scalar.value
+        if isinstance(other, (int, float)):
             self._data *= other
             self._data.eliminate_zeros()
             return self
@@ -895,10 +891,8 @@ class CupyMatrix(Matrix):
             raise TypeError("Unsupported operand type for *=")
 
     def __truediv__(self, other):
-        if not isinstance(other, (int, float, Scalar)):
+        if not isinstance(other, (int, float)):
             raise ValueError("Unsupported operand type for /")
-        if isinstance(other, Scalar):
-            other = other.value
 
         return CupyMatrix.from_matrix(self._data / other)
 
@@ -906,10 +900,8 @@ class CupyMatrix(Matrix):
         raise NotImplementedError("Not supported.")
 
     def __itruediv__(self, other):
-        if not isinstance(other, (int, float, Scalar)):
+        if not isinstance(other, (int, float)):
             raise ValueError("Unsupported operand type for /=")
-        if isinstance(other, Scalar):
-            other = other.value
 
         self._data /= other
         return self
@@ -1160,9 +1152,7 @@ class SciMatrix(Matrix):
         return self
 
     def __mul__(self, other):
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = other.data
+        if isinstance(other, (int, float)):
             return SciMatrix.from_matrix(self._data * other)
 
         self._check_compatible(other, is_mul=True)
@@ -1181,17 +1171,14 @@ class SciMatrix(Matrix):
             raise ValueError(f"Invalid operand type {type(other)}.")
 
     def __rmul__(self, other):
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = other.data
+        if isinstance(other, (int, float)):
             return SciMatrix.from_matrix(other * self._data)
         else:
             raise ValueError(f"Invalid operand type {type(other)}.")
 
     def __imul__(self, other):
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = other.data
+        if isinstance(other, (int, float)):
+
             self._data *= other
             self._data = self._data.todok()
             return self
@@ -1199,17 +1186,15 @@ class SciMatrix(Matrix):
             raise ValueError(f"Invalid operand type {type(other)}.")
 
     def __truediv__(self, other):
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = other.data
+        if isinstance(other, (int, float)):
+
             return SciMatrix.from_matrix(self._data / other)
         else:
             raise ValueError(f"Invalid operand type {type(other)}.")
 
     def __itruediv__(self, other):
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = other.data
+        if isinstance(other, (int, float)):
+
             self._data /= other
             self._data = self._data.todok()
             return self
@@ -1505,13 +1490,11 @@ class SparseMatrix(Matrix):
 
     def __getitem__(self, index: tuple) -> float | Variable:
         item = [v[index] for v in self._values]
-        val = resolve_var_class(self.dtype).from_data(np.array(item))
+        val = Var(np.array(item))
         return val
 
     def __setitem__(self, index: tuple, value: float | Variable):
-        if isinstance(value, Scalar):
-            value = value.value
-        elif isinstance(value, Variable):
+        if isinstance(value, Variable):
             value = value.data
 
         for v in self._values:

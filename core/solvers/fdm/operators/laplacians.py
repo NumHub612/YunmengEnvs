@@ -6,7 +6,7 @@ Laplacian operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, NodeField, Vector, Scalar
+from core.numerics.fields import Field, NodeField, Variable
 from core.numerics.mesh import Grid
 
 
@@ -51,14 +51,14 @@ class Lap01(IOperator):
             results = NodeField(
                 self._source.size,
                 "scalar",
-                data=Scalar.zero(),
+                data=Variable.scalar(0.0),
                 variable=self._source.variable,
             )
         else:
             results = NodeField(
                 self._source.size,
                 "vector",
-                data=Vector.zero(),
+                data=Variable.vector(0.0, 0.0, 0.0),
                 variable=self._source.variable,
             )
 
@@ -80,10 +80,10 @@ class Lap01(IOperator):
         self,
         element: int,
         neighbours: list[int],
-    ) -> Scalar:
+    ) -> Variable:
         """Excute laplacian operator on scalar field."""
         if element in self._topo.boundary_node_indices:
-            return Scalar.zero()
+            return Variable.scalar(0.0)
 
         east, west, north, south, top, bot = neighbours
         results = []
@@ -102,16 +102,16 @@ class Lap01(IOperator):
                 ds = 0.5 * (ds1 + ds2)
                 results.append((part1 - part2) / ds)
 
-        return Scalar(sum(results))
+        return Variable.scalar(sum(results))
 
     def _calculate_vector_laplacian(
         self,
         element: int,
         neighbours: list[int],
-    ) -> Vector:
+    ) -> Variable:
         """Excute laplacian operator on vector field."""
         if element in self._topo.boundary_node_indices:
-            return Vector.zero()
+            return Variable.vector(0.0, 0.0, 0.0)
 
         east, west, north, south, top, bot = neighbours
         dists, values = [], []
@@ -146,4 +146,4 @@ class Lap01(IOperator):
 
             results.append(sum(result))
 
-        return Vector(*results)
+        return Variable.vector(*results)

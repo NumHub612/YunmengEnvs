@@ -6,7 +6,7 @@ Grad operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, NodeField, Tensor, Vector
+from core.numerics.fields import Field, NodeField, Variable
 from core.numerics.mesh import Grid
 
 import numpy as np
@@ -54,14 +54,14 @@ class Grad01(IOperator):
             results = NodeField(
                 source.size,
                 "vector",
-                data=Vector.zero(),
+                data=Variable.vector(0.0, 0.0, 0.0),
                 variable=source.variable,
             )
         else:
             results = NodeField(
                 source.size,
                 "tensor",
-                data=Tensor.zero(),
+                data=Variable.tensor(np.zeros((3, 3))),
                 variable=source.variable,
             )
 
@@ -82,10 +82,10 @@ class Grad01(IOperator):
         self,
         element: int,
         neighbours: list[int],
-    ) -> Vector:
+    ) -> Variable:
         """Calculate the gradient of scalar."""
         if element in self._topo.boundary_node_indices:
-            return Vector.zero()
+            return Variable.vector(0.0, 0.0, 0.0)
 
         east, west, north, south, top, bot = neighbours
         results = []
@@ -98,16 +98,16 @@ class Grad01(IOperator):
             else:
                 results.append(0.0)
 
-        return Vector(*results)
+        return Variable.vector(*results)
 
     def _calculate_vector_grad(
         self,
         element: int,
         neighbours: list[int],
-    ) -> Tensor:
+    ) -> Variable:
         """Calculate the gradient of vector."""
         if element in self._topo.boundary_node_indices:
-            return Tensor.zero()
+            return Variable.tensor(np.zeros((3, 3)))
 
         east, west, north, south, top, bot = neighbours
         results = []
@@ -132,4 +132,4 @@ class Grad01(IOperator):
             results.append(row)
 
         results = np.array(results).T
-        return Tensor.from_np(results)
+        return Variable.from_numpy(results)

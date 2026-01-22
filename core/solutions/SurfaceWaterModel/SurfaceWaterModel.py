@@ -13,8 +13,8 @@ from core.numerics.fields import (
     Curve,
     Pattern,
     Table,
+    Var,
     make_field_from_data,
-    make_var_from_value,
 )
 from core.solvers.interfaces import ISolver, IOperator
 from core.solvers import fvm_solvers, fvm_operators
@@ -189,7 +189,7 @@ class SurfaceWaterModel(models.BaseModel):
                 for expr in f_expr:
                     zone_id = expr["zone"]
                     val = expr["value"]
-                    value = make_var_from_value(val, data_type)
+                    value = Var(val)
                     if zone_id is None:
                         field.assign(value)
                     else:
@@ -338,8 +338,8 @@ class SurfaceWaterModel(models.BaseModel):
             if save_to:
                 mesh_file = os.path.join(save_to, f"{self._id}_mesh.pkl")
                 mesh_file = os.path.abspath(mesh_file)
-                with open(mesh_file, "wb") as f:
-                    pickle.dump(self._mesh, f)
+                # with open(mesh_file, "wb") as f:
+                #     pickle.dump(self._mesh, f) # TODO: TypeError: cannot pickle 'module' object
 
         if "save_to" in self._model_configs["SOLVER"]:
             save_to = self._model_configs["SOLVER"]["save_to"]

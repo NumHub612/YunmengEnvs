@@ -161,7 +161,6 @@ SOLVER:
       method: uniform
       params:
         value: 0.0
-        dtype: scalar
     - id: phi_ic2
       var: phi
       method: hotstart
@@ -179,7 +178,6 @@ SOLVER:
       method: dirichlet
       params:
         value: [1.0, 1.0, 0.0]
-        dtype: vector
     # Neumann边界条件
     - id: u_bc2
       patches: [*east, *north]
@@ -187,7 +185,6 @@ SOLVER:
       method: dirichlet
       params:
         value: [1.0, 1.0, 0.0]
-        dtype: vector
   # 回调函数，只能使用框架提供的回调函数类型
   cbs:
     - id: profiler

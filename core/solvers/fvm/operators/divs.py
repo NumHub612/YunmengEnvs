@@ -11,7 +11,7 @@ from core.solvers.interfaces import (
     BoundaryType,
 )
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, DataHub, Vector, Scalar
+from core.numerics.fields import Field, DataHub, Variable
 from core.numerics.mesh import Grid
 
 import numpy as np
@@ -81,7 +81,7 @@ class Div01(IOperator):
             u = 0.5 * (u1 + u2)
             mf = self._rho * u * Sf * normal
 
-            if mf.value > 0.0:  # left cell is upstream
+            if mf.data > 0.0:  # left cell is upstream
                 div_eqs.matrix[cid1, cid1] += mf
                 div_eqs.matrix[cid2, cid1] -= mf
             else:  # right cell is upstream
@@ -104,11 +104,15 @@ class Div01(IOperator):
         Sb = self._geom.face_area[fid]
         normal = self._geom.face_normal[fid]
 
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
+        FluxC, FluxF, FluxV = (
+            Variable.scalar(0.0),
+            Variable.scalar(0.0),
+            Variable.vector(0.0, 0.0, 0.0),
+        )
         # convection part
         mf = self._rho * bc_value * Sb * normal
-        FluxC = max(mf.value, 0.0)
-        FluxF = -max(-mf.value, 0.0)
+        FluxC = max(mf.data, 0.0)
+        FluxF = -max(-mf.data, 0.0)
 
         return FluxC, FluxF, FluxV
 
@@ -118,7 +122,11 @@ class Div01(IOperator):
         Sb = self._geom.face_area[fid]
         normal = self._geom.face_normal[fid]
 
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
+        FluxC, FluxF, FluxV = (
+            Variable.scalar(0.0),
+            Variable.scalar(0.0),
+            Variable.vector(0.0, 0.0, 0.0),
+        )
 
         # convection part
         u = bc_flux

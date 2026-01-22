@@ -6,7 +6,7 @@ Auxiliary functions for mesh processing.
 """
 from core.numerics.mesh.elements import Cell, Face, Node, MeshDim
 from core.numerics.mesh.tools import calculate_distance, calculate_area
-from core.numerics.fields import Vector
+from core.numerics.fields import Variable
 import numpy as np
 import enum
 
@@ -124,7 +124,7 @@ class MeshGeom:
         return face_perimeters
 
     @property
-    def face_normal(self) -> list[Vector]:
+    def face_normal(self) -> list[Variable]:
         """Return the normal of each face."""
         if self._face_normals is None:
             if self._mesh.dimension == MeshDim.DIM1:
@@ -147,7 +147,7 @@ class MeshGeom:
                 [0, 0, 1],
             )
             normal /= np.linalg.norm(normal)
-            face_normals[i] = Vector.from_data(normal)
+            face_normals[i] = Variable.from_numpy(normal)
         return face_normals
 
     def _calculate_normals_3d(self):
@@ -159,7 +159,7 @@ class MeshGeom:
                 (nodes[2].coordinate - nodes[1].coordinate).to_np(),
             )
             normal /= np.linalg.norm(normal)
-            face_normals[i] = Vector.from_data(normal)
+            face_normals[i] = Variable.from_numpy(normal)
         return face_normals
 
     # -----------------------------------------------
@@ -334,14 +334,14 @@ class MeshGeom:
                 neighbours = self._mesh.get_cells(neighbours)
                 for nb in neighbours:
                     vec_np = (cell.coordinate - nb.coordinate).to_np()
-                    vec = Vector.from_data(vec_np)
+                    vec = Variable.from_numpy(vec_np)
                     vec /= vec.magnitude
                     cell_vecs[cell.id][nb.id] = vec
             self._cell2cell_vects = cell_vecs
         return self._cell2cell_vects
 
     @property
-    def cell2face_vector(self) -> dict[str, dict[str, Vector]]:
+    def cell2face_vector(self) -> dict[str, dict[str, Variable]]:
         """Return the unit vectors from each cell to its faces."""
         if self._cell2face_vects is None:
             cell_face_vecs = {c.id: {} for c in self._mesh.cells}
@@ -349,7 +349,7 @@ class MeshGeom:
                 faces = self._mesh.get_faces(cell.faces)
                 for face in faces:
                     vec_np = (cell.coordinate - face.coordinate).to_np()
-                    vec = Vector.from_data(vec_np)
+                    vec = Variable.from_numpy(vec_np)
                     vec /= vec.magnitude
                     cell_face_vecs[cell.id][face.id] = vec
             self._cell2face_vects = cell_face_vecs

@@ -11,7 +11,7 @@ from core.solvers.interfaces import (
     BoundaryType,
 )
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Vector, Scalar, DataHub
+from core.numerics.fields import Field, Variable, DataHub
 from core.numerics.mesh import Grid
 
 import numpy as np
@@ -77,10 +77,10 @@ class Lap01(IOperator):
             fid = self._mesh.faces[face].id
             Sf = self._geom.face_area[face]
             normal = self._geom.face_normal[face]
-            if abs(normal.x) > 1e-10:
-                sign = 1 if normal.x > 0 else -1
+            if abs(normal.data[0]) > 1e-10:
+                sign = 1 if normal.data[0] > 0 else -1
             else:
-                sign = 1 if normal.y > 0 else -1
+                sign = 1 if normal.data[1] > 0 else -1
             Sf = sign * Sf
 
             cid1, cid2 = self._topo.face_cells[fid]
@@ -111,9 +111,13 @@ class Lap01(IOperator):
         normal = self._geom.face_normal[fid]
         Ncb = self._geom.cell2face_vector[cid][fid]
 
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
+        FluxC, FluxF, FluxV = (
+            Variable.scalar(0.0),
+            Variable.scalar(0.0),
+            Variable.vector(0.0, 0.0, 0.0),
+        )
         # diffusion part
-        sign = 1 if (normal * Ncb).value > 0 else -1
+        sign = 1 if (normal * Ncb).data > 0 else -1
         dist = self._geom.cell2face_distance[cid][fid]
         FluxC += sign * self._k * Sb / dist
         FluxV += -FluxC * bc_value
@@ -124,7 +128,11 @@ class Lap01(IOperator):
         bc_flux = bcs[1]
         Sb = self._geom.face_area[fid]
 
-        FluxC, FluxF, FluxV = Scalar(), Scalar(), Vector()
+        FluxC, FluxF, FluxV = (
+            Variable.scalar(0.0),
+            Variable.scalar(0.0),
+            Variable.vector(0.0, 0.0, 0.0),
+        )
         # diffusion part
         FluxV = bc_flux * Sb
 

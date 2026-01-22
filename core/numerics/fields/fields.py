@@ -4,14 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Fields definition.
 """
-from core.numerics.fields.variables import (
-    Variable,
-    VariableType,
-    Scalar,
-    Vector,
-    Tensor,
-    resolve_var_class,
-)
+from core.numerics.fields.variables import Variable, VariableType, Var
 from core.numerics.mesh import ElementType
 from configs.settings import settings
 
@@ -80,12 +73,6 @@ class Field:
     suggest to use `numpy.ndarray` for data preparation.
     """
 
-    SHAPE_MAP = {
-        VariableType.SCALAR: (1,),
-        VariableType.VECTOR: (3,),
-        VariableType.TENSOR: (3, 3),
-    }
-
     def __init__(
         self,
         size: int,
@@ -132,9 +119,9 @@ class Field:
             self._gpus = []
 
         if data is None:
-            default = resolve_var_class(data_type).zero().data
+            default = np.zeros(data_type.value)
             values = torch.full((size, *default.shape), 0.0, dtype=fptype)
-            values[:] = torch.tensor(default.data)
+            values[:] = torch.tensor(default)
         else:
             values = self._check_values(
                 data,
@@ -163,11 +150,11 @@ class Field:
             values = torch.full((size, *data.shape), 0.0, dtype=fptype)
             values[:] = torch.tensor(data.data)
         elif isinstance(data, np.ndarray):
-            if data.shape != (size, *self.SHAPE_MAP[data_type]):
+            if data.shape != (size, *data_type.value):
                 raise ValueError(f"Invalid data shape: {data.shape}")
             values = torch.from_numpy(data)
         elif isinstance(data, torch.Tensor):
-            if data.shape != (size, *self.SHAPE_MAP[data_type]):
+            if data.shape != (size, *data_type.value):
                 raise ValueError(f"Invalid data shape: {data.shape}")
             values = data
         elif isinstance(data, list):
@@ -386,7 +373,7 @@ class Field:
                 raise IndexError(f"Index out of range: {index}")
 
             dev, idx = self._get_local_indices(index)
-            var = resolve_var_class(self.dtype).from_data(self._values[dev][idx])
+            var = Var(self._values[dev][idx])
             return var
         elif isinstance(index, slice):
             start, stop, step = index.indices(self.size)
@@ -396,7 +383,7 @@ class Field:
             result = []
             for dev, idx in locals:
                 data = self._values[dev][idx]
-                var = resolve_var_class(self.dtype).from_data(data)
+                var = Var(data)
                 result.append(var)
             return result
         else:
@@ -651,9 +638,7 @@ class Field:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
     def __imul__(self, other) -> "Field":
-        if isinstance(other, (int, float, Scalar)):
-            if isinstance(other, Scalar):
-                other = other.value
+        if isinstance(other, (int, float)):
 
             for i in range(self.chunks):
                 self._values[i] *= other
@@ -662,10 +647,8 @@ class Field:
             raise TypeError(f"Cannot multiply field by {type(other)}")
 
     def __truediv__(self, other) -> "Field":
-        if not isinstance(other, (Scalar, int, float)):
+        if not isinstance(other, (int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
-        if isinstance(other, Scalar):
-            other = other.value
 
         data = [v / other for v in self.data]
         return Field.from_data(
@@ -677,10 +660,8 @@ class Field:
         )
 
     def __itruediv__(self, other) -> "Field":
-        if not isinstance(other, (Scalar, int, float)):
+        if not isinstance(other, (int, float)):
             raise TypeError(f"Cannot divide field by {type(other)}")
-        if isinstance(other, Scalar):
-            other = other.value
 
         for i in range(self.chunks):
             self._values[i] /= other

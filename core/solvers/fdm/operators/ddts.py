@@ -6,7 +6,7 @@ DDt operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
 from core.numerics.mats import LinearEqs, SparseMatrix
-from core.numerics.fields import Field, NodeField, Variable, Vector, Tensor
+from core.numerics.fields import Field, NodeField, Variable
 from core.numerics.mesh import Mesh
 
 

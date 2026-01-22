@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Auxiliary functions for mesh processing.
 """
 from core.numerics.mesh.elements import Coordinate, Element, Cell, Face, ElementType
-from core.numerics.fields import Vector
+from core.numerics.fields import Variable
 from scipy.spatial import cKDTree
 import numpy as np
 import math
@@ -152,11 +152,11 @@ def extract_coordinates_separated(
 def generate_projection(
     coordinate: Coordinate,
     face: Face,
-    normal: Vector,
+    normal: Variable,
 ) -> Coordinate:
     """Generate the projection on the given face from the given coordinate."""
     vec_np = (coordinate - face.coordinate).to_np()
-    proj_np = np.dot(vec_np, normal.to_np()) * normal.to_np()
+    proj_np = np.dot(vec_np, normal.to_numpy()) * normal.to_numpy()
     proj_np = proj_np + face.coordinate.to_np()
     proj_coord = Coordinate.from_np(proj_np)
     return proj_coord

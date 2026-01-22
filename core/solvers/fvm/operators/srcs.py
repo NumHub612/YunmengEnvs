@@ -6,7 +6,7 @@ Solution of the 2D source term equation using finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, NodeField, Tensor, Vector, DataHub
+from core.numerics.fields import Field, NodeField, Variable, DataHub
 from core.numerics.mesh import Grid, ElementType
 
 import numpy as np

@@ -6,7 +6,7 @@ Grad operators for the finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, CellField, Tensor, Vector, VariableType, DataHub
+from core.numerics.fields import Field, CellField, Variable, VariableType, DataHub
 from core.numerics.mesh import Grid, ElementType
 
 import numpy as np
@@ -70,7 +70,7 @@ class Grad01(IOperator):
 
         return CellField.from_data(grads)
 
-    def _calculate_scalar_grad(self, source, element) -> Vector:
+    def _calculate_scalar_grad(self, source, element) -> Variable:
         """Calculate the gradient of scalar."""
         face_values = []
         for nb in self._mesh.retrieve_cell_neighbours(element):
@@ -88,11 +88,11 @@ class Grad01(IOperator):
             dist = dists[i // 2]
             if face_values[i] is not None and face_values[i + 1] is not None:
                 grad = (face_values[i + 1] - face_values[i]) / dist
-                results.append(grad.value)
+                results.append(grad.data)
             else:
                 results.append(0.0)  # TODO: can be better
         return results
 
-    def _calculate_vector_grad(self, source, element) -> Tensor:
+    def _calculate_vector_grad(self, source, element) -> Variable:
         """Calculate the gradient of vector."""
         raise NotImplementedError()

@@ -6,7 +6,7 @@ To provide the Neumann boundary condition.
 """
 from core.solvers.interfaces import IBoundaryCondition, BoundaryType
 from core.numerics.mesh import Element
-from core.numerics.fields import Variable, make_var_from_value
+from core.numerics.fields import Variable, Var
 from configs.settings import logger
 
 
@@ -23,22 +23,16 @@ class NaturalBoundary(IBoundaryCondition):
     def get_type(cls) -> BoundaryType:
         return BoundaryType.NATURAL
 
-    def __init__(
-        self,
-        id: str,
-        flux: float | list[float],
-        dtype: str = "vector",
-    ):
+    def __init__(self, id: str, flux: float | list[float]):
         """
         Initialize the custom boundary condition.
 
         Args:
             id: The unique identifier.
             flux: The specified boundary flux.
-            dtype: The data type of the boundary condition.
         """
         self._id = id
-        self._flux = make_var_from_value(flux, dtype)
+        self._flux = Var(flux)
 
     @property
     def id(self) -> str:
