@@ -217,7 +217,7 @@ def _extract_field_data(field: Field):
     """
     Extract the data of the given field.
     """
-    values = field.to_np()
+    values = field.data.as_numpy()
 
     if field.dtype == VariableType.SCALAR:
         return values, {"x": values, "y": values, "z": values}

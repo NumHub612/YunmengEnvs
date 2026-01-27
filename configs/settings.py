@@ -60,7 +60,11 @@ except ImportError:
 
 # set up global settings object
 class YunmengSettings:
-    """项目环境配置。"""
+    """Project settings。
+
+    NOTE: Sugguest to use `settings` object to access and modify settings,
+    instead of directly cachine each attribute.
+    """
 
     _lock = threading.RLock()
     _instance = None
@@ -93,7 +97,7 @@ class YunmengSettings:
 
     def __setattr__(self, name: str, value):
         if name == "_configs":
-            raise AttributeError("Cannot reset built-in attribute '_configs'")
+            raise AttributeError("Can't reset built-in attribute '_configs'")
         self._configs[name] = value
 
     @property

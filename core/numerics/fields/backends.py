@@ -6,11 +6,11 @@ Backend of variabls and fields.
 """
 from configs.settings import settings
 import numpy as np
-from typing import Optional
+import torch
 
 
 class Backend:
-    """The backend of the variable."""
+    """Backend to support torch and numpy."""
 
     __slots__ = ("xp", "name")
 
@@ -21,15 +21,11 @@ class Backend:
     @staticmethod
     def from_numpy(arr: np.ndarray, xp):
         if xp.__name__ == "torch":
-            import torch
-
             return torch.from_numpy(arr)
         return arr
 
     def array(self, obj, dtype=None):
         if self.name == "torch":
-            import torch
-
             return torch.tensor(obj, dtype=dtype)
         return self.xp.array(obj, dtype=dtype)
 
@@ -41,8 +37,6 @@ class Backend:
 
     def norm(self, arr) -> float:
         if self.name == "torch":
-            import torch
-
             return torch.linalg.norm(arr)
         return float(self.xp.linalg.norm(arr))
 
@@ -57,7 +51,6 @@ class Backend:
     def as_tensor(self, obj, dtype=None, requires_grad=False):
         if self.name != "torch":
             raise RuntimeError("Backend isn't torch")
-        import torch
 
         if isinstance(obj, torch.Tensor):
             new_tensor = obj.clone().detach()
@@ -72,31 +65,36 @@ class Backend:
 
     def to_device(self, arr, device):
         if self.name == "torch":
-            import torch
 
             return arr.to(device=torch.device(device))
         return arr
 
 
 _numpy_back = Backend(np, "numpy")
-_torch_back: Optional[Backend] = None
-_BACKEND: Backend = _numpy_back
+_torch_back = Backend(torch, "torch")
+
+if settings.device == "cuda":
+    _BACKEND: Backend = _torch_back
+else:
+    _BACKEND: Backend = _numpy_back
 
 
 def use_numpy():
     global _BACKEND
     _BACKEND = _numpy_back
+    return _BACKEND
 
 
-def use_torch(device=settings.device):
+def use_torch():
     global _torch_back, _BACKEND
     if _torch_back is None:
         try:
-            import torch
-
             _torch_back = Backend(torch, "torch")
         except ImportError as e:
             raise
-    else:
-        _torch_back.device = device
     _BACKEND = _torch_back
+    return _BACKEND
+
+
+def get_backend():
+    return _BACKEND

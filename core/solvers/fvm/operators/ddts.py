@@ -50,7 +50,7 @@ class Ddt01(IOperator):
         ddt_eqs = LinearEqs.zeros(
             self._mesh.cell_count,
             rhs_type=data.dtype,
-            variable=data.variable,
+            variable=data.name,
         )
 
         for cell in self._mesh.cells:

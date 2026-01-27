@@ -60,7 +60,7 @@ class LinkableComponentStatus(Enum):
     The component is in an invalid state.
     When updating itself not all required inputs will be available, 
     and/or it will not be able to provide the required output. 
-    After the user has modified the connections between the component's 
+    After user has modified the connections between the component's 
     inputs/outputs and those of other components, the 
     `VALIDATING` state can be entered again.
     """
@@ -86,30 +86,29 @@ class LinkableComponentStatus(Enum):
 
     DONE = 11
     """
-    The last update process that component performed was final one.
+    The last update() that component performed was the final one.
     A next call to the `update()` method will leave 
     the component's internal state unchanged.
     """
 
     FINISHING = 12
     """
-    The ILinkableComponent was requested to perform the actions to  
-    be performed before it will either be disposed or 
-    re-initialized again. Typical actions would be writing the final 
-    result files, close all open files,
-    free memory, etc. When all required actions have been performed,
-    the status switches to `CREATED` when re-initialization 
-    is possible. The status switches to `FINISHED` when 
+    The linkablecomponent was requested to perform the actions to  
+    be performed before it will either be disposed or re-
+    initialized again. Typical actions would be writing the final 
+    result files, close all open files, free memory, etc. 
+    When all required actions have been performed,
+    the status switches to `CREATED` after reinitialization done. 
+    The status switches to `FINISHED` when 
     component is to be disposed.
     """
 
     FINISHED = 13
     """
     The ILinkableComponent has successfully performed its 
-    finalization actions. Re-initialization of the component instance 
-    isn't possible and shouldn't be attempted. 
-    Instead the instance should be disposed, e.g. through 
-    the garbage collection mechanism.
+    finalization actions. Re-initialization of the component
+    isn't possible and shouldn't be attempted, instead, 
+    the component should be disposed.
     """
 
     FAILED = 14
@@ -122,5 +121,5 @@ class LinkableComponentStatus(Enum):
     result files, close all open files, free memory, etc. 
     When all required actions have been performed, the status switches 
     back to `CREATED` if component supports being re-initialized. 
-    If component can't be re-initialized, it can be released from memory.
+    If component can't be re-initialized, then released its from memory.
     """

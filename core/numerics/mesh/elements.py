@@ -9,12 +9,33 @@ import numpy as np
 import enum
 
 
+class MeshDim(enum.Enum):
+    """The mesh dimensions."""
+
+    DIM1 = "1d"
+    DIM2 = "2d"
+    DIM3 = "3d"
+    NONE = "none"
+
+    @staticmethod
+    def from_str(dim: str) -> "MeshDim":
+        """Convert a string to a MeshDim."""
+        if dim == "1d":
+            return MeshDim.DIM1
+        elif dim == "2d":
+            return MeshDim.DIM2
+        elif dim == "3d":
+            return MeshDim.DIM3
+        else:
+            return MeshDim.NONE
+
+
 class ElementType(enum.Enum):
     """Element types in CFD."""
 
     CELL = "cell"
     FACE = "face"
-    EDGE = "edge"  # not used.
+    # EDGE = "edge"
     NODE = "node"
     NONE = "none"  # might be useful for id-based elements
 
@@ -33,7 +54,7 @@ class ElementType(enum.Enum):
             return ElementType.NONE
 
 
-@dataclass
+@dataclass(slots=True)
 class Coordinate:
     """
     Coordinate.
@@ -82,7 +103,7 @@ class Coordinate:
         return not self.__eq__(other, tolerance)
 
 
-@dataclass
+@dataclass(slots=True)
 class Element:
     """
     Element base class.
@@ -93,7 +114,7 @@ class Element:
     coordinate: Coordinate
 
 
-@dataclass
+@dataclass(slots=True)
 class Node(Element):
     """
     Node element.
@@ -102,17 +123,7 @@ class Node(Element):
     pass
 
 
-@dataclass
-class Edge(Element):
-    """
-    Edge element, NOT used yet.
-    """
-
-    node1: int
-    node2: int
-
-
-@dataclass
+@dataclass(slots=True)
 class Face(Element):
     """
     Face element.
@@ -122,7 +133,7 @@ class Face(Element):
     nodes: list[int]
 
 
-@dataclass
+@dataclass(slots=True)
 class Cell(Element):
     """
     Cell element.
@@ -130,24 +141,3 @@ class Cell(Element):
 
     # List of face indices
     faces: list[int]
-
-
-class MeshDim(enum.Enum):
-    """The mesh dimensions."""
-
-    DIM1 = "1d"
-    DIM2 = "2d"
-    DIM3 = "3d"
-    NONE = "none"
-
-    @staticmethod
-    def from_str(dim: str) -> "MeshDim":
-        """Convert a string to a MeshDim."""
-        if dim == "1d":
-            return MeshDim.DIM1
-        elif dim == "2d":
-            return MeshDim.DIM2
-        elif dim == "3d":
-            return MeshDim.DIM3
-        else:
-            return MeshDim.NONE

@@ -62,7 +62,7 @@ class Burgers2D(BaseSolver):
 
         self._buf: DataHub = None
         self._fields = {
-            "u": CellField(self._mesh.cell_count, VariableType.VECTOR, variable="u"),
+            "u": CellField(self._mesh.cell_count, VariableType.VECTOR, name="u"),
         }
 
     def initialize(self, max_iter: int = 100, tol: float = 1e-6):
@@ -151,7 +151,7 @@ class Burgers2D(BaseSolver):
 
         # Update status
         diffs = self._fields["u"] - self._buf.field("u").data
-        res = np.max(np.abs(diffs.data))
+        res = np.max(np.abs(diffs.data.as_numpy()))
         time_cost = time.perf_counter() - start
         self._update_status(res, time_cost)
 

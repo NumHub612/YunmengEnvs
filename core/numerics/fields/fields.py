@@ -4,327 +4,630 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Fields definition.
 """
-from core.numerics.fields.variables import Variable, VariableType, Var
+from core.numerics.fields.variables import Variable, VariableType, Backend
+from core.numerics.fields.backends import get_backend, use_numpy, use_torch
 from core.numerics.mesh import ElementType
 from configs.settings import settings
 
 import numpy as np
 import torch
-import os
-
-# -----------------------------------------------
-# region --- helper functions ---
-# -----------------------------------------------
+from typing import Optional, Callable, Union, List
+from dataclasses import dataclass
 
 
-def resolve_field_class(spec: str | ElementType) -> type:
-    """
-    Resolve the field class from the domain spec.
-    """
-    if isinstance(spec, ElementType):
-        if spec == ElementType.CELL:
-            return CellField
-        elif spec == ElementType.FACE:
-            return FaceField
-        elif spec == ElementType.NODE:
-            return NodeField
-        else:
-            raise ValueError(f"Unsupported element type: {spec}")
-
-    if isinstance(spec, str):
-        if spec == "cell":
-            return CellField
-        elif spec == "face":
-            return FaceField
-        elif spec == "node":
-            return NodeField
-        else:
-            raise ValueError(f"Unsupported element type: {spec}")
-    raise TypeError(f"Unsupported spec type: {type(spec)}")
+# --------------------------------------------------
+# region Parallel Strategy
+# --------------------------------------------------
 
 
-def make_field_from_data(
-    spec: str | ElementType, data: np.ndarray | torch.Tensor | list[torch.Tensor]
-) -> "Field":
-    """
-    Create a field from data.
+@dataclass(slots=True)
+class ShardInfo:
+    """Record shard information, including ghost cell exchange."""
 
-    Args:
-        spec: The field spec, e.g., "cell".
-        data: The data of the field.
+    global_size: int  # total number of cells on all GPUs.
+    global_offset: int  # global offset in global array.
+    local_size: int  # local number of cells, no ghost cells.
+    ghost_left: int  # number of ghost cells on left.
+    ghost_right: int  # number of ghost cells on right.
+    device: torch.device  # device of this shard.
 
-    Returns:
-        A field object.
-    """
-    field_class = resolve_field_class(spec)
-    return field_class.from_data(data)
+    @property
+    def local_slice(self) -> slice:
+        """Slice of local cells in local array."""
+        return slice(
+            self.ghost_left,
+            self.ghost_left + self.local_size,
+        )
+
+    @property
+    def global_slice(self) -> slice:
+        """Slice of global cells in global array."""
+        return slice(
+            self.global_offset,
+            self.global_offset + self.local_size,
+        )
+
+    def to_local(self, global_idx: int) -> int:
+        """Convert global index to local index."""
+        if global_idx < self.global_offset:
+            return None
+        local_idx = global_idx - self.global_offset + self.ghost_left
+        if local_idx >= self.local_size:
+            return None
+        return local_idx
+
+    def to_global(self, local_idx: int) -> int:
+        """Convert local index to global index."""
+        if local_idx >= self.ghost_left + self.local_size:
+            return None
+        if local_idx < self.ghost_left:
+            return None
+        global_idx = local_idx - self.ghost_left + self.global_offset
+        return global_idx
 
 
-# -----------------------------------------------
-# region --- field ---
-# -----------------------------------------------
+# --------------------------------------------------
+# region Field Infrastruct
+# --------------------------------------------------
 
 
-class Field:
-    """
-    Abstract field class, support multi-GPUs data storage and acceleration.
+@dataclass(slots=True)
+class FieldDesc:
+    """Field metadata."""
 
-    The backend is `torch.Tensor`, which has high performance at computing,
-    suggest to use `numpy.ndarray` for data preparation.
-    """
+    name: str
+    etype: ElementType
+    dtype: VariableType
+    backend: str
+    unit: str
+    bc: dict
+
+
+DataArray = Union[np.ndarray, torch.Tensor, List[torch.Tensor]]
+
+
+class FieldData:
+    """Field data container."""
+
+    __slots__ = ("_chunks", "_shards", "_back", "_dtype", "_shape")
 
     def __init__(
         self,
-        size: int,
-        element_type: ElementType,
-        data_type: VariableType,
-        data: Variable | np.ndarray | torch.Tensor | list[torch.Tensor] = None,
-        variable: str = "none",
-        device: str | torch.device = None,
-        gpus: list[str | torch.device] = None,
+        data: DataArray,
+        dtype: VariableType,
+        backend: Backend = None,
+        device: str = None,
+        gpus: List[torch.device] = None,
+        ghost: int = 0,
     ):
-        """
-        Initialize the field.
+        """Field data container.
 
         Args:
-            size: The number of variables in the field.
-            element_type: The element type.
-            data_type: The data type.
-            data: The initial data of the field.
-            variable: The variable name for the field.
-            device: The device to store the data.
-            gpus: A list of devices, e.g., ["cuda:0",].
+            data: Data array.
+            dtype: Data type.
+            device: Device to store data, [cpu, cuda].
+            gpus: List of GPUs to store data.
+            ghost: Number of ghost cells.
         """
-        assert element_type in ElementType, f"Invalid element type: {element_type}"
-        assert data_type in VariableType, f"Invalid data type: {data_type}"
+        self._dtype = dtype
+        self._shards: List[ShardInfo] = []
 
-        self._variable = variable
-        self._etype = element_type
-        self._dtype = data_type
-        self._size = size
-        self._gpus = []
+        if backend is None:
+            backend = get_backend()
+        if device is None:
+            device = settings.device
+        if gpus is None:
+            gpus = settings.gpus
+        self._back = backend
 
-        self._device = device or settings.device
-        if isinstance(self._device, str):
-            self._device = torch.device(self._device)
-
-        fptype = torch.float64
-        gpus = gpus or settings.gpus
-        for dev in gpus:
-            if isinstance(dev, torch.device):
-                self._gpus.append(dev)
-            else:
-                self._gpus.append(torch.device(f"cuda:{dev}"))
-        if self._device.type == "cpu":
-            self._gpus = []
-
-        if data is None:
-            default = np.zeros(data_type.value)
-            values = torch.full((size, *default.shape), 0.0, dtype=fptype)
-            values[:] = torch.tensor(default)
+        if self._back.name == "numpy":
+            self._init_numpy(data)
         else:
-            values = self._check_values(
-                data,
-                data_type,
-                size,
-                self._gpus,
-                fptype,
-            )
+            self._init_torch(data, device, gpus, ghost)
 
-        if isinstance(values, list):
-            # Field tensor data checked above
-            self._values = values
-        elif len(self._gpus) > 1:
-            # Split the data across GPUs
-            self._values = torch.chunk(values, len(self._gpus), dim=0)
-            self._values = [v.to(dev) for v, dev in zip(self._values, self._gpus)]
+    def _init_numpy(self, data):
+        """Numpy backend: single contiguous memory."""
+        # data from chunks
+        if isinstance(data, list):
+            data = torch.cat(
+                [torch.from_numpy(d) if isinstance(d, np.ndarray) else d for d in data]
+            ).numpy()
+
+        # data from np
+        if isinstance(data, np.ndarray):
+            if data.shape[1:] != self._dtype.value:
+                data = data.reshape(-1, *self._dtype.value)
+            self._chunks = [data]
+            self._shape = data.shape
+            self._shards = [
+                ShardInfo(
+                    self._shape[0],
+                    0,
+                    self._shape[0],
+                    0,
+                    0,
+                    torch.device("cpu"),
+                )
+            ]
         else:
-            # Single GPU or CPU
-            self._values = [values.to(device)]
+            raise TypeError(f"numpy backend got {type(data)}")
 
-    def _check_values(self, data, data_type, size, gpus, fptype):
-        """check if the values are valid"""
-        if isinstance(data, Variable):
-            if data.type != data_type:
-                raise ValueError(f"Invalid data type: {data.type}")
-            values = torch.full((size, *data.shape), 0.0, dtype=fptype)
-            values[:] = torch.tensor(data.data)
-        elif isinstance(data, np.ndarray):
-            if data.shape != (size, *data_type.value):
-                raise ValueError(f"Invalid data shape: {data.shape}")
-            values = torch.from_numpy(data)
+    def _init_torch(
+        self,
+        data,
+        device: str,
+        gpus: List[torch.device],
+        ghost: int,
+    ):
+        """Torch backend: support multi-GPU sharding."""
+        # Convert to tensor
+        if isinstance(data, np.ndarray):
+            tensor = torch.from_numpy(data)
         elif isinstance(data, torch.Tensor):
-            if data.shape != (size, *data_type.value):
-                raise ValueError(f"Invalid data shape: {data.shape}")
-            values = data
+            tensor = data
         elif isinstance(data, list):
-            if len(data) > 1 and len(data) != len(gpus):
-                raise ValueError(f"Invalid number of GPUs: {len(gpus)}")
-            num = sum(d.shape[0] for d in data)
-            if num != size:
-                raise ValueError(f"Invalid multi-data size: {num}")
-            values = data
+            # validate chunks
+            self._chunks = self._validate_chunks(data, gpus)
+            total_size = sum(c.shape[0] for c in self._chunks)
+            self._shape = (total_size, *self._dtype.value)
+            return
         else:
-            raise TypeError(f"Invalid data type: {type(data)}")
-        return values
+            raise TypeError(f"Unsupport dtype: {type(data)}")
 
-    def save(self, file_path: str):
-        """Save the field to a file."""
-        if not os.path.exists(os.path.dirname(file_path)):
-            os.makedirs(os.path.dirname(file_path))
-        torch.save(self.data, file_path)
+        # Reshape
+        if tensor.shape[1:] != self._dtype.value:
+            tensor = tensor.view(-1, *self._dtype.value)
+        self._shape = tensor.shape
 
-    @staticmethod
-    def load(file_path: str, device: torch.device = None) -> "Field":
-        """Load the field from a file."""
-        data = torch.load(file_path, map_location=device)
-        return Field.from_data(data, device=device)
+        # Slice to shards
+        if device == "cpu" or gpus is None:  # cpu
+            self._chunks = [tensor]
+            self._shards = [
+                ShardInfo(
+                    self._shape[0],
+                    0,
+                    self._shape[0],
+                    torch.device("cpu"),
+                    ghost,
+                )
+            ]
+        elif len(gpus) == 1:  # single GPU
+            self._chunks = [tensor.to(gpus[0])]
+            self._shards = [
+                ShardInfo(
+                    self._shape[0],
+                    0,
+                    self._shape[0],
+                    gpus[0],
+                    ghost,
+                )
+            ]
+        else:  # multi-GPU
+            total_size = tensor.shape[0]
+            num_gpus = len(gpus)
+            base_size = total_size // num_gpus
+            remainder = total_size % num_gpus
 
-    # -----------------------------------------------
-    # region Properties
-    # -----------------------------------------------
+            chunks = []
+            offset = 0
+            for i, dev in enumerate(gpus):
+                # load balance
+                local_size = base_size + (1 if i < remainder else 0)
+
+                # slice chunk
+                chunk = tensor[offset : offset + local_size].to(dev)
+                chunks.append(chunk)
+                self._shards.append(
+                    ShardInfo(
+                        total_size,
+                        offset,
+                        local_size,
+                        dev,
+                        ghost,
+                    )
+                )
+                offset += local_size
+            self._chunks = chunks
+
+    def _validate_chunks(self, chunks, gpus):
+        """Validate chunks and gpus."""
+        if len(chunks) != len(gpus):
+            raise ValueError(f"Chunk count {len(chunks)} != gpu count {len(gpus)}")
+
+        validated = []
+        for ck, dev in zip(chunks, gpus):
+            if isinstance(ck, np.ndarray):
+                ck = torch.from_numpy(ck)
+            if not isinstance(ck, torch.Tensor):
+                raise TypeError(f"Chunk must be tensor, got {type(ck)}")
+
+            if ck.shape[1:] != self._dtype.value:
+                ck = ck.view(-1, *self._dtype.value)
+            validated.append(ck.to(dev))
+        return validated
 
     @property
-    def data(self) -> list[torch.Tensor]:
-        """
-        Get the raw data of the field.
-        """
-        return self._values
+    def backend(self) -> Backend:
+        return self._back
 
     @property
-    def variable(self) -> str:
-        """
-        Get the variable name of the field.
-        """
-        return self._variable
-
-    @variable.setter
-    def variable(self, value: str):
-        """
-        Set the variable name of the field.
-        """
-        self._variable = value
-
-    @property
-    def size(self) -> int:
-        """
-        Get the field total size.
-        """
-        return self._size
-
-    @property
-    def chunks(self) -> int:
-        """
-        Get the number of chunks.
-        """
-        return len(self._values)
+    def shape(self) -> tuple:
+        return self._shape
 
     @property
     def dtype(self) -> VariableType:
-        """
-        Get the field data type.
-        """
         return self._dtype
 
     @property
-    def etype(self) -> ElementType:
-        """
-        Get the field element type.
-        """
-        return self._etype
+    def chunks(self) -> List[Union[np.ndarray, torch.Tensor]]:
+        return self._chunks
 
-    # -----------------------------------------------
-    # region auxiliary methods
-    # -----------------------------------------------
+    @property
+    def shards(self) -> List[ShardInfo]:
+        return self._shards
 
-    @classmethod
-    def from_data(
-        cls,
-        values: np.ndarray | torch.Tensor | list[torch.Tensor],
-        element_type: ElementType = ElementType.NONE,
-        variable: str = "none",
-        device: torch.device = None,
-        gpus: list[str | torch.device] = None,
-    ) -> "Field":
-        """Create a field from data."""
-        values0 = values[0] if isinstance(values, list) else values
-        dtype = None
-        if values0.ndim == 1:
-            dtype = VariableType.SCALAR
-            values = values.reshape(-1, 1)
-        elif values0.ndim == 2:
-            if values0.shape[1] == 1:
-                dtype = VariableType.SCALAR
-            elif values0.shape[1] == 3:
-                dtype = VariableType.VECTOR
-        elif values0.ndim == 3:
-            shape = values0.shape
-            if shape[1] == 3 and shape[2] == 3:
-                dtype = VariableType.TENSOR
-            elif shape[1] == 3 and shape[2] == 1:
-                dtype = VariableType.VECTOR
-                values = [value.reshape(-1, 3) for value in values]
-            elif shape[1] == 1 and shape[2] == 1:
-                dtype = VariableType.SCALAR
-                values = [value.reshape(-1, 1) for value in values]
-        if dtype is None:
-            raise ValueError(f"Invalid shape: {values0.shape}")
-
-        if isinstance(values, list):
-            size = sum(v.shape[0] for v in values)
-        else:
-            size = values.shape[0]
-        args = {
-            "size": size,
-            "element_type": element_type,
-            "data_type": dtype,
-            "data": values,
-            "variable": variable,
-            "device": device,
-            "gpus": gpus,
-        }
-        return cls(**args)
-
-    def to_tensor(self, device: torch.device) -> torch.Tensor:
-        """
-        Convert the field to a torch tensor on the specified device.
-        """
-        if device.type == "cuda":
-            if len(self._gpus) > 1:
-                data = torch.cat([v.to(device) for v in self._values], dim=0)
-            else:
-                data = torch.cat(self._values, dim=0).to(device)
-        else:
-            data = torch.cat(self._values, dim=0).cpu()
-        return data
-
-    def to_np(self) -> np.ndarray:
-        """
-        Convert the field to a numpy array.
-        """
-        return torch.cat([v.cpu() for v in self._values], dim=0).numpy()
-
-    def assign(self, other):
-        """
-        Assign the field values with another field or a variable.
-        """
-        if isinstance(other, Field):
-            try:
-                self._check_fields_compatible(other)
-            except (ValueError, TypeError) as e:
-                raise TypeError(f"Cannot assign fields: {e}")
-
-            self._values = other._values
-        elif isinstance(other, Variable):
-            if other.type != self.dtype:
-                raise TypeError(
-                    f"Invalid value type: {other.type} (expected {self.dtype})"
+    def to(self, device: str) -> "FieldData":
+        if self._back.name == "numpy":
+            if isinstance(device, str) and device.startswith("cuda"):
+                # numpy -> cuda
+                back = use_torch()
+                _data = torch.from_numpy(self._chunks[0]).to(device)
+                return FieldData(
+                    _data,
+                    self._dtype,
+                    back,
+                    "cuda",
+                    [device],
                 )
-            for values in self._values:
-                for i in range(self.size):
-                    values[i] = torch.from_numpy(other.data)
+            return self  # cpu
+
+        # torch backend
+        if isinstance(device, str):
+            device = torch.device(device)
+        new_chunks = [c.to(device) for c in self._chunks]
+        return FieldData(
+            new_chunks,
+            self._dtype,
+            self._back,
+            "cuda",
+            [device] * len(new_chunks),
+        )
+
+    def as_numpy(self) -> np.ndarray:
+        """Transfer to numpy (aggregate all shards)."""
+        if self._back.name == "numpy":
+            return self._chunks[0]
+
+        # torch -> numpy
+        cpu_chunks = [c.cpu() for c in self._chunks]
+        return torch.cat(cpu_chunks, dim=0).numpy()
+
+    def requires_grad(self, requires_grad: bool = True):
+        """Switch on/off gradient calculation."""
+        if self._back.name == "torch":
+            for chunk in self._chunks:
+                chunk.requires_grad_(requires_grad)
+        return self
+
+    def save(self, path: str):
+        if self._back.name == "numpy":
+            np.save(path, self._chunks[0])
         else:
-            raise TypeError(f"Can't assign with {type(other)}")
+            meta = {
+                "shape": self._shape,
+                "dtype": self._dtype.name,
+                "backend": self._back.name,
+                "shards": [
+                    (s.global_size, s.global_offset, s.local_size) for s in self._shards
+                ],
+            }
+            torch.save({"meta": meta, "chunks": self._chunks}, path)
+
+    @staticmethod
+    def load(path: str, gpus: Optional[List[torch.device]] = None) -> "FieldData":
+        try:
+            # try numpy format
+            data = np.load(path)
+            return FieldData(
+                data,
+                VariableType.from_shape(data.shape[1:]),
+                use_numpy(),
+                "cpu",
+            )
+        except:
+            # torch format
+            checkpoint = torch.load(path, map_location="cpu")
+            meta = checkpoint["meta"]
+            chunks = checkpoint["chunks"]
+            dtype = VariableType[meta["dtype"]]
+
+            if gpus:  # reshard
+                full = torch.cat(chunks, dim=0)
+                return FieldData(
+                    full,
+                    dtype,
+                    use_torch(),
+                    "cuda",
+                    gpus,
+                )
+            return FieldData(chunks, dtype)
+
+
+# --------------------------------------------------
+# region Field
+# --------------------------------------------------
+
+
+class Field:
+    """Field supporting different backends and parallel strategies."""
+
+    __slots__ = ("_desc", "_data")
+
+    def __init__(
+        self,
+        data: FieldData,
+        etype: ElementType,
+        name: str = "",
+        unit: str = "",
+        bc: dict = None,
+    ):
+        self._data = data
+        self._desc = FieldDesc(
+            name,
+            etype,
+            data.dtype,
+            data.backend.name,
+            unit,
+            bc,
+        )
+
+    @staticmethod
+    def zeros(
+        size: int,
+        dtype: VariableType,
+        etype: ElementType,
+        name: str = "",
+        unit: str = "",
+        device: str = None,
+        gpus: List[Union[str, int]] = None,
+    ) -> "Field":
+        """Create a zero field with given size and data type."""
+        # Choose backend
+        if device and device.startswith("cuda"):
+            backend = use_torch(device)
+            gpus = [
+                torch.device(f"cuda:{g}") if isinstance(g, int) else torch.device(g)
+                for g in (gpus or [device])
+            ]
+        else:
+            backend = use_numpy()
+            gpus = None
+
+        # Create data
+        shape = (size, *dtype.value)
+        if backend.name == "numpy":
+            data = np.zeros(shape, dtype=np.float64)
+        else:
+            data = torch.zeros(
+                shape,
+                dtype=torch.float64,
+                device=gpus[0],
+            )
+        field_data = FieldData(data, dtype, backend, device, gpus)
+        return Field(field_data, etype, name, unit)
+
+    @staticmethod
+    def from_variable(
+        var: Variable,
+        size: int,
+        etype: ElementType,
+        name: str = "",
+        unit: str = "",
+        device: str = None,
+        gpus: List[Union[str, int]] = None,
+    ) -> "Field":
+        """Create a field from a single variable."""
+        if gpus or (device and device.startswith("cuda")):
+            backend = use_torch()
+            gpus = [
+                torch.device(f"cuda:{g}") if isinstance(g, int) else torch.device(g)
+                for g in (gpus or [device])
+            ]
+
+            if isinstance(var.data, torch.Tensor):
+                base = var.data.clone().detach()
+            else:
+                base = torch.from_numpy(np.asarray(var.data))
+
+            tensor = base.to(dtype=torch.float64, device=gpus[0])
+            tensor = tensor.expand(size, *var.shape)
+            data = FieldData(
+                tensor,
+                var.type,
+                backend,
+                "cuda",
+                gpus,
+            )
+        else:
+            backend = use_numpy()
+            arr = np.broadcast_to(
+                np.asarray(var.data),
+                (size, *var.shape),
+            ).copy()
+            data = FieldData(arr, var.type, backend, "cpu")
+        return Field(data, etype, name, unit)
+
+    @property
+    def desc(self) -> FieldDesc:
+        return self._desc
+
+    @property
+    def name(self) -> str:
+        return self._desc.name
+
+    @property
+    def etype(self) -> ElementType:
+        return self._desc.etype
+
+    @property
+    def dtype(self) -> VariableType:
+        return self._data.dtype
+
+    @property
+    def data(self) -> FieldData:
+        return self._data
+
+    @property
+    def shape(self) -> tuple:
+        return self._data.shape
+
+    @property
+    def size(self) -> int:
+        return self._data.shape[0]
+
+    def __getitem__(self, idx: int) -> Variable:
+        if self._desc.backend == "numpy":
+            return Variable.from_numpy(self._data.chunks[0][idx])
+
+        for ck, info in zip(self._data.chunks, self._data.shards):
+            local_idx = info.to_local(idx)
+            if local_idx is not None:
+                return Variable.from_numpy(
+                    ck[local_idx].cpu().numpy(),
+                )
+        raise IndexError(f"Index {idx} out of range")
+
+    def __setitem__(self, idx: int, value: Variable):
+        if value.type != self.dtype:
+            raise TypeError(f"Type mismatch: {value.type} vs {self.dtype}")
+
+        if self._desc.backend == "numpy":
+            self._data.chunks[0][idx] = value.data
+        else:
+            for chunk, info in zip(self._data.chunks, self._data.shards):
+                local_idx = info.to_local(idx)
+                if local_idx is not None:
+                    with torch.no_grad():
+                        chunk[local_idx] = torch.tensor(
+                            value.data,
+                            device=info.device,
+                        )
+                    return
+            raise IndexError(f"Index {idx} out of range")
+
+    def _binary_op(self, other: "Field", op: Callable) -> "Field":
+        """Unified binary operation, auto-align shards."""
+        if isinstance(other, Field):
+            if self.dtype != other.dtype:
+                raise TypeError(f"Type mismatch: {self.dtype} vs {other.dtype}")
+
+            # align_shards
+            new_chunks = []
+            for c1, c2 in zip(self._data.chunks, other._data.chunks):
+                new_chunks.append(op(c1, c2))
+
+            new_data = FieldData(
+                new_chunks,
+                self.dtype,
+                self._data.backend,
+                [s.device for s in self._data.shards],
+            )
+            return Field(new_data, self.etype, self.name)
+        raise TypeError(f"Unsupported operand type: {type(other)}")
+
+    def __add__(self, other: "Field") -> "Field":
+        return self._binary_op(other, lambda a, b: a + b)
+
+    def __sub__(self, other: "Field") -> "Field":
+        return self._binary_op(other, lambda a, b: a - b)
+
+    def __mul__(self, scalar: float) -> "Field":
+        new_chunks = [c * scalar for c in self._data.chunks]
+        new_data = FieldData(
+            new_chunks,
+            self.dtype,
+            self._data.backend,
+            [s.device for s in self._data.shards],
+        )
+        return Field(new_data, self.etype, self.name)
+
+    __rmul__ = __mul__
+
+    def __truediv__(self, scalar: float) -> "Field":
+        return self * (1.0 / scalar)
+
+    def __neg__(self) -> "Field":
+        return self * -1
+
+    def sum(self):
+        """Global summation."""
+        if self._desc.backend == "numpy":
+            return float(self._data.chunks[0].sum())
+
+        # torch: keep tensor，support backward
+        local_sums = [c.sum() for c in self._data.chunks]
+        # Sum on host, keep computation graph
+        total = sum(s for s in local_sums)  # tensor
+        return total
+
+    def mean(self):
+        """Global mean."""
+        if self._desc.backend == "numpy":
+            return float(self._data.chunks[0].mean())
+        return self.sum() / self.size
+
+    def magnitude(self) -> "Field":
+        """Magnitude of a vector field."""
+        if self.dtype == VariableType.SCALAR:
+            return self
+
+        if self._desc.backend == "numpy":
+            new_data = np.linalg.norm(self._data.chunks[0], axis=-1, keepdims=True)
+        else:
+            new_chunks = [
+                torch.norm(c, dim=-1, keepdim=True) for c in self._data.chunks
+            ]
+            new_data = FieldData(
+                new_chunks,
+                VariableType.SCALAR,
+                self._data.backend,
+                [s.device for s in self._data.shards],
+            )
+            return Field(new_data, self.etype, self.name)
+
+        return Field(
+            FieldData(new_data, VariableType.SCALAR),
+            self.etype,
+            self.name,
+        )
+
+    def requires_grad_(self, requires_grad: bool = True) -> "Field":
+        self._data.requires_grad(requires_grad)
+        return self
+
+    def backward(self):
+        """Backward propagation (only for torch backend)."""
+        if self._desc.backend != "torch":
+            raise RuntimeError("backward() only available for torch backend")
+
+        # Collect all gradients from all shards
+        grads = []
+        for chunk in self._data.chunks:
+            if chunk.grad is None:
+                raise RuntimeError("No gradient computed.")
+            grads.append(chunk.grad)
+        return grads
+
+    def to(self, device: Union[str, torch.device]) -> "Field":
+        new_data = self._data.to(device)
+        return Field(new_data, self.etype, self.name)
+
+    def cpu(self) -> "Field":
+        return self.to("cpu")
+
+    def cuda(self, device: int = 0) -> "Field":
+        dev = f"cuda:{device}" if device is not None else "cuda"
+        return self.to(dev)
 
     def scalarize(self) -> list["Field"]:
         """
@@ -333,445 +636,111 @@ class Field:
         if self.dtype == VariableType.SCALAR:
             return [self]
 
-        shape = 3 if self.dtype == VariableType.VECTOR else 9
-        values = torch.cat(self._values, dim=0)
-        data = values.view(-1, shape)
-        scalar_fields = []
-
-        for i, d in enumerate(torch.unbind(data, dim=1)):
-            scalar_fields.append(
-                Field.from_data(
-                    d,
-                    self.etype,
-                    f"{self.variable}_{i}",
-                    self._device,
-                    self._gpus,
+        if self.dtype == VariableType.VECTOR:
+            raw_data = self._data.as_numpy()
+            scalar_fields = []
+            for i in range(3):
+                _data = FieldData(
+                    raw_data[:, i],
+                    VariableType.SCALAR,
+                    self._data.backend,
+                    self._data.shards,
                 )
-            )
-        return scalar_fields
-
-    # -----------------------------------------------
-    # region query methods
-    # -----------------------------------------------
-
-    def _get_local_indices(self, global_indices: int) -> tuple:
-        """Get the local indices of the global index."""
-        chunks_size = [v.shape[0] for v in self._values]
-        cur = 0
-        dev_index, local_index = None, None
-        for i, size in enumerate(chunks_size):
-            if global_indices < cur + size:
-                dev_index = i
-                local_index = global_indices - cur
-                break
-            cur += size
-        return dev_index, local_index
-
-    def __getitem__(self, index: int | slice) -> Variable | list[Variable]:
-        if isinstance(index, int):
-            if index < 0 or index >= self.size:
-                raise IndexError(f"Index out of range: {index}")
-
-            dev, idx = self._get_local_indices(index)
-            var = Var(self._values[dev][idx])
-            return var
-        elif isinstance(index, slice):
-            start, stop, step = index.indices(self.size)
-            globals = range(start, stop, step)
-            locals = [self._get_local_indices(i) for i in globals]
-
-            result = []
-            for dev, idx in locals:
-                data = self._values[dev][idx]
-                var = Var(data)
-                result.append(var)
-            return result
-        else:
-            raise TypeError(f"Invalid index type: {type(index)}")
-
-    def __setitem__(self, index: int | slice, value: Variable | torch.Tensor):
-        if isinstance(value, Variable) and value.type != self.dtype:
-            raise TypeError(f"Invalid type: {value.type}")
-
-        if isinstance(index, int):
-            if index < 0 or index >= self.size:
-                raise IndexError(f"Index out of range: {index}")
-
-            local_indices = [self._get_local_indices(index)]
-        else:
-            start, stop, step = index.indices(self.size)
-            global_indices = range(start, stop, step)
-            local_indices = [self._get_local_indices(i) for i in global_indices]
-
-        if isinstance(value, Variable):
-            value = value.data
-
-        for dev, idx in local_indices:
-            self._values[dev][idx] = torch.tensor(value)
-
-    def __len__(self) -> int:
-        return self._size
-
-    def __iter__(self):
-        for values in self._values:
-            for v in values:
-                yield v
-
-    # -----------------------------------------------
-    # region arithmetic operations
-    # -----------------------------------------------
-
-    def _check_fields_compatible(self, other: "Field"):
-        if self.size != other.size:
-            raise ValueError("Fields must have the same number of variables")
-
-        if self.dtype != other.dtype:
-            raise TypeError(
-                f"Fields must have the same data type: \
-                    {self.dtype} vs {other.dtype}"
-            )
-        if self.etype != other.etype and ElementType.NONE not in [
-            self.etype,
-            other.etype,
-        ]:
-            raise TypeError(
-                f"Fields must have the same element type:\
-                      {self.etype} vs {other.etype}"
-            )
-
-        if self._gpus != other._gpus:
-            raise ValueError(
-                f"Fields must have the same GPU devices: \
-                    {self._gpus} vs {other._gpus}"
-            )
-
-    def __add__(self, other) -> "Field":
-        if isinstance(other, Field):
-            self._check_fields_compatible(other)
-
-            data = [v1 + v2 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        elif isinstance(other, Variable):
-            if other.type != self.dtype:
-                raise TypeError(f"Invalid value type: {other.type}")
-
-            data = [v + other.data for v in self.data]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        else:
-            raise TypeError(f"Cannot add {type(other)} to field")
-
-    def __radd__(self, other) -> "Field":
-        return self.__add__(other)
-
-    def __iadd__(self, other) -> "Field":
-        if isinstance(other, Field):
-            self._check_fields_compatible(other)
-
-            for i in range(self.chunks):
-                self._values[i] += other.data[i]
-            return self
-        elif isinstance(other, Variable):
-            if other.type != self.dtype:
-                raise TypeError(f"Invalid value type: {other.type}")
-
-            for i in range(self.chunks):
-                self._values[i] += other.data
-            return self
-        else:
-            raise TypeError(f"Cannot add {type(other)} to field")
-
-    def __sub__(self, other) -> "Field":
-        if isinstance(other, Field):
-            self._check_fields_compatible(other)
-
-            data = [v1 - v2 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        elif isinstance(other, Variable):
-            if other.type != self.dtype:
-                raise TypeError(f"Invalid value type: {other.type}")
-
-            data = [v - other.data for v in self.data]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        else:
-            raise TypeError(f"Cannot subtract {type(other)} from")
-
-    def __rsub__(self, other) -> "Field":
-        if isinstance(other, Field):
-            self._check_fields_compatible(other)
-
-            data = [v2 - v1 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        elif isinstance(other, Variable):
-            if other.type != self.dtype:
-                raise TypeError(f"Invalid value type: {other.type}")
-
-            data = [other.data - v for v in self.data]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        else:
-            raise TypeError(f"Cannot subtract {type(other)} from")
-
-    def __isub__(self, other) -> "Field":
-        if isinstance(other, Field):
-            self._check_fields_compatible(other)
-
-            for i in range(self.chunks):
-                self._values[i] -= other.data[i]
-            return self
-        elif isinstance(other, Variable):
-            if other.type != self.dtype:
-                raise TypeError(f"Invalid value type: {other.type}")
-
-            for i in range(self.chunks):
-                self._values[i] -= other.data
-            return self
-        else:
-            raise TypeError(f"Cannot subtract {type(other)} from")
-
-    def __mul__(self, other) -> "Field":
-        if isinstance(other, (int, float)):
-            data = [v * other for v in self.data]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        elif isinstance(other, Variable):
-            data = [v @ other for v in self.data]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        elif isinstance(other, Field):
-            if other.size != self.size:
-                raise TypeError(
-                    f"Cannot multiply fields of different sizes: \
-                        {self.size} and {other.size}"
+                scalar_fields.append(
+                    Field(
+                        _data,
+                        self.etype,
+                        f"{self.name}_{i}",
+                        self._desc.unit,
+                        self._desc.bc,
+                    )
                 )
+            return scalar_fields
 
-            data = [v1 @ v2 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_data(
-                data,
-                self.etype,
-                "none",
-                self._device,
-                self._gpus,
-            )
-        else:
-            raise TypeError(f"Cannot multiply field by {type(other)}")
+        raise ValueError(f"Unsupported field type: {self.dtype}")
 
-    def __rmul__(self, other) -> "Field":
-        if isinstance(other, (int, float, Variable)):
-            data = [other * v for v in self.data]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        elif isinstance(other, Variable):
-            data = [v @ other for v in self.data]
-            return Field.from_data(
-                data,
-                self.etype,
-                self.variable,
-                self._device,
-                self._gpus,
-            )
-        elif isinstance(other, Field):
-            if other.size != self.size:
-                raise TypeError(
-                    f"Cannot multiply fields of different sizes: \
-                        {self.size} and {other.size}"
-                )
+    def save(self, path: str):
+        self._data.save(path)
 
-            data = [v2 @ v1 for v1, v2 in zip(self.data, other.data)]
-            return Field.from_data(
-                data,
-                self.etype,
-                "none",
-                self._device,
-                self._gpus,
-            )
-        else:
-            raise TypeError(f"Cannot multiply field by {type(other)}")
+    @staticmethod
+    def load(path: str, gpus: List[torch.device] = None):
+        data = FieldData.load(path, gpus)
+        return Field(data)
 
-    def __imul__(self, other) -> "Field":
-        if isinstance(other, (int, float)):
-
-            for i in range(self.chunks):
-                self._values[i] *= other
-            return self
-        else:
-            raise TypeError(f"Cannot multiply field by {type(other)}")
-
-    def __truediv__(self, other) -> "Field":
-        if not isinstance(other, (int, float)):
-            raise TypeError(f"Cannot divide field by {type(other)}")
-
-        data = [v / other for v in self.data]
-        return Field.from_data(
-            data,
-            self.etype,
-            self.variable,
-            self._device,
-            self._gpus,
-        )
-
-    def __itruediv__(self, other) -> "Field":
-        if not isinstance(other, (int, float)):
-            raise TypeError(f"Cannot divide field by {type(other)}")
-
-        for i in range(self.chunks):
-            self._values[i] /= other
-        return self
-
-    def __neg__(self) -> "Field":
-        return self * -1
-
-    def __abs__(self) -> "Field":
-        data = [v.abs() for v in self.data]
-        result = Field(
-            self.size,
-            self.etype,
-            self.dtype,
-            data,
-            self.variable,
-            self._device,
-            self._gpus,
-        )
-        return result
+    def __repr__(self) -> str:
+        return f"Field({self.name}, {self.dtype.name}, {self.desc.backend}, shape={self.shape})"
 
 
-# -----------------------------------------------
-# region --- predefined fields ---
-# -----------------------------------------------
-
-
-class CellField(Field):
-    """
-    Cell field which represents statues of cells.
-
-    Default at each cell center.
-    """
-
-    def __init__(
-        self,
-        size: int,
-        data_type: VariableType,
-        data: Variable | np.ndarray | torch.Tensor = None,
-        variable: str = "none",
-        **kwargs,
-    ):
-        super().__init__(
-            size,
-            ElementType.CELL,
-            data_type,
-            data,
-            variable,
-        )
-
-
-class FaceField(Field):
-    """
-    Face field which represents statues of faces.
-
-    Default at each face center.
-    """
-
-    def __init__(
-        self,
-        size: int,
-        data_type: VariableType,
-        data: Variable | np.ndarray | torch.Tensor = None,
-        variable: str = "none",
-        **kwargs,
-    ):
-        """
-        Initialize the face field.
-
-        Args:
-            size: The number of all faces in the field.
-            data_type: The data type.
-            default: The default value of each face.
-            variable: The variable name.
-        """
-        super().__init__(
-            size,
-            ElementType.FACE,
-            data_type,
-            data,
-            variable,
-        )
+# --------------------------------------------------
+# region preDefines
+# --------------------------------------------------
 
 
 class NodeField(Field):
-    """
-    Node field which represents statues of nodes.
-    """
+    """Node field."""
 
     def __init__(
         self,
         size: int,
-        data_type: VariableType,
-        data: Variable | np.ndarray | torch.Tensor = None,
-        variable: str = "none",
-        **kwargs,
+        dtype: VariableType,
+        name: str = "",
+        bc: dict = None,
     ):
-        """
-        Initialize the node field.
+        data = FieldData(np.zeros((size, *dtype.value)), dtype, get_backend())
+        super().__init__(data, ElementType.NODE, name, "", bc)
 
-        Args:
-            size: The number of all nodes in the field.
-            data_type: The data type.
-            default: The default value of each node.
-            variable: The variable name.
-        """
-        super().__init__(
-            size,
-            ElementType.NODE,
-            data_type,
-            data,
-            variable,
-        )
+
+class CellField(Field):
+    """Cell field."""
+
+    def __init__(
+        self,
+        size: int,
+        dtype: VariableType,
+        name: str = "",
+        bc: dict = None,
+    ):
+        data = FieldData(np.zeros((size, *dtype.value)), dtype, get_backend())
+        super().__init__(data, ElementType.CELL, name, "", bc)
+
+
+class FaceField(Field):
+    """Face field."""
+
+    def __init__(
+        self,
+        size: int,
+        dtype: VariableType,
+        name: str = "",
+        bc: dict = None,
+    ):
+        data = FieldData(np.zeros((size, *dtype.value)), dtype, get_backend())
+        super().__init__(data, ElementType.FACE, name, "", bc)
+
+
+class ScalarField(Field):
+    """Scalar field."""
+
+    def __init__(
+        self,
+        size: int,
+        etype: ElementType,
+        name: str = "",
+        bc: dict = None,
+    ):
+        data = FieldData(np.zeros((size, 1)), VariableType.SCALAR, get_backend())
+        super().__init__(data, etype, name, "", bc)
+
+
+class VectorField(Field):
+    """Vector field."""
+
+    def __init__(
+        self,
+        size: int,
+        etype: ElementType,
+        name: str = "",
+        bc: dict = None,
+    ):
+        data = FieldData(np.zeros((size, 3)), VariableType.VECTOR, get_backend())
+        super().__init__(data, etype, name, "", bc)

@@ -56,7 +56,7 @@ class Div01(IOperator):
 
     def run(self, source: DataHub) -> Field | LinearEqs:
         source: Field = source.field(self._var).data
-        variable = source.variable
+        variable = source.name
         div_eqs = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=source.dtype, variable=variable
         )

@@ -33,4 +33,5 @@ class HotstartInitialization(IInitCondition):
         return self._id
 
     def apply(self, field: Field):
-        field.assign(self._field)
+        for i in range(field.size):
+            field[i] = self._field[i]

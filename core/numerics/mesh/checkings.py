@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Data quality checkings for mesh and network data.
 """
-from core.numerics.mesh import Mesh, Grid, Face, Cell, Node, Edge
+from core.numerics.mesh import Mesh, Grid, Face, Cell, Node
 from shapely.geometry import box, Polygon
 
 

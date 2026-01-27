@@ -14,7 +14,6 @@ from core.numerics.fields import (
     Pattern,
     Table,
     Var,
-    make_field_from_data,
 )
 from core.solvers.interfaces import ISolver, IOperator
 from core.solvers import fvm_solvers, fvm_operators
@@ -180,18 +179,19 @@ class SurfaceWaterModel(models.BaseModel):
                     raise ValueError(f"Unsupported data file type: {file_ext}")
                 data = load_data(f_from)
                 var_data = data[var].to_numpy()
-                field = make_field_from_data(domain, var_data)
+                field = None  # TODO: implement Field.from_data()
             elif f_expr is not None:
                 cell_count = self._mesh.cell_count
-                elem_type = ElementType.from_str(domain)
-                data_type = VariableType.from_str(dtype)
-                field = Field(cell_count, elem_type, data_type, variable=var)
+                etype = ElementType.from_str(domain)
+                dtype = VariableType.from_str(dtype)
+                field = Field.zeros(cell_count, dtype, etype, name=var)
                 for expr in f_expr:
                     zone_id = expr["zone"]
                     val = expr["value"]
                     value = Var(val)
                     if zone_id is None:
-                        field.assign(value)
+                        for i in range(cell_count):
+                            field[i] = value
                     else:
                         _, cell_ids = self._mesh.get_group(zone_id)
                         for cid in cell_ids:

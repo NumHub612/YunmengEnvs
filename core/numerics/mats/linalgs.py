@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Linear algebra class.
 """
 from core.numerics.mats import Matrix, SparseMatrix
-from core.numerics.fields import Field, VariableType, ElementType
+from core.numerics.fields import Field, FieldData, VariableType, ElementType
 from configs.settings import settings
 import numpy as np
 import torch
@@ -75,7 +75,7 @@ class LinearEqs:
     ) -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
         mat = SparseMatrix.zeros((size, size), matrix_type, device)
-        rhs = Field(size, ele_type, rhs_type, device=device)
+        rhs = Field.zeros(size, rhs_type, ele_type, device=device, name=variable)
         return LinearEqs(mat, rhs, variable, device)
 
     # -----------------------------------------------
@@ -236,14 +236,8 @@ class LinearEqs:
         else:
             raise ValueError(f"Unsupported algorithm {method}.")
 
-        result = Field(
-            self.size,
-            self._rhs.etype,
-            self._rhs.dtype,
-            solutions,
-            self._var,
-            self._device,
-        )
+        data = FieldData(np.array(solutions), self._rhs.dtype, self._rhs.data.backend)
+        result = Field(data, self._rhs.etype, self._rhs.name)
         return result
 
     def _solve_by_numpy(self) -> np.ndarray:
@@ -253,9 +247,11 @@ class LinearEqs:
             try:
                 # If the matrix is all zeros, return the right-hand side.
                 if eqs.matrix.nnz[0] == 0:
-                    solutions.append(eqs.rhs.to_np().flatten())
+                    solutions.append(eqs.rhs.data.as_numpy().flatten())
                 else:
-                    res = np.linalg.solve(eqs.matrix.to_dense(), eqs.rhs.to_np())
+                    res = np.linalg.solve(
+                        eqs.matrix.to_dense(), eqs.rhs.data.as_numpy()
+                    )
                     solutions.append(res.flatten())
             except:
                 raise RuntimeError("Can not solve linear equations.")

@@ -4,9 +4,10 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Variables definition.
 """
-from core.numerics.fields.backends import Backend, use_numpy, use_torch, _BACKEND
+from core.numerics.fields.backends import Backend, get_backend
 from configs.settings import settings
 import numpy as np
+import torch
 from enum import Enum
 from typing import Optional, Any
 
@@ -21,18 +22,13 @@ def Var(arr: float | list | np.ndarray | Any):
         return Variable.from_numpy(np.array(arr))
     if isinstance(arr, float):
         return Variable.scalar(arr)
-    try:
-        import torch
-
-        if isinstance(arr, torch.Tensor):
-            return Variable.from_numpy(arr.detach().numpy())
-    except ImportError:
-        pass
+    if isinstance(arr, torch.Tensor):
+        return Variable.from_numpy(arr.detach().numpy())
     raise TypeError("Invalid value.")
 
 
 class VariableType(Enum):
-    """Variable types in CFD."""
+    """Variable types."""
 
     SCALAR = (1,)
     VECTOR = (3,)
@@ -50,9 +46,18 @@ class VariableType(Enum):
             return VariableType.TENSOR
         raise ValueError(f"Invalid variable type: {s}")
 
+    def from_shape(shape: tuple) -> "VariableType":
+        if len(shape) == 1:
+            return VariableType.SCALAR
+        if len(shape) == 3 and shape[1] == 3 and shape[2] == 3:
+            return VariableType.TENSOR
+        if len(shape) == 3:
+            return VariableType.VECTOR
+        raise ValueError(f"Invalid shape: {shape}")
+
 
 class Variable:
-    """Variable in CFD."""
+    """Variable."""
 
     __slots__ = ("_data", "_type", "_back")
 
@@ -60,18 +65,22 @@ class Variable:
     # region constructor
     # -----------------------------------------------
 
-    def __init__(self, data, vtype: VariableType, back: Optional[Backend] = None):
-        back = back or _BACKEND
+    def __init__(
+        self,
+        data: np.ndarray | torch.Tensor,
+        vtype: VariableType,
+        back: Optional[Backend] = None,
+    ):
         if not vtype.check_shape(data):
             raise ValueError(f"Shape {data.shape} doesn't match type {vtype.name}")
         self._data = data
         self._type = vtype
-        self._back = back
+        self._back = back or get_backend()
 
     @staticmethod
     def scalar(x: float, requires_grad: bool = False) -> "Variable":
         """Scalar variable."""
-        back = _BACKEND
+        back = get_backend()
         data = back.array([x], dtype=back.xp.float64)
         if back.name == "torch":
             data = back.as_tensor(data, requires_grad=requires_grad)
@@ -80,7 +89,7 @@ class Variable:
     @staticmethod
     def vector(x: float, y: float, z: float, requires_grad=False) -> "Variable":
         """Vector variable."""
-        back = _BACKEND
+        back = get_backend()
         data = back.array([x, y, z], dtype=back.xp.float64)
         if back.name == "torch":
             data = back.as_tensor(data, requires_grad=requires_grad)
@@ -89,7 +98,7 @@ class Variable:
     @staticmethod
     def tensor(*args, requires_grad: bool = False) -> "Variable":
         """Tensor variable."""
-        back = _BACKEND
+        back = get_backend()
         data = back.array(args, dtype=back.xp.float64).reshape(3, 3)
         if back.name == "torch":
             data = back.as_tensor(data, requires_grad=requires_grad)
@@ -107,16 +116,21 @@ class Variable:
         else:
             raise ValueError("Invalid numpy shape.")
 
-        xp = _BACKEND.xp
+        back = get_backend()
+        xp = back.xp
         data = Backend.from_numpy(arr, xp)
-        return Variable(data, vtype, _BACKEND)
+        return Variable(data, vtype, back)
 
     def to_numpy(self) -> np.ndarray:
         return self._back.as_numpy(self._data)
 
     def zero(self) -> "Variable":
         """Zero variable."""
-        return Variable(self._back.zeros_like(self._data), self._type, self._back)
+        return Variable(
+            self._back.zeros_like(self._data),
+            self._type,
+            self._back,
+        )
 
     def to(self, device=settings.device) -> "Variable":
         """To device."""
@@ -145,7 +159,7 @@ class Variable:
         return self._data.shape
 
     @property
-    def magnitude(self) -> float:
+    def magnitude(self):
         """Magnitude of variable."""
         return self._back.norm(self._data)
 
@@ -166,6 +180,7 @@ class Variable:
         )
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """To support numpy ufuncs, such as np.sin, etc."""
         scalars = []
         for inp in inputs:
             scalars.append(inp._data if isinstance(inp, Variable) else inp)
@@ -173,6 +188,7 @@ class Variable:
         return Variable(out_raw, self._type, self._back)
 
     def __array_function__(self, func, types, args, kwargs):
+        """To support numpy functions, such as np.sum, etc."""
         if len(args) == 1 and isinstance(args[0], Variable):
             raw = func(args[0]._data, **kwargs)
             if np.isscalar(raw) or (hasattr(raw, "ndim") and raw.ndim == 0):
@@ -192,7 +208,9 @@ class Variable:
 
         if np.isscalar(other):
             return Variable(
-                self._back.xp.add(self._data, other), self._type, self._back
+                self._back.xp.add(self._data, other),
+                self._type,
+                self._back,
             )
         return NotImplemented
 
@@ -250,7 +268,9 @@ class Variable:
             if self._type == other._type:
                 if self._type == VariableType.VECTOR:
                     # dot product
-                    return Variable.scalar(self._back.xp.dot(self._data, other._data))
+                    return Variable.scalar(
+                        self._back.xp.dot(self._data, other._data),
+                    )
                 # element-wise multiplication
                 return Variable(
                     self._back.xp.multiply(self._data, other._data),
@@ -260,7 +280,9 @@ class Variable:
             raise TypeError("Not supported multiplication.")
         if np.isscalar(other):
             return Variable(
-                self._back.xp.multiply(self._data, other), self._type, self._back
+                self._back.xp.multiply(self._data, other),
+                self._type,
+                self._back,
             )
         return NotImplemented
 
@@ -277,9 +299,15 @@ class Variable:
             )
         if np.isscalar(other):
             return Variable(
-                self._back.xp.divide(self._data, other), self._type, self._back
+                self._back.xp.divide(self._data, other),
+                self._type,
+                self._back,
             )
         return NotImplemented
 
     def __neg__(self):
-        return Variable(self._back.xp.negative(self._data), self._type, self._back)
+        return Variable(
+            self._back.xp.negative(self._data),
+            self._type,
+            self._back,
+        )
