@@ -18,7 +18,7 @@ from core.numerics.fields import (
 )
 from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fdm
-from core.utilities.SympifyNumExpr import lambdify_numexpr
+from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import matplotlib.pyplot as plt
 import numpy as np
