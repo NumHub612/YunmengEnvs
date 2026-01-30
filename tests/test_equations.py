@@ -3,8 +3,8 @@ from core.numerics.mesh import Grid2D, Coordinate, MeshTopo
 from core.solvers.fdm.operators import fdm_operators
 from core.solvers.commons import inits, boundaries, SimpleEquation
 from core.numerics.fields import NodeField, Vector, Scalar
-from core.render.plotter import plot_field
-from core.render.animator import ImageSetPlayer
+from core.renders.plotter import plot_field
+from core.renders.animator import ImageSetPlayer
 import numpy as np
 import os
 import shutil
