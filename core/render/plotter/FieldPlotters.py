@@ -7,7 +7,7 @@ Plotters for visualizing the fluid fields.
 from core.numerics.mesh import Mesh, MeshTopo, MeshGeom, MeshDim
 from core.numerics.mesh.tools import sort_anticlockwise
 from core.numerics.fields import Field, VariableType
-from core.viewer.plotter import PlotKits
+from core.render.plotter import PlotKits
 import numpy as np
 
 

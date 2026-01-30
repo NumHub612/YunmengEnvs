@@ -16,10 +16,10 @@ from core.numerics.mesh import (
     MeshTopo,
     MeshGeom,
 )
-from core.viewer.plotter import MatPlotters
+from core.render.plotter import MatPlotters
 from core.solvers.commons import boundaries, inits, callbacks
 from core.solvers import fvm
-from core.utils.SympifyNumExpr import lambdify_numexpr
+from core.utilities.SympifyNumExpr import lambdify_numexpr
 
 import matplotlib.pyplot as plt
 import numpy as np

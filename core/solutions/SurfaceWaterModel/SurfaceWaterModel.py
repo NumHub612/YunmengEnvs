@@ -18,7 +18,7 @@ from core.numerics.fields import (
 from core.solvers.interfaces import ISolver, IOperator
 from core.solvers import fvm_solvers, fvm_operators
 from core.solvers.commons import boundary_conditions, init_methods, callback_handlers
-from core.utils.LoadData import load_data
+from core.utilities.LoadData import load_data
 from configs.settings import logger
 
 from dateutil.parser import parse
