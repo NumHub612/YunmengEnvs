@@ -248,21 +248,21 @@ class Variable:
             if self.type == VariableType.SCALAR:
                 # scalar multiplication
                 return Variable(
-                    self._back.xp.multiply(self.data, other.data),
-                    other.type,
+                    self._back.xp.multiply(self._data, other._data),
+                    other._type,
                     self._back,
                 )
             if self.type == VariableType.TENSOR and other.type == VariableType.VECTOR:
                 # matrix-vector multiplication
                 return Variable(
-                    self._back.xp.matmul(self.data, other.data),
+                    self._back.xp.matmul(self._data, other._data),
                     VariableType.VECTOR,
                     self._back,
                 )
             if self.type == VariableType.TENSOR and other.type == VariableType.TENSOR:
                 # matrix-matrix multiplication
                 return Variable(
-                    self._back.xp.matmul(self.data, other.data),
+                    self._back.xp.matmul(self._data, other._data),
                     VariableType.TENSOR,
                     self._back,
                 )
@@ -270,19 +270,19 @@ class Variable:
                 if self.type == VariableType.VECTOR:
                     # dot product
                     return Variable.scalar(
-                        self._back.xp.dot(self.data, other.data),
+                        self._back.xp.dot(self._data, other._data),
                     )
                 # element-wise multiplication
                 return Variable(
-                    self._back.xp.multiply(self.data, other.data),
-                    self.type,
+                    self._back.xp.multiply(self._data, other._data),
+                    self._type,
                     self._back,
                 )
             raise TypeError("Not supported multiplication.")
         if np.isscalar(other):
             return Variable(
-                self._back.xp.multiply(self.data, other),
-                self.type,
+                self._back.xp.multiply(self._data, other),
+                self._type,
                 self._back,
             )
         return NotImplemented
@@ -294,21 +294,21 @@ class Variable:
             if self.type != other.type:
                 raise TypeError("Not same type.")
             return Variable(
-                self._back.xp.divide(self.data, other.data),
-                self.type,
+                self._back.xp.divide(self._data, other._data),
+                self._type,
                 self._back,
             )
         if np.isscalar(other):
             return Variable(
-                self._back.xp.divide(self.data, other),
-                self.type,
+                self._back.xp.divide(self._data, other),
+                self._type,
                 self._back,
             )
         return NotImplemented
 
     def __neg__(self):
         return Variable(
-            self._back.xp.negative(self.data),
-            self.type,
+            self._back.xp.negative(self._data),
+            self._type,
             self._back,
         )
