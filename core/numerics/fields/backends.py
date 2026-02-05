@@ -15,7 +15,7 @@ class Backend:
     __slots__ = ("xp", "name")
 
     def __init__(self, xp, name: str):
-        self.xp = xp  # np or torch backend
+        self.xp = xp  # numpy or torch backend
         self.name = name
 
     @staticmethod
@@ -24,9 +24,13 @@ class Backend:
             return torch.from_numpy(arr)
         return arr
 
-    def array(self, obj, dtype=None):
+    def array(self, obj, dtype=None, requires_grad=False):
         if self.name == "torch":
-            return torch.tensor(obj, dtype=dtype)
+            return torch.tensor(
+                obj,
+                dtype=dtype,
+                requires_grad=requires_grad,
+            )
         return self.xp.array(obj, dtype=dtype)
 
     def zeros_like(self, arr):
@@ -53,9 +57,9 @@ class Backend:
             raise RuntimeError("Backend isn't torch")
 
         if isinstance(obj, torch.Tensor):
-            new_tensor = obj.clone().detach()
-            new_tensor.requires_grad_(requires_grad)
-            return new_tensor
+            _tensor = obj.clone().detach()
+            _tensor.requires_grad_(requires_grad)
+            return _tensor
 
         return torch.tensor(
             obj,
@@ -63,38 +67,34 @@ class Backend:
             requires_grad=requires_grad,
         )
 
-    def to_device(self, arr, device):
+    def to_device(self, arr, device=None):
         if self.name == "torch":
-
-            return arr.to(device=torch.device(device))
+            device = device or settings.device
+            device = torch.device(device)
+            return arr.to(device)
         return arr
 
 
-_numpy_back = Backend(np, "numpy")
-_torch_back = Backend(torch, "torch")
-
-if settings.device == "cuda":
-    _BACKEND: Backend = _torch_back
-else:
-    _BACKEND: Backend = _numpy_back
+__numpy_back = Backend(np, "numpy")
+__torch_back = Backend(torch, "torch")
 
 
 def use_numpy():
-    global _BACKEND
-    _BACKEND = _numpy_back
-    return _BACKEND
+    return __numpy_back
 
 
 def use_torch():
-    global _torch_back, _BACKEND
-    if _torch_back is None:
+    global __torch_back
+    if __torch_back is None:
         try:
-            _torch_back = Backend(torch, "torch")
+            __torch_back = Backend(torch, "torch")
         except ImportError as e:
             raise
-    _BACKEND = _torch_back
-    return _BACKEND
+    return __torch_back
 
 
 def get_backend():
-    return _BACKEND
+    if settings.device == "cuda":
+        return __torch_back
+    else:
+        return __numpy_back
