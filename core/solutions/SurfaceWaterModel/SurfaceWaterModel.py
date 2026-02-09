@@ -5,7 +5,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Surface water model.
 """
 from core.solutions.commons import models, datasets, links, metas
-from core.numerics.mesh import Grid2D, ElementType, Coordinate, MeshFilter, MeshChecker
+from core.numerics.mesh import Grid2D, ElementType, Coordinate
+from core.numerics.algos import MeshFilter
 from core.numerics.fields import (
     VariableType,
     Field,
@@ -112,9 +113,6 @@ class SurfaceWaterModel(models.BaseModel):
                 face_ids = MeshFilter.filter_face_patch(self._mesh, expr)
             else:
                 raise ValueError("Invalid patch definition.")
-
-            if not MeshChecker.check_face_patch_connectivity(self._mesh, pid):
-                raise ValueError(f"Face patch {pid} is not connected.")
 
             self._mesh.set_group(ptype, pid, face_ids)
 

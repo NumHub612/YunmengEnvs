@@ -30,6 +30,16 @@ class MeshDim(enum.Enum):
             return MeshDim.NONE
 
 
+class GeomType(enum.Enum):
+    """The geometry types."""
+
+    IdBased = 0
+    Point = 1
+    Polyline = 2
+    Polygon = 3
+    Polyhedron = 4
+
+
 class ElementType(enum.Enum):
     """Element types in CFD."""
 

@@ -2,9 +2,10 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Data quality checkings for mesh and network data.
+"Mesh" filtering and partitioning methods.
 """
-from core.numerics.mesh import Mesh, Grid, Face, Cell, Node
+from __future__ import annotations
+from core.numerics.mesh import Face, Cell, Node
 from shapely.geometry import box, Polygon
 
 
@@ -14,7 +15,7 @@ class MeshFilter:
     """
 
     @staticmethod
-    def filter_face_patch(mesh: Mesh, expr: str):
+    def filter_face_patch(mesh: "Mesh", expr: str):
         """
         Filter mesh faces by given expression.
 
@@ -34,7 +35,7 @@ class MeshFilter:
         return patch
 
     @staticmethod
-    def filter_cell_zone(mesh: Mesh, **conditions):
+    def filter_cell_zone(mesh: "Mesh", **conditions):
         """
         Filter mesh cells by given conditions.
 
@@ -69,22 +70,3 @@ class MeshFilter:
                 if profiler.intersects(extent):
                     zone.append(cell.id)
         return zone
-
-
-class MeshChecker:
-    """Mesh data checker."""
-
-    @staticmethod
-    def check_mesh_nodes(mesh: Mesh):
-        """Check the mesh nodes."""
-        pass
-
-    @staticmethod
-    def check_face_patch_connectivity(mesh: Mesh, group_id: str) -> bool:
-        """Check the face patch connectivity."""
-        return True
-
-    @staticmethod
-    def check_face_patch_overlap(mesh: Mesh, group_ids: list[str]) -> list[int]:
-        """Check the face patches overlap."""
-        return []

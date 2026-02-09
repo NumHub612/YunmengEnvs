@@ -4,12 +4,102 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh.elements import MeshDim
+from core.numerics.mesh.elements import MeshDim, Element, ElementType, Coordinate
 from configs.settings import logger
 
 import collections
 from scipy.spatial import cKDTree
 import numpy as np
+import math
+import copy
+
+
+# -----------------------------------------------
+# region topo methods
+# -----------------------------------------------
+
+
+def check_projection_axis(points: list) -> str:
+    """Check the projection axis (x, y, z)."""
+    coords = extract_coordinates(points)
+    x_var = np.var([c.x for c in coords])
+    y_var = np.var([c.y for c in coords])
+    z_var = np.var([c.z for c in coords])
+    vars = [x_var, y_var, z_var]
+    axis = np.argsort(vars)[0]  # Axis with the smallest variance
+    axis = ["x", "y", "z"][axis]
+    return axis
+
+
+def sort_anticlockwise(points: list) -> list:
+    """Sort points in anticlockwise order."""
+    coords = {}
+    for i, point in enumerate(points):
+        if isinstance(point, Element):
+            coords[i] = point.coordinate
+        else:
+            coords[i] = point
+    center = calculate_center(list(coords.values()))
+    axis = check_projection_axis(points)
+    if axis.lower() == "z":
+        sorted_coords = sorted(
+            coords.items(),
+            key=lambda x: math.atan2(x[1].y - center.y, x[1].x - center.x),
+        )
+    elif axis.lower() == "y":
+        sorted_coords = sorted(
+            coords.items(),
+            key=lambda x: math.atan2(x[1].z - center.z, x[1].x - center.x),
+        )
+    elif axis.lower() == "x":
+        sorted_coords = sorted(
+            coords.items(),
+            key=lambda x: math.atan2(x[1].y - center.y, x[1].z - center.z),
+        )
+    return [points[i] for i, _ in sorted_coords]
+
+
+def extract_coordinates(elements: list) -> list:
+    """Extract the coordinates of each element."""
+    coords = copy.deepcopy(elements)
+    for i, element in enumerate(elements):
+        if isinstance(element, Element):
+            coords[i] = element.coordinate
+        elif isinstance(element, Coordinate):
+            continue
+        else:
+            raise ValueError(f"Invalid element type: {type(element)}.")
+    return coords
+
+
+def calculate_center(points: list) -> Coordinate:
+    """Calculate the center of the given coordinates."""
+    coords = extract_coordinates(points)
+    return Coordinate.from_np(
+        np.mean([coord.to_np() for coord in coords], axis=0),
+    )
+
+
+def search_nearest_elements(
+    elements: list[Element],
+    coordinate: Coordinate,
+    etype: ElementType,
+    top_k: int = 1,
+    max_dist: float = np.inf,
+) -> list[int]:
+    """Search the k nearest elements to the given coordinate."""
+    points = np.array([e.coordinate.to_np() for e in elements])
+    indexes = [e.id for e in elements]
+    tree = cKDTree(points)
+
+    dists, idx = tree.query(
+        coordinate.to_np(),
+        k=top_k,
+        distance_upper_bound=max_dist,
+    )
+    valid = np.isfinite(dists)
+    results = indexes[idx[valid]]
+    return results
 
 
 class MeshTopo:

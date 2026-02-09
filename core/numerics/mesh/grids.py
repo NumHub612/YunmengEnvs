@@ -5,8 +5,12 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 1d/2d/2d structured grids.
 """
 from core.numerics.mesh.meshes import Mesh, ElementType, Coordinate, Node, Face, Cell
-from core.numerics.mesh.tools import calculate_center, sort_anticlockwise
-from core.numerics.mesh.geoms import MeshDim
+from core.numerics.algos import MeshDim
+from core.numerics.algos.topos import (
+    search_nearest_elements,
+    sort_anticlockwise,
+    calculate_center,
+)
 from configs.settings import logger
 
 import numpy as np

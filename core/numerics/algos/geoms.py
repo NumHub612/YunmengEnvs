@@ -4,21 +4,77 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh.elements import Cell, Face, Node, MeshDim
-from core.numerics.mesh.tools import calculate_distance, calculate_area
+from core.numerics.mesh.elements import Cell, Face, Node, MeshDim, GeomType
+from core.numerics.mesh.elements import Element, ElementType, Coordinate
+from core.numerics.algos.topos import (
+    sort_anticlockwise,
+    calculate_center,
+    extract_coordinates,
+)
 from core.numerics.fields import Variable
 import numpy as np
 import enum
 
+# -----------------------------------------------
+# region geom methods
+# -----------------------------------------------
 
-class GeomType(enum.Enum):
-    """The geometry types."""
 
-    IdBased = 0
-    Point = 1
-    Polyline = 2
-    Polygon = 3
-    Polyhedron = 4
+def calculate_distance(
+    point1: Coordinate | Element, point2: Coordinate | Element
+) -> float:
+    """Calculate the distance between two coordinates."""
+    if isinstance(point1, Element):
+        point1 = point1.coordinate
+    if isinstance(point2, Element):
+        point2 = point2.coordinate
+    return np.linalg.norm(point1.to_np() - point2.to_np())
+
+
+def calculate_area(points: list) -> float:
+    """Calculate the area of the given coordinates."""
+    if len(points) < 3:
+        return 0.0
+    coords = extract_coordinates(points)
+    coords = sort_anticlockwise(coords)
+    center = calculate_center(coords)
+    # Calculate the area using the shoelace formula
+    area = 0.0
+    for i in range(len(coords)):
+        j = (i + 1) % len(coords)
+        area += (coords[i].x - center.x) * (coords[j].y - center.y)
+        area -= (coords[i].y - center.y) * (coords[j].x - center.x)
+    area /= 2.0
+    return abs(area)
+
+
+def extract_coordinates_separated(
+    elements: list[Element],
+    dims: str = "xyz",
+) -> dict:
+    """Extract the coordinates of each element separatedly."""
+    dims = dims.lower()
+    if dims not in ["xyz", "xy", "xz", "yz", "x", "y", "z"]:
+        raise ValueError(f"Invalid dimension: {dims}.")
+    xs = np.array([e.coordinate.x for e in elements])
+    ys = np.array([e.coordinate.y for e in elements])
+    zs = np.array([e.coordinate.z for e in elements])
+    coordinate_map = {"x": xs, "y": ys, "z": zs}
+    coordinates = {d: coordinate_map.get(d) for d in dims}
+    return coordinates
+
+
+def generate_projection(
+    coordinate: Coordinate,
+    face: Face,
+    normal: Variable,
+) -> Coordinate:
+    """Generate the projection on the given face from the given coordinate."""
+    vec_np = (coordinate - face.coordinate).to_np()
+    proj_np = np.dot(vec_np, normal.to_numpy()) * normal.to_numpy()
+    proj_np = proj_np + face.coordinate.to_np()
+    proj_coord = Coordinate.from_np(proj_np)
+    return proj_coord
 
 
 class MeshGeom:

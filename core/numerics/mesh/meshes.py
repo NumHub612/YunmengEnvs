@@ -4,6 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Abstract mesh class for describing the geometry and topology.
 """
+from __future__ import annotations
 from core.numerics.mesh.elements import (
     Coordinate,
     Element,
@@ -13,8 +14,7 @@ from core.numerics.mesh.elements import (
     ElementType,
     MeshDim,
 )
-from core.numerics.mesh.topos import MeshTopo
-from core.numerics.mesh.geoms import MeshGeom
+from core.numerics.algos import MeshTopo, MeshGeom
 
 from abc import ABC, abstractmethod
 import numpy as np

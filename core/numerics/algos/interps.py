@@ -4,18 +4,18 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Provides numerical algorithms for field interpolation.
 """
+from __future__ import annotations
 from core.numerics.fields import Field, NodeField, CellField, FaceField
-from core.numerics.mesh import Mesh
 import numpy as np
 
 
-class InterpField:
+class FieldInterp:
     """
     Provides numerical algorithms for field interpolation.
     """
 
     @staticmethod
-    def cell_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
+    def cell_to_face(field: Field, mesh: "Mesh", method: str = "linear") -> Field:
         """
         Interpolates a field from cells to faces.
 
@@ -53,7 +53,7 @@ class InterpField:
         return result
 
     @staticmethod
-    def node_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
+    def node_to_face(field: Field, mesh: "Mesh", method: str = "linear") -> Field:
         """
         Interpolates a field from nodes to faces.
 
@@ -68,7 +68,7 @@ class InterpField:
         pass
 
     @staticmethod
-    def face_to_cell(field: Field, mesh: Mesh, method: str = "linear") -> Field:
+    def face_to_cell(field: Field, mesh: "Mesh", method: str = "linear") -> Field:
         """
         Interpolates a field from faces to cells.
 
