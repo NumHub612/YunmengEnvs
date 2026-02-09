@@ -7,6 +7,7 @@ Backend of variabls and fields.
 from configs.settings import settings
 import numpy as np
 import torch
+from enum import Enum
 
 
 class Backend:
@@ -15,6 +16,8 @@ class Backend:
     __slots__ = ("xp", "name")
 
     def __init__(self, xp, name: str):
+        assert xp is not None, "xp must be numpy or torch"
+        assert name in ("numpy", "torch"), "name must be numpy or torch"
         self.xp = xp  # numpy or torch backend
         self.name = name
 
@@ -80,10 +83,12 @@ __torch_back = Backend(torch, "torch")
 
 
 def use_numpy():
+    """Get numpy backend."""
     return __numpy_back
 
 
 def use_torch():
+    """Get torch backend."""
     global __torch_back
     if __torch_back is None:
         try:
@@ -94,6 +99,7 @@ def use_torch():
 
 
 def get_backend():
+    """Get backend according to settings.device."""
     if settings.device == "cuda":
         return __torch_back
     else:

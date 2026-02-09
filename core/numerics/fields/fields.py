@@ -11,7 +11,7 @@ from configs.settings import settings
 
 import numpy as np
 import torch
-from typing import Optional, Callable, Union, List
+from typing import Optional, Callable, Union, List, Dict
 from dataclasses import dataclass
 
 
@@ -26,22 +26,24 @@ class ShardInfo:
 
     global_size: int  # total number of cells on all GPUs.
     global_offset: int  # global offset in global array.
-    local_size: int  # local number of cells, no ghost cells.
-    ghost_left: int  # number of ghost cells on left.
-    ghost_right: int  # number of ghost cells on right.
-    device: torch.device  # device of this shard.
+    local_size: int  # local number of cells.
+    ghost_size: int  # number of ghost cells on the left.
+    halo_sends: Dict[int, List[int]]  # send map.
+    halo_recvs: Dict[int, List[int]]  # receive map.
+    neighbours: List[int]  # neighbor shards.
+    device: torch.device  # device of this shard storaged.
 
     @property
     def local_slice(self) -> slice:
         """Slice of local cells in local array."""
         return slice(
-            self.ghost_left,
-            self.ghost_left + self.local_size,
+            self.ghost_size,
+            self.ghost_size + self.local_size,
         )
 
     @property
     def global_slice(self) -> slice:
-        """Slice of global cells in global array."""
+        """Slice of local cells in global array."""
         return slice(
             self.global_offset,
             self.global_offset + self.local_size,
@@ -51,18 +53,18 @@ class ShardInfo:
         """Convert global index to local index."""
         if global_idx < self.global_offset:
             return None
-        local_idx = global_idx - self.global_offset + self.ghost_left
+        local_idx = global_idx - self.global_offset + self.ghost_size
         if local_idx >= self.local_size:
             return None
         return local_idx
 
     def to_global(self, local_idx: int) -> int:
         """Convert local index to global index."""
-        if local_idx >= self.ghost_left + self.local_size:
+        if local_idx >= self.ghost_size + self.local_size:
             return None
-        if local_idx < self.ghost_left:
+        if local_idx < self.ghost_size:
             return None
-        global_idx = local_idx - self.ghost_left + self.global_offset
+        global_idx = local_idx - self.ghost_size + self.global_offset
         return global_idx
 
 
@@ -146,6 +148,8 @@ class FieldData:
                     self._shape[0],
                     0,
                     0,
+                    None,
+                    None,
                     torch.device("cpu"),
                 )
             ]
@@ -187,6 +191,9 @@ class FieldData:
                     self._shape[0],
                     0,
                     self._shape[0],
+                    None,
+                    None,
+                    None,
                     torch.device("cpu"),
                     ghost,
                 )
@@ -199,6 +206,9 @@ class FieldData:
                     0,
                     self._shape[0],
                     gpus[0],
+                    None,
+                    None,
+                    None,
                     ghost,
                 )
             ]
@@ -222,6 +232,9 @@ class FieldData:
                         total_size,
                         offset,
                         local_size,
+                        None,
+                        None,
+                        None,
                         dev,
                         ghost,
                     )
