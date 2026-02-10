@@ -4,19 +4,14 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Linear algebra class.
 """
+from core.numerics.enums import VariableType, ElementType
 from core.numerics.mats import Matrix, SparseMatrix
-from core.numerics.fields import Field, FieldData, VariableType, ElementType
+from core.numerics.fields import Field, FieldData
 from configs.settings import settings
+
+from typing import Callable
 import numpy as np
 import torch
-import cupy as cp
-import scipy.sparse as sp
-from scipy.sparse.linalg import cg as scipy_cg
-from scipy.sparse.linalg import spsolve as scipy_spsolve
-from scipy.sparse import dok_matrix
-from cupyx.scipy.sparse import coo_matrix
-from cupyx.scipy.sparse.linalg import spsolve as cupy_spsolve
-from cupyx.scipy.sparse.linalg import cg as cupy_cg
 
 
 class LinearEqs:
@@ -214,191 +209,14 @@ class LinearEqs:
                 eqs.append(LinearEqs(mat, rhs, var))
         return eqs
 
-    def solve(self, method: str = None) -> Field:
+    def solve(self, engine: Callable) -> Field:
         """Solve the linear equations."""
-        if method is None:
-            if isinstance(self._mat, SparseMatrix):
-                method = self._mat.backend
-            else:
-                method = "scipy"
+        results = []
+        for eq in self.scalarize():
+            result = engine(eq.matrix, eq.rhs)
+            results.append(result)
 
-        if settings.device == "cpu" and method == "cupy":
-            method = "scipy"
-
-        if method == "torch" or method == "scipy":
-            solutions = self._solve_by_scipy()
-        elif method == "numpy":
-            solutions = self._solve_by_numpy()
-        elif method == "cupy":
-            solutions = self._solve_by_cupy()
-        elif method == "torch":
-            solutions = self._solve_by_scipy()
-        else:
-            raise ValueError(f"Unsupported algorithm {method}.")
-
-        data = FieldData(np.array(solutions), self._rhs.dtype, self._rhs.data.backend)
+        results = np.array(results).T
+        data = FieldData(np.array(results), self._rhs.dtype, self._rhs.data.backend)
         result = Field(data, self._rhs.etype, self._rhs.name)
-        return result
-
-    def _solve_by_numpy(self) -> np.ndarray:
-        """Solve the linear equations using numpy."""
-        solutions = []
-        for eqs in self.scalarize():
-            try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    solutions.append(eqs.rhs.data.as_numpy().flatten())
-                else:
-                    res = np.linalg.solve(
-                        eqs.matrix.to_dense(), eqs.rhs.data.as_numpy()
-                    )
-                    solutions.append(res.flatten())
-            except:
-                raise RuntimeError("Can not solve linear equations.")
-        return np.array(solutions).T
-
-    def _solve_by_scipy(self) -> np.ndarray:
-        """Solve the linear equations using scipy."""
-        fptype = np.float64
-
-        solutions = []
-        for eqs in self.scalarize():
-            try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    solutions.append(eqs.rhs.to_np().flatten())
-                else:
-                    shape = eqs.matrix.shape
-                    mat = eqs.matrix.data
-                    if isinstance(mat, torch.Tensor):
-                        indices = mat.indices().cpu().numpy()
-                        data = mat.values().cpu().numpy()
-                        mat = sp.coo_matrix(
-                            (data, (indices[0], indices[1])),
-                            shape=shape,
-                            dtype=fptype,
-                        )
-                        mat = mat.tocsr()
-                    elif isinstance(mat, coo_matrix):
-                        rows = cp.asnumpy(mat.row)
-                        cols = cp.asnumpy(mat.col)
-                        data = cp.asnumpy(mat.data)
-                        mat = sp.coo_matrix(
-                            (data, (rows, cols)), shape=shape, dtype=fptype
-                        )
-                        mat = mat.tocsr()
-                    elif isinstance(mat, dok_matrix):
-                        mat = mat.tocsr()
-
-                    b = eqs.rhs.to_np().flatten()
-                    if shape[0] < 10_000:
-                        res = scipy_spsolve(mat, b).flatten()
-                    else:
-                        tol, maxiter = 1.0e-6, 1000
-                        res = scipy_cg(
-                            mat,
-                            b,
-                            tol=tol,
-                            maxiter=maxiter,
-                            atol=1.0e-6,
-                        )[0].flatten()
-                    solutions.append(res)
-            except:
-                raise RuntimeError("Cannot solve linear equations.")
-        return np.array(solutions).T
-
-    def _solve_by_torch(self) -> torch.Tensor:
-        """Solve the linear equations using torch."""
-        fptype = torch.float64
-
-        solutions = []
-        for eqs in self.scalarize():
-            try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    solutions.append(eqs.rhs.to_tensor(self._device).flatten())
-                else:
-                    shape = eqs.matrix.shape
-                    mat = eqs.matrix.data
-                    if isinstance(mat, coo_matrix):
-                        data = torch.as_tensor(
-                            mat.data, device=settings.device, dtype=fptype
-                        )
-                        indices = torch.as_tensor(
-                            cp.vstack((mat.row, mat.col)), device=settings.device
-                        )
-                        coo = torch.sparse_coo_tensor(indices, data, shape)
-                        mat = coo.to_sparse_csr()
-                    elif isinstance(mat, dok_matrix):
-                        indices = torch.as_tensor(
-                            mat.nonzero(), device=settings.device, dtype=fptype
-                        )
-                        data = torch.tensor(
-                            np.array(list(mat.values())),
-                            dtype=fptype,
-                            device=settings.device,
-                        )
-                        coo = torch.sparse_coo_tensor(indices, data, shape)
-                        mat = coo.to_sparse_csr()
-
-                    b = eqs.rhs.to_tensor(self._device)
-                    res = torch.sparse.spsolve(mat, b)
-                    solutions.append(res.flatten())
-            except:
-                raise RuntimeError("Cannot solve linear equations.")
-        return torch.stack(solutions).T
-
-    def _solve_by_cupy(self) -> cp.ndarray:
-        """Solve the linear equations using cupy."""
-        fptype = cp.float64
-
-        solutions = []
-        for eqs in self.scalarize():
-            try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    res = eqs.rhs.to_np().flatten()
-                    arr = cp.asarray(res)
-                    solutions.append(arr)
-                else:
-                    shape = eqs.matrix.shape
-                    mat = eqs.matrix.data
-                    if isinstance(mat, torch.Tensor):
-                        indices = mat.indices().cpu().numpy()
-                        rows = cp.asarray(indices[0])
-                        cols = cp.asarray(indices[1])
-                        data = cp.asarray(mat.values().cpu().numpy())
-                        mat = coo_matrix(
-                            (data, (rows, cols)),
-                            shape=shape,
-                            dtype=fptype,
-                        )
-                    elif isinstance(mat, dok_matrix):
-                        indices = mat.nonzero()
-                        data = np.array(list(mat.values()))
-                        rows = cp.array(indices[0])
-                        cols = cp.array(indices[1])
-                        values = cp.array(data)
-                        mat = coo_matrix(
-                            (values, (rows, cols)), shape=shape, dtype=fptype
-                        )
-
-                    b = eqs.rhs.to_np().flatten()
-                    b = cp.asarray(b)
-                    if shape[0] < 10_000:
-                        res = cupy_spsolve(mat, b).flatten()
-                    else:
-                        tol, maxiter = 1.0e-6, 1000
-                        res = cupy_cg(
-                            mat,
-                            b,
-                            tol=tol,
-                            maxiter=maxiter,
-                            atol=1.0e-6,
-                        )[0].flatten()
-                    solutions.append(res)
-            except:
-                raise RuntimeError("Cannot solve linear equations.")
-        result = cp.stack(solutions).T
-        result = torch.as_tensor(result, device=self._device)  # convert to torch
         return result

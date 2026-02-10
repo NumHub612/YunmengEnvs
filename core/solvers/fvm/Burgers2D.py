@@ -5,16 +5,15 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 2D Burgers equation solver using finite volume method.
 """
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
-from core.solvers.commons import inits, boundaries, IBoundaryCondition
+from core.solvers.commons import inits, boundaries
 from core.numerics.mesh import Mesh
-from core.solvers.fvm.operators import Grad01, Ddt01, Ddt02, Div01, Lap01, Src01
 from core.numerics.fields import CellField, VariableType, DataHub, Sample
 from core.numerics.mats import LinearEqs
-from configs.settings import settings, logger
+from core.numerics.algos.engines import get_engine_method
+from configs.settings import logger
 
 import time
 import numpy as np
-import copy
 
 
 class Burgers2D(BaseSolver):
@@ -56,6 +55,7 @@ class Burgers2D(BaseSolver):
         self._default_bcs = {"u": boundaries.MixedBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
 
+        self._engine = None
         self._max_iter = 100
         self._tol = 1e-6
         self._step = 0
@@ -65,7 +65,7 @@ class Burgers2D(BaseSolver):
             "u": CellField(self._mesh.cell_count, VariableType.VECTOR, name="u"),
         }
 
-    def initialize(self, max_iter: int = 100, tol: float = 1e-6):
+    def initialize(self, engine: str = "numpy", max_iter: int = 100, tol: float = 1e-6):
         # TODO: To split SloverParams, OpParams.
 
         logger.info("Initializing the unsteady burgers solver...")
@@ -94,6 +94,7 @@ class Burgers2D(BaseSolver):
         self._status = SolverStatus()
 
         # Init parameters
+        self._engine = get_engine_method(engine)
         self._max_iter = max_iter
         self._tol = tol
 
@@ -145,7 +146,7 @@ class Burgers2D(BaseSolver):
             callback.on_step()
 
         # Solve linear system
-        solutions = sys.solve(method="numpy")
+        solutions = sys.solve(self._engine)
         self._fields["u"] = solutions
         self._step += 1
 

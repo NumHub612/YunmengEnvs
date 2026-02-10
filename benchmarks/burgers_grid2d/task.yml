@@ -153,6 +153,7 @@ SOLVER:
   # 模型参数
   params:
     max_iter: 100
+    engine: numpy
   # 初始条件，只能使用框架提供的初始化方法
   ics:
     # 热启动方式

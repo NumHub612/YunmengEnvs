@@ -6,7 +6,7 @@ Fields definition.
 """
 from core.numerics.fields.variables import Variable, VariableType, Backend
 from core.numerics.fields.backends import get_backend, use_numpy, use_torch
-from core.numerics.mesh import ElementType
+from core.numerics.enums import ElementType
 from configs.settings import settings
 
 import numpy as np
