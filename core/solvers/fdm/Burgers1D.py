@@ -6,7 +6,8 @@ Solving the 1D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
 from core.solvers.commons import inits
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, MeshDimension
+from core.numerics.mesh import Mesh, MeshDimension
+from core.numerics.algos import MeshGeom, MeshTopo
 from core.numerics.fields import NodeField, VariableType, Variable
 
 import copy

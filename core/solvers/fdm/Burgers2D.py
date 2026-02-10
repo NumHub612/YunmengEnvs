@@ -5,7 +5,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Solving the 2D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
+from core.numerics.mesh import Mesh
+from core.numerics.algos import MeshGeom, MeshTopo
 from core.numerics.fields import NodeField, VariableType
 from core.numerics.mesh import Grid2D
 from configs.settings import logger

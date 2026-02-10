@@ -7,8 +7,7 @@ Abstract mesh class for describing the geometry and topology.
 from core.numerics.enums import MeshDimension
 from core.numerics.mesh.elements import Coordinate, Node, Face, Cell
 from core.numerics.mesh.spatials import Mesh
-from core.numerics.algos.topos import MeshTopo
-from core.numerics.algos.geoms import MeshGeom
+from core.numerics.algos.topos import sort_anticlockwise, calculate_center
 
 import numpy as np
 import torch
@@ -76,14 +75,14 @@ class GenericMesh(Mesh):
         results = [None] * len(faces)
         for i, node_ids in enumerate(faces):
             nodes = self.get_nodes(node_ids)
-            center = MeshGeom.calculate_center(nodes)
+            center = calculate_center(nodes)
 
             if len(node_ids) == 2:
                 self._dimension = MeshDimension.D2
             else:
                 self._dimension = MeshDimension.D3
                 normal = self._calculate_plane_normal(nodes)
-                nodes = MeshTopo.sort_anticlockwise(nodes)
+                nodes = sort_anticlockwise(nodes)
                 node_ids = [n.id for n in nodes]
                 normals.append(normal)
 
@@ -99,11 +98,11 @@ class GenericMesh(Mesh):
         results = [None] * len(cells)
         for i, face_ids in enumerate(cells):
             faces = self.get_faces(face_ids)
-            center = MeshGeom.calculate_center(faces)
+            center = calculate_center(faces)
 
             if self._dimension == MeshDimension.D2:
                 normal = self._calculate_plane_normal(faces)
-                faces = MeshTopo.sort_anticlockwise(faces)
+                faces = sort_anticlockwise(faces)
                 face_ids = [f.id for f in faces]
                 normals.append(normal)
             else:

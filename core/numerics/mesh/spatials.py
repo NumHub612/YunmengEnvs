@@ -6,8 +6,6 @@ Spatial domain classes and methods for the cfd.
 """
 from core.numerics.enums import MeshDimension, ElementType
 from core.numerics.mesh.elements import Node, Face, Cell
-from core.numerics.algos.topos import MeshTopo
-from core.numerics.algos.geoms import MeshGeom
 
 from abc import ABC, abstractmethod
 import pickle
@@ -174,12 +172,16 @@ class Mesh(ABC):
 
     def get_topo_assistant(self) -> "MeshTopo":
         """Return the mesh topology assistant."""
+        from core.numerics.algos.topos import MeshTopo
+
         if self._topo is None:
             self._topo = MeshTopo(self)
         return self._topo
 
     def get_geom_assistant(self) -> "MeshGeom":
         """Return the mesh geometry assistant."""
+        from core.numerics.algos.geoms import MeshGeom
+
         if self._geom is None:
             self._geom = MeshGeom(self)
         return self._geom
