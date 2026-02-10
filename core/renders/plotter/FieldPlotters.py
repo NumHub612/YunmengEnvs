@@ -4,7 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Plotters for visualizing the fluid fields.
 """
-from core.numerics.mesh import Mesh, MeshTopo, MeshGeom, MeshDim
+from core.numerics.mesh import Mesh, MeshTopo, MeshGeom, MeshDimension
 from core.numerics.algos.topos import sort_anticlockwise
 from core.numerics.fields import Field, VariableType
 from core.renders.plotter import PlotKits
@@ -112,7 +112,7 @@ def plot_field(
     data, data_map = _extract_field_data(field)
 
     # plot net
-    if mesh.dimension == MeshDim.DIM1:
+    if mesh.dimension == MeshDimension.D1:
         x = points_splited.get(dimension)
         y = {
             f"{label}_{dimension}": {

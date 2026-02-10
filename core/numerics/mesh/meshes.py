@@ -4,22 +4,14 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Abstract mesh class for describing the geometry and topology.
 """
-from __future__ import annotations
-from core.numerics.mesh.elements import (
-    Coordinate,
-    Element,
-    Node,
-    Face,
-    Cell,
-    ElementType,
-    MeshDim,
-)
-from core.numerics.algos import MeshTopo, MeshGeom
+from core.numerics.enums import MeshDimension, ElementType
+from core.numerics.mesh.elements import Coordinate, Node, Face, Cell
+from core.numerics.algos.topos import MeshTopo
+from core.numerics.algos.geoms import MeshGeom
 
 from abc import ABC, abstractmethod
 import numpy as np
 import torch
-import enum
 import pickle
 from shapely.geometry import Polygon
 
@@ -34,7 +26,7 @@ class Mesh(ABC):
 
     def __init__(self):
         self._version = 1
-        self._dim = MeshDim.NONE
+        self._dim = MeshDimension.NONE
         self._orthogonal = False
 
         self._nodes = []
@@ -67,7 +59,7 @@ class Mesh(ABC):
         return self._version
 
     @property
-    def dimension(self) -> MeshDim:
+    def dimension(self) -> MeshDimension:
         """Return mesh dimension."""
         return self._dim
 
@@ -259,9 +251,9 @@ class GenericMesh(Mesh):
             center = MeshGeom.calculate_center(nodes)
 
             if len(node_ids) == 2:
-                self._dimension = MeshDim.DIM2
+                self._dimension = MeshDimension.D2
             else:
-                self._dimension = MeshDim.DIM3
+                self._dimension = MeshDimension.D3
                 normal = self._calculate_plane_normal(nodes)
                 nodes = MeshTopo.sort_anticlockwise(nodes)
                 node_ids = [n.id for n in nodes]
@@ -281,7 +273,7 @@ class GenericMesh(Mesh):
             faces = self.get_faces(face_ids)
             center = MeshGeom.calculate_center(faces)
 
-            if self._dimension == MeshDim.DIM2:
+            if self._dimension == MeshDimension.D2:
                 normal = self._calculate_plane_normal(faces)
                 faces = MeshTopo.sort_anticlockwise(faces)
                 face_ids = [f.id for f in faces]

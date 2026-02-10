@@ -4,10 +4,10 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Variables definition.
 """
+from core.numerics.enums import VariableType
 from core.numerics.fields.backends import Backend, get_backend
 import numpy as np
 import torch
-from enum import Enum
 from typing import Optional, Any
 
 
@@ -25,35 +25,6 @@ def Var(arr: float | list | np.ndarray | Any):
         return Variable.scalar(arr)
 
     raise TypeError("Invalid value.")
-
-
-class VariableType(Enum):
-    """Variable types."""
-
-    SCALAR = (1,)
-    VECTOR = (3,)
-    TENSOR = (3, 3)
-
-    def from_shape(shape: tuple) -> "VariableType":
-        if len(shape) == 1:
-            return VariableType.SCALAR
-        if len(shape) == 3 and shape[1] == 3 and shape[2] == 3:
-            return VariableType.TENSOR
-        if len(shape) == 3:
-            return VariableType.VECTOR
-        raise ValueError(f"Invalid shape: {shape}")
-
-    def from_str(s: str) -> "VariableType":
-        if s == "scalar":
-            return VariableType.SCALAR
-        if s == "vector":
-            return VariableType.VECTOR
-        if s == "tensor":
-            return VariableType.TENSOR
-        raise ValueError(f"Invalid variable type: {s}")
-
-    def check_shape(self, arr) -> bool:
-        return arr.shape == self.value
 
 
 class Variable:

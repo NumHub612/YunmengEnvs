@@ -6,7 +6,7 @@ Solving the 1D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
 from core.solvers.commons import inits
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, MeshDim
+from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, MeshDimension
 from core.numerics.fields import NodeField, VariableType, Variable
 
 import copy
@@ -54,7 +54,7 @@ class Burgers1D(BaseSolver):
         Constructor of the Burgers1D solver.
         """
         super().__init__(id, mesh)
-        if mesh.dimension != MeshDim.DIM1:
+        if mesh.dimension != MeshDimension.D1:
             raise ValueError("The dimension of the mesh must be 1D.")
 
         self._geom = MeshGeom(mesh)

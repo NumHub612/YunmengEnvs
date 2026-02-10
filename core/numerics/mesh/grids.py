@@ -4,16 +4,14 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 1d/2d/2d structured grids.
 """
-from core.numerics.mesh.meshes import Mesh, ElementType, Coordinate, Node, Face, Cell
-from core.numerics.algos import MeshDim
+from core.numerics.enums import MeshDimension
+from core.numerics.mesh.elements import Coordinate, Node, Face, Cell
+from core.numerics.mesh.meshes import Mesh
 from core.numerics.algos.topos import (
-    search_nearest_elements,
     sort_anticlockwise,
     calculate_center,
 )
-from configs.settings import logger
 
-import numpy as np
 from abc import abstractmethod
 import os
 import pickle
@@ -125,7 +123,7 @@ class Grid1D(Grid):
             num: The number of nodes in the grid.
         """
         super().__init__()
-        self._dim = MeshDim.DIM1
+        self._dim = MeshDimension.D1
         self._nx = num
         self._dx = (end.x - start.x) / (num - 1)
 
@@ -212,7 +210,7 @@ class Grid2D(Grid):
                 + pos_y (list):
         """
         super().__init__()
-        self._dim = MeshDim.DIM2
+        self._dim = MeshDimension.D2
         self._ll = lower_left
         self._ur = upper_right
         self._nx = num_x
@@ -344,7 +342,7 @@ class Grid3D(Grid):
             num_z: The number of nodes in the z-direction.
         """
         super().__init__()
-        self._dim = MeshDim.DIM3
+        self._dim = MeshDimension.D3
         self._ll = lower_left_front
         self._ur = upper_right_back
         self._nx = num_x

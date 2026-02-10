@@ -4,7 +4,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh.elements import MeshDim, Element, ElementType, Coordinate
+from core.numerics.enums import MeshDimension, ElementType
+from core.numerics.mesh import Element, Coordinate
 from configs.settings import logger
 
 import collections
@@ -238,7 +239,7 @@ class MeshTopo:
     @property
     def node_neighbours(self) -> dict[int, list[int]]:
         """Retrun the neighbours id of each node."""
-        if self._mesh.dimension == MeshDim.DIM1:
+        if self._mesh.dimension == MeshDimension.D1:
             logger.warning("1D meshes do not check neighbours.")
             return None
 

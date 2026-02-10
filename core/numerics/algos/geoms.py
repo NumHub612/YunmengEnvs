@@ -4,8 +4,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Auxiliary functions for mesh processing.
 """
-from core.numerics.mesh.elements import Cell, Face, Node, MeshDim, GeomType
-from core.numerics.mesh.elements import Element, ElementType, Coordinate
+from core.numerics.enums import MeshDimension, GeomType, ElementType
+from core.numerics.mesh import Element, Coordinate, Cell, Face, Node
 from core.numerics.algos.topos import (
     sort_anticlockwise,
     calculate_center,
@@ -13,7 +13,6 @@ from core.numerics.algos.topos import (
 )
 from core.numerics.fields import Variable
 import numpy as np
-import enum
 
 # -----------------------------------------------
 # region geom methods
@@ -129,9 +128,9 @@ class MeshGeom:
     def face_area(self) -> list[float]:
         """Return the area of each face."""
         if self._face_areas is None:
-            if self._mesh.dimension == MeshDim.DIM1:
+            if self._mesh.dimension == MeshDimension.D1:
                 face_areas = [0.0] * self._mesh.face_count
-            elif self._mesh.dimension == MeshDim.DIM2:
+            elif self._mesh.dimension == MeshDimension.D2:
                 # Use the perimeter as the area for 2D mesh
                 face_areas = self.face_perimeter
             else:
@@ -151,9 +150,9 @@ class MeshGeom:
     def face_perimeter(self) -> list:
         """Return the perimeter of each face."""
         if self._face_perimeters is None:
-            if self._mesh.dimension == MeshDim.DIM1:
+            if self._mesh.dimension == MeshDimension.D1:
                 face_perimeters = [0.0] * self._mesh.face_count
-            elif self._mesh.dimension == MeshDim.DIM2:
+            elif self._mesh.dimension == MeshDimension.D2:
                 face_perimeters = self._calculate_perimeters_2d()
             else:
                 face_perimeters = self._calculate_perimeters_3d()
@@ -183,9 +182,9 @@ class MeshGeom:
     def face_normal(self) -> list[Variable]:
         """Return the normal of each face."""
         if self._face_normals is None:
-            if self._mesh.dimension == MeshDim.DIM1:
+            if self._mesh.dimension == MeshDimension.D1:
                 face_normals = [None] * self._mesh.face_count
-            elif self._mesh.dimension == MeshDim.DIM2:
+            elif self._mesh.dimension == MeshDimension.D2:
                 face_normals = self._calculate_normals_2d()
             else:
                 face_normals = self._calculate_normals_3d()
@@ -228,9 +227,9 @@ class MeshGeom:
     def cell_volume(self) -> list:
         """Return the volume of each cell."""
         if self._cell_volumes is None:
-            if self._mesh.dimension == MeshDim.DIM1:
+            if self._mesh.dimension == MeshDimension.D1:
                 cell_volumes = [0.0] * self._mesh.cell_count
-            elif self._mesh.dimension == MeshDim.DIM2:
+            elif self._mesh.dimension == MeshDimension.D2:
                 cell_volumes = self._calculate_volumes_2d()
             else:
                 cell_volumes = self._calculate_volumes_3d()
@@ -300,7 +299,7 @@ class MeshGeom:
     def cell_surface(self) -> list:
         """Return the surface of each cell."""
         if self._cell_surfaces is None:
-            if self._mesh.dimension == MeshDim.DIM1:
+            if self._mesh.dimension == MeshDimension.D1:
                 cell_surfaces = [0.0] * self._mesh.cell_count
             else:
                 cell_surfaces = self._calculate_cell_surface()

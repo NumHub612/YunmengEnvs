@@ -6,62 +6,6 @@ Node, face, and cell classes for the mesh.
 """
 from dataclasses import dataclass
 import numpy as np
-import enum
-
-
-class MeshDim(enum.Enum):
-    """The mesh dimensions."""
-
-    DIM1 = "1d"
-    DIM2 = "2d"
-    DIM3 = "3d"
-    NONE = "none"
-
-    @staticmethod
-    def from_str(dim: str) -> "MeshDim":
-        """Convert a string to a MeshDim."""
-        if dim == "1d":
-            return MeshDim.DIM1
-        elif dim == "2d":
-            return MeshDim.DIM2
-        elif dim == "3d":
-            return MeshDim.DIM3
-        else:
-            return MeshDim.NONE
-
-
-class GeomType(enum.Enum):
-    """The geometry types."""
-
-    IdBased = 0
-    Point = 1
-    Polyline = 2
-    Polygon = 3
-    Polyhedron = 4
-
-
-class ElementType(enum.Enum):
-    """Element types in CFD."""
-
-    CELL = "cell"
-    FACE = "face"
-    # EDGE = "edge"
-    NODE = "node"
-    NONE = "none"  # might be useful for id-based elements
-
-    @staticmethod
-    def from_str(etype: str) -> "ElementType":
-        """Convert a string to an ElementType."""
-        if etype == "cell":
-            return ElementType.CELL
-        elif etype == "face":
-            return ElementType.FACE
-        elif etype == "edge":
-            return ElementType.EDGE
-        elif etype == "node":
-            return ElementType.NODE
-        else:
-            return ElementType.NONE
 
 
 @dataclass(slots=True)

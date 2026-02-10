@@ -7,7 +7,6 @@ Backend of variabls and fields.
 from configs.settings import settings
 import numpy as np
 import torch
-from enum import Enum
 
 
 class Backend:
