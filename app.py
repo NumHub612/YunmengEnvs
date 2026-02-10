@@ -9,6 +9,7 @@ from core.solutions import ym_models
 from configs.orchestrator import Orchestrator
 from configs.settings import LOGO, logger
 
+import datetime
 import argparse
 import os
 import sys
@@ -28,17 +29,14 @@ class YunmengEnvsApp:
         self._parser = argparse.ArgumentParser(description="YunmengEnvs")
         self._parser.add_argument("config", type=str, help="config yaml")
 
-    def _get_version(self):
+    def prologue(self):
         version_file = os.path.join(os.path.dirname(__file__), "VERSION")
         with open(version_file, "r") as f:
             version = f.read().strip()
-        return version
-
-    def prologue(self):
-        version = self._get_version()
+        year = datetime.datetime.now().year
         print(LOGO % version)
         print(
-            "Copyright (C) 2026, The YunMengEnvs Project Contributors. Welcome aboard YunmengEnvs!"
+            f"Copyright (C) {year}, The YunMengEnvs Project Contributors. Welcome aboard YunmengEnvs!"
         )
         print("https://github.com/NumHub612/YunmengEnvs\n")
 

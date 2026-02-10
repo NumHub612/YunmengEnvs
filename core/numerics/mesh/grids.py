@@ -6,98 +6,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 """
 from core.numerics.enums import MeshDimension
 from core.numerics.mesh.elements import Coordinate, Node, Face, Cell
-from core.numerics.mesh.meshes import Mesh
+from core.numerics.mesh.spatials import Grid
 from core.numerics.algos.topos import (
     sort_anticlockwise,
     calculate_center,
 )
-
-from abc import abstractmethod
-import os
-import pickle
-
-
-class Grid(Mesh):
-    """Abstract class for orthogonal structured grids."""
-
-    def __init__(self):
-        super().__init__()
-        self._orthogonal = True
-        self._nx = None
-        self._ny = None
-        self._nz = None
-        self._dx = None
-        self._dy = None
-        self._dz = None
-
-    # -----------------------------------------------
-    # region properties
-    # -----------------------------------------------
-
-    @property
-    def nx(self) -> int:
-        """Discretization size in the x-direction."""
-        return self._nx
-
-    @property
-    def ny(self) -> int:
-        """Discretization size in the y-direction."""
-        return self._ny
-
-    @property
-    def nz(self) -> int:
-        """Discretization size in the z-direction."""
-        return self._nz
-
-    @property
-    def dx(self) -> float:
-        """Discretization step in the x-direction."""
-        return self._dx
-
-    @property
-    def dy(self) -> float:
-        """Discretization step in the y-direction."""
-        return self._dy
-
-    @property
-    def dz(self) -> float:
-        """Discretization step in the z-direction."""
-        return self._dz
-
-    # -----------------------------------------------
-    # region methods
-    # -----------------------------------------------
-
-    def update(self, mask_indices: list[int]):
-        raise NotImplementedError("Grid can't be updated.")
-
-    @abstractmethod
-    def match_node(self, i: int, j: int, k: int) -> int:
-        """Match node with the local indices."""
-        pass
-
-    @abstractmethod
-    def match_cell(self, i: int, j: int, k: int) -> int:
-        """Match cell with the local indices."""
-        pass
-
-    @abstractmethod
-    def retrieve_node_neighbours(self, index: int) -> list[int]:
-        """Get the neighbours node indices.
-
-        The neighbours are sorted in the orders:
-        [east, west, north, south, top, bottom]
-        """
-        pass
-
-    @abstractmethod
-    def retrieve_cell_neighbours(self, index: int) -> list[int]:
-        """Get the neighbours cell indices.
-
-        The neighbour cells sorted in the orders:
-        [east, west, north, south, top, bottom]
-        """
-        pass
 
 
 # -----------------------------------------------
