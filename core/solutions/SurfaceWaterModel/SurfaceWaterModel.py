@@ -191,7 +191,7 @@ class SurfaceWaterModel(models.BaseModel):
                         for i in range(cell_count):
                             field[i] = value
                     else:
-                        _, cell_ids = self._mesh.get_group(zone_id)
+                        cell_ids, _ = self._mesh.get_group(zone_id)
                         for cid in cell_ids:
                             field[cid] = value
             else:
@@ -282,7 +282,7 @@ class SurfaceWaterModel(models.BaseModel):
 
         bc_elements = []
         for patch in bc_patches:
-            _, face_ids = self._mesh.get_group(patch)
+            face_ids, _ = self._mesh.get_group(patch)
             bc_elements.extend(face_ids)
 
         bc_instance = boundary_conditions[bc_type](bc_id, **bc_params)

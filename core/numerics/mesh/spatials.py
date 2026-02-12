@@ -25,6 +25,7 @@ class Mesh:
 
         self._topo = None
         self._geom = None
+        self._part = None
         self._groups = {}
 
         self._nodes = []
@@ -99,7 +100,7 @@ class Mesh:
     def update(self, masks: list[int]):
         """Update the mesh with the given mask, for AMR.
 
-        The mask is an array with the same length as the number of cells.
+        The mask list has the same length to mesh cells.
         Each element corresponds to a cell:
 
         + 1 indicates the cell should be refined.
@@ -131,7 +132,7 @@ class Mesh:
 
         if min_id < 0 or max_id >= elem_count:
             raise ValueError("Invalid group ids, out of mesh.")
-        self._groups[group_id] = (etype, ids)
+        self._groups[group_id] = (ids, etype)
 
     def delete_group(self, group_id: str):
         """Delete the given name group."""
@@ -142,7 +143,7 @@ class Mesh:
         """Check if the group exists."""
         return group_id in self._groups
 
-    def get_group(self, group_id: str) -> tuple[ElementType, list]:
+    def get_group(self, group_id: str) -> tuple[list, ElementType]:
         """Return the element ids of given group."""
         return self._groups[group_id]
 
@@ -166,17 +167,13 @@ class Mesh:
             self._geom = MeshGeom(self)
         return self._geom
 
-    def save(self, file_path: str):
-        """Save the mesh instance."""
-        with open(file_path, "wb") as f:
-            pickle.dump(self, f)
+    def get_part_assistant(self):
+        """Return the mesh partition assistant."""
+        from core.numerics.algos import MeshPart
 
-    @staticmethod
-    def load(file_path: str) -> "Mesh":
-        """Load the mesh instance."""
-        with open(file_path, "rb") as f:
-            mesh = pickle.load(f)
-        return mesh
+        if self._part is None:
+            self._part = MeshPart(self)
+        return self._part
 
 
 # -----------------------------------------------
