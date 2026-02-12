@@ -100,7 +100,7 @@ DATAS:
       from: null
   # 流场数据
   fields:
-    - id: &phi0 phi_field
+    - id: phi_field
       var: phi
       etype: cell
       dtype: scalar

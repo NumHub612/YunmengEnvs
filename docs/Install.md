@@ -7,8 +7,9 @@
 1. 创建 Conda 环境：
 
 ```
-conda create -n yun python=3.10.14
+conda create -n yun python=3.12.14 -y
 conda activate yun
+conda install -c conda-forge pymetis -y
 ```
 
 2. 安装依赖包：
@@ -20,7 +21,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 3. 运行案例集：
 
 ```
-none
+python app.py ./benchmarks/burgers_grid2d/links.yml
 ```
 
 4. 运行测试集：
