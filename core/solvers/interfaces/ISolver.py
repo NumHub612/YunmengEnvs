@@ -8,6 +8,7 @@ from core.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from core.solvers.interfaces.IInitCondition import IInitCondition
 from core.solvers.interfaces.ISolverCallback import ISolverCallback
 from core.solvers.interfaces.IEquation import IEquation
+from core.numerics.enums import ElementType
 from core.numerics.fields import Field
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -104,40 +105,41 @@ class ISolver(ABC):
     @abstractmethod
     def set_problems(self, equations: list[IEquation]):
         """
-        Set the equations to be solved by the solver.
+        Set the equations required to be solved.
         """
         pass
 
     @abstractmethod
-    def get_solution(self, variable: str) -> Field:
+    def get_solution(self, field: str) -> Field:
         """
         Get the solution of the solver.
         """
         pass
 
     @abstractmethod
-    def add_callback(self, callback: ISolverCallback):
+    def add_callback(self, cb: ISolverCallback):
         """
-        Add a callback to be called in the solver.
+        Add a callback to be called in solver.
         """
         pass
 
     @abstractmethod
-    def add_ic(self, var: str, ic: IInitCondition):
+    def add_ic(self, ic: IInitCondition, field: str):
         """
         Add an initial condition.
         """
         pass
 
     @abstractmethod
-    def add_bc(self, var: str, elements: list, bc: IBoundaryCondition):
+    def add_bc(
+        self,
+        bc: IBoundaryCondition,
+        field: str,
+        eids: list[int],
+        etype: ElementType,
+    ):
         """
         Add a boundary condition for the solver.
-
-        Args:
-            var: Name of the variable to set the boundary condition.
-            elements: The list of elements to set on.
-            bc: The boundary condition.
         """
         pass
 
@@ -151,26 +153,20 @@ class ISolver(ABC):
     @abstractmethod
     def assimilate(self, data: dict):
         """
-        Assimilate the solver with extra data to improve its accuracy.
-        Run by steps.
-
-        Args:
-            data: The assimilation data.
+        Assimilate the solver with extra data.
         """
         pass
 
     @abstractmethod
     def optimize(self):
         """
-        Optimize the solver arguments to improve its accuracy, etc.
-
-        Run by steps or in a batch.
+        Optimize the solver arguments.
         """
         pass
 
     @abstractmethod
     def inference(self) -> SolverStatus:
         """
-        Advance the solver to the next time step to get the solutions.
+        Advance this solver to next time step.
         """
         pass

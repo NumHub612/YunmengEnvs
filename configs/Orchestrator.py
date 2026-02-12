@@ -299,23 +299,26 @@ class Orchestrator:
         if "ics" not in config:
             raise ValueError(f"Solver {sid} configs miss ics.")
         if config["ics"] is not None:
+            required_ic_fields = {"id", "field", "method"}
             for ic in config["ics"]:
-                if not ({"var", "method"} <= ic.keys()):
-                    raise ValueError(f"IC {ic} miss var, method.")
+                if not (required_ic_fields <= ic.keys()):
+                    raise ValueError(f"IC {ic} miss {required_ic_fields}.")
 
         if "bcs" not in config:
             raise ValueError(f"Solver {sid} configs miss bcs.")
         if config["bcs"] is not None:
+            required_bc_fields = {"id", "field", "method", "patches"}
             for bc in config["bcs"]:
-                if not ({"id", "patches", "var", "method"} <= bc.keys()):
-                    raise ValueError(f"BC {bc} miss config.")
+                if not (required_bc_fields <= bc.keys()):
+                    raise ValueError(f"BC {bc} miss {required_bc_fields}.")
 
         if "cbs" not in config:
             raise ValueError(f"Solver {sid} configs miss cbs.")
         if config["cbs"] is not None:
+            required_cb_fields = {"id", "method"}
             for cb in config["cbs"]:
-                if not ({"id", "method"} <= cb.keys()):
-                    raise ValueError(f"CB {cb} miss id, method.")
+                if not (required_cb_fields <= cb.keys()):
+                    raise ValueError(f"CB {cb} miss {required_cb_fields}.")
 
     def _check_operators_configs(self, config: dict):
         """

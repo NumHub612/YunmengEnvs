@@ -40,32 +40,20 @@ class TestGrids(unittest.TestCase):
         self.assertEqual(grid.match_node(2, 2), 10)
         self.assertEqual(grid.match_node(3, 2), 14)
 
-        self.assertEqual(
-            grid.retrieve_node_neighbours(0), [4, None, 1, None, None, None]
-        )
-        self.assertEqual(grid.retrieve_node_neighbours(1), [5, None, 2, 0, None, None])
-        self.assertEqual(
-            grid.retrieve_node_neighbours(3), [7, None, None, 2, None, None]
-        )
-        self.assertEqual(grid.retrieve_node_neighbours(6), [10, 2, 7, 5, None, None])
-        self.assertEqual(
-            grid.retrieve_node_neighbours(14), [None, 10, 15, 13, None, None]
-        )
+        self.assertEqual(grid.get_node_neighbours(0), [4, None, 1, None, None, None])
+        self.assertEqual(grid.get_node_neighbours(1), [5, None, 2, 0, None, None])
+        self.assertEqual(grid.get_node_neighbours(3), [7, None, None, 2, None, None])
+        self.assertEqual(grid.get_node_neighbours(6), [10, 2, 7, 5, None, None])
+        self.assertEqual(grid.get_node_neighbours(14), [None, 10, 15, 13, None, None])
 
         self.assertEqual(grid.match_cell(1, 1), 4)
         self.assertEqual(grid.match_cell(2, 2), 8)
         self.assertEqual(grid.match_cell(1, 2), 5)
 
-        self.assertEqual(
-            grid.retrieve_cell_neighbours(0), [3, None, 1, None, None, None]
-        )
-        self.assertEqual(
-            grid.retrieve_cell_neighbours(2), [5, None, None, 1, None, None]
-        )
-        self.assertEqual(grid.retrieve_cell_neighbours(4), [7, 1, 5, 3, None, None])
-        self.assertEqual(
-            grid.retrieve_cell_neighbours(8), [None, 5, None, 7, None, None]
-        )
+        self.assertEqual(grid.get_cell_neighbours(0), [3, None, 1, None, None, None])
+        self.assertEqual(grid.get_cell_neighbours(2), [5, None, None, 1, None, None])
+        self.assertEqual(grid.get_cell_neighbours(4), [7, 1, 5, 3, None, None])
+        self.assertEqual(grid.get_cell_neighbours(8), [None, 5, None, 7, None, None])
 
     def test_grid3d(self):
         """test Grid3D"""
@@ -83,12 +71,10 @@ class TestGrids(unittest.TestCase):
         self.assertEqual(grid.match_node(2, 2, 2), 26)
         self.assertEqual(grid.match_node(2, 1, 2), 23)
 
-        self.assertEqual(grid.retrieve_node_neighbours(2), [None, 1, 5, None, 11, None])
-        self.assertEqual(grid.retrieve_node_neighbours(4), [5, 3, 7, 1, 13, None])
-        self.assertEqual(grid.retrieve_node_neighbours(13), [14, 12, 16, 10, 22, 4])
-        self.assertEqual(
-            grid.retrieve_node_neighbours(25), [26, 24, None, 22, None, 16]
-        )
+        self.assertEqual(grid.get_node_neighbours(2), [None, 1, 5, None, 11, None])
+        self.assertEqual(grid.get_node_neighbours(4), [5, 3, 7, 1, 13, None])
+        self.assertEqual(grid.get_node_neighbours(13), [14, 12, 16, 10, 22, 4])
+        self.assertEqual(grid.get_node_neighbours(25), [26, 24, None, 22, None, 16])
 
         self.assertEqual(grid.match_cell(0, 1, 0), 2)
         self.assertEqual(grid.match_cell(1, 1, 0), 3)
@@ -96,8 +82,8 @@ class TestGrids(unittest.TestCase):
         self.assertEqual(grid.match_cell(0, 1, 1), 6)
         self.assertEqual(grid.match_cell(1, 1, 1), 7)
 
-        self.assertEqual(grid.retrieve_cell_neighbours(1), [None, 0, 3, None, 5, None])
-        self.assertEqual(grid.retrieve_cell_neighbours(6), [7, None, None, 4, None, 2])
+        self.assertEqual(grid.get_cell_neighbours(1), [None, 0, 3, None, 5, None])
+        self.assertEqual(grid.get_cell_neighbours(6), [7, None, None, 4, None, 2])
 
         return True
 

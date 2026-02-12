@@ -134,7 +134,7 @@ class Burgers1D(BaseSolver):
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_nodes:
+        for node in self._topo.internal_nodes:
             lnode, rnode = self._mesh.retrieve_node_neighbours(node)[:2]
             if lnode > rnode:
                 lnode, rnode = rnode, lnode

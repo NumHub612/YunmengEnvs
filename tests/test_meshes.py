@@ -168,7 +168,7 @@ class TestMeshTopo(unittest.TestCase):
         boundary_nodes = set(self.topo.boundary_nodes)
         self.assertTrue(0 in boundary_nodes and 8 in boundary_nodes)
         # 内部点
-        self.assertTrue(4 in self.topo.interior_nodes)
+        self.assertTrue(4 in self.topo.internal_nodes)
         # 边界面
         boundary_faces = set(self.topo.boundary_faces)
         self.assertTrue(0 in boundary_faces and 5 in boundary_faces)

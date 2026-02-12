@@ -88,7 +88,7 @@ class Variable:
         elif arr.shape == (3, 3):
             vtype = VariableType.TENSOR
         else:
-            raise ValueError("Invalid numpy shape.")
+            raise ValueError(f"Invalid numpy shape {arr.shape}.")
 
         back = get_backend()
         xp = back.xp

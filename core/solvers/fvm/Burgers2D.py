@@ -66,10 +66,6 @@ class Burgers2D(BaseSolver):
         }
 
     def initialize(self, engine: str = "numpy", max_iter: int = 100, tol: float = 1e-6):
-        # TODO: To split SloverParams, OpParams.
-
-        logger.info("Initializing the unsteady burgers solver...")
-
         # Check initial conditions
         if "u" not in self._ics:
             logger.warning(
@@ -87,7 +83,9 @@ class Burgers2D(BaseSolver):
                     f"Solver {self._id} has no boundary condition for u on face \
                      {face}, using default."
                 )
-                self._bcs[face] = self._default_bcs["u"]
+                if face not in self._bcs:
+                    self._bcs[face] = {}
+                self._bcs[face]["u"] = self._default_bcs["u"]
 
         # Init or reset status
         self._step = 0
@@ -112,7 +110,6 @@ class Burgers2D(BaseSolver):
             callback.on_task_begin()
 
     def inference(self, dt: float = 1.0) -> SolverStatus:
-        logger.info("Inference the unsteady burgers solver...")
         start = time.perf_counter()
 
         # Call callbacks
@@ -130,11 +127,11 @@ class Burgers2D(BaseSolver):
         sys += sys_t
 
         # Assemble convection matrix(div)
-        sys_c = self._operators["div"].run(self._buf)
-        sys += sys_c
+        # sys_c = self._operators["div"].run(self._buf) # wrong
+        # sys += sys_c
 
         # Assemble diffusion matrix(laplacian)
-        sys_d = self._operators["laplacian"].run(self._buf)
+        sys_d = self._operators["laplacian"].run(self._buf)  # boundary issue
         sys += sys_d
 
         # Assemble source term matrix(src)

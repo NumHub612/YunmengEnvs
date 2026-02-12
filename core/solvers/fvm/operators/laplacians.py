@@ -13,7 +13,7 @@ from core.solvers.interfaces import (
 from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field, Variable, DataHub
 from core.numerics.mesh import Grid
-
+from core.numerics.algos import MeshTopo, MeshGeom
 import numpy as np
 
 
@@ -36,9 +36,9 @@ class Lap01(IOperator):
         return "lap01"
 
     def __init__(self, k: float):
-        self._mesh = None
-        self._topo = None
-        self._geom = None
+        self._mesh: Grid = None
+        self._topo: MeshTopo = None
+        self._geom: MeshGeom = None
 
         self._bcs = None
         self._k = k
@@ -56,27 +56,26 @@ class Lap01(IOperator):
         self._var = vars[0]
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        source = source.field(self._var).data
-        variable = source.name
+        data = source.field(self._var).data
+        variable = data.name
         lap_eqs = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=source.dtype, variable=variable
+            self._mesh.cell_count, rhs_type=data.dtype, variable=variable
         )
 
         # Aseemble boundary matrix
-        for face in self._topo.boundary_faces:
-            bc = self._bcs[face][variable]
-            FluxC, FluxF, FluxV = self._handle_boundary(face, bc)
-            fid = self._mesh.faces[face].id
+        for fid in self._topo.boundary_faces:
+            bc = self._bcs[fid][variable]
+            FluxC, FluxF, FluxV = self._handle_boundary(fid, bc)
             cid = self._topo.face_cells[fid][0]
 
-            lap_eqs.matrix[cid, cid] += FluxC
-            lap_eqs.rhs[cid] -= FluxV
+            # TODO: check boundary condition
+            # lap_eqs.matrix[cid, cid] += FluxC
+            # lap_eqs.rhs[cid] -= FluxV
 
         # Assemble interial matrix
-        for face in self._topo.interior_faces:
-            fid = self._mesh.faces[face].id
-            Sf = self._geom.face_area[face]
-            normal = self._geom.face_normal[face]
+        for fid in self._topo.internal_faces:
+            Sf = self._geom.face_area[fid]
+            normal = self._geom.face_normal[fid]
             if abs(normal.data[0]) > 1e-10:
                 sign = 1 if normal.data[0] > 0 else -1
             else:
@@ -92,7 +91,6 @@ class Lap01(IOperator):
             lap_eqs.matrix[cid1, cid2] += FluxF
             lap_eqs.matrix[cid2, cid2] += FluxC
             lap_eqs.matrix[cid2, cid1] += FluxF
-
         return lap_eqs
 
     def _handle_boundary(self, fid: int, bc: IBoundaryCondition):

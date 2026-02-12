@@ -156,18 +156,8 @@ SOLVER:
     engine: numpy
   # 初始条件，只能使用框架提供的初始化方法
   ics:
-    # 热启动方式
-    - id: phi_ic1
-      var: phi
-      method: uniform
-      params:
-        value: 0.0
-    - id: phi_ic2
-      var: phi
-      method: hotstart
-      from: *phi0
     - id: u_ic1
-      var: u
+      field: u
       method: hotstart
       from: *u0
   # 边界条件，只能使用框架提供的边界条件类型
@@ -175,14 +165,14 @@ SOLVER:
     # Dirichlet边界条件
     - id: u_bc1
       patches: [*west, *south]
-      var: u
+      field: u
       method: dirichlet
       params:
         value: [1.0, 1.0, 0.0]
     # Neumann边界条件
     - id: u_bc2
       patches: [*east, *north]
-      var: u
+      field: u
       method: dirichlet
       params:
         value: [1.0, 1.0, 0.0]

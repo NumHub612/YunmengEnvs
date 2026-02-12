@@ -13,6 +13,8 @@ from core.solvers.interfaces import (
 from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field, DataHub, Variable
 from core.numerics.mesh import Grid
+from core.numerics.algos.geoms import MeshGeom
+from core.numerics.algos.topos import MeshTopo
 
 import numpy as np
 
@@ -35,9 +37,9 @@ class Div01(IOperator):
         return "div01"
 
     def __init__(self, rho: float):
-        self._mesh = None
-        self._topo = None
-        self._geom = None
+        self._mesh: Grid = None
+        self._topo: MeshTopo = None
+        self._geom: MeshGeom = None
 
         self._bcs = None
         self._rho = rho
@@ -55,29 +57,29 @@ class Div01(IOperator):
         self._var = vars[0]
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        source: Field = source.field(self._var).data
-        variable = source.name
+        data = source.field(self._var).data
+        variable = data.name
         div_eqs = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=source.dtype, variable=variable
+            self._mesh.cell_count, rhs_type=data.dtype, variable=variable
         )
         # Assemble boundary matrix
         for face in self._topo.boundary_faces:
             bc = self._bcs[face][variable]
-            FluxC, FluxF, FluxV = self._handle_boundary(face, bc, source)
+            FluxC, FluxF, FluxV = self._handle_boundary(face, bc, data)
 
-            fid = self._mesh.faces[face].id
+            fid = face
             cid = self._topo.face_cells[fid][0]
 
             div_eqs.matrix[cid, cid] += FluxC
             div_eqs.rhs[cid] -= FluxV
 
         # Assemble interial matrix
-        for face in self._topo.interior_faces:
+        for face in self._topo.internal_faces:
             Sf = self._geom.face_area[face]
             normal = self._geom.face_normal[face]
             cid1, cid2 = self._topo.face_cells[face]
-            u1 = source[cid1]
-            u2 = source[cid2]
+            u1 = data[cid1]
+            u2 = data[cid2]
             u = 0.5 * (u1 + u2)
             mf = self._rho * u * Sf * normal
 

@@ -8,6 +8,7 @@ from core.solvers.interfaces import IOperator, OperatorType
 from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field, DataHub
 from core.numerics.mesh import Mesh
+from core.numerics.algos import MeshTopo, MeshGeom
 
 import copy
 
@@ -31,9 +32,9 @@ class Ddt01(IOperator):
         return "ddt01"
 
     def __init__(self, rho: float):
-        self._mesh = None
-        self._topo = None
-        self._geom = None
+        self._mesh: Mesh = None
+        self._topo: MeshTopo = None
+        self._geom: MeshGeom = None
 
         self._rho = rho
         self._var = ""
@@ -45,22 +46,20 @@ class Ddt01(IOperator):
         self._var = vars[0]
 
     def run(self, source: DataHub) -> Field | LinearEqs:
-        source = source.field(self._var, 0)
-        data = source.data
+        sample = source.field(self._var, 0)
+        data = sample.data
         ddt_eqs = LinearEqs.zeros(
             self._mesh.cell_count,
             rhs_type=data.dtype,
             variable=data.name,
         )
 
-        for cell in self._mesh.cells:
-            cidx = self._topo.cell_indices[cell.id]
-            vol = self._geom.cell_volume[cidx]
-            val = data[cidx]
-            coef = self._rho * vol / source.timestep
-
-            ddt_eqs.matrix[cidx, cidx] += coef
-            ddt_eqs.rhs[cidx] -= -coef * val
+        for cid in range(self._mesh.cell_count):
+            vol = self._geom.cell_volume[cid]
+            val = data[cid]
+            coef = self._rho * vol / sample.timestep
+            ddt_eqs.matrix[cid, cid] += coef
+            ddt_eqs.rhs[cid] -= -coef * val
 
         return ddt_eqs
 
@@ -89,9 +88,9 @@ class Ddt02(IOperator):
         return 2
 
     def __init__(self, rho: float):
-        self._mesh = None
-        self._topo = None
-        self._geom = None
+        self._mesh: Mesh = None
+        self._topo: MeshTopo = None
+        self._geom: MeshGeom = None
 
         self._rho = rho
         self._var = ""
@@ -112,21 +111,20 @@ class Ddt02(IOperator):
         ddt_eqs = LinearEqs.zeros(
             self._mesh.cell_count,
             rhs_type=cur_data.dtype,
-            variable=cur_data.variable,
+            variable=cur_data.name,
         )
 
-        for cell in self._mesh.cells:
-            cidx = self._topo.cell_indices[cell.id]
-            vol = self._geom.cell_volume[cidx]
-            cur_v = cur_data[cidx]
-            pre_v = pre_data[cidx]
+        for cid in range(self._mesh.cell_count):
+            vol = self._geom.cell_volume[cid]
+            cur_v = cur_data[cid]
+            pre_v = pre_data[cid]
 
             tmp = self._rho * vol / (2.0 * cur_source.timestep)
             fluxC = 3.0 * tmp
             fluxV = 4.0 * tmp * cur_v - tmp * pre_v
 
-            ddt_eqs.matrix[cidx, cidx] += fluxC
-            ddt_eqs.rhs[cidx] += fluxV
+            ddt_eqs.matrix[cid, cid] += fluxC
+            ddt_eqs.rhs[cid] += fluxV
 
         self._pre_field = copy.deepcopy(source)
         return ddt_eqs

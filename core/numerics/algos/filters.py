@@ -29,9 +29,9 @@ class MeshFilter:
         filter_func = eval(expr)
 
         patch = []
-        for face in mesh.faces:
+        for i, face in enumerate(mesh.faces):
             if filter_func(face.coordinate.x, face.coordinate.y, face.coordinate.z):
-                patch.append(face.id)
+                patch.append(i)
         return patch
 
     @staticmethod
@@ -53,20 +53,20 @@ class MeshFilter:
         if "expr" in conditions:
             expr = conditions["expr"]
             filter_func = eval(expr)
-            for cell in mesh.cells:
+            for i, cell in enumerate(mesh.cells):
                 if filter_func(cell.coordinate.x, cell.coordinate.y, cell.coordinate.z):
-                    zone.append(cell.id)
+                    zone.append(i)
         elif "countour" in conditions:
             contour = conditions["countour"]
             coors = [mesh.nodes[c].coordinate.to_np() for c in contour]
             profiler = Polygon(coors)
-            for cell in mesh.cells:
-                coors = [mesh.faces[f].coordinate.to_np() for f in cell.faces]
+            for i, cell in enumerate(mesh.cells):
+                coors = [mesh.faces[f].coordinate.to_numpy() for f in cell.faces]
                 minx = min([c[0] for c in coors])
                 maxx = max([c[0] for c in coors])
                 miny = min([c[1] for c in coors])
                 maxy = max([c[1] for c in coors])
                 extent = box(minx, miny, maxx, maxy)
                 if profiler.intersects(extent):
-                    zone.append(cell.id)
+                    zone.append(i)
         return zone

@@ -67,8 +67,8 @@ class YunmengEnvsApp:
 
 if __name__ == "__main__":
     app = YunmengEnvsApp()
-    logger.info("YunmengEnvs starting.")
+    logger.info("--------- YunmengEnvs starting ---------")
     app.prologue()
     app.run()
     app.epilogue()
-    logger.info("YunmengEnvs finished.")
+    logger.info("--------- YunmengEnvs finished ---------")

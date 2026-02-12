@@ -12,7 +12,7 @@ from core.renders.plotter import PlotKits
 import numpy as np
 
 
-def extract_coordinates(mesh, element_type: str) -> np.ndarray:
+def _extract_coordinates(mesh, element_type: str) -> np.ndarray:
     """Extract the coordinates of all elements."""
     etype = element_type.lower()
     if etype not in ["node", "cell", "face"]:
@@ -23,7 +23,7 @@ def extract_coordinates(mesh, element_type: str) -> np.ndarray:
         "face": mesh.faces,
     }
     elements = elements_map.get(etype)
-    coordinates = np.array([e.coordinate.to_np() for e in elements])
+    coordinates = np.array([e.coordinate.to_numpy() for e in elements])
     return coordinates
 
 
@@ -185,30 +185,22 @@ def _extract_mesh_data(mesh: Mesh):
     topo, geom = MeshTopo(mesh), MeshGeom(mesh)
 
     # extract the points
-    points = extract_coordinates(mesh, "node")
+    points = _extract_coordinates(mesh, "node")
     points_splited = {"x": points[:, 0], "y": points[:, 1], "z": points[:, 2]}
 
     cells = []
     if mesh.dimension.value == "2d":
-        for cell in mesh.cells:
-            node_ids = topo.cell_nodes[cell.id]
+        for i, cell in enumerate(mesh.cells):
+            node_ids = topo.cell_nodes[i]
             nodes = mesh.get_nodes(node_ids)
-            nodes = sort_anticlockwise(nodes)
-            idxes = [p.id for p in nodes]
-            cells.append([len(idxes)] + idxes)
+            _, indexes = sort_anticlockwise(nodes, node_ids)
+            cells.append([len(indexes)] + indexes)
     else:
-        for cell in mesh.cells:
-            nodes1 = mesh.faces[cell.faces[-1]].nodes
-            coors1 = mesh.get_nodes(nodes1)
-            nodes2 = mesh.faces[cell.faces[-2]].nodes
-            coors2 = mesh.get_nodes(nodes2)
-
-            # Points need to be sorted.
-            points1 = sort_anticlockwise(coors1)
-            idxes1 = [p.id for p in points1]
-            points2 = sort_anticlockwise(coors2)
-            idxes2 = [p.id for p in points2]
-            cell = idxes1 + idxes2
+        for cid in range(mesh.cell_count):
+            cell_faces = topo.cell_faces[cid]
+            node_ids1 = topo.face_nodes[cell_faces[-1]]
+            node_ids2 = topo.face_nodes[cell_faces[-2]]
+            cell = node_ids1 + node_ids2
             cells.append([len(cell)] + cell)
 
     return cells, points, points_splited

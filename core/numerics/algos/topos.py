@@ -2,17 +2,15 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Auxiliary functions for mesh processing.
+Mesh topology processing.
 """
-from core.numerics.enums import MeshDimension, ElementType
-from core.numerics.mesh import Element, Coordinate
-from configs.settings import logger
+from core.numerics.enums import MeshDimension
+from core.numerics.mesh import Element, Coordinate, Mesh
 
+from typing import List, Optional
 import collections
-from scipy.spatial import cKDTree
 import numpy as np
 import math
-import copy
 
 
 # -----------------------------------------------
@@ -20,359 +18,334 @@ import copy
 # -----------------------------------------------
 
 
-def check_projection_axis(points: list) -> str:
+def extract_coordinates(elements: list[Element]) -> np.ndarray:
+    """Extract the coordinates of each element."""
+    coords_list = [e.coordinate.to_numpy() for e in elements]
+    return np.asarray(coords_list, dtype=np.float64)
+
+
+def calculate_center(points: list[Element]) -> Coordinate:
+    """Calculate the center of the given points."""
+    coords = extract_coordinates(points)
+    return Coordinate.from_numpy(np.mean(coords, axis=0))
+
+
+def check_projection_axis(points: list[Element]) -> str:
     """Check the projection axis (x, y, z)."""
     coords = extract_coordinates(points)
-    x_var = np.var([c.x for c in coords])
-    y_var = np.var([c.y for c in coords])
-    z_var = np.var([c.z for c in coords])
+    x_var = np.var(coords[:, 0])
+    y_var = np.var(coords[:, 1])
+    z_var = np.var(coords[:, 2])
     vars = [x_var, y_var, z_var]
-    axis = np.argsort(vars)[0]  # Axis with the smallest variance
+    axis = np.argsort(vars)[0]  # smallest variance axis
     axis = ["x", "y", "z"][axis]
     return axis
 
 
-def sort_anticlockwise(points: list) -> list:
+def sort_anticlockwise(
+    points: list[Element], indexes: Optional[List[int]] = None
+) -> tuple[list[Element], Optional[List[int]]]:
     """Sort points in anticlockwise order."""
-    coords = {}
-    for i, point in enumerate(points):
-        if isinstance(point, Element):
-            coords[i] = point.coordinate
-        else:
-            coords[i] = point
-    center = calculate_center(list(coords.values()))
+    if indexes is None:
+        indexes = list(range(len(points)))
+    coord_map = {idx: p for idx, p in zip(indexes, points)}
+    coord_lst = [p.coordinate.to_numpy() for p in points]
+    center = np.mean(coord_lst, axis=0, dtype=np.float64)
+
     axis = check_projection_axis(points)
     if axis.lower() == "z":
-        sorted_coords = sorted(
-            coords.items(),
-            key=lambda x: math.atan2(x[1].y - center.y, x[1].x - center.x),
+        sorted_points = sorted(
+            coord_map.items(),
+            key=lambda x: math.atan2(
+                x[1].coordinate.y - center[1], x[1].coordinate.x - center[0]
+            ),
         )
     elif axis.lower() == "y":
-        sorted_coords = sorted(
-            coords.items(),
-            key=lambda x: math.atan2(x[1].z - center.z, x[1].x - center.x),
+        sorted_points = sorted(
+            coord_map.items(),
+            key=lambda x: math.atan2(
+                x[1].coordinate.z - center[2], x[1].coordinate.x - center[0]
+            ),
         )
     elif axis.lower() == "x":
-        sorted_coords = sorted(
-            coords.items(),
-            key=lambda x: math.atan2(x[1].y - center.y, x[1].z - center.z),
+        sorted_points = sorted(
+            coord_map.items(),
+            key=lambda x: math.atan2(
+                x[1].coordinate.y - center[1], x[1].coordinate.z - center[2]
+            ),
         )
-    return [points[i] for i, _ in sorted_coords]
+    else:
+        raise ValueError(f"Invalid projection axis: {axis}")
+
+    indexes, elements = zip(*sorted_points)
+    return list(elements), list(indexes)
 
 
-def extract_coordinates(elements: list) -> list:
-    """Extract the coordinates of each element."""
-    coords = copy.deepcopy(elements)
-    for i, element in enumerate(elements):
-        if isinstance(element, Element):
-            coords[i] = element.coordinate
-        elif isinstance(element, Coordinate):
-            continue
-        else:
-            raise ValueError(f"Invalid element type: {type(element)}.")
-    return coords
-
-
-def calculate_center(points: list) -> Coordinate:
-    """Calculate the center of the given coordinates."""
-    coords = extract_coordinates(points)
-    return Coordinate.from_np(
-        np.mean([coord.to_np() for coord in coords], axis=0),
-    )
-
-
-def search_nearest_elements(
-    elements: list[Element],
-    coordinate: Coordinate,
-    etype: ElementType,
-    top_k: int = 1,
-    max_dist: float = np.inf,
-) -> list[int]:
-    """Search the k nearest elements to the given coordinate."""
-    points = np.array([e.coordinate.to_np() for e in elements])
-    indexes = [e.id for e in elements]
-    tree = cKDTree(points)
-
-    dists, idx = tree.query(
-        coordinate.to_np(),
-        k=top_k,
-        distance_upper_bound=max_dist,
-    )
-    valid = np.isfinite(dists)
-    results = indexes[idx[valid]]
-    return results
+# -----------------------------------------------
+# region MeshTopo
+# -----------------------------------------------
 
 
 class MeshTopo:
-    """Mesh topology class for describing the topology.
+    """Mesh topology assistant."""
 
-    Note:
-        - All properties express the topological relationships within
-        the mesh through element ids.
-        - Support uncontinuous indecies for AMR meshes.
-    """
+    def __init__(self, mesh: Mesh):
+        self._mesh: Mesh = mesh
 
-    def __init__(self, mesh):
-        self.reset(mesh)
+        # Cache members - will be computed on first access
+        # Internal/Boundary flags
+        self._internal_nodes: Optional[np.ndarray] = None
+        self._boundary_nodes: Optional[np.ndarray] = None
+        self._internal_faces: Optional[np.ndarray] = None
+        self._boundary_faces: Optional[np.ndarray] = None
+        self._internal_cells: Optional[np.ndarray] = None
+        self._boundary_cells: Optional[np.ndarray] = None
 
-    def get_mesh(self):
-        """Return the bounded mesh."""
-        return self._mesh
+        # Topology relations
+        self._cell_neighbours: Optional[List[np.ndarray]] = None
+        self._node_neighbours: Optional[List[np.ndarray]] = None
+        self._face_cells: Optional[List[int]] = None
+        self._face_nodes: Optional[List[np.ndarray]] = None
+        self._node_faces: Optional[List[np.ndarray]] = None
+        self._node_cells: Optional[List[np.ndarray]] = None
+        self._cell_nodes: Optional[List[np.ndarray]] = None
+        self._cell_faces: Optional[List[np.ndarray]] = None
 
-    def reset(self, mesh):
-        """Reset the assistant."""
-        self._mesh = mesh
-
-        self._boundary_faces = None
-        self._interior_faces = None
-        self._boundary_cells = None
-        self._interior_cells = None
-        self._boundary_nodes = None
-        self._interior_nodes = None
-
-        self._face_cells = None
-        self._node_faces = None
-        self._node_cells = None
-        self._cell_nodes = None
-        self._cell_neighbours = None
-        self._node_neighbours = None
-
-        self._face_indices = None
-        self._node_indices = None
-        self._cell_indices = None
+    def reset(self, mesh: Mesh):
+        """Resets all the cached topologies."""
+        self.__init__(mesh)
 
     # -----------------------------------------------
-    # region boundary properties
+    # region Continous properties
     # -----------------------------------------------
 
     @property
-    def boundary_nodes(self) -> list[int]:
-        """Return the ids of boundary nodes."""
+    def internal_nodes(self) -> np.ndarray:
+        """Internal node ids."""
+        if self._internal_nodes is None:
+            self._calculate_flags()
+        return self._internal_nodes
+
+    @property
+    def boundary_nodes(self) -> np.ndarray:
+        """Boundary node ids."""
         if self._boundary_nodes is None:
-            bound_faces = self._mesh.get_faces(self.boundary_faces)
-            bound_nodes = [f.nodes for f in bound_faces]
-            bound_nodes = np.unique(np.concatenate(bound_nodes))
-            self._boundary_nodes = bound_nodes.tolist()
+            self._calculate_flags()
         return self._boundary_nodes
 
     @property
-    def interior_nodes(self) -> list[int]:
-        """Return the ids of interior nodes."""
-        if self._interior_nodes is None:
-            nodes_id = [node.id for node in self._mesh.nodes]
-            self._interior_nodes = list(
-                set(nodes_id) - set(self.boundary_nodes),
-            )
-        return self._interior_nodes
+    def internal_faces(self) -> np.ndarray:
+        """Internal face ids."""
+        if self._internal_faces is None:
+            self._calculate_flags()
+        return self._internal_faces
 
     @property
-    def boundary_faces(self) -> list[int]:
-        """Return the ids of boundary faces."""
+    def boundary_faces(self) -> np.ndarray:
+        """Boundary face ids."""
         if self._boundary_faces is None:
-            ids, cells = zip(
-                *((f.id, len(self.face_cells[f.id])) for f in self._mesh.faces)
-            )
-            size = len(ids)
-            ids = np.fromiter(ids, dtype=np.intp, count=size)
-            cells = np.fromiter(cells, dtype=np.intp, count=size)
-            self._boundary_faces = ids[cells == 1].tolist()
+            self._calculate_flags()
         return self._boundary_faces
 
     @property
-    def interior_faces(self) -> list[int]:
-        """Return the ids of interior faces."""
-        if self._interior_faces is None:
-            faces_id = [face.id for face in self._mesh.faces]
-            self._interior_faces = list(
-                set(faces_id) - set(self.boundary_faces),
-            )
-        return self._interior_faces
+    def internal_cells(self) -> np.ndarray:
+        """Internal cell ids."""
+        if self._internal_cells is None:
+            self._calculate_flags()
+        return self._internal_cells
 
     @property
-    def boundary_cells(self) -> list[int]:
-        """Return the ids of boundary cells."""
+    def boundary_cells(self) -> np.ndarray:
+        """Boundary cell ids."""
         if self._boundary_cells is None:
-            self._boundary_cells = [
-                self.face_cells[fid][0] for fid in self.boundary_faces
-            ]
+            self._calculate_flags()
         return self._boundary_cells
 
-    @property
-    def interior_cells(self) -> list[int]:
-        """Return the ids of interior cells."""
-        if self._interior_cells is None:
-            cells_id = [cell.id for cell in self._mesh.cells]
-            self._interior_cells = list(
-                set(cells_id) - set(self.boundary_cells),
-            )
-        return self._interior_cells
+    def _calculate_flags(self):
+        """Calculate and cache internal/boundary flags."""
+        # Assume all as internal (True flag, False for boundary)
+        node_flags = np.ones(self._mesh.face_count, dtype=bool)
+        face_flags = np.zeros(self._mesh.face_count, dtype=bool)
+        cell_flags = np.ones(self._mesh.cell_count, dtype=bool)
+
+        # Calculate face_cells
+        self._face_cells = self._get_face_cells_list()
+        for f, (c1, c2) in enumerate(self._face_cells):
+            if c1 is not None and c2 is not None:  # Internal face
+                face_flags[f] = True
+
+        # Mark nodes and cells based on face information
+        for f, (c1, c2) in enumerate(self._face_cells):
+            if not face_flags[f]:  # Boundary face
+                # Correct the node flags
+                for n in self._mesh.faces[f].nodes:
+                    node_flags[n] = False
+                # Correct the cell flags
+                if c1 is not None:
+                    cell_flags[c1] = False
+                if c2 is not None:
+                    cell_flags[c2] = False
+
+        # Cache the flags
+        self._internal_nodes = np.where(node_flags)[0]
+        self._boundary_nodes = np.where(~node_flags)[0]
+
+        self._internal_faces = np.where(face_flags)[0]
+        self._boundary_faces = np.where(~face_flags)[0]
+
+        self._internal_cells = np.where(cell_flags)[0]
+        self._boundary_cells = np.where(~cell_flags)[0]
+
+    def _get_face_cells_list(self):
+        """Get the face_cells list."""
+        face_cells_list = [None] * self._mesh.face_count
+        cell_faces_map = collections.defaultdict(list)
+        for c, cell in enumerate(self._mesh.cells):
+            for f in cell.faces:
+                cell_faces_map[f].append(c)
+
+        for f, cells in cell_faces_map.items():
+            if len(cells) == 1:
+                # Boundary face
+                face_cells_list[f] = [cells[0], None]
+            elif len(cells) == 2:
+                # Internal face
+                face_cells_list[f] = cells
+            else:
+                raise RuntimeError(f"Face {f} is shared by more than 2 cells: {cells}")
+
+        return face_cells_list
 
     # -----------------------------------------------
-    # region indices properties
+    # region non-Continous properties
     # -----------------------------------------------
 
     @property
-    def face_indices(self) -> dict[int, int]:
-        """Return the indices of faces with their ids."""
-        if self._face_indices is None:
-            self._face_indices = {f.id: i for i, f in enumerate(self._mesh.faces)}
-        return self._face_indices
+    def face_nodes(self) -> List[np.ndarray]:
+        """Face nodes in anticlockwise order."""
+        if self._face_nodes is None:
+            face_nodes_list = []
+            for face in self._mesh.faces:
+                node_ids = face.nodes
+                nodes = self._mesh.get_nodes(node_ids)
+                nodes, node_ids = sort_anticlockwise(nodes, node_ids)
+                face_nodes_list.append(np.array(node_ids, dtype=np.int32))
+            self._face_nodes = face_nodes_list
+        return self._face_nodes
 
     @property
-    def node_indices(self) -> dict[int, int]:
-        """Return the indices of nodes with their ids."""
-        if self._node_indices is None:
-            self._node_indices = {n.id: i for i, n in enumerate(self._mesh.nodes)}
-        return self._node_indices
-
-    @property
-    def cell_indices(self) -> dict[int, int]:
-        """Return the indices of cells with their ids."""
-        if self._cell_indices is None:
-            self._cell_indices = {c.id: i for i, c in enumerate(self._mesh.cells)}
-        return self._cell_indices
-
-    # -----------------------------------------------
-    # region connect properties
-    # -----------------------------------------------
-
-    @property
-    def node_neighbours(self) -> dict[int, list[int]]:
-        """Retrun the neighbours id of each node."""
-        if self._mesh.dimension == MeshDimension.D1:
-            logger.warning("1D meshes do not check neighbours.")
-            return None
-
-        if self._node_neighbours is None:
-            # Expand all edges by circular adjacency at once
-            edges = (
-                (u, v)
-                for f in self._mesh.faces
-                for u, v in self._face_to_edges(f.nodes)
-            )
-            edges = np.array(list(edges), dtype=np.intp)
-
-            # Bidirectional edges + NumPy grouping
-            both = np.vstack((edges, edges[:, ::-1]))
-            order = both[:, 0].argsort()
-            both_sorted = both[order]
-            unq, idx = np.unique(both_sorted[:, 0], return_inverse=True)
-
-            # Group node's neighbours
-            size1, size2 = len(unq), len(both_sorted)
-            self._node_neighbours = {}
-            for i, nid in enumerate(unq):
-                start = idx[i]
-                stop = idx[i + 1] if i < size1 - 1 else size2
-                nbrs = both_sorted[start:stop, 1].tolist()
-                self._node_neighbours[nid] = nbrs
-
-        return self._node_neighbours
-
-    def _face_to_edges(self, nodes: list) -> list:
-        """Return the edges from face nodes."""
-        n = len(nodes)
-        return [(nodes[i], nodes[(i + 1) % n]) for i in range(n)]
-
-    @property
-    def face_cells(self) -> dict[int, list[int]]:
-        """Return the cells id connected to each face.
-
-        Sorted to (left, right) or (owner, neighbour).
-        """
+    def face_cells(self) -> List[Optional[int]]:
+        """Face cells list."""
         if self._face_cells is None:
-            face_cells = collections.defaultdict(list)
-            for c in self._mesh.cells:
-                for f in c.faces:
-                    face_cells[f].append(c.id)
-            face_cells = {fid: list(set(cids)) for fid, cids in face_cells.items()}
-
-            for fid, cids in face_cells.items():
-                if len(cids) == 1:
-                    continue
-                face_cells[fid] = self._sort_face_cells(fid, cids)
-            self._face_cells = face_cells
+            self._calculate_flags()
         return self._face_cells
 
-    def _sort_face_cells(self, fid: int, cids: list) -> list:
-        """Sort the cells id by dot product with face normal."""
-        face = self._mesh.faces[fid]
-        nodes = [self._mesh.nodes[n].coordinate for n in face.nodes]
-        c0 = self._mesh.cells[cids[0]].coordinate
-        c1 = self._mesh.cells[cids[1]].coordinate
-
-        if len(cids) == 2:
-            v0 = (nodes[1] - nodes[0]).to_np()
-            v1 = (c0 - nodes[0]).to_np()
-            res = v0[0] * v1[1] - v0[1] * v1[0]
-            if res < 0:
-                cids = [cids[1], cids[0]]
-        else:
-            v0 = nodes[1] - nodes[0]
-            v1 = nodes[2] - nodes[0]
-            normal = np.cross(v0.to_np(), v1.to_np())
-
-            face_center = face.coordinate
-            v0 = (c0 - face_center).to_np()
-            v1 = (c1 - face_center).to_np()
-
-            dot0 = np.dot(normal, v0)
-            dot1 = np.dot(normal, v1)
-            if dot0 > dot1:
-                cids = [cids[1], cids[0]]
-        return cids
-
     @property
-    def node_faces(self) -> dict[int, list[int]]:
-        """Return the faces id connected to each node."""
+    def node_faces(self) -> List[np.ndarray]:
+        """Node faces list."""
         if self._node_faces is None:
-            node_faces = collections.defaultdict(list)
-            for f in self._mesh.faces:
-                for n in f.nodes:
-                    node_faces[n].append(f.id)
-            node_faces = {nid: list(set(fids)) for nid, fids in node_faces.items()}
-            self._node_faces = node_faces
+            node_faces_dict = collections.defaultdict(set)
+            for f, face in enumerate(self._mesh.faces):
+                for n in face.nodes:
+                    node_faces_dict[n].add(f)
+            if len(node_faces_dict) != self._mesh.node_count:
+                raise RuntimeError("Some nodes are not connected to any face.")
+
+            self._node_faces = [
+                np.array(sorted(list(fs)), dtype=np.int32)
+                for fs in node_faces_dict.values()
+            ]
         return self._node_faces
 
     @property
-    def node_cells(self) -> dict[int, list[int]]:
-        """Return the cells id connected to each node."""
+    def node_cells(self) -> List[np.ndarray]:
+        """Node cells list."""
         if self._node_cells is None:
-            face_nodes = {f.id: f.nodes for f in self._mesh.faces}
-            tmp = collections.defaultdict(list)
-            for c in self._mesh.cells:
-                for f in c.faces:
-                    for n in face_nodes[f]:
-                        tmp[n].append(c.id)
-            self._node_cells = {
-                nid: list(dict.fromkeys(cids)) for nid, cids in tmp.items()
-            }
+            node_cells_dict = collections.defaultdict(set)
+            for c, cell in enumerate(self._mesh.cells):
+                for f in cell.faces:
+                    for n in self._mesh.faces[f].nodes:
+                        node_cells_dict[n].add(c)
+            if len(node_cells_dict) != self._mesh.node_count:
+                raise RuntimeError("Some nodes are not connected to any cell.")
+
+            self._node_cells = [
+                np.array(sorted(list(cs)), dtype=np.int32)
+                for cs in node_cells_dict.values()
+            ]
         return self._node_cells
 
     @property
-    def cell_nodes(self) -> dict[int, list[int]]:
-        """Return the nodes id connected to each cell."""
-        if self._cell_nodes is None:
-            face_nodes = {f.id: f.nodes for f in self._mesh.faces}
-            tmp = collections.defaultdict(list)
+    def cell_faces(self) -> List[np.ndarray]:
+        """Cell faces sorted for 2d mesh."""
+        if self._cell_faces is None:
+            cell_faces_list = []
             for cell in self._mesh.cells:
-                for fid in cell.faces:
-                    for nid in face_nodes[fid]:
-                        tmp[cell.id].append(nid)
-            self._cell_nodes = {
-                nid: list(dict.fromkeys(nids)) for nid, nids in tmp.items()
-            }
+                face_ids = cell.faces
+                faces = self._mesh.get_faces(face_ids)
+                if self._mesh.dimension == MeshDimension.D2:
+                    _, face_ids = sort_anticlockwise(faces, face_ids)
+                cell_faces_list.append(np.array(face_ids, dtype=np.int32))
+            self._cell_faces = cell_faces_list
+        return self._cell_faces
+
+    @property
+    def cell_nodes(self) -> List[np.ndarray]:
+        """Cell nodes list."""
+        if self._cell_nodes is None:
+            cell_nodes_list = []
+            for cell in self._mesh.cells:
+                unique_nodes = set()
+                for f in cell.faces:
+                    unique_nodes.update(self._mesh.faces[f].nodes)
+                cell_nodes_list.append(np.array(list(unique_nodes), dtype=np.int32))
+            if len(cell_nodes_list) != self._mesh.cell_count:
+                raise RuntimeError("Some cells are not connected to any node.")
+
+            self._cell_nodes = cell_nodes_list
         return self._cell_nodes
 
     @property
-    def cell_neighbours(self) -> dict[int, list[int]]:
-        """Return the neighbours of each cell."""
+    def cell_neighbours(self) -> List[np.ndarray]:
+        """Cell neighbours list."""
         if self._cell_neighbours is None:
-            tmp = collections.defaultdict(list)
-            for cids in self.face_cells.values():
-                cids = list(cids)
-                if len(cids) == 2:
-                    tmp[cids[0]].append(cids[1])
-                    tmp[cids[1]].append(cids[0])
-            self._cell_neighbours = tmp
+            num_cells = len(self._mesh.cells)
+            neighbours_list = [set() for _ in range(num_cells)]
+
+            for _, (c1, c2) in enumerate(self.face_cells):
+                if c1 is not None and c2 is not None:
+                    neighbours_list[c1].add(c2)
+                    neighbours_list[c2].add(c1)
+            if len(neighbours_list) != num_cells:
+                raise RuntimeError("Some cells not connected to any others.")
+
+            self._cell_neighbours = [
+                np.array(list(nbrs), dtype=np.int32) for nbrs in neighbours_list
+            ]
         return self._cell_neighbours
+
+    @property
+    def node_neighbours(self) -> List[np.ndarray]:
+        """Node neighbours list."""
+        if self._node_neighbours is None:
+            node_faces_list = self.node_faces
+            num_nodes = self._mesh.node_count
+            node_neighbours_list = [
+                np.array([], dtype=np.int32) for _ in range(num_nodes)
+            ]
+
+            for n in range(num_nodes):
+                neighbours_set = set()
+                for f in node_faces_list[n]:
+                    for nbr_n in self._mesh.faces[f].nodes:
+                        if nbr_n != n:
+                            neighbours_set.add(nbr_n)
+                node_neighbours_list[n] = np.array(
+                    list(neighbours_set),
+                    dtype=np.int32,
+                )
+            if len(node_neighbours_list) != num_nodes:
+                raise RuntimeError("Some nodes not connected to any others.")
+
+            self._node_neighbours = node_neighbours_list
+        return self._node_neighbours

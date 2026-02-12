@@ -232,8 +232,8 @@ class SurfaceWaterModel(models.BaseModel):
             ic_instance = self._load_ic(ic)
             if ic_instance is None:
                 continue
-            ic_var = ic["var"]
-            self._solver.add_ic(ic_var, ic_instance)
+            ic_field = ic["field"]
+            self._solver.add_ic(ic_instance, ic_field)
 
         # boundaries
         bcs = solvers.get("bcs", []) or []
@@ -241,8 +241,8 @@ class SurfaceWaterModel(models.BaseModel):
             bc_instance, bc_elements = self._load_bc(bc)
             if bc_instance is None:
                 continue
-            bc_var = bc["var"]
-            self._solver.add_bc(bc_var, bc_elements, bc_instance)
+            bc_field = bc["field"]
+            self._solver.add_bc(bc_instance, bc_field, bc_elements, ElementType.FACE)
 
         # callbacks
         cbs = solvers.get("cbs", []) or []
@@ -283,8 +283,7 @@ class SurfaceWaterModel(models.BaseModel):
         bc_elements = []
         for patch in bc_patches:
             _, face_ids = self._mesh.get_group(patch)
-            faces = self._mesh.get_faces(face_ids)
-            bc_elements.extend(faces)
+            bc_elements.extend(face_ids)
 
         bc_instance = boundary_conditions[bc_type](bc_id, **bc_params)
         return bc_instance, bc_elements

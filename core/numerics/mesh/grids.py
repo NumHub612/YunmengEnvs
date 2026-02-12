@@ -14,17 +14,12 @@ from core.numerics.algos.topos import (
 
 
 # -----------------------------------------------
-# region --- Grid1D ---
+# region  Grid1D
 # -----------------------------------------------
 
 
 class Grid1D(Grid):
-    """1D uniform structured grid in x-direction.
-
-    Notes:
-        - The 1d grid is a special case, somehow it's viered.
-        - All nodes y- ans z-coordinates are set to 0.
-    """
+    """1D uniform structured grid in x-direction."""
 
     def __init__(self, start: Coordinate, end: Coordinate, num: int):
         """
@@ -43,27 +38,7 @@ class Grid1D(Grid):
         self._generate(start, end, num)
 
     def _generate(self, start, end, num):
-        # generate nodes
-        for i in range(num):
-            x = start.x + i * self._dx
-            node = Node(i, Coordinate(x))
-            self._nodes.append(node)
-
-        # generate mesh
-        for i in range(num):
-            node1 = self._nodes[i]
-
-            # face
-            face1 = Face(i, node1.coordinate, [i])
-            self._faces.append(face1)
-
-            # cell
-            if i == num - 1:
-                break
-            node2 = self._nodes[i + 1]
-            center = 0.5 * (node1.coordinate + node2.coordinate)
-            cell = Cell(i, center, [i, i + 1])
-            self._cells.append(cell)
+        pass
 
     def match_node(self, i: int, j: int = None, k: int = None) -> int:
         return i
@@ -71,19 +46,19 @@ class Grid1D(Grid):
     def match_cell(self, i: int, j: int = None, k: int = None) -> int:
         return i
 
-    def retrieve_node_neighbours(self, index: int) -> list:
+    def get_node_neighbours(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
 
-    def retrieve_cell_neighbours(self, index: int) -> list:
+    def get_cell_neighbours(self, index: int) -> list:
         east = index + 1 if index < self._nx - 1 else None
         west = index - 1 if index > 0 else None
         return [east, west, None, None, None, None]
 
 
 # -----------------------------------------------
-# region --- Grid2D ---
+# region Grid2D
 # -----------------------------------------------
 
 
@@ -144,7 +119,7 @@ class Grid2D(Grid):
             x = self._ll.x + i * self._dx
             for j in range(self._ny):
                 y = self._ll.y + j * self._dy
-                node = Node(nid, Coordinate(x, y))
+                node = Node(Coordinate(x, y))
                 self._nodes.append(node)
                 nid += 1
 
@@ -152,23 +127,26 @@ class Grid2D(Grid):
         fid = 0
         for i in range(self._nx):
             for j in range(self._ny):
-                n_lu = self._nodes[i * self._ny + j]
+                n_lu_id = i * self._ny + j
+                n_lu = self._nodes[n_lu_id]
 
                 # face 1, n_lu -> n_ru
                 if i < self._nx - 1:
-                    n_ru = self._nodes[(i + 1) * self._ny + j]
-                    nodes = sorted([n_lu.id, n_ru.id], reverse=True)
+                    n_ru_id = (i + 1) * self._ny + j
+                    n_ru = self._nodes[n_ru_id]
+                    nodes = sorted([n_lu_id, n_ru_id], reverse=True)
                     center = 0.5 * (n_lu.coordinate + n_ru.coordinate)
-                    face1 = Face(fid, center, nodes)
+                    face1 = Face(center, nodes)
                     self._faces.append(face1)
                     fid += 1
 
                 # face 2, n_lu -> n_ld
                 if j < self._ny - 1:
-                    n_ld = self._nodes[i * self._ny + j + 1]
-                    nodes = sorted([n_lu.id, n_ld.id])
+                    n_ld_id = i * self._ny + j + 1
+                    n_ld = self._nodes[n_ld_id]
+                    nodes = sorted([n_lu_id, n_ld_id])
                     center = 0.5 * (n_lu.coordinate + n_ld.coordinate)
-                    face2 = Face(fid, center, nodes)
+                    face2 = Face(center, nodes)
                     self._faces.append(face2)
                     fid += 1
 
@@ -186,10 +164,9 @@ class Grid2D(Grid):
 
                 face_ids = [f_n, f_w, f_s, f_e]
                 faces = self.get_faces(face_ids)
-                faces = sort_anticlockwise(faces)
+                faces, face_ids = sort_anticlockwise(faces, face_ids)
                 center = calculate_center(faces)
-                face_ids = [f.id for f in faces]
-                cell = Cell(cid, center, face_ids)
+                cell = Cell(center, face_ids)
                 self._cells.append(cell)
                 cid += 1
 
@@ -207,7 +184,7 @@ class Grid2D(Grid):
         cid = i * (self._ny - 1) + j
         return cid if 0 <= cid < self.cell_count else None
 
-    def retrieve_node_neighbours(self, index: int) -> list:
+    def get_node_neighbours(self, index: int) -> list:
         i = index // self._ny
         j = index % self._ny
 
@@ -217,7 +194,7 @@ class Grid2D(Grid):
         east = self.match_node(i + 1, j)
         return [east, west, north, south, None, None]
 
-    def retrieve_cell_neighbours(self, index: int) -> list:
+    def get_cell_neighbours(self, index: int) -> list:
         i = index // (self._ny - 1)
         j = index % (self._ny - 1)
 
@@ -280,7 +257,7 @@ class Grid3D(Grid):
                 y = self._ll.y + j * self._dy
                 for i in range(self._nx):
                     x = self._ll.x + i * self._dx
-                    node = Node(nid, Coordinate(x, y, z))
+                    node = Node(Coordinate(x, y, z))
                     self._nodes.append(node)
                     nid += 1
 
@@ -298,10 +275,9 @@ class Grid3D(Grid):
                     n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i
                     node_ids = [n_ll, n_rl, n_ru, n_lu]
                     nodes = self.get_nodes(node_ids)
-                    nodes = sort_anticlockwise(nodes)
+                    nodes, node_ids = sort_anticlockwise(nodes, node_ids)
                     center = calculate_center(nodes)
-                    node_ids = [n.id for n in nodes]
-                    face = Face(fid, center, node_ids)
+                    face = Face(center, node_ids)
                     self._faces.append(face)
                     fid += 1
 
@@ -316,10 +292,9 @@ class Grid3D(Grid):
                     n_ll = k * self._nx * self._ny + j * self._nx + i + 1
                     node_ids = [n_rl, n_ru, n_lu, n_ll]
                     nodes = self.get_nodes(node_ids)
-                    nodes = sort_anticlockwise(nodes)
+                    nodes, node_ids = sort_anticlockwise(nodes, node_ids)
                     center = calculate_center(nodes)
-                    node_ids = [n.id for n in nodes]
-                    face = Face(fid, center, node_ids)
+                    face = Face(center, node_ids)
                     self._faces.append(face)
                     fid += 1
 
@@ -332,10 +307,9 @@ class Grid3D(Grid):
                     n_lr = k * self._nx * self._ny + (j + 1) * self._nx + i
                     node_ids = [n_lu, n_ll, n_ul, n_lr]
                     nodes = self.get_nodes(node_ids)
-                    nodes = sort_anticlockwise(nodes)
+                    nodes, node_ids = sort_anticlockwise(nodes, node_ids)
                     center = calculate_center(nodes)
-                    node_ids = [n.id for n in nodes]
-                    face = Face(fid, center, node_ids)
+                    face = Face(center, node_ids)
                     self._faces.append(face)
                     fid += 1
 
@@ -383,7 +357,7 @@ class Grid3D(Grid):
                     face_ids = [f_n, f_s, f_w, f_e, f_d, f_u]
                     faces = self.get_faces(face_ids)
                     center = calculate_center(faces)
-                    cell = Cell(cid, center, face_ids)
+                    cell = Cell(center, face_ids)
                     self._cells.append(cell)
                     cid += 1
 
@@ -406,7 +380,7 @@ class Grid3D(Grid):
 
         return k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i
 
-    def retrieve_node_neighbours(self, index: int) -> list:
+    def get_node_neighbours(self, index: int) -> list:
         k = index // (self._nx * self._ny)
         j = (index - k * self._nx * self._ny) // self._nx
         i = index % self._nx
@@ -419,7 +393,7 @@ class Grid3D(Grid):
         up = self.match_node(i, j, k + 1)
         return [east, west, north, south, up, down]
 
-    def retrieve_cell_neighbours(self, index: int) -> list:
+    def get_cell_neighbours(self, index: int) -> list:
         k = index // ((self._nx - 1) * (self._ny - 1))
         j = (index - k * (self._nx - 1) * (self._ny - 1)) // (self._nx - 1)
         i = (index - k * (self._nx - 1) * (self._ny - 1)) % (self._nx - 1)
@@ -431,15 +405,3 @@ class Grid3D(Grid):
         down = self.match_cell(i, j, k - 1)
         up = self.match_cell(i, j, k + 1)
         return [east, west, north, south, up, down]
-
-
-# -----------------------------------------------
-# region --- QuadGrid2D ---
-# -----------------------------------------------
-
-
-class QuadGrid2D(Grid2D):
-    """2D structured grid with quadrilateral cells."""
-
-    def __init__(self):
-        pass

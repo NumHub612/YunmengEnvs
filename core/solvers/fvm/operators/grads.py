@@ -73,7 +73,7 @@ class Grad01(IOperator):
     def _calculate_scalar_grad(self, source, element) -> Variable:
         """Calculate the gradient of scalar."""
         face_values = []
-        for nb in self._mesh.retrieve_cell_neighbours(element):
+        for nb in self._mesh.get_cell_neighbours(element):
             # east, west, north, south, top, bot
             if nb is not None:
                 val = (source[element] + source[nb]) / 2.0

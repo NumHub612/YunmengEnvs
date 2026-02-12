@@ -82,8 +82,7 @@ class GenericMesh(Mesh):
             else:
                 self._dimension = MeshDimension.D3
                 normal = self._calculate_plane_normal(nodes)
-                nodes = sort_anticlockwise(nodes)
-                node_ids = [n.id for n in nodes]
+                nodes, node_ids = sort_anticlockwise(nodes, node_ids)
                 normals.append(normal)
 
             results[i] = Face(i, center, node_ids)
@@ -102,8 +101,7 @@ class GenericMesh(Mesh):
 
             if self._dimension == MeshDimension.D2:
                 normal = self._calculate_plane_normal(faces)
-                faces = sort_anticlockwise(faces)
-                face_ids = [f.id for f in faces]
+                faces, face_ids = sort_anticlockwise(faces, face_ids)
                 normals.append(normal)
             else:
                 # only surport tetrahedron and hexahedron.
