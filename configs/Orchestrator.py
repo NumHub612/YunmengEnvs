@@ -72,7 +72,7 @@ class Orchestrator:
 
         # Log
         summary = self.summary()
-        logger.info(f"Yunmeng Configs loaded:{summary}.")
+        logger.info(f"Yunmeng Configs loaded. {summary}.")
 
     def _activate_env_settings(self, configs: dict):
         """Activate the settings."""
@@ -385,6 +385,6 @@ class Orchestrator:
         links_num = len(links_ids)
 
         summary = (
-            f"Models: {models_num} ({models_ids}), \nLinks: {links_num} ({links_ids})"
+            f"Models: {models_num} ({models_ids}), \tLinks: {links_num} ({links_ids})"
         )
         return summary

@@ -39,14 +39,14 @@ class Ddt01(IOperator):
         self._rho = rho
         self._var = ""
 
-    def prepare(self, vars: list[str], mesh: Mesh, boundaries: dict):
+    def prepare(self, fields: list[str], mesh: Mesh, bounds: dict):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
-        self._var = vars[0]
+        self._var = fields[0]
 
-    def run(self, source: DataHub) -> Field | LinearEqs:
-        sample = source.field(self._var, 0)
+    def run(self, sources: DataHub) -> Field | LinearEqs:
+        sample = sources.field(self._var, 0)
         data = sample.data
         ddt_eqs = LinearEqs.zeros(
             self._mesh.cell_count,
@@ -95,17 +95,17 @@ class Ddt02(IOperator):
         self._rho = rho
         self._var = ""
 
-    def prepare(self, vars: list[str], mesh: Mesh, boundaries: dict = None):
+    def prepare(self, fields: list[str], mesh: Mesh, bounds: dict = None):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
 
-        self._var = vars[0]
+        self._var = fields[0]
 
-    def run(self, source: DataHub) -> Field | LinearEqs:
-        pre_source = source.field(self._var, 1)
+    def run(self, sources: DataHub) -> Field | LinearEqs:
+        pre_source = sources.field(self._var, 1)
         pre_data = pre_source.data
-        cur_source = source.field(self._var, 0)
+        cur_source = sources.field(self._var, 0)
         cur_data = cur_source.data
 
         ddt_eqs = LinearEqs.zeros(
@@ -126,5 +126,5 @@ class Ddt02(IOperator):
             ddt_eqs.matrix[cid, cid] += fluxC
             ddt_eqs.rhs[cid] += fluxV
 
-        self._pre_field = copy.deepcopy(source)
+        self._pre_field = copy.deepcopy(sources)
         return ddt_eqs

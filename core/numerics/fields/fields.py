@@ -74,7 +74,7 @@ class ShardInfo:
 
 
 @dataclass(slots=True)
-class FieldDesc:
+class FieldMeta:
     """Field metadata."""
 
     name: str
@@ -385,7 +385,7 @@ class Field:
         bc: dict = None,
     ):
         self._data = data
-        self._desc = FieldDesc(
+        self._desc = FieldMeta(
             name,
             etype,
             data.dtype,
@@ -471,7 +471,7 @@ class Field:
         return Field(data, etype, name, unit)
 
     @property
-    def desc(self) -> FieldDesc:
+    def desc(self) -> FieldMeta:
         return self._desc
 
     @property

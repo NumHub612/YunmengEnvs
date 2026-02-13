@@ -40,7 +40,7 @@ class SolverMeta:
     dimension: str = ""  # The equation dimension, e.g. 1d, 2d, 3d.
     default_ics: dict = None  # Default initialization conditions.
     default_bcs: dict = None  # Default boundary conditions.
-    fields: dict = None  # The dictionary of available fields solved.
+    fields: dict = None  # The dictionary of available fields.
 
 
 @dataclass

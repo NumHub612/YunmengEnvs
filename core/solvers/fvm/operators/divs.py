@@ -45,7 +45,7 @@ class Div01(IOperator):
         self._rho = rho
         self._var = ""
 
-    def prepare(self, vars: list[str], mesh: Grid, boundaries: dict):
+    def prepare(self, fields: list[str], mesh: Grid, bounds: dict):
         if not isinstance(mesh, Grid):
             raise ValueError("Fvm Grad01 operator only supports Grid.")
 
@@ -53,11 +53,11 @@ class Div01(IOperator):
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
 
-        self._bcs = boundaries
-        self._var = vars[0]
+        self._bcs = bounds
+        self._var = fields[0]
 
-    def run(self, source: DataHub) -> Field | LinearEqs:
-        data = source.field(self._var).data
+    def run(self, sources: DataHub) -> Field | LinearEqs:
+        data = sources.field(self._var).data
         variable = data.name
         div_eqs = LinearEqs.zeros(
             self._mesh.cell_count, rhs_type=data.dtype, variable=variable

@@ -98,7 +98,7 @@ class Burgers2D(BaseSolver):
 
         # Init operators
         for _, op in self._operators.items():
-            op.prepare(["u"], self._mesh, boundaries=self._bcs)
+            op.prepare(["u"], self._mesh, bounds=self._bcs)
 
         time_order = max(self._operators["ddt"].time_order, 2)
         self._buf = DataHub(["u"], time_order)

@@ -28,8 +28,8 @@ class CFL01(IOperator):
     def get_type(cls) -> OperatorType:
         return OperatorType.FUNC
 
-    def prepare(self, vars: list[str], mesh: Grid, boundaries: dict):
+    def prepare(self, fields: list[str], mesh: Grid, bounds: dict):
         pass
 
-    def run(self, source: DataHub) -> Variable:
+    def run(self, sources: DataHub) -> Variable:
         pass

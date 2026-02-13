@@ -2,21 +2,22 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Interface for callback classes used in the solvers.
+Interface of callback classes used in solvers.
 """
+from core.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 
 
 class ISolverCallback(ABC):
     """
-    Interface for callback class used in solving process.
+    Interface of callback class.
     """
 
     @classmethod
     @abstractmethod
     def get_name(cls) -> str:
         """
-        Get the unique name of the callback method.
+        Get the unique name of this method.
         """
         pass
 
@@ -29,7 +30,7 @@ class ISolverCallback(ABC):
         pass
 
     @abstractmethod
-    def setup(self, solver: object, mesh: object, **kwargs):
+    def setup(self, solver, mesh: Mesh, **kwargs):
         """
         Set up the callback method.
         """
@@ -38,41 +39,41 @@ class ISolverCallback(ABC):
     @abstractmethod
     def cleanup(self):
         """
-        Clean up the callback method.
+        Clean the callback method.
         """
         pass
 
     @abstractmethod
     def on_task_begin(self):
         """
-        Callback function called at the task begin.
+        Function called at the task begin.
         """
         pass
 
     @abstractmethod
     def on_task_end(self):
         """
-        Callback function called at the task end.
+        Function called at the task end.
         """
         pass
 
     @abstractmethod
     def on_step_begin(self):
         """
-        Callback function called at the step begin.
+        Function called at step begin.
         """
         pass
 
     @abstractmethod
     def on_step(self):
         """
-        Callback function called at each step.
+        Function called during step.
         """
         pass
 
     @abstractmethod
     def on_step_end(self):
         """
-        Callback function called at the step end.
+        Function called at the step end.
         """
         pass

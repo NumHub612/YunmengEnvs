@@ -4,8 +4,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface for pde numerical operators.
 """
+from core.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Variable, DataHub
+from core.numerics.fields import Field, DataHub
 from core.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 import enum
@@ -27,7 +28,7 @@ class OperatorType(enum.Enum):
 
 class IOperator(ABC):
     """
-    Interface for discretizing pde term to a numerical form.
+    Interface for discretizing PDE term to computable form.
     """
 
     @classmethod
@@ -54,14 +55,19 @@ class IOperator(ABC):
         return 1
 
     @abstractmethod
-    def prepare(self, vars: list[str], mesh: Mesh, boundaries: dict):
+    def prepare(
+        self,
+        fields: list[str],
+        mesh: Mesh,
+        bounds: dict[int, dict[str, IBoundaryCondition]],
+    ):
         """
         Prepare the operator.
         """
         pass
 
     @abstractmethod
-    def run(self, source: DataHub) -> Field | LinearEqs:
+    def run(self, sources: DataHub) -> Field | LinearEqs:
         """
         Run the operator on mesh.
         """

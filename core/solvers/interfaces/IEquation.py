@@ -10,6 +10,7 @@ provide standardized, configurable numerical discretization schemes, which
 are also driven by the `Solver`.
 For known problems, more efficient solver can be directly developed.
 """
+from core.numerics.enums import VariableType
 from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field
 from core.numerics.mesh import Mesh
@@ -23,15 +24,15 @@ class EqSymbol:
     The symbol used in the equation.
     """
 
-    description: str  # A brief description about the symbol.
-    type: str  # Type of the symbol, e.g. "scalar", "vector", "tensor".
+    description: str  # Brief description about the symbol.
+    dtype: VariableType  # Data type of the symbol.
     coefficient: bool  # Whether the symbol is coefficient.
-    boundary: tuple  # Boundarys of the symbol.
+    bounds: tuple  # Low-high boundarys of the symbol.
 
 
 class IEquation(ABC):
     """
-    Interface for describing and discretizing pde equations.
+    Interface for describing and discretizing pde equation.
     """
 
     @property
@@ -52,14 +53,14 @@ class IEquation(ABC):
     @abstractmethod
     def set_equations(self, equations: list[str], symbols: dict[str, EqSymbol]):
         """
-        Set the equations and symbols for the equation.
+        Setup the equation and symbols for the PDE.
         """
         pass
 
     @abstractmethod
     def set_coefficients(self, coefficients: dict):
         """
-        Set the coefficients for the equations.
+        Set the coefficients.
         """
         pass
 
