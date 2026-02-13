@@ -7,7 +7,7 @@ Spatial domain classes and methods for the cfd.
 from core.numerics.enums import MeshDimension, ElementType
 from core.numerics.mesh.elements import Node, Face, Cell
 
-import pickle
+import numpy as np
 
 
 # -----------------------------------------------
@@ -19,18 +19,18 @@ class Mesh:
     """Abstract mesh class for spatial domains."""
 
     def __init__(self):
-        self._version = 1
         self._dim = MeshDimension.NONE
         self._orthogonal = False
+        self._version = 1
 
         self._topo = None
         self._geom = None
         self._part = None
         self._groups = {}
 
-        self._nodes = []
-        self._faces = []
-        self._cells = []
+        self._nodes: np.ndarray = None
+        self._faces: np.ndarray = None
+        self._cells: np.ndarray = None
 
     # -----------------------------------------------
     # properties
@@ -57,7 +57,7 @@ class Mesh:
         return len(self._nodes)
 
     @property
-    def nodes(self) -> list[Node]:
+    def nodes(self) -> np.ndarray:
         """Return all nodes."""
         return self._nodes
 
@@ -67,7 +67,7 @@ class Mesh:
         return len(self._faces)
 
     @property
-    def faces(self) -> list[Face]:
+    def faces(self) -> np.ndarray:
         """Return all faces."""
         return self._faces
 
@@ -77,7 +77,7 @@ class Mesh:
         return len(self._cells)
 
     @property
-    def cells(self) -> list[Cell]:
+    def cells(self) -> np.ndarray:
         """Return all cells."""
         return self._cells
 
@@ -87,15 +87,15 @@ class Mesh:
 
     def get_nodes(self, node_ids: list[int]) -> list[Node]:
         """Get the nodes with the given ids."""
-        return [self._nodes[i] for i in node_ids]
+        return self._nodes[node_ids]
 
     def get_faces(self, face_ids: list[int]) -> list[Face]:
         """Get the faces with the given ids."""
-        return [self._faces[i] for i in face_ids]
+        return self._faces[face_ids]
 
     def get_cells(self, cell_ids: list[int]) -> list[Cell]:
         """Get the cells with the given ids."""
-        return [self._cells[i] for i in cell_ids]
+        return self._cells[cell_ids]
 
     def update(self, masks: list[int]):
         """Update the mesh with the given mask, for AMR.

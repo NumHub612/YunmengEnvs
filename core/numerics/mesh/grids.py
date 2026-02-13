@@ -11,6 +11,7 @@ from core.numerics.algos.topos import (
     sort_anticlockwise,
     calculate_center,
 )
+import numpy as np
 
 
 # -----------------------------------------------
@@ -114,16 +115,20 @@ class Grid2D(Grid):
         self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
 
         # generate nodes
+        node_size = self._nx * self._ny
+        nodes = [None] * node_size
         nid = 0
         for i in range(self._nx):
             x = self._ll.x + i * self._dx
             for j in range(self._ny):
                 y = self._ll.y + j * self._dy
                 node = Node(Coordinate(x, y))
-                self._nodes.append(node)
+                nodes[nid] = node
                 nid += 1
+        self._nodes = np.array(nodes)
 
         # generate faces
+        faces = []
         fid = 0
         for i in range(self._nx):
             for j in range(self._ny):
@@ -137,7 +142,7 @@ class Grid2D(Grid):
                     nodes = sorted([n_lu_id, n_ru_id], reverse=True)
                     center = 0.5 * (n_lu.coordinate + n_ru.coordinate)
                     face1 = Face(center, nodes)
-                    self._faces.append(face1)
+                    faces.append(face1)
                     fid += 1
 
                 # face 2, n_lu -> n_ld
@@ -147,10 +152,13 @@ class Grid2D(Grid):
                     nodes = sorted([n_lu_id, n_ld_id])
                     center = 0.5 * (n_lu.coordinate + n_ld.coordinate)
                     face2 = Face(center, nodes)
-                    self._faces.append(face2)
+                    faces.append(face2)
                     fid += 1
+        self._faces = np.array(faces)
 
         # generate cells
+        cell_size = (self._nx - 1) * (self._ny - 1)
+        cells = [None] * cell_size
         cid = 0
         for i in range(self._nx - 1):
             for j in range(self._ny - 1):
@@ -167,8 +175,9 @@ class Grid2D(Grid):
                 faces, face_ids = sort_anticlockwise(faces, face_ids)
                 center = calculate_center(faces)
                 cell = Cell(center, face_ids)
-                self._cells.append(cell)
+                cells[cid] = cell
                 cid += 1
+        self._cells = np.array(cells)
 
     def match_node(self, i: int, j: int, k: int = None) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
