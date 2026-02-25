@@ -210,6 +210,7 @@ class MeshTopo:
                 face_cells_list[f] = [cells[0], None]
             elif len(cells) == 2:
                 # Internal face
+                cells = sorted(cells)  # c_left < c_right
                 face_cells_list[f] = cells
             else:
                 raise RuntimeError(f"Face {f} is shared by more than 2 cells: {cells}")
@@ -228,6 +229,7 @@ class MeshTopo:
             for face in self._mesh.faces:
                 node_ids = face.nodes
                 nodes = self._mesh.get_nodes(node_ids)
+                # Sort the nodes for 2D meshes
                 nodes, node_ids = sort_anticlockwise(nodes, node_ids)
                 face_nodes_list.append(np.array(node_ids, dtype=np.int32))
             self._face_nodes = face_nodes_list

@@ -63,11 +63,11 @@ class MeshGeom:
         self._topo: MeshTopo = mesh.get_topo_assistant()
 
         # Element properties caches
-        self._face_areas: Optional[List[float]] = None
-        self._face_perimeters: Optional[List[float]] = None
-        self._face_normals: Optional[List[Variable]] = None
-        self._cell_volumes: Optional[List[float]] = None
-        self._cell_surfaces: Optional[List[float]] = None
+        self._face_areas: Optional[np.ndarray] = None
+        self._face_perimeters: Optional[np.ndarray] = None
+        self._face_normals: Optional[np.ndarray] = None
+        self._cell_volumes: Optional[np.ndarray] = None
+        self._cell_surfaces: Optional[np.ndarray] = None
 
         # Distance caches
         self._cell2cell_dists: Optional[List[Dict[int, float]]] = None
@@ -87,14 +87,14 @@ class MeshGeom:
     # -----------------------------------------------
 
     @property
-    def face_area(self) -> List[float]:
+    def face_area(self) -> np.ndarray:
         """Face area."""
         if self._face_areas is None:
             if self._mesh.dimension != MeshDimension.D3:
                 face_areas = self.face_perimeter
             else:
                 face_areas = self._calculate_areas_3d()
-            self._face_areas = face_areas
+            self._face_areas = np.array(face_areas)
         return self._face_areas
 
     def _calculate_areas_3d(self) -> List[float]:
@@ -120,7 +120,7 @@ class MeshGeom:
         return face_areas
 
     @property
-    def face_perimeter(self) -> List[float]:
+    def face_perimeter(self) -> np.ndarray:
         """Face perimeter."""
         if self._face_perimeters is None:
             if self._mesh.dimension == MeshDimension.NONE:
@@ -129,7 +129,7 @@ class MeshGeom:
                 face_perimeters = self._calculate_perimeters_2d()
             else:
                 face_perimeters = self._calculate_perimeters_3d()
-            self._face_perimeters = face_perimeters
+            self._face_perimeters = np.array(face_perimeters)
         return self._face_perimeters
 
     def _calculate_perimeters_2d(self) -> List[float]:
@@ -157,7 +157,7 @@ class MeshGeom:
         return face_perimeters
 
     @property
-    def face_normal(self) -> List[Variable]:
+    def face_normal(self) -> np.ndarray:
         """Face unit normal vectors."""
         if self._face_normals is None:
             if self._mesh.dimension == MeshDimension.NONE:
@@ -166,7 +166,7 @@ class MeshGeom:
                 face_normals = self._calculate_normals_2d()
             else:
                 face_normals = self._calculate_normals_3d()
-            self._face_normals = face_normals
+            self._face_normals = np.array(face_normals)
         return self._face_normals
 
     def _calculate_normals_2d(self) -> List[Variable]:
@@ -206,7 +206,7 @@ class MeshGeom:
         return face_normals
 
     @property
-    def cell_volume(self) -> List[float]:
+    def cell_volume(self) -> np.ndarray:
         """Cell volumes."""
         if self._cell_volumes is None:
             if self._mesh.dimension == MeshDimension.D1:
@@ -215,7 +215,7 @@ class MeshGeom:
                 cell_volumes = self._calculate_volumes_2d()
             else:
                 cell_volumes = self._calculate_volumes_3d()
-            self._cell_volumes = cell_volumes
+            self._cell_volumes = np.array(cell_volumes)
         return self._cell_volumes
 
     def _calculate_volumes_2d(self) -> List[float]:
@@ -274,14 +274,14 @@ class MeshGeom:
         return cell_volumes
 
     @property
-    def cell_surface(self) -> List[float]:
+    def cell_surface(self) -> np.ndarray:
         """Cell surface areas."""
         if self._cell_surfaces is None:
             if self._mesh.dimension == MeshDimension.D1:
                 cell_surfaces = [0.0] * self._mesh.cell_count
             else:
                 cell_surfaces = self._calculate_cell_surface()
-            self._cell_surfaces = cell_surfaces
+            self._cell_surfaces = np.array(cell_surfaces)
         return self._cell_surfaces
 
     def _calculate_cell_surface(self) -> List[float]:
