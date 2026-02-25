@@ -73,19 +73,19 @@ class GenericMesh(Mesh):
         """Generate the faces of the mesh."""
         normals = []
         results = [None] * len(faces)
-        for i, node_ids in enumerate(faces):
-            nodes = self.get_nodes(node_ids)
+        for i, ids in enumerate(faces):
+            nodes = self.get_nodes(ids)
             center = calculate_center(nodes)
 
-            if len(node_ids) == 2:
+            if len(ids) == 2:
                 self._dimension = MeshDimension.D2
             else:
                 self._dimension = MeshDimension.D3
                 normal = self._calculate_plane_normal(nodes)
-                nodes, node_ids = sort_anticlockwise(nodes, node_ids)
+                nodes, ids = sort_anticlockwise(nodes, ids)
                 normals.append(normal)
 
-            results[i] = Face(i, center, node_ids)
+            results[i] = Face(i, center, ids)
 
         if normals and all(sum(n) == 1 for n in normals):
             self._orthogonal = True
@@ -95,20 +95,20 @@ class GenericMesh(Mesh):
         """Generate the cells of the mesh."""
         normals = []
         results = [None] * len(cells)
-        for i, face_ids in enumerate(cells):
-            faces = self.get_faces(face_ids)
+        for i, ids in enumerate(cells):
+            faces = self.get_faces(ids)
             center = calculate_center(faces)
 
             if self._dimension == MeshDimension.D2:
                 normal = self._calculate_plane_normal(faces)
-                faces, face_ids = sort_anticlockwise(faces, face_ids)
+                faces, ids = sort_anticlockwise(faces, ids)
                 normals.append(normal)
             else:
                 # only surport tetrahedron and hexahedron.
                 if len(faces) not in [4, 8]:
                     raise ValueError("Unsupported cell type.")
 
-            results[i] = Cell(i, center, face_ids)
+            results[i] = Cell(i, center, ids)
 
         if normals and all(sum(n) == 1 for n in normals):
             self._orthogonal = True
@@ -117,15 +117,15 @@ class GenericMesh(Mesh):
     def _calculate_plane_normal(self, coords: list) -> tuple:
         """Calculate the normal of the plane"""
         if len(coords) < 3:
-            raise ValueError("At least 3 coordinates are required.")
+            raise ValueError("Require at least 3 coordinates.")
 
         # Calculate the normal using the shoelace formula
-        coords = [c.coordinate.to_np() for c in coords]
-        normal = np.cross(coords[1] - coords[0], coords[2] - coords[0])
+        cs = [c.coordinate.to_np() for c in coords]
+        normal = np.cross(cs[1] - cs[0], cs[2] - cs[0])
         return normal
 
     def update(self, mask_indices: list[int]):
-        raise NotImplementedError("Generic mesh cannot be updated.")
+        raise NotImplementedError()
 
 
 # -----------------------------------------------

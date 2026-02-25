@@ -92,7 +92,7 @@ class TestGenericMesh(unittest.TestCase):
         self.assertEqual(len(cells), 2)
 
     def test_group_methods(self):
-        self.mesh.set_group(ElementType.NODE, "corners", [0, 2, 6, 8])
+        self.mesh.set_group("corners", [0, 2, 6, 8], ElementType.NODE)
         etype, indices = self.mesh.get_group("corners")
         self.assertEqual(sorted(indices), [0, 2, 6, 8])
         self.assertEqual(etype, ElementType.NODE)

@@ -21,7 +21,10 @@ from typing import Callable
 
 
 def get_engine_method(method: str) -> Callable:
-    """Get the engine method."""
+    """Get the engine method.
+
+    NOTE: If the matrix is all zeros, return the right-hand side.
+    """
     try:
         engine_method = EngineMethod.from_str(method)
         if engine_method == EngineMethod.NUMPY:
@@ -39,7 +42,6 @@ def get_engine_method(method: str) -> Callable:
 def solve_by_numpy(matrix: Matrix, rhs: Field) -> np.ndarray:
     """Solve the linear equations using numpy."""
     try:
-        # If the matrix is all zeros, return the right-hand side.
         if matrix.nnz[0] == 0:
             return rhs.data.as_numpy().flatten()
         else:
@@ -52,7 +54,7 @@ def solve_by_numpy(matrix: Matrix, rhs: Field) -> np.ndarray:
 def solve_by_scipy(matrix: Matrix, rhs: Field) -> np.ndarray:
     """Solve the linear equations using scipy."""
     try:
-        # If the matrix is all zeros, return the right-hand side.
+        dtype = np.float64
         if matrix.nnz[0] == 0:
             return rhs.to_np().flatten()
         else:
@@ -63,16 +65,14 @@ def solve_by_scipy(matrix: Matrix, rhs: Field) -> np.ndarray:
                 indices = mat.indices().cpu().numpy()
                 data = mat.values().cpu().numpy()
                 mat = sp.coo_matrix(
-                    (data, (indices[0], indices[1])),
-                    shape=shape,
-                    dtype=np.float64,
+                    (data, (indices[0], indices[1])), shape=shape, dtype=dtype
                 )
                 mat = mat.tocsr()
             elif isinstance(mat, coo_matrix):
                 rows = cp.asnumpy(mat.row)
                 cols = cp.asnumpy(mat.col)
                 data = cp.asnumpy(mat.data)
-                mat = sp.coo_matrix((data, (rows, cols)), shape=shape, dtype=np.float64)
+                mat = sp.coo_matrix((data, (rows, cols)), shape=shape, dtype=dtype)
                 mat = mat.tocsr()
             elif isinstance(mat, dok_matrix):
                 mat = mat.tocsr()
@@ -80,14 +80,7 @@ def solve_by_scipy(matrix: Matrix, rhs: Field) -> np.ndarray:
             if shape[0] < 10_000:
                 return scipy_spsolve(mat, b).flatten()
             else:
-                tol, maxiter = 1.0e-6, 1000
-                return scipy_cg(
-                    mat,
-                    b,
-                    tol=tol,
-                    maxiter=maxiter,
-                    atol=1.0e-6,
-                )[0].flatten()
+                return scipy_cg(mat, b)[0].flatten()
     except:
         raise RuntimeError("Cannot solve linear equations.")
 
@@ -95,7 +88,7 @@ def solve_by_scipy(matrix: Matrix, rhs: Field) -> np.ndarray:
 def solve_by_torch(matrix: Matrix, rhs: Field) -> torch.Tensor:
     """Solve the linear equations using torch."""
     try:
-        # If the matrix is all zeros, return the right-hand side.
+        dtype = torch.float64
         if matrix.nnz[0] == 0:
             return rhs.to_tensor().flatten()
         else:
@@ -103,16 +96,13 @@ def solve_by_torch(matrix: Matrix, rhs: Field) -> torch.Tensor:
             shape = matrix.shape
             mat = matrix.data
             if isinstance(mat, coo_matrix):
-                data = torch.as_tensor(mat.data, dtype=torch.float64)
+                data = torch.as_tensor(mat.data, dtype=dtype)
                 indices = torch.as_tensor(cp.vstack((mat.row, mat.col)))
                 coo = torch.sparse_coo_tensor(indices, data, shape)
                 mat = coo.to_sparse_csr()
             elif isinstance(mat, dok_matrix):
-                indices = torch.as_tensor(mat.nonzero(), dtype=torch.float64)
-                data = torch.tensor(
-                    np.array(list(mat.values())),
-                    dtype=torch.float64,
-                )
+                indices = torch.as_tensor(mat.nonzero(), dtype=dtype)
+                data = torch.tensor(np.array(list(mat.values())), dtype=dtype)
                 coo = torch.sparse_coo_tensor(indices, data, shape)
                 mat = coo.to_sparse_csr()
 
@@ -125,7 +115,7 @@ def solve_by_torch(matrix: Matrix, rhs: Field) -> torch.Tensor:
 def solve_by_cupy(matrix: Matrix, rhs: Field) -> cp.ndarray:
     """Solve the linear equations using cupy."""
     try:
-        # If the matrix is all zeros, return the right-hand side.
+        dtype = cp.float64
         if matrix.nnz[0] == 0:
             res = rhs.to_np().flatten()
             return cp.asarray(res)
@@ -138,29 +128,18 @@ def solve_by_cupy(matrix: Matrix, rhs: Field) -> cp.ndarray:
                 rows = cp.asarray(indices[0])
                 cols = cp.asarray(indices[1])
                 data = cp.asarray(mat.values().cpu().numpy())
-                mat = coo_matrix(
-                    (data, (rows, cols)),
-                    shape=shape,
-                    dtype=cp.float64,
-                )
+                mat = coo_matrix((data, (rows, cols)), shape=shape, dtype=dtype)
             elif isinstance(mat, dok_matrix):
                 indices = mat.nonzero()
                 data = np.array(list(mat.values()))
                 rows = cp.array(indices[0])
                 cols = cp.array(indices[1])
-                values = cp.array(data)
-                mat = coo_matrix((values, (rows, cols)), shape=shape, dtype=cp.float64)
+                vals = cp.array(data)
+                mat = coo_matrix((vals, (rows, cols)), shape=shape, dtype=dtype)
 
             if shape[0] < 10_000:
                 return cupy_spsolve(mat, b).flatten()
             else:
-                tol, maxiter = 1.0e-6, 1000
-                return cupy_cg(
-                    mat,
-                    b,
-                    tol=tol,
-                    maxiter=maxiter,
-                    atol=1.0e-6,
-                )[0].flatten()
+                return cupy_cg(mat, b)[0]
     except:
         raise RuntimeError("Cannot solve linear equations.")

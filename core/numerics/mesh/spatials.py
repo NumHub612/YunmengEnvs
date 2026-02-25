@@ -98,7 +98,7 @@ class Mesh:
         return self._cells[cell_ids]
 
     def update(self, masks: list[int]):
-        """Update the mesh with the given mask, for AMR.
+        """Update the mesh with given mask list during AMR.
 
         The mask list has the same length to mesh cells.
         Each element corresponds to a cell:
@@ -113,14 +113,14 @@ class Mesh:
     # groups
     # -----------------------------------------------
 
-    def set_group(self, etype: ElementType, group_id: str, ids: list):
+    def set_group(self, group_id: str, element_ids: list, etype: ElementType):
         """Set the group with the given element ids ."""
         if not isinstance(etype, ElementType):
             raise ValueError("Invalid element type.")
         if group_id in self._groups:
             raise ValueError("Group already exists.")
 
-        min_id, max_id = min(ids), max(ids)
+        min_id, max_id = min(element_ids), max(element_ids)
         if etype == ElementType.NODE:
             elem_count = self.node_count
         elif etype == ElementType.FACE:
@@ -132,7 +132,7 @@ class Mesh:
 
         if min_id < 0 or max_id >= elem_count:
             raise ValueError("Invalid group ids, out of mesh.")
-        self._groups[group_id] = (ids, etype)
+        self._groups[group_id] = (element_ids, etype)
 
     def delete_group(self, group_id: str):
         """Delete the given name group."""

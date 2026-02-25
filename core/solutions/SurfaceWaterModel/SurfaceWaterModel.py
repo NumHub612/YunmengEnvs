@@ -114,7 +114,7 @@ class SurfaceWaterModel(models.BaseModel):
             else:
                 raise ValueError("Invalid patch definition.")
 
-            self._mesh.set_group(ptype, pid, face_ids)
+            self._mesh.set_group(pid, face_ids, ptype)
 
         # zones
         zones = spatials.get("zones", [])
@@ -140,7 +140,7 @@ class SurfaceWaterModel(models.BaseModel):
             else:
                 raise ValueError("Invalid zone definition.")
 
-            self._mesh.set_group(ztype, zid, cell_ids)
+            self._mesh.set_group(zid, cell_ids, ztype)
 
     def _load_datas(self):
         """Load datas from configuration."""
