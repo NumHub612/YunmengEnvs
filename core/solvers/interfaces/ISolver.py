@@ -146,27 +146,20 @@ class ISolver(ABC):
     @abstractmethod
     def initialize(self):
         """
-        Initialize and reset the solver.
+        Initialize/reset the solver.
         """
         pass
 
     @abstractmethod
     def assimilate(self, data: dict):
         """
-        Assimilate the solver with extra data.
-        """
-        pass
-
-    @abstractmethod
-    def optimize(self):
-        """
-        Optimize the solver arguments.
+        Assimilate with extra data.
         """
         pass
 
     @abstractmethod
     def inference(self) -> SolverStatus:
         """
-        Advance this solver to next time step.
+        Advance the solver to the next timestep.
         """
         pass

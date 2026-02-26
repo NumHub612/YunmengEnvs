@@ -137,8 +137,5 @@ class BaseSolver(ISolver):
     def assimilate(self):
         raise NotImplementedError()
 
-    def optimize(self):
-        raise NotImplementedError()
-
     def inference(self) -> SolverStatus:
         raise NotImplementedError()
