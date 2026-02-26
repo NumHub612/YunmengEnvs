@@ -64,7 +64,12 @@ class Grid1D(Grid):
 
 
 class Grid2D(Grid):
-    """2D structured grid in x-y plane."""
+    """2D structured grid in x-y plane.
+
+    TODO:
+    + no more limited in x-y plane, but also in x-z and y-z planes.
+    + support non-uniform grids.
+    """
 
     def __init__(
         self,
@@ -83,7 +88,7 @@ class Grid2D(Grid):
             upper_right: The upper right corner.
             num_x: The number of nodes in the x-direction.
             num_y: The number of nodes in the y-direction.
-            mode: The node distribution mode.
+            mode: The node distribution mode(not yet implemented).
             kwargs: The extra settings corresponding to `mode`.
 
         Note:
@@ -100,8 +105,12 @@ class Grid2D(Grid):
         """
         super().__init__()
         self._dim = MeshDimension.D2
+        self._uniform = mode is None
         self._ll = lower_left
         self._ur = upper_right
+
+        self._lx = upper_right.x - lower_left.x
+        self._ly = upper_right.y - lower_left.y
         self._nx = num_x
         self._ny = num_y
         self._dx = None
@@ -111,8 +120,8 @@ class Grid2D(Grid):
         self._generate()
 
     def _generate(self):
-        self._dx = (self._ur.x - self._ll.x) / (self._nx - 1)
-        self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        self._dx = self._lx / (self._nx - 1)
+        self._dy = self._ly / (self._ny - 1)
 
         # generate nodes
         node_size = self._nx * self._ny

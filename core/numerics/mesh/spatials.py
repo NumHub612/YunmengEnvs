@@ -187,12 +187,13 @@ class Grid(Mesh):
     def __init__(self):
         super().__init__()
         self._orthogonal = True
+        self._uniform = False
         self._nx = None
         self._ny = None
         self._nz = None
-        self._dx = None
-        self._dy = None
-        self._dz = None
+        self._lx = None
+        self._ly = None
+        self._lz = None
 
     # -----------------------------------------------
     # properties
@@ -214,19 +215,24 @@ class Grid(Mesh):
         return self._nz
 
     @property
-    def dx(self) -> float:
-        """Discretization step in the x-direction."""
-        return self._dx
+    def uniform(self) -> bool:
+        """Return if the grid is uniform."""
+        return self._uniform
 
     @property
-    def dy(self) -> float:
-        """Discretization step in the y-direction."""
-        return self._dy
+    def lx(self) -> float:
+        """Length of the grid in the x-direction."""
+        return self._lx
 
     @property
-    def dz(self) -> float:
-        """Discretization step in the z-direction."""
-        return self._dz
+    def ly(self) -> float:
+        """Length of the grid in the y-direction."""
+        return self._ly
+
+    @property
+    def lz(self) -> float:
+        """Length of the grid in the z-direction."""
+        return self._lz
 
     # -----------------------------------------------
     # methods
