@@ -5,119 +5,154 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Mesh partitioning methods.
 """
 from core.numerics.mesh import Mesh
+from core.utils.ParseGpu import parse_gpu
+from configs.settings import settings
 import numpy as np
 import pymetis
-from dataclasses import dataclass
+import torch
+
+from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 
 
-@dataclass
-class PartitionInfo:
-    """Partition data for a mesh partition."""
+@dataclass(slots=True)
+class SharedInfo:
+    """Halo communication information."""
 
-    partition_id: int
+    neighbours: List[int] = field(default_factory=list)  # Neighbor shard IDs
+    send_map: Dict[int, List[Tuple[int, int]]] = field(
+        default_factory=dict
+    )  # [target_shard, (local_idx, target_global_idx)]
+    recv_map: Dict[int, List[int]] = field(
+        default_factory=dict
+    )  # [source_shard, local_ghost_idxs], for unpack
+    shared_map: Dict[int, List[int]] = field(
+        default_factory=dict
+    )  # [neighbour_part, shared_local_idxs], for sync
+
+
+@dataclass(slots=True)
+class MeshShard:
+    """Mesh shard for distributed computation."""
+
+    shard_id: int
+    gpu: Optional[torch.device] = None
 
     # Local entities (global indices)
-    local_cells: np.ndarray  # cells owned by this partition
-    local_faces: np.ndarray  # faces owned by this partition (including ghost)
-    local_nodes: np.ndarray  # nodes owned by this partition
+    cells: np.ndarray  # ghost cells at the end
+    faces: np.ndarray
+    nodes: np.ndarray
 
-    # Element mapping: global -> local
-    cell_global_to_local: Dict[int, int]
-    face_global_to_local: Dict[int, int]
-    node_global_to_local: Dict[int, int]
+    # Entity mapping:global -> local
+    cell_g2l: Dict
+    face_g2l: Dict
+    node_g2l: Dict
+    halo_g2l: Dict
 
-    # Partition boundary communication data
-    send_faces: Dict[
-        int, List[Tuple[int, int]]
-    ]  # {target_part: [(local_face_idx, target_cell_global_id), ...]}
-    recv_faces: Dict[int, List[int]]  # {source_part: [local_face_idx, ...]}
-
-    # Node sharing info
-    shared_nodes: Dict[int, List[int]]  # {other_part: [local_node_idx, ..]}
+    # 3-levels halo information
+    cell_halo: SharedInfo
+    face_halo: SharedInfo
+    node_halo: SharedInfo
 
 
 class MeshPart:
     """Mesh partition assitant."""
 
     def __init__(self, global_mesh: Mesh):
-        self.mesh = global_mesh
-        self.topo = global_mesh.get_topo_assistant()
-        self.geom = global_mesh.get_geom_assistant()
+        self._topo = global_mesh.get_topo_assistant()
+        self._geom = global_mesh.get_geom_assistant()
 
-        self.cell_parts: Optional[np.ndarray] = None
-        self.cut_edges: int = None
-        self.partitions: List[PartitionInfo] = []
-
-    @property
-    def num_parts(self) -> int:
-        """Number of partitions."""
-        return len(self.partitions)
+        self._cell_parts: np.ndarray = None
+        self._shards: List[MeshShard] = []
 
     def reset(self, mesh: Mesh):
         """Reset mesh."""
         self.__init__(mesh)
 
-    def partition(self, num_parts: int) -> List[PartitionInfo]:
-        """Partition the mesh."""
-        # Partition cells
-        self._partition_cells(num_parts)
+    @property
+    def num_shards(self) -> int:
+        """Return number of shards."""
+        if self._shards is None:
+            raise ValueError("Mesh has not been partitioned yet.")
+        return len(self._shards)
 
-        # Build parts
-        for part_id in range(num_parts):
-            part = self._build_parts(part_id)
-            self.partitions.append(part)
+    @property
+    def cell_parts(self) -> np.ndarray:
+        """Return cell partitions."""
+        if self._cell_parts is None:
+            raise ValueError("Mesh has not been partitioned yet.")
+        return self._cell_parts
 
-        # Build halo info
+    @property
+    def shards(self) -> List[MeshShard]:
+        """Return all shards."""
+        if self._shards is None:
+            raise ValueError("Mesh has not been partitioned yet.")
+        return self._shards
+
+    def partition(
+        self,
+        num_shards: int,
+        gpus: List[int | str] = settings.gpus,
+    ) -> List[MeshShard]:
+        """Run partitioning with devices."""
+        # Check devices
+        if gpus is not None and len(gpus) != num_shards:
+            raise ValueError(
+                f"GPU count {len(gpus)} doesn't match shard num {num_shards}."
+            )
+
+        # Metis partitioning
+        self._cell_parts = self._part_cells(num_shards)
+
+        # Build shards
+        for sid in range(num_shards):
+            shard = self._build_shard(sid, gpus)
+            self._shards.append(shard)
+
+        # Build halos
         self._build_halos()
-        return self.partitions
 
-    def get_partition(self, part_id: int) -> PartitionInfo:
-        """Get partition data."""
-        return self.partitions[part_id]
+        return self._shards
 
-    def _partition_cells(self, num_parts):
+    def _part_cells(self, num_shards: int) -> np.ndarray:
         """Partition cells."""
-        # Setup partition
         options = pymetis.Options()
         options.minconn = True
         options.contig = True
 
-        # Partition, cell in which partition
-        cut_edges, membership = pymetis.part_graph(
-            num_parts,
-            adjacency=self.topo.cell_neighbours,
-            recursive=(num_parts <= 8),
+        adjacency = self._topo.cell_neighbours
+        recursive = num_shards <= 8
+        _, membership = pymetis.part_graph(
+            num_shards,
+            adjacency=adjacency,
+            recursive=recursive,  # Small-scale partition
             options=options,
         )
+        return np.array(membership)
 
-        self.cell_parts = np.array(membership)
-        self.cut_edges = cut_edges
-
-    def _build_parts(self, part_id):
-        """Build partition data."""
+    def _build_shard(self, sid: int, gpus: List[int | str]) -> MeshShard:
+        """Build a shard."""
         # Get local cells
-        local_cells = np.where(self.cell_parts == part_id)[0]
+        local_cells = np.where(self.cell_parts == sid)[0]
         local_cells = np.unique(local_cells)
 
         # Get local faces
         local_faces = []
-        for fid, (c_l, c_r) in enumerate(self.topo.face_cells):
-            l_in = c_l in local_cells if c_l is not None else False
-            r_in = c_r in local_cells if c_r is not None else False
-            if l_in or r_in:
+        for fid, (cl, cr) in enumerate(self._topo.face_cells):
+            li = cl is not None and self._cell_parts[cl] == sid
+            ri = cr is not None and self._cell_parts[cr] == sid
+            if li or ri:
                 local_faces.append(fid)
         local_faces = np.array(local_faces)
 
         # Get local nodes
         local_nodes = set()
-        for cell_idx in local_cells:
-            for node_idx in self.topo.cell_nodes[cell_idx]:
-                local_nodes.add(node_idx)
-        for face_idx in local_faces:
-            for node_idx in self.topo.face_nodes[face_idx]:
-                local_nodes.add(node_idx)
+        for cid in local_cells:
+            local_nodes.update(self._topo.cell_nodes[cid])
+        for fid in local_faces:
+            local_nodes.update(self._topo.face_nodes[fid])
         local_nodes = np.array(sorted(local_nodes))
 
         # Build global -> local maps
@@ -125,80 +160,99 @@ class MeshPart:
         face_g2l = {g: l for l, g in enumerate(local_faces)}
         node_g2l = {g: l for l, g in enumerate(local_nodes)}
 
-        # Build partition data
-        return PartitionInfo(
-            partition_id=part_id,
-            local_cells=local_cells,
-            local_faces=local_faces,
-            local_nodes=local_nodes,
-            cell_global_to_local=cell_g2l,
-            face_global_to_local=face_g2l,
-            node_global_to_local=node_g2l,
-            send_faces={},
-            recv_faces={},
-            shared_nodes={},
+        # Set GPU device
+        gpu = gpus[sid] if gpus is not None else None
+        gpu = parse_gpu(gpu)
+
+        return MeshShard(
+            shard_id=sid,
+            gpu=gpu,
+            cells=local_cells,
+            faces=local_faces,
+            nodes=local_nodes,
+            cell_g2l=cell_g2l,
+            face_g2l=face_g2l,
+            node_g2l=node_g2l,
+            halo_g2l={},
+            cell_halo=SharedInfo(),
+            face_halo=SharedInfo(),
+            node_halo=SharedInfo(),
         )
 
     def _build_halos(self):
         """Build halo info."""
-        # Build interface faces
-        interface_faces = defaultdict(list)
-        for face_idx, (c_l, c_r) in enumerate(self.topo.face_cells):
-            if c_l is None or c_r is None:
+        # Get interfaces
+        interfaces = defaultdict(list)
+        for fid, (cl, cr) in enumerate(self._topo.face_cells):
+            if cr is None:  # Boundary face
                 continue
+            pl = self._cell_parts[cl]
+            pr = self._cell_parts[cr]
+            if pl != pr:  # Interface face
+                ps = tuple(sorted((pl, pr)))
+                interfaces[ps].append((fid, cl, cr, pl, pr))
 
-            p_l = self.cell_parts[c_l]
-            p_r = self.cell_parts[c_r]
-            if p_l != p_r:
-                p1, p2 = sorted((p_l, p_r))
-                interface_faces[(p1, p2)].append(face_idx)
+        # Cell/Face Halo
+        for (pa, pb), items in interfaces.items():
+            sa, sb = self._shards[pa], self._shards[pb]
+            for fid, cl, cr, pl, pr in items:
+                # pa own the cl, pb own the cr
+                if pl == pa:
+                    self._add_cell_halo(sa, sb, fid, cl)
+                    self._add_cell_halo(sb, sa, fid, cr)
+                    self._add_face_halo(sa, sb, fid)
+                else:
+                    self._add_cell_halo(sb, sa, fid, cl)
+                    self._add_cell_halo(sa, sb, fid, cr)
+                    self._add_face_halo(sb, sa, fid)
 
-        # Build send/recv faces
-        for (p_a, p_b), faces in interface_faces.items():
-            for face_idx in faces:
-                c_l, c_r = self.topo.face_cells[face_idx]
-                p_l, p_r = (
-                    self.cell_parts[c_l],
-                    self.cell_parts[c_r],
-                )
+        # Node Halo
+        self._add_node_halo()
 
-                sender, receiver = (p_l, p_r) if p_l != p_r else (p_r, p_l)
-                if sender == receiver:
-                    continue
+    def _add_cell_halo(
+        self, sender: MeshShard, receiver: MeshShard, fid: int, ghost_cell: int
+    ):
+        """Add cell halo entry."""
+        # Allocate ghost cell in receiver
+        ghost_idx = len(receiver.cells) + len(receiver.halo_g2l)
+        receiver.halo_g2l[ghost_cell] = ghost_idx
+        receiver.cells = np.append(receiver.cells, ghost_cell)
 
-                send_part = self.partitions[sender]
-                recv_part = self.partitions[receiver]
+        # Recorder halo mapping
+        sender.cell_halo.send_map.setdefault(receiver.shard_id, []).append(
+            (sender.cell_g2l[ghost_cell], ghost_cell)
+        )
+        receiver.cell_halo.recv_map.setdefault(
+            sender.shard_id,
+            [],
+        ).append(ghost_idx)
 
-                local_idx = send_part.face_global_to_local[face_idx]
-                target_cell_gid = c_r if sender == p_l else c_l
+        # Update neighbor lists
+        if receiver.shard_id not in sender.cell_halo.neighbours:
+            sender.cell_halo.neighbours.append(receiver.shard_id)
+        if sender.shard_id not in receiver.cell_halo.neighbours:
+            receiver.cell_halo.neighbours.append(sender.shard_id)
 
-                if receiver not in send_part.send_faces:
-                    send_part.send_faces[receiver] = []
-                send_part.send_faces[receiver].append((local_idx, target_cell_gid))
+    def _add_face_halo(self, s1: MeshShard, s2: MeshShard, fid: int):
+        """Add face halo entry."""
+        for a, b in [(s1, s2), (s2, s1)]:
+            a.face_halo.shared_map.setdefault(b.shard_id, []).append(a.face_g2l[fid])
 
-                local_idx = recv_part.face_global_to_local[face_idx]
-                if sender not in recv_part.recv_faces:
-                    recv_part.recv_faces[sender] = []
-                recv_part.recv_faces[sender].append(local_idx)
+    def _add_node_halo(self, s1: MeshShard, s2: MeshShard, nid: int):
+        """Add node halo entry."""
+        if self.num_shards <= 1:
+            return
+        node_parts = defaultdict(set[int])
+        for s in self._shards:
+            for nid in s.nodes:
+                node_parts[nid].add(s.shard_id)
 
-        self._sharing_nodes()
-
-    def _sharing_nodes(self):
-        """Build shared nodes."""
-        node_partitions = defaultdict(set)
-        for part in self.partitions:
-            for idx in part.local_nodes:
-                node_partitions[idx].add(part.partition_id)
-
-        for node_idx, parts in node_partitions.items():
-            if len(parts) <= 1:
-                continue
-            for part_id in parts:
-                part = self.partitions[part_id]
-                local_idx = part.node_global_to_local[node_idx]
-                for other_part in parts:
-                    if other_part == part_id:
-                        continue
-                    if other_part not in part.shared_nodes:
-                        part.shared_nodes[other_part] = []
-                    part.shared_nodes[other_part].append(local_idx)
+        for nid, parts in node_parts.items():
+            for sid in parts:
+                s, li = self._shards[sid], s.node_g2l[nid]
+                for other in parts:
+                    if other != sid:
+                        s.node_halo.shared_map.setdefault(
+                            other,
+                            [],
+                        ).append(li)
