@@ -8,7 +8,7 @@ from core.solvers.interfaces import IOperator, OperatorType
 from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field, DataHub
 from core.numerics.mesh import Mesh
-from core.numerics.algos import MeshTopo, MeshGeom
+from core.numerics.algos import MeshTopo, MeshGeom, MeshPart
 
 import copy
 
@@ -35,6 +35,7 @@ class Ddt01(IOperator):
         self._mesh: Mesh = None
         self._topo: MeshTopo = None
         self._geom: MeshGeom = None
+        self._part: MeshPart = None
 
         self._rho = rho
         self._var = ""
@@ -43,16 +44,13 @@ class Ddt01(IOperator):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._part = self._mesh.get_part_assistant()
         self._var = fields[0]
 
     def run(self, sources: DataHub) -> Field | LinearEqs:
         sample = sources.field(self._var, 0)
         data = sample.data
-        ddt_eqs = LinearEqs.zeros(
-            self._mesh.cell_count,
-            rhs_type=data.dtype,
-            variable=data.name,
-        )
+        ddt_eqs = LinearEqs.zeros(self._part, rhs_type=data.dtype, etype=data.etype)
 
         for cid in range(self._mesh.cell_count):
             vol = self._geom.cell_volume[cid]
@@ -91,6 +89,7 @@ class Ddt02(IOperator):
         self._mesh: Mesh = None
         self._topo: MeshTopo = None
         self._geom: MeshGeom = None
+        self._part: MeshPart = None
 
         self._rho = rho
         self._var = ""
@@ -99,6 +98,7 @@ class Ddt02(IOperator):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._part = self._mesh.get_part_assistant()
 
         self._var = fields[0]
 
@@ -109,9 +109,7 @@ class Ddt02(IOperator):
         cur_data = cur_source.data
 
         ddt_eqs = LinearEqs.zeros(
-            self._mesh.cell_count,
-            rhs_type=cur_data.dtype,
-            variable=cur_data.name,
+            self._part, rhs_type=cur_data.dtype, etype=cur_data.etype
         )
 
         for cid in range(self._mesh.cell_count):

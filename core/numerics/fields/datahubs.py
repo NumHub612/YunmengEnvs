@@ -77,12 +77,12 @@ class DataHub:
 
     def push_field(self, name: str, sample: Sample):
         """Push origin field."""
-        _name = self._inner_name(name, sample.data.desc.etype)
+        _name = self._inner_name(name, sample.data.meta.etype)
         self._buffs[_name].push(sample)
 
     def push_grad(self, name: str, sample: Sample):
         """Push gradient."""
-        _name = self._inner_name(name, sample.data.desc.etype)
+        _name = self._inner_name(name, sample.data.meta.etype)
         self._grads[_name].push(sample)
 
     def push(self, name: str, field: Sample, grad: Sample):

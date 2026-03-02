@@ -5,9 +5,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Solving the 2D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
-from core.numerics.mesh import Mesh
-from core.numerics.algos import MeshGeom, MeshTopo
-from core.numerics.fields import NodeField, VariableType
+from core.numerics.mesh import Mesh, ElementType
+from core.numerics.algos import MeshGeom, MeshTopo, MeshPart
+from core.numerics.fields import VariableType, Field
 from core.numerics.mesh import Grid2D
 from configs.settings import logger
 
@@ -74,6 +74,7 @@ class Burgers2D(BaseSolver):
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
+        self._part = MeshPart(mesh)
 
         self._start_time = time.perf_counter()
         self._now_time = self._start_time
@@ -95,7 +96,13 @@ class Burgers2D(BaseSolver):
             time_steps: The total time steps of the simulation.
             nu: The viscosity of the Burgers equation.
         """
-        self._fields = {"vel": NodeField(self._mesh.node_count, VariableType.VECTOR)}
+        self._fields = {
+            "vel": Field(
+                self._part,
+                VariableType.VECTOR,
+                ElementType.NODE,
+            )
+        }
 
         # Check initial conditions
         if "vel" not in self._ics:

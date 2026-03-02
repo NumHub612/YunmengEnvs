@@ -6,7 +6,7 @@ Grad operators for the finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, CellField, Variable, VariableType, DataHub
+from core.numerics.fields import Field, Field, Variable, VariableType, DataHub
 from core.numerics.mesh import Grid, ElementType
 
 import numpy as np
@@ -38,6 +38,7 @@ class Grad01(IOperator):
         self._mesh = None
         self._topo = None
         self._geom = None
+        self._part = None
         self._var = ""
 
     def prepare(self, fields: list[str], mesh: Grid, bounds: dict):
@@ -47,6 +48,7 @@ class Grad01(IOperator):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._part = self._mesh.get_part_assistant()
         self._var = fields[0]
 
     def run(self, sources: DataHub) -> Field | LinearEqs:
@@ -67,8 +69,7 @@ class Grad01(IOperator):
         grads = np.zeros((source.size, 3))
         for cid in range(self._mesh.cell_count):
             grads[cid] = grand_func(source, cid)
-
-        return CellField.from_data(grads)
+        return Field.from_array(grads, self._part, source._meta)
 
     def _calculate_scalar_grad(self, source, element) -> Variable:
         """Calculate the gradient of scalar."""

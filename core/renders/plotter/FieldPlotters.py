@@ -210,7 +210,7 @@ def _extract_field_data(field: Field):
     """
     Extract the data of the given field.
     """
-    values = field.data.as_numpy()
+    values = field.gather_to_host()
 
     if field.dtype == VariableType.SCALAR:
         return values, {"x": values, "y": values, "z": values}

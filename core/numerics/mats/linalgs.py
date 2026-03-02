@@ -6,8 +6,8 @@ Linear algebra class.
 """
 from core.numerics.enums import VariableType, ElementType
 from core.numerics.mats import Matrix, SparseMatrix
-from core.numerics.fields import Field, FieldData
-from configs.settings import settings
+from core.numerics.algos import MeshPart
+from core.numerics.fields import Field
 
 from typing import Callable
 import numpy as np
@@ -19,26 +19,7 @@ class LinearEqs:
     Linear equations solver.
     """
 
-    def __init__(
-        self,
-        mat: Matrix,
-        rhs: Field,
-        variable: str = "none",
-        device: torch.device = None,
-    ):
-        """Linear equations solver.
-
-        Args:
-            mat: The coefficient matrix of the linear equations.
-            rhs: The right-hand side of the linear equations.
-            variable: The target variable.
-            device: The device.
-        """
-        self._device = device or settings.device
-        if isinstance(self._device, str):
-            self._device = torch.device(self._device)
-
-        self._var = variable
+    def __init__(self, mat: Matrix, rhs: Field):
         self._mat = mat
         self._rhs = rhs
 
@@ -61,17 +42,16 @@ class LinearEqs:
 
     @staticmethod
     def zeros(
-        size: int,
+        partitions: MeshPart,
         matrix_type: VariableType = VariableType.SCALAR,
         rhs_type: VariableType = VariableType.SCALAR,
-        ele_type: ElementType = ElementType.CELL,
-        variable: str = "none",
-        device: torch.device = None,
+        etype: ElementType = ElementType.CELL,
     ) -> "LinearEqs":
         """Create a linear equations with all elements set to zero."""
-        mat = SparseMatrix.zeros((size, size), matrix_type, device)
-        rhs = Field.zeros(size, rhs_type, ele_type, device=device, name=variable)
-        return LinearEqs(mat, rhs, variable, device)
+        size = partitions.get_size(etype)
+        mat = SparseMatrix.zeros((size, size), matrix_type)
+        rhs = Field(partitions, rhs_type, etype)
+        return LinearEqs(mat, rhs)
 
     # -----------------------------------------------
     # region properties
@@ -81,11 +61,6 @@ class LinearEqs:
     def size(self) -> int:
         """The size of the linear equations."""
         return self._size
-
-    @property
-    def variable(self) -> str:
-        """The target variable."""
-        return self._var
 
     @property
     def matrix(self) -> Matrix:
@@ -128,7 +103,6 @@ class LinearEqs:
         return LinearEqs(
             self._mat + other.matrix,
             self._rhs + other.rhs,
-            self.variable,
         )
 
     def __radd__(self, other):
@@ -145,7 +119,6 @@ class LinearEqs:
         return LinearEqs(
             self._mat - other.matrix,
             self._rhs - other.rhs,
-            self.variable,
         )
 
     def __rsub__(self, other: "LinearEqs"):
@@ -153,7 +126,6 @@ class LinearEqs:
         return LinearEqs(
             other.matrix - self._mat,
             other.rhs - self._rhs,
-            self.variable,
         )
 
     def __isub__(self, other: "LinearEqs"):
@@ -163,7 +135,7 @@ class LinearEqs:
         return self
 
     def __neg__(self):
-        return LinearEqs(-self._mat, -self._rhs, self._var)
+        return LinearEqs(-self._mat, -self._rhs)
 
     def _check_compatible(self, other):
         if not isinstance(other, LinearEqs):
@@ -172,11 +144,6 @@ class LinearEqs:
             raise ValueError(
                 f"Invalid LinearEqs operation with different sizes: \
                     {self.size} vs {other.size}."
-            )
-        if other.variable != self.variable:
-            raise ValueError(
-                f"Invalid LinearEqs operation with different variables: \
-                    {self.variable} vs {other.variable}."
             )
         if other.matrix.dtype != self.matrix.dtype:
             raise ValueError(
@@ -201,12 +168,10 @@ class LinearEqs:
         eqs = []
         if len(mat_lst) == 1:
             for i, rhs in enumerate(rhs_lst):
-                var = f"{self.variable}_{i}"
-                eqs.append(LinearEqs(mat_lst[0], rhs, var))
+                eqs.append(LinearEqs(mat_lst[0], rhs))
         else:
             for mat, rhs, i in zip(mat_lst, rhs_lst, range(len(mat_lst))):
-                var = f"{self.variable}_{i}"
-                eqs.append(LinearEqs(mat, rhs, var))
+                eqs.append(LinearEqs(mat, rhs))
         return eqs
 
     def solve(self, engine: Callable) -> Field:
@@ -217,6 +182,5 @@ class LinearEqs:
             results.append(result)
 
         results = np.array(results).T
-        data = FieldData(np.array(results), self._rhs.dtype, self._rhs.data.backend)
-        result = Field(data, self._rhs.etype, self._rhs.name)
+        result = Field.from_array(results, self.rhs._mesh_part, self.rhs._meta)
         return result

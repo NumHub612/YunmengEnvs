@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh partitioning methods.
 """
-from core.numerics.mesh import Mesh
+from core.numerics.mesh import Mesh, ElementType
 from core.utils.ParseGpu import parse_gpu
 from configs.settings import settings
 import numpy as np
@@ -36,7 +36,7 @@ class SharedInfo:
 class MeshShard:
     """Mesh shard for distributed computation."""
 
-    shard_id: int 
+    shard_id: int
     gpu: torch.device
 
     # Local entities (global indices)
@@ -60,11 +60,12 @@ class MeshPart:
     """Mesh partition assitant."""
 
     def __init__(self, global_mesh: Mesh):
+        self._mesh = global_mesh
         self._topo = global_mesh.get_topo_assistant()
         self._geom = global_mesh.get_geom_assistant()
 
         self._cell_parts: np.ndarray = None
-        self._shards: List[MeshShard] = []
+        self._shards: List[MeshShard] = None
 
     def reset(self, mesh: Mesh):
         """Reset mesh."""
@@ -74,37 +75,50 @@ class MeshPart:
     def num_shards(self) -> int:
         """Return number of shards."""
         if self._shards is None:
-            raise ValueError("Mesh has not been partitioned yet.")
+            self.partition(max(len(settings.gpus), 1))
         return len(self._shards)
 
     @property
     def cell_parts(self) -> np.ndarray:
         """Return cell partitions."""
         if self._cell_parts is None:
-            raise ValueError("Mesh has not been partitioned yet.")
+            self.partition(max(len(settings.gpus), 1))
         return self._cell_parts
 
     @property
     def shards(self) -> List[MeshShard]:
         """Return all shards."""
         if self._shards is None:
-            raise ValueError("Mesh has not been partitioned yet.")
+            self.partition(max(len(settings.gpus), 1))
         return self._shards
+
+    def get_size(self, etype: ElementType) -> int:
+        """Return the size of a given entity type."""
+        if etype == ElementType.CELL:
+            return self._mesh.cell_count
+        elif etype == ElementType.FACE:
+            return self._mesh.face_count
+        elif etype == ElementType.NODE:
+            return self._mesh.node_count
+        else:
+            raise ValueError(f"Unknown entity type {etype}")
 
     def partition(
         self,
         num_shards: int,
+        device: str = settings.device,
         gpus: List[int | str] = settings.gpus,
     ) -> List[MeshShard]:
         """Run partitioning with devices."""
         # Check devices
-        if gpus is not None and len(gpus) != num_shards:
-            raise ValueError(
-                f"GPU count {len(gpus)} doesn't match shard num {num_shards}."
-            )
+        if device == "cuda" and len(gpus) < num_shards:
+            raise ValueError(f"GPU count {len(gpus)} less than shard num {num_shards}.")
+        if device == "cpu":
+            gpus = None
 
         # Metis partitioning
         self._cell_parts = self._part_cells(num_shards)
+        self._shards = []
 
         # Build shards
         for sid in range(num_shards):
@@ -238,7 +252,7 @@ class MeshPart:
         for a, b in [(s1, s2), (s2, s1)]:
             a.face_halo.shared_map.setdefault(b.shard_id, []).append(a.face_g2l[fid])
 
-    def _add_node_halo(self, s1: MeshShard, s2: MeshShard, nid: int):
+    def _add_node_halo(self):
         """Add node halo entry."""
         if self.num_shards <= 1:
             return

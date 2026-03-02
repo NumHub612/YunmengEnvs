@@ -182,7 +182,7 @@ class SurfaceWaterModel(models.BaseModel):
                 cell_count = self._mesh.cell_count
                 etype = ElementType.from_str(domain)
                 dtype = VariableType.from_str(dtype)
-                field = Field.zeros(cell_count, dtype, etype, name=var)
+                field = Field(self._mesh.get_part_assistant(), dtype, etype)
                 for expr in f_expr:
                     zone_id = expr["zone"]
                     val = expr["value"]

@@ -6,8 +6,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 """
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from core.solvers.commons import inits, boundaries
-from core.numerics.mesh import Mesh
-from core.numerics.fields import CellField, VariableType, DataHub, Sample
+from core.numerics.mesh import Mesh, ElementType
+from core.numerics.fields import Field, VariableType, DataHub, Sample
 from core.numerics.mats import LinearEqs
 from core.numerics.algos.engines import get_engine_method
 from configs.settings import logger
@@ -51,6 +51,7 @@ class Burgers2D(BaseSolver):
         super().__init__(id, mesh, operators)
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
+        self._part = mesh.get_part_assistant()
 
         self._default_bcs = {"u": boundaries.MixedBoundary("u", 0.0, 0.0)}
         self._default_ics = {"u": inits.UniformInitialization("u", 0.0)}
@@ -62,7 +63,11 @@ class Burgers2D(BaseSolver):
 
         self._buf: DataHub = None
         self._fields = {
-            "u": CellField(self._mesh.cell_count, VariableType.VECTOR, name="u"),
+            "u": Field(
+                self._part,
+                VariableType.VECTOR,
+                ElementType.CELL,
+            ),
         }
 
     def initialize(self, engine: str = "numpy", max_iter: int = 100, tol: float = 1e-6):
@@ -116,42 +121,39 @@ class Burgers2D(BaseSolver):
         for callback in self._callbacks:
             callback.on_step_begin()
 
-        self._buf.push_field(
-            "u", Sample(start.real, dt, self._fields["u"])
-        )  # TODO: deepcopy?
-        sys = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=VariableType.VECTOR, variable="u"
-        )
+        self._buf.push_field("u", Sample(start.real, dt, self._fields["u"]))
+        sys = LinearEqs.zeros(self._part, rhs_type=VariableType.VECTOR)
+
         # Assemble time matrix(ddt)
-        sys_t = self._operators["ddt"].run(self._buf)
-        sys += sys_t
+        # sys_t = self._operators["ddt"].run(self._buf)
+        # sys += sys_t
 
         # Assemble convection matrix(div)
         # sys_c = self._operators["div"].run(self._buf) # wrong
         # sys += sys_c
 
         # Assemble diffusion matrix(laplacian)
-        sys_d = self._operators["laplacian"].run(self._buf)  # boundary issue
-        sys += sys_d
+        # sys_d = self._operators["laplacian"].run(self._buf)  # boundary issue
+        # sys += sys_d
 
         # Assemble source term matrix(src)
-        sys_s = self._operators["src"].run(self._buf)
-        sys += sys_s
+        # sys_s = self._operators["src"].run(self._buf)
+        # sys += sys_s
 
         # Call callbacks
         for callback in self._callbacks:
             callback.on_step()
 
         # Solve linear system
-        solutions = sys.solve(self._engine)
-        self._fields["u"] = solutions
+        # solutions = sys.solve(self._engine)
+        # self._fields["u"] = solutions
         self._step += 1
 
         # Update status
-        diffs = self._fields["u"] - self._buf.field("u").data
-        res = np.max(np.abs(diffs.data.as_numpy()))
+        # diffs = self._fields["u"] - self._buf.field("u").data
+        # res = np.max(np.abs(diffs.data.as_numpy()))
         time_cost = time.perf_counter() - start
-        self._update_status(res, time_cost)
+        self._update_status(0, time_cost)
 
         # Call callbacks
         for callback in self._callbacks:

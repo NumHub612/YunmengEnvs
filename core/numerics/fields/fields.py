@@ -43,7 +43,6 @@ class FieldMeta:
     etype: ElementType
     dtype: VariableType
     backend_name: str
-    mesh_version: int = 0
     requires_grad: bool = False
     unit: str = None
 
@@ -56,11 +55,6 @@ class FieldShard:
     gpu: torch.device
     data: DataArray  # n_local + n_ghost
     n_local: int
-
-    @property
-    def n_local(self) -> int:
-        """Local data size"""
-        return self.n_local
 
     @property
     def n_ghost(self) -> int:
@@ -96,46 +90,39 @@ class FieldShard:
 class Field:
     """Distributed physical field."""
 
-    __slots__ = ()
+    __slots__ = (
+        "_meta",
+        "_shards",
+        "_backend",
+        "_mesh_part",
+        "_halo_buffers",
+        "_global_in_shard",
+        "_comm_group",
+        "_dirty_flags",
+    )
 
     def __init__(
         self,
         mesh_part: MeshPart,
         dtype: VariableType,
         etype: ElementType,
-        mesh_version: int = 0,
         init_val: DataItem = None,
         requires_grad: bool = False,
     ):
         # Init metadata
-        self.backend = get_backend()
-        self.mesh_part = mesh_part
-        total_size = 0
-        for shard in mesh_part.shards:
-            n_data, _, n_ghost = self._get_shard_shape(shard.shard_id)
-            total_size += n_data - n_ghost
-        self.meta = FieldMeta(
+        self._backend = get_backend()
+        self._mesh_part = mesh_part
+        self._meta = FieldMeta(
             version=0,
-            size=total_size,
+            size=mesh_part.get_size(etype),
             etype=etype,
             dtype=dtype,
-            backend_name=self.backend.name,
-            mesh_version=mesh_version,
-            requires_grad=requires_grad,
-        )
-
-        self.meta = FieldMeta(
-            version=0,
-            size=sum([len(s.cell_g2l) for s in mesh_part.shards]),
-            etype=etype,
-            dtype=dtype,
-            backend_name=self.backend.name,
-            mesh_version=mesh_version,
+            backend_name=self._backend.name,
             requires_grad=requires_grad,
         )
 
         # Init shards for each mesh shard
-        self.shards: Dict[int, FieldShard] = {}
+        self._shards: Dict[int, FieldShard] = {}
         self._init_shards(init_val, requires_grad)
 
         # Init halo communication buffers
@@ -156,15 +143,15 @@ class Field:
 
     def _init_shards(self, init_val, requires_grad: bool = True):
         """Init field shards."""
-        for mesh_shard in self.mesh_part.shards:
+        for mesh_shard in self._mesh_part.shards:
             sid = mesh_shard.shard_id
             n_data, n_comp, n_ghost = self._get_shard_shape(sid)
             init_val = self._get_init_val(init_val)
 
-            if self.backend.name == "torch":
+            if self._backend.name == "torch":
                 with torch.cuda.device(mesh_shard.gpu):
                     data = torch.full(
-                        (n_data, n_comp),
+                        (n_data, *n_comp),
                         init_val,
                         dtype=torch.float64,
                         device=mesh_shard.gpu,
@@ -172,12 +159,12 @@ class Field:
                     )
             else:  # numpy
                 data = np.full(
-                    (n_data, n_comp),
+                    (n_data, *n_comp),
                     init_val,
                     dtype=np.float64,
                 )
 
-            self.shards[sid] = FieldShard(
+            self._shards[sid] = FieldShard(
                 shard_id=sid,
                 gpu=mesh_shard.gpu,
                 data=data,
@@ -187,7 +174,7 @@ class Field:
     def _get_init_val(self, init_val) -> Variable:
         """Get initial value for this shard."""
         if init_val is None:
-            return Variable.zero(self.meta.dtype, self.meta.requires_grad).data
+            return Variable.zero(self._meta.dtype, self._meta.requires_grad).data
         if isinstance(init_val, Variable):
             return init_val.data
         if isinstance(init_val, (float, np.ndarray, torch.Tensor)):
@@ -195,32 +182,32 @@ class Field:
 
     def _get_shard_shape(self, sid) -> tuple:
         """Get the shape of mesh shard data."""
-        shard = self.mesh_part.shards[sid]
+        shard = self._mesh_part.shards[sid]
 
         # element count depends on field type
         n_ghost = 0
-        if self.meta.etype == ElementType.CELL:
+        if self._meta.etype == ElementType.CELL:
             n_elements = len(shard.cells)  # local + ghost
             n_ghost = len(shard.halo_g2l)
-        elif self.meta.etype == ElementType.FACE:
+        elif self._meta.etype == ElementType.FACE:
             n_elements = len(shard.faces)
-        elif self.meta.etype == ElementType.NODE:
+        elif self._meta.etype == ElementType.NODE:
             n_elements = len(shard.nodes)
         else:
             n_elements = 0
 
         # component count depends on variable type
-        n_components = self.meta.dtype.value
+        n_components = self._meta.dtype.value
 
         # return the full shape for this shard
         return (n_elements, n_components, n_ghost)
 
     def _init_halo_buffers(self):
         """Pre-allocate halo communication buffers."""
-        for mesh_shard in self.mesh_part.shards:
+        for mesh_shard in self._mesh_part.shards:
             sid = mesh_shard.shard_id
             cell_halo = mesh_shard.cell_halo
-            n_components = self.meta.dtype.value
+            n_components = self._meta.dtype.value
 
             # Pre-allocate send/recv buffers for each neighbor
             buffers = {}
@@ -250,7 +237,7 @@ class Field:
             self._halo_buffers[sid] = buffers
 
     def _make_buffer(self, size, shape, device):
-        if self.backend.name == "torch":
+        if self._backend.name == "torch":
             return torch.empty(
                 size,
                 shape,
@@ -262,11 +249,8 @@ class Field:
 
     def _build_global_index_maps(self):
         """Build global index -> (shard_id, local_index) mapping."""
-        if self._global_in_shard is not None:
-            return
-
-        self._global_in_shard = np.empty(self.meta.size, dtype=object)
-        for shard in self.mesh_part.shards:
+        self._global_in_shard = np.empty(self._meta.size, dtype=object)
+        for shard in self._mesh_part.shards:
             sid = shard.shard_id
             for g, l in shard.cell_g2l.items():
                 self._global_in_shard[g] = (sid, l)
@@ -294,9 +278,9 @@ class Field:
     def _to_data(self, value, sid):
         if isinstance(value, Variable):
             value = value.data
-        if self.backend.name == "torch":
+        if self._backend.name == "torch":
             return torch.as_tensor(
-                value, dtype=torch.float64, device=self.shards[sid].gpu
+                value, dtype=torch.float64, device=self._shards[sid].gpu
             )
         else:
             return np.array(value, dtype=np.float64)
@@ -306,24 +290,28 @@ class Field:
     # --------------------------------------------------
 
     @property
-    def desc(self) -> FieldMeta:
-        return self.meta
+    def meta(self) -> FieldMeta:
+        return self._meta
 
     @property
     def shards(self) -> List[FieldShard]:
-        return self.shards.values()
+        return self._shards.values()
 
     @property
     def etype(self) -> ElementType:
-        return self.meta.etype
+        return self._meta.etype
 
     @property
     def dtype(self) -> VariableType:
-        return self.meta.dtype
+        return self._meta.dtype
 
     @property
     def size(self) -> int:
-        return self.meta.size
+        return self._meta.size
+
+    @property
+    def mesh_part(self) -> MeshPart:
+        return self._mesh_part
 
     # --------------------------------------------------
     # Core field operations
@@ -337,13 +325,12 @@ class Field:
             mesh_part,
             meta.dtype,
             meta.etype,
-            meta.mesh_version,
             requires_grad=meta.requires_grad,
         )
 
         for g in range(meta.size):
             sid, l = field._global_in_shard[g]
-            field.shards[sid].data[l] = data[g]
+            field._shards[sid].data[l] = data[g]
         return field
 
     @staticmethod
@@ -358,10 +345,9 @@ class Field:
             mesh_part,
             meta.dtype,
             meta.etype,
-            meta.mesh_version,
             requires_grad=meta.requires_grad,
         )
-        field.shards = shards
+        field._shards = shards
         return field
 
     def apply(self, func: Callable) -> "Field":
@@ -370,7 +356,7 @@ class Field:
         (Local operation, non-communication)
         """
         # Apply func to each shard's data in-place
-        for shard in self.shards.values():
+        for shard in self._shards.values():
             shard.data = func(shard.data)
 
         # Mark all shards as dirty for halo sync
@@ -379,33 +365,33 @@ class Field:
 
     def __getitem__(self, indices: DataIndex) -> DataArray:
         shard_indices = self._get_shard_indices(indices)
-        results = [self.shards[sid].data[l] for sid, l in shard_indices]
+        results = [self._shards[sid].data[l] for sid, l in shard_indices]
         if len(results) == 1:
             return results[0]
-        elif self.backend.name == "torch":
+        elif self._backend.name == "torch":
             return torch.stack(results)
         else:
             return np.array(results)
 
     def __setitem__(self, indices: DataIndex, value):
         shard_indices = self._get_shard_indices(indices)
-        assert len(shard_indices) == len(value), "Index and value length mismatch"
-
+        if isinstance(value, Variable):
+            value = [value]
         for (sid, l), val in zip(shard_indices, value):
-            self.shards[sid].data[l] = self._to_data(val, sid)
+            self._shards[sid].data[l] = self._to_data(val, sid)
 
     def _binary_op(self, other: "Field", op: Callable) -> "Field":
         """Unified binary operation, auto-align shards."""
         if isinstance(other, Field):
-            assert self.mesh_part is other.mesh_part, "MeshPart mismatch"
+            assert self._mesh_part is other._mesh_part, "MeshPart mismatch"
             # align_shards
             new_shards = {}
-            for sid in self.shards.keys():
-                f1 = self.shards[sid]
-                f2 = other.shards[sid]
+            for sid in self._shards.keys():
+                f1 = self._shards[sid]
+                f2 = other._shards[sid]
                 new_f = FieldShard(sid, f1.gpu, op(f1.data, f2.data), f1.n_local)
                 new_shards[sid] = new_f
-            return Field.from_shard(new_shards, self.mesh_part, self.meta)
+            return Field.from_shard(new_shards, self._mesh_part, self._meta)
 
     def __add__(self, other: "Field") -> "Field":
         return self._binary_op(other, lambda a, b: a + b)
@@ -415,11 +401,11 @@ class Field:
 
     def __mul__(self, scalar: float) -> "Field":
         new_shards = {}
-        for sid, shard in self.shards.items():
+        for sid, shard in self._shards.items():
             new_shards[sid] = FieldShard(
                 sid, shard.gpu, shard.data * scalar, shard.n_local
             )
-        return Field.from_shard(new_shards, self.mesh_part, self.meta)
+        return Field.from_shard(new_shards, self._mesh_part, self._meta)
 
     __rmul__ = __mul__
 
@@ -431,30 +417,30 @@ class Field:
         return self * -1
 
     def __iter__(self):
-        for sid in self.shards:
-            for data in self.shards[sid].data:
+        for sid in self._shards:
+            for data in self._shards[sid].data:
                 yield data
 
     def requires_grad(self, requires_grad: bool = True):
-        if self.backend.name == "torch":
-            for shard in self.shards.values():
+        if self._backend.name == "torch":
+            for shard in self._shards.values():
                 shard.data.requires_grad_(requires_grad)
-            self.meta.requires_grad = requires_grad
+            self._meta.requires_grad = requires_grad
 
     def gradient(self):
         """Get gradient (only for torch backend)."""
-        if self.backend.name != "torch":
+        if self._backend.name != "torch":
             raise RuntimeError("backward() only available for torch backend")
-        if not self.meta.requires_grad:
+        if not self._meta.requires_grad:
             raise RuntimeError("requires_grad=False")
 
         # Collect all gradients from all shards
         grads = torch.empty(
-            (self.meta.size, self.meta.dtype.value), dtype=torch.float64
+            (self._meta.size, self._meta.dtype.value), dtype=torch.float64
         )
-        for i in range(self.meta.size):
+        for i in range(self._meta.size):
             sid, l = self._global_in_shard[i]
-            grads[i] = self.shards[sid].data.grad[l]
+            grads[i] = self._shards[sid].data.grad[l]
         return grads
 
     # --------------------------------------------------
@@ -473,7 +459,7 @@ class Field:
         if not any(self._dirty_flags.values()):
             return self
 
-        for sid, shard in self.shards.items():
+        for sid, shard in self._shards.items():
             if not self._dirty_flags[sid]:
                 continue
 
@@ -546,13 +532,15 @@ class Field:
 
     def gather_to_host(self) -> np.ndarray:
         """Collect all partition data to the host global array."""
-        global_size = self.meta.size
-        n_comp = self.meta.dtype.value
-        global_arr = np.empty((global_size, n_comp), dtype=np.float64)
+        global_size = self._meta.size
+        n_comp = self._meta.dtype.value
+        global_arr = np.empty((global_size, *n_comp), dtype=np.float64)
 
-        for sid, shard in self.shards.items():
-            mesh_shard = self.mesh_part.shards[sid]
-            local_data = shard.local_view().cpu().numpy()
+        for sid, shard in self._shards.items():
+            mesh_shard = self._mesh_part.shards[sid]
+            local_data = shard.local_view()
+            if self._backend.name == "torch":
+                local_data = local_data.cpu().numpy()
 
             # Return by global index
             global_indices = mesh_shard.cells[: shard.n_local]
@@ -562,8 +550,8 @@ class Field:
 
     def scatter_from_host(self, global_arr: np.ndarray):
         """Distribute from the host global array to each shard."""
-        for sid, shard in self.shards.items():
-            mesh_shard = self.mesh_part.shards[sid]
+        for sid, shard in self._shards.items():
+            mesh_shard = self._mesh_part.shards[sid]
             local_indices = mesh_shard.cells[: shard.n_local]
 
             # Extract the local part and upload
@@ -576,13 +564,13 @@ class Field:
         """
         Convert the field to a list of scalar fields.
         """
-        if self.meta.dtype == VariableType.TENSOR:
+        if self._meta.dtype == VariableType.TENSOR:
             raise ValueError("Cannot scalarize a tensor field.")
 
         data = self.gather_to_host()
         scalar_fields = []
         for i in range(data.shape[1]):
-            field = Field.from_array(data[:, i], self.meta)
+            field = Field.from_array(data[:, i], self._mesh_part, self._meta)
             scalar_fields.append(field)
 
         return scalar_fields

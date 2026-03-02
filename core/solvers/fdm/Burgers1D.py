@@ -6,9 +6,9 @@ Solving the 1D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
 from core.solvers.commons import inits
-from core.numerics.mesh import Mesh, MeshDimension
-from core.numerics.algos import MeshGeom, MeshTopo
-from core.numerics.fields import NodeField, VariableType, Variable
+from core.numerics.mesh import Mesh, MeshDimension, ElementType
+from core.numerics.algos import MeshGeom, MeshTopo, MeshPart
+from core.numerics.fields import VariableType, Variable, Field
 
 import copy
 import time
@@ -60,9 +60,16 @@ class Burgers1D(BaseSolver):
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
+        self._part = MeshPart(mesh)
 
         self._default_ic = inits.UniformInitialization("default", Variable.scalar(0.0))
-        self._fields = {"u": NodeField(mesh.node_count, VariableType.SCALAR)}
+        self._fields = {
+            "u": Field(
+                self._part,
+                VariableType.SCALAR,
+                ElementType.NODE,
+            )
+        }
 
         self._total_time = 0.0
         self._dt = 0.0

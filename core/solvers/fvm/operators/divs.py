@@ -13,10 +13,7 @@ from core.solvers.interfaces import (
 from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field, DataHub, Variable
 from core.numerics.mesh import Grid
-from core.numerics.algos.geoms import MeshGeom
-from core.numerics.algos.topos import MeshTopo
-
-import numpy as np
+from core.numerics.algos import MeshGeom, MeshTopo, MeshPart
 
 
 class Div01(IOperator):
@@ -40,6 +37,7 @@ class Div01(IOperator):
         self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._geom: MeshGeom = None
+        self._part: MeshPart = None
 
         self._bcs = None
         self._rho = rho
@@ -52,6 +50,7 @@ class Div01(IOperator):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._part = self._mesh.get_part_assistant()
 
         self._bcs = bounds
         self._var = fields[0]
@@ -59,9 +58,7 @@ class Div01(IOperator):
     def run(self, sources: DataHub) -> Field | LinearEqs:
         data = sources.field(self._var).data
         variable = data.name
-        div_eqs = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=data.dtype, variable=variable
-        )
+        div_eqs = LinearEqs.zeros(self._part, rhs_type=data.dtype, etype=data.etype)
         # Assemble boundary matrix
         for face in self._topo.boundary_faces:
             bc = self._bcs[face][variable]

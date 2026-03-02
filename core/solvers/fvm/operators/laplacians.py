@@ -13,8 +13,7 @@ from core.solvers.interfaces import (
 from core.numerics.mats import LinearEqs
 from core.numerics.fields import Field, Variable, DataHub
 from core.numerics.mesh import Grid
-from core.numerics.algos import MeshTopo, MeshGeom
-import numpy as np
+from core.numerics.algos import MeshTopo, MeshGeom, MeshPart
 
 
 class Lap01(IOperator):
@@ -39,6 +38,7 @@ class Lap01(IOperator):
         self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._geom: MeshGeom = None
+        self._part: MeshPart = None
 
         self._bcs = None
         self._k = k
@@ -51,20 +51,18 @@ class Lap01(IOperator):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._part = self._mesh.get_part_assistant()
 
         self._bcs = bounds
         self._var = fields[0]
 
     def run(self, sources: DataHub) -> Field | LinearEqs:
         data = sources.field(self._var).data
-        variable = data.name
-        lap_eqs = LinearEqs.zeros(
-            self._mesh.cell_count, rhs_type=data.dtype, variable=variable
-        )
+        lap_eqs = LinearEqs.zeros(self._part, rhs_type=data.dtype, etype=data.etype)
 
         # Aseemble boundary matrix
         for fid in self._topo.boundary_faces:
-            bc = self._bcs[fid][variable]
+            bc = self._bcs[fid][self._var]
             FluxC, FluxF, FluxV = self._handle_boundary(fid, bc)
             cid = self._topo.face_cells[fid][0]
 
