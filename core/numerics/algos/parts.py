@@ -12,7 +12,7 @@ import pymetis
 import torch
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 from collections import defaultdict
 
 
@@ -36,8 +36,8 @@ class SharedInfo:
 class MeshShard:
     """Mesh shard for distributed computation."""
 
-    shard_id: int
-    gpu: Optional[torch.device] = None
+    shard_id: int 
+    gpu: torch.device
 
     # Local entities (global indices)
     cells: np.ndarray  # ghost cells at the end
@@ -45,10 +45,10 @@ class MeshShard:
     nodes: np.ndarray
 
     # Entity mapping:global -> local
-    cell_g2l: Dict
+    cell_g2l: Dict  # no ghost cells
+    halo_g2l: Dict  # ghost cells
     face_g2l: Dict
     node_g2l: Dict
-    halo_g2l: Dict
 
     # 3-levels halo information
     cell_halo: SharedInfo

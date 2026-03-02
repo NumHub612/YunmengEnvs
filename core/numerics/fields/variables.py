@@ -80,6 +80,24 @@ class Variable:
         return Variable(data, VariableType.TENSOR)
 
     @staticmethod
+    def zero(dtype: VariableType, requires_grad: bool = False) -> "Variable":
+        """Zeros variable."""
+        if dtype == VariableType.SCALAR:
+            args = [0.0]
+        elif dtype == VariableType.VECTOR:
+            args = [0.0] * 3
+        elif dtype == VariableType.TENSOR:
+            args = [0.0] * 9
+        else:
+            raise NotImplementedError
+
+        back = get_backend()
+        data = back.array(
+            args, dtype=back.xp.float64, requires_grad=requires_grad
+        ).reshape(dtype.value)
+        return Variable(data, dtype)
+
+    @staticmethod
     def from_numpy(arr: np.ndarray) -> "Variable":
         if arr.shape == (1,):
             vtype = VariableType.SCALAR
@@ -96,14 +114,7 @@ class Variable:
         return Variable(data, vtype, back)
 
     def to_numpy(self) -> np.ndarray:
-        return self._back.as_numpy(self._data)
-
-    def zero(self) -> "Variable":
-        return Variable(
-            self._back.zeros_like(self._data),
-            self._type,
-            self._back,
-        )
+        return self._back.to_numpy(self._data)
 
     def to(self, device) -> "Variable":
         _data = self._back.to_device(self._data, device)

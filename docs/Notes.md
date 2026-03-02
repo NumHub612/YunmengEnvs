@@ -249,3 +249,36 @@ Hancock 预测-校正是一种高效的显式时间推进方法，适用于瞬�
 
 如需进一步了解某类网格（结构化/非结构化）、某类求解器（显式/隐式）或某软件的具体实现，可继续提问！
 
+
+-------------------
+
+# torch 的计算图问题
+
+在 PyTorch 中，clone(), detach(), .cpu(), 和 .numpy() 这些操作通常会导致计算图的断裂。下面详细解释一下：
+
+## detach():
+
+目的: 这是最直接导致计算图断裂的操作。它会创建一个新的 tensor，该 tensor 不再需要梯度（requires_grad=False），并且与原始 tensor 共享底层数据。
+
+结果: 返回的 tensor 不会参与到后续的梯度计算中，因此它的所有依赖关系（来自计算图上游的部分）都被切断了。
+
+## clone():
+
+目的: 创建一个与原始 tensor 具有相同数据但独立内存空间的新 tensor。它会保留原始 tensor 的 requires_grad 属性和梯度历史。clone() 的核心价值在于创建一个数据独立（有自己的内存）但梯度历史连贯（如果原 tensor 需要梯度）的副本。这使其成为管理 tensor 生命周期、防止意外修改和实现复杂梯度流控制的关键工具。
+
+结果: 在大多数情况下，clone() 不会 断裂计算图。新 tensor 仍然连接到创建原始 tensor 的计算图上，允许梯度回传。
+特殊情况: 如果在 clone() 之后调用了 detach() (例如 x.clone().detach() 或 x.detach().clone())，那么最终结果是断开了计算图的。
+
+## cpu():
+
+目的: 将 tensor 从当前设备（如 GPU）移动到 CPU。
+
+结果: 这个操作本身是一个恒等映射（不改变值），并且默认情况下会保持 requires_grad 属性和计算图连接。因此，.cpu() 不会断裂计算图。
+
+注意: 早期版本或特定上下文下可能存在细微差别，但在现代 PyTorch 中，.cpu() 通常保持图的连续性。
+
+## numpy():
+
+目的: 将 tensor 转换为 NumPy 数组。
+
+结果: 这个操作 会 断裂计算图。NumPy 数组是独立于 PyTorch 计算图的对象。为了安全地进行转换，PyTorch 需要确保 tensor 不需要梯度（即 tensor.requires_grad 必须为 False）。如果 tensor 的 requires_grad=True，调用 .numpy() 会抛出错误。因此，只有 requires_grad=False 的 tensor 才能转换为 NumPy 数组，这本身就表明它已经与计算图断开连接（或者从未连接过）。

@@ -49,12 +49,12 @@ class Backend:
     def dot(self, a, b):
         return self.xp.dot(a, b)
 
-    def as_numpy(self, arr) -> np.ndarray:
+    def to_numpy(self, arr) -> np.ndarray:
         if self.name == "torch":
             return arr.detach().cpu().numpy()
         return arr
 
-    def as_tensor(self, obj, dtype=None, requires_grad=False):
+    def to_tensor(self, obj, dtype=None, requires_grad=False):
         if self.name != "torch":
             raise RuntimeError("Backend isn't torch")
 
