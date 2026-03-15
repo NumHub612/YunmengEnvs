@@ -149,76 +149,65 @@ class Grid2D(Grid):
         )
         self._nodes = nodes
 
-        # Generate faces using vectorized operations
-        # Horizontal faces (x-direction)
+        # Horizontal Segments (Lying on y=const, connecting x_i and x_{i+1})
+        # These serve as the South and North faces of the cells.
         h_face_count = (self._nx - 1) * self._ny
-        h_node_ids = np.arange(h_face_count * 2).reshape(-1, 2)
-
-        # Calculate node indices for horizontal faces
-        i_indices = np.repeat(np.arange(self._nx - 1), self._ny)
-        j_indices = np.tile(np.arange(self._ny), self._nx - 1)
-
-        # Left and right node IDs for horizontal faces
-        left_ids = i_indices * self._ny + j_indices
-        right_ids = (i_indices + 1) * self._ny + j_indices
-
-        # Create horizontal faces
         h_faces = []
-        for lid, rid in zip(left_ids, right_ids):
-            node_ids = sorted([lid, rid], reverse=True)
-            center = 0.5 * (self._nodes[lid].coordinate + self._nodes[rid].coordinate)
-            h_faces.append(Face(center, node_ids))
 
-        # Vertical faces (y-direction)
+        # Iterate to match the logical index:
+        # face_h(i, j) connects node(i,j) and node(i+1, j)
+        for i in range(self._nx - 1):
+            for j in range(self._ny):
+                lid = i * self._ny + j
+                rid = (i + 1) * self._ny + j
+                node_ids = [lid, rid]
+
+                center = 0.5 * (
+                    self._nodes[lid].coordinate + self._nodes[rid].coordinate
+                )
+                h_faces.append(Face(center, node_ids))
+
+        # Vertical Segments (Lying on x=const, connecting y_j and y_{j+1})
+        # These serve as the West and East faces of the cells.
         v_face_count = self._nx * (self._ny - 1)
-        i_indices = np.repeat(np.arange(self._nx), self._ny - 1)
-        j_indices = np.tile(np.arange(self._ny - 1), self._nx)
-
-        # Bottom and top node IDs for vertical faces
-        bottom_ids = i_indices * self._ny + j_indices
-        top_ids = i_indices * self._ny + (j_indices + 1)
-
-        # Create vertical faces
         v_faces = []
-        for bid, tid in zip(bottom_ids, top_ids):
-            node_ids = sorted([bid, tid])
-            center = 0.5 * (self._nodes[bid].coordinate + self._nodes[tid].coordinate)
-            v_faces.append(Face(center, node_ids))
+
+        # Storage order: i (0..Nx-1) outer, j (0..Ny-2) inner.
+        for i in range(self._nx):
+            for j in range(self._ny - 1):
+                bid = i * self._ny + j
+                tid = i * self._ny + (j + 1)
+                node_ids = [bid, tid]
+
+                center = 0.5 * (
+                    self._nodes[bid].coordinate + self._nodes[tid].coordinate
+                )
+                v_faces.append(Face(center, node_ids))
 
         # Combine all faces
         self._faces = np.array(h_faces + v_faces)
+        h_offset = 0
+        v_offset = len(h_faces)
 
-        # Generate cells using vectorized operations
+        # Generate Cells
         cell_size = (self._nx - 1) * (self._ny - 1)
-
-        # Calculate face indices for each cell
-        # North face index
-        i_indices = np.repeat(np.arange(self._nx - 1), self._ny - 1)
-        j_indices = np.tile(np.arange(self._ny - 1), self._nx - 1)
-        f_n = i_indices * (2 * (self._ny - 1) + 1) + 2 * j_indices
-
-        # West face index
-        f_w = f_n + 1
-
-        # South face index
-        f_s = f_w + 1
-
-        # East face index (depends on i)
-        mask = i_indices < self._nx - 2
-        f_e = np.where(
-            mask,
-            (i_indices + 1) * (2 * (self._ny - 1) + 1) + 2 * j_indices + 1,
-            (i_indices + 1) * (2 * (self._ny - 1) + 1) + j_indices,
-        )
-
-        # Create cells
         cells = []
-        for idx in range(cell_size):
-            face_ids = [f_n[idx], f_w[idx], f_s[idx], f_e[idx]]
-            faces = self.get_faces(face_ids)
-            faces, face_ids = sort_anticlockwise(faces, face_ids)
-            center = calculate_center(faces)
-            cells.append(Cell(center, face_ids))
+        for i in range(self._nx - 1):
+            for j in range(self._ny - 1):
+                # Calculate global face indices
+                idx_s = i * self._ny + j
+                idx_n = i * self._ny + (j + 1)
+                idx_w = v_offset + i * (self._ny - 1) + j
+                idx_e = v_offset + (i + 1) * (self._ny - 1) + j
+                face_ids = [idx_n, idx_w, idx_s, idx_e]
+
+                # Retrieve face objects and sort
+                faces = self.get_faces(face_ids)
+                sorted_faces, sorted_face_ids = sort_anticlockwise(faces, face_ids)
+
+                # Calculate cell center
+                center = calculate_center(sorted_faces)
+                cells.append(Cell(center, sorted_face_ids))
 
         self._cells = np.array(cells)
 

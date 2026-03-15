@@ -164,15 +164,15 @@ class MeshTopo:
     def _calculate_flags(self):
         """Calculate and cache internal/boundary flags."""
         # Assume all as internal (True flag, False for boundary)
-        node_flags = np.ones(self._mesh.face_count, dtype=bool)
+        node_flags = np.ones(self._mesh.node_count, dtype=bool)
         face_flags = np.zeros(self._mesh.face_count, dtype=bool)
         cell_flags = np.ones(self._mesh.cell_count, dtype=bool)
 
         # Calculate face_cells
         self._face_cells = self._get_face_cells_list()
         for f, (c1, c2) in enumerate(self._face_cells):
-            if c1 is not None and c2 is not None:  # Internal face
-                face_flags[f] = True
+            if c1 is not None and c2 is not None:
+                face_flags[f] = True  # Internal face
 
         # Mark nodes and cells based on face information
         for f, (c1, c2) in enumerate(self._face_cells):
@@ -254,8 +254,8 @@ class MeshTopo:
                 raise RuntimeError("Some nodes are not connected to any face.")
 
             self._node_faces = [
-                np.array(sorted(list(fs)), dtype=np.int32)
-                for fs in node_faces_dict.values()
+                np.array(sorted(list(node_faces_dict[n])), dtype=np.int32)
+                for n in range(self._mesh.node_count)
             ]
         return self._node_faces
 
@@ -272,9 +272,10 @@ class MeshTopo:
                 raise RuntimeError("Some nodes are not connected to any cell.")
 
             self._node_cells = [
-                np.array(sorted(list(cs)), dtype=np.int32)
-                for cs in node_cells_dict.values()
+                np.array(sorted(list(node_cells_dict[n])), dtype=np.int32)
+                for n in range(self._mesh.node_count)
             ]
+
         return self._node_cells
 
     @property

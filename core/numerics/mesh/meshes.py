@@ -65,9 +65,8 @@ class GenericMesh(Mesh):
         """Generate the nodes of the mesh."""
         results = [None] * len(nodes)
         for i, coor in enumerate(nodes):
-            # id is index.
-            results[i] = Node(i, Coordinate(*coor))
-        return results
+            results[i] = Node(Coordinate(*coor))
+        return np.array(results)
 
     def _generate_faces(self, faces: list):
         """Generate the faces of the mesh."""
@@ -85,11 +84,11 @@ class GenericMesh(Mesh):
                 nodes, ids = sort_anticlockwise(nodes, ids)
                 normals.append(normal)
 
-            results[i] = Face(i, center, ids)
+            results[i] = Face(center, ids)
 
         if normals and all(sum(n) == 1 for n in normals):
             self._orthogonal = True
-        return results
+        return np.array(results)
 
     def _generate_cells(self, cells: list):
         """Generate the cells of the mesh."""
@@ -108,11 +107,11 @@ class GenericMesh(Mesh):
                 if len(faces) not in [4, 8]:
                     raise ValueError("Unsupported cell type.")
 
-            results[i] = Cell(i, center, ids)
+            results[i] = Cell(center, ids)
 
         if normals and all(sum(n) == 1 for n in normals):
             self._orthogonal = True
-        return results
+        return np.array(results)
 
     def _calculate_plane_normal(self, coords: list) -> tuple:
         """Calculate the normal of the plane"""
@@ -120,7 +119,7 @@ class GenericMesh(Mesh):
             raise ValueError("Require at least 3 coordinates.")
 
         # Calculate the normal using the shoelace formula
-        cs = [c.coordinate.to_np() for c in coords]
+        cs = [c.coordinate.to_numpy() for c in coords]
         normal = np.cross(cs[1] - cs[0], cs[2] - cs[0])
         return normal
 
@@ -131,10 +130,3 @@ class GenericMesh(Mesh):
 # -----------------------------------------------
 # region GridMesh
 # -----------------------------------------------
-
-
-class GridMesh(Mesh):
-    """Catesian cut-cell and boundary refined grid mesh."""
-
-    def __init__(self, rect: tuple, poly: Polygon, max_depth: int = 6):
-        pass
