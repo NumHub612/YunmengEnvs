@@ -218,7 +218,7 @@ class MeshTopo:
         return face_cells_list
 
     # -----------------------------------------------
-    # region non-Continous properties
+    # region non-Continous attrs
     # -----------------------------------------------
 
     @property

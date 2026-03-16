@@ -77,9 +77,9 @@ class GenericMesh(Mesh):
             center = calculate_center(nodes)
 
             if len(ids) == 2:
-                self._dimension = MeshDimension.D2
+                self._dim = MeshDimension.D2
             else:
-                self._dimension = MeshDimension.D3
+                self._dim = MeshDimension.D3
                 normal = self._calculate_plane_normal(nodes)
                 nodes, ids = sort_anticlockwise(nodes, ids)
                 normals.append(normal)
@@ -98,7 +98,7 @@ class GenericMesh(Mesh):
             faces = self.get_faces(ids)
             center = calculate_center(faces)
 
-            if self._dimension == MeshDimension.D2:
+            if self._dim == MeshDimension.D2:
                 normal = self._calculate_plane_normal(faces)
                 faces, ids = sort_anticlockwise(faces, ids)
                 normals.append(normal)

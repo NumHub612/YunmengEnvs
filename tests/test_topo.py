@@ -5,7 +5,7 @@ Unit tests for MeshTopo
 
 import pytest
 import numpy as np
-from core.numerics.mesh.grids import Grid2D
+from core.numerics.mesh.grids import Grid2D, Grid
 from core.numerics.mesh.meshes import GenericMesh, Mesh
 from core.numerics.mesh.elements import Coordinate
 
@@ -92,7 +92,7 @@ def mesh2d():
 class TestGrid2DTopo:
     """Test Grid2D mesh topology"""
 
-    def test_boundary_detection_4x4(self, grid2d: Grid2D):
+    def test_boundary_detection_4x4(self, grid2d: Grid):
         """Test boundary detection for 4x4 Grid2D mesh"""
         topo = grid2d.get_topo_assistant()
 
@@ -108,7 +108,7 @@ class TestGrid2DTopo:
         assert len(topo.boundary_cells) == 8
         assert len(topo.internal_cells) == 1
 
-    def test_cell_neighbours_4x4(self, grid2d: Grid2D):
+    def test_cell_neighbours_4x4(self, grid2d: Grid):
         """Test cell neighbor relationships for 4x4 Grid2D mesh"""
         topo = grid2d.get_topo_assistant()
         neighbours = topo.cell_neighbours
@@ -125,7 +125,7 @@ class TestGrid2DTopo:
         assert len(neighbours[4]) == 4
         assert set(neighbours[4]) == {1, 3, 5, 7}
 
-    def test_face_cells_4x4(self, grid2d: Grid2D):
+    def test_face_cells_4x4(self, grid2d: Grid):
         """Test face-cell relationships for 4x4 Grid2D mesh"""
         topo = grid2d.get_topo_assistant()
         face_cells = topo.face_cells
@@ -140,7 +140,7 @@ class TestGrid2DTopo:
             c1, c2 = face_cells[face_id]
             assert c1 is not None and c2 is not None
 
-    def test_cell_faces_4x4(self, grid2d: Grid2D):
+    def test_cell_faces_4x4(self, grid2d: Grid):
         """Test cell-face relationships for 4x4 Grid2D mesh"""
         topo = grid2d.get_topo_assistant()
         cell_faces = topo.cell_faces
@@ -149,7 +149,7 @@ class TestGrid2DTopo:
         for faces in cell_faces:
             assert len(faces) == 4
 
-    def test_cell_nodes_4x4(self, grid2d: Grid2D):
+    def test_cell_nodes_4x4(self, grid2d: Grid):
         """Test cell-node relationships for 4x4 Grid2D mesh"""
         topo = grid2d.get_topo_assistant()
         cell_nodes = topo.cell_nodes
@@ -158,7 +158,7 @@ class TestGrid2DTopo:
         for nodes in cell_nodes:
             assert len(nodes) == 4
 
-    def test_node_faces_4x4(self, grid2d: Grid2D):
+    def test_node_faces_4x4(self, grid2d: Grid):
         """Test node-face relationships for 4x4 Grid2D mesh"""
         topo = grid2d.get_topo_assistant()
         node_faces = topo.node_faces
@@ -173,7 +173,7 @@ class TestGrid2DTopo:
             print(node_id)
             assert len(node_faces[node_id]) == 4
 
-    def test_node_cells_4x4(self, grid2d: Grid2D):
+    def test_node_cells_4x4(self, grid2d: Grid):
         """Test node-cell relationships for 4x4 Grid2D mesh"""
         topo = grid2d.get_topo_assistant()
         node_cells = topo.node_cells
@@ -186,7 +186,7 @@ class TestGrid2DTopo:
         for node_id in topo.internal_nodes:
             assert len(node_cells[node_id]) == 4
 
-    def test_grid_properties(self, grid2d: Grid2D):
+    def test_grid_properties(self, grid2d: Grid):
         """Test grid properties"""
         grid = grid2d
 
@@ -204,7 +204,7 @@ class TestGrid2DTopo:
         # Test version
         assert grid.version >= 1
 
-    def test_topo_cache_mechanism(self, grid2d: Grid2D):
+    def test_topo_cache_mechanism(self, grid2d: Grid):
         """Test topology cache mechanism"""
         topo = grid2d.get_topo_assistant()
 

@@ -122,6 +122,7 @@ class MeshGeom:
     @property
     def face_perimeter(self) -> np.ndarray:
         """Face perimeter."""
+        print(self._mesh.dimension)
         if self._face_perimeters is None:
             if self._mesh.dimension == MeshDimension.NONE:
                 face_perimeters = [0.0] * self._mesh.face_count
@@ -226,14 +227,18 @@ class MeshGeom:
             nodes = self._mesh.get_nodes(node_ids)
             nodes, _ = sort_anticlockwise(nodes)
             coords = extract_coordinates(nodes)
-            # Apply 2D shoelace formula
+
             x = coords[:, 0]
             y = coords[:, 1]
-            # Append first point to the end
+
+            # Add the first point to the end to form a closed polygon
             x_appended = np.append(x, x[0])
             y_appended = np.append(y, y[0])
+
+            # Shoelly's formula
             area = 0.5 * np.abs(
-                np.sum(x_appended[:-1] * (y_appended[1:] - y_appended[:-1]))
+                np.sum(x_appended[:-1] * y_appended[1:])
+                - np.sum(x_appended[1:] * y_appended[:-1])
             )
             cell_volumes.append(area)
         return cell_volumes
@@ -293,7 +298,7 @@ class MeshGeom:
         return cell_surfaces
 
     # -----------------------------------------------
-    # region non-Continous properties
+    # region non-Continous attrs
     # -----------------------------------------------
 
     @property
