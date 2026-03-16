@@ -61,8 +61,8 @@ class MeshPart:
 
     def __init__(self, global_mesh: Mesh):
         self._mesh = global_mesh
-        self._topo = global_mesh.get_topo_assistant()
-        self._geom = global_mesh.get_geom_assistant()
+        self._topo = global_mesh.get_topo_assistant() if global_mesh else None
+        self._geom = global_mesh.get_geom_assistant() if global_mesh else None
 
         self._cell_parts: np.ndarray = None
         self._shards: List[MeshShard] = None
@@ -70,6 +70,27 @@ class MeshPart:
     def reset(self, mesh: Mesh):
         """Reset mesh."""
         self.__init__(mesh)
+
+    @staticmethod
+    def MiniPart(element_size: int, device: str = settings.device) -> "MeshShard":
+        """Return a mini partition without partition."""
+        shard = MeshShard(
+            shard_id=0,
+            gpu=torch.device(device),
+            cells=np.arange(element_size),
+            faces=np.arange(element_size),
+            nodes=np.arange(element_size),
+            cell_g2l={i: i for i in range(element_size)},
+            halo_g2l={},
+            face_g2l={i: i for i in range(element_size)},
+            node_g2l={i: i for i in range(element_size)},
+            cell_halo=SharedInfo(),
+            face_halo=SharedInfo(),
+            node_halo=SharedInfo(),
+        )
+        part = MeshPart(None)
+        part._shards = [shard]
+        return part
 
     @property
     def num_shards(self) -> int:
@@ -94,6 +115,12 @@ class MeshPart:
 
     def get_size(self, etype: ElementType) -> int:
         """Return the size of a given entity type."""
+        if self._mesh is None:
+            if self._shards is None:
+                return 0
+            else:
+                return len(self._shards[0].cells)
+
         if etype == ElementType.CELL:
             return self._mesh.cell_count
         elif etype == ElementType.FACE:
@@ -110,6 +137,9 @@ class MeshPart:
         gpus: List[int | str] = settings.gpus,
     ) -> List[MeshShard]:
         """Run partitioning with devices."""
+        if self._mesh is None:
+            return self._shards or None
+
         # Check devices
         if device == "cuda" and len(gpus) < num_shards:
             raise ValueError(f"GPU count {len(gpus)} less than shard num {num_shards}.")
@@ -256,6 +286,7 @@ class MeshPart:
         """Add node halo entry."""
         if self.num_shards <= 1:
             return
+
         node_parts = defaultdict(set[int])
         for s in self._shards:
             for nid in s.nodes:
@@ -263,7 +294,8 @@ class MeshPart:
 
         for nid, parts in node_parts.items():
             for sid in parts:
-                s, li = self._shards[sid], s.node_g2l[nid]
+                s = self._shards[sid]
+                li = s.node_g2l[nid]
                 for other in parts:
                     if other != sid:
                         s.node_halo.shared_map.setdefault(
