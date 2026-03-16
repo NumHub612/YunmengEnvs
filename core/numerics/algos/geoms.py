@@ -325,7 +325,7 @@ class MeshGeom:
 
     @property
     def cell2face_distance(self) -> List[Dict[int, float]]:
-        """Distances between each cell and its faces."""
+        """Distances between each cell and its face centers."""
         if self._cell2face_dists is None:
             num_cells = self._mesh.cell_count
             cell_coords = extract_coordinates(self._mesh.cells)
@@ -383,7 +383,7 @@ class MeshGeom:
 
     @property
     def cell2face_vector(self) -> List[Dict[int, Variable]]:
-        """Unit vectors from each cell to its faces."""
+        """Unit vectors from each cell to its face centers."""
         if self._cell2face_vects is None:
             num_cells = self._mesh.cell_count
             cell_coords = extract_coordinates(self._mesh.cells)
