@@ -26,7 +26,7 @@ def grid2d():
 
 @pytest.fixture
 def mesh2d():
-    """2D unstructured mesh with 16 triangular cells
+    """2D unstructured mesh with 32 triangular cells
     (4x4 grid divided into triangles)."""
     # Create a 4x4 grid of nodes
     nodes = []
@@ -228,7 +228,7 @@ class TestMesh2DGeom:
     """Test unstructured mesh geometry using mesh2d fixture"""
 
     def test_face_perimeter(self, mesh2d: Mesh):
-        """Test face perimeter for 4x4 unstructured mesh with triangular cells"""
+        """Test face perimeter for unstructured mesh with triangular cells"""
         geom = mesh2d.get_geom_assistant()
         face_perimeters = geom.face_perimeter
 
@@ -246,7 +246,7 @@ class TestMesh2DGeom:
         )
 
     def test_face_area(self, mesh2d: Mesh):
-        """Test face area for 4x4 unstructured mesh"""
+        """Test face area for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         face_areas = geom.face_area
 
@@ -255,7 +255,7 @@ class TestMesh2DGeom:
         np.testing.assert_allclose(face_areas, face_perimeters, rtol=1e-10)
 
     def test_face_normal(self, mesh2d: Mesh):
-        """Test face normal vectors for 4x4 unstructured mesh"""
+        """Test face normal vectors for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         face_normals = geom.face_normal
 
@@ -279,7 +279,7 @@ class TestMesh2DGeom:
         )
 
     def test_cell_volume(self, mesh2d: Mesh):
-        """Test cell volume (area in 2D) for 4x4 unstructured mesh"""
+        """Test cell volume (area in 2D) for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         cell_volumes = geom.cell_volume
 
@@ -289,7 +289,7 @@ class TestMesh2DGeom:
         np.testing.assert_allclose(cell_volumes, 0.5 * np.ones(32), rtol=1e-10)
 
     def test_cell_surface(self, mesh2d: Mesh):
-        """Test cell surface (perimeter in 2D) for 4x4 unstructured mesh"""
+        """Test cell surface (perimeter in 2D) for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         cell_surfaces = geom.cell_surface
 
@@ -301,7 +301,7 @@ class TestMesh2DGeom:
         )
 
     def test_cell2cell_distance(self, mesh2d: Mesh):
-        """Test cell-to-cell distances for 4x4 unstructured mesh"""
+        """Test cell-to-cell distances for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         cell2cell_dists = geom.cell2cell_distance
 
@@ -310,7 +310,7 @@ class TestMesh2DGeom:
         assert abs(cell2cell_dists[0][3] - np.sqrt(5) / 3) < 1e-10
 
     def test_cell2face_distance(self, mesh2d: Mesh):
-        """Test cell-to-face distances for 4x4 unstructured mesh"""
+        """Test cell-to-face distances for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         cell2face_dists = geom.cell2face_distance
 
@@ -320,7 +320,7 @@ class TestMesh2DGeom:
         assert abs(cell2face_dists[0][21] - np.sqrt(5) / 6) < 1e-10
 
     def test_cell2cell_vector(self, mesh2d: Mesh):
-        """Test cell-to-cell vectors for 4x4 unstructured mesh"""
+        """Test cell-to-cell vectors for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         cell2cell_vects = geom.cell2cell_vector
 
@@ -338,7 +338,7 @@ class TestMesh2DGeom:
         )
 
     def test_cell2face_vector(self, mesh2d: Mesh):
-        """Test cell-to-face vectors for 4x4 unstructured mesh"""
+        """Test cell-to-face vectors for unstructured mesh"""
         geom = mesh2d.get_geom_assistant()
         cell2face_vects = geom.cell2face_vector
 

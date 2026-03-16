@@ -33,7 +33,7 @@ def grid2d_6x6():
 
 @pytest.fixture
 def mesh2d_4x4():
-    """2D unstructured mesh with 16 triangular cells
+    """2D unstructured mesh with 32 triangular cells
     (4x4 grid divided into triangles)."""
     # Create a 4x4 grid of nodes
     nodes = []
@@ -83,7 +83,7 @@ def mesh2d_4x4():
 
 @pytest.fixture
 def mesh2d_6x6():
-    """2D unstructured mesh with 36 triangular cells
+    """2D unstructured mesh with 64 triangular cells
     (6x6 grid divided into triangles)."""
     # Create a 6x6 grid of nodes (7x7 points)
     nodes = []
