@@ -41,49 +41,42 @@ def mesh2d_4x4():
         for i in range(5):
             nodes.append([float(i), float(j), 0.0])
 
-    # Create faces (horizontal and vertical edges)
     faces = []
-    # Horizontal edges
+    # Horizontal edges (0 to 19)
     for j in range(5):
         for i in range(4):
             faces.append([j * 5 + i, j * 5 + i + 1])
-    # Vertical edges
+
+    # Vertical edges (20 to 39)
     for j in range(4):
         for i in range(5):
             faces.append([j * 5 + i, (j + 1) * 5 + i])
 
-    # Create cells (each grid cell divided into 2 triangles)
     cells = []
-    face_id = 0
     for j in range(4):
         for i in range(4):
-            # Bottom-left node
-            n0 = j * 5 + i
-            # Bottom-right node
-            n1 = j * 5 + i + 1
-            # Top-left node
-            n2 = (j + 1) * 5 + i
-            # Top-right node
-            n3 = (j + 1) * 5 + i + 1
+            n0 = j * 5 + i  # Bottom-Left
+            n1 = j * 5 + i + 1  # Bottom-Right
+            n2 = (j + 1) * 5 + i  # Top-Left
+            n3 = (j + 1) * 5 + i + 1  # Top-Right
 
-            # Bottom edge
+            # Calculate Face Indices based on the generation order above
             bottom_face = j * 4 + i
-            # Left edge
-            left_face = 20 + j * 5 + i
-            # Right edge
-            right_face = 20 + j * 5 + i + 1
-            # Top edge
             top_face = (j + 1) * 4 + i
+            left_face = 20 + j * 5 + i
+            right_face = 20 + j * 5 + (i + 1)
 
-            # Diagonal edge (will be added to faces)
-            diagonal_face = len(faces)
+            # Diagonal face index: 40 + current_cell_index
+            diagonal_face = 40 + (j * 4 + i)
+
+            # Add the diagonal edge to faces list: connects n0 and n3
             faces.append([n0, n3])
 
-            # Two triangles per cell
-            # Triangle 1: bottom, left, diagonal
-            cells.append([bottom_face, left_face, diagonal_face])
-            # Triangle 2: top, right, diagonal
-            cells.append([top_face, right_face, diagonal_face])
+            # Triangle 1: Bottom-Right half (Nodes: n0, n1, n3)
+            cells.append([bottom_face, right_face, diagonal_face])
+
+            # Triangle 2: Top-Left half (Nodes: n0, n3, n2)
+            cells.append([diagonal_face, top_face, left_face])
 
     return GenericMesh(nodes, faces, cells)
 
@@ -92,54 +85,47 @@ def mesh2d_4x4():
 def mesh2d_6x6():
     """2D unstructured mesh with 36 triangular cells
     (6x6 grid divided into triangles)."""
-    # Create a 6x6 grid of nodes
+    # Create a 6x6 grid of nodes (7x7 points)
     nodes = []
     for j in range(7):
         for i in range(7):
             nodes.append([float(i), float(j), 0.0])
 
-    # Create faces (horizontal and vertical edges)
     faces = []
-    # Horizontal edges
+    # Horizontal edges: 7 rows * 6 edges = 42 edges (Indices 0-41)
     for j in range(7):
         for i in range(6):
             faces.append([j * 7 + i, j * 7 + i + 1])
-    # Vertical edges
+
+    # Vertical edges: 6 rows * 7 edges = 42 edges (Indices 42-83)
     for j in range(6):
         for i in range(7):
             faces.append([j * 7 + i, (j + 1) * 7 + i])
 
-    # Create cells (each grid cell divided into 2 triangles)
     cells = []
     for j in range(6):
         for i in range(6):
-            # Bottom-left node
-            n0 = j * 7 + i
-            # Bottom-right node
-            n1 = j * 7 + i + 1
-            # Top-left node
-            n2 = (j + 1) * 7 + i
-            # Top-right node
-            n3 = (j + 1) * 7 + i + 1
+            # Nodes
+            n0 = j * 7 + i  # Bottom-Left
+            n1 = j * 7 + i + 1  # Bottom-Right
+            n2 = (j + 1) * 7 + i  # Top-Left
+            n3 = (j + 1) * 7 + i + 1  # Top-Right
 
-            # Bottom edge
+            # Face Indices
             bottom_face = j * 6 + i
-            # Left edge
-            left_face = 42 + j * 7 + i
-            # Right edge
-            right_face = 42 + j * 7 + i + 1
-            # Top edge
             top_face = (j + 1) * 6 + i
+            left_face = 42 + j * 7 + i
+            right_face = 42 + j * 7 + (i + 1)
 
-            # Diagonal edge (will be added to faces)
+            # Diagonal face index
             diagonal_face = len(faces)
             faces.append([n0, n3])
 
-            # Two triangles per cell
-            # Triangle 1: bottom, left, diagonal
-            cells.append([bottom_face, left_face, diagonal_face])
-            # Triangle 2: top, right, diagonal
-            cells.append([top_face, right_face, diagonal_face])
+            # Triangle 1: Bottom-Right half (Nodes: n0, n1, n3)
+            cells.append([bottom_face, right_face, diagonal_face])
+
+            # Triangle 2: Top-Left half (Nodes: n0, n3, n2)
+            cells.append([diagonal_face, top_face, left_face])
 
     return GenericMesh(nodes, faces, cells)
 

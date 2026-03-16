@@ -6,12 +6,12 @@ Mesh visualization utilities for 2D meshs.
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from core.numerics.mesh.spatials import Grid, MeshDimension
+from core.numerics.mesh.spatials import Grid, MeshDimension, Mesh
 from core.numerics.mesh.elements import Coordinate
 
 
 def plot_mesh(
-    mesh: Grid,
+    mesh: Mesh,
     show_nodes: bool = True,
     show_faces: bool = True,
     show_cells: bool = True,
@@ -25,9 +25,10 @@ def plot_mesh(
 ):
     """
     Plot a 2D mesh with node, face and cell IDs labeled.
+    Supports both structured grids (Grid) and unstructured meshes (GenericMesh).
 
     Args:
-        mesh: The mesh object to visualize (must be a 2D grid)
+        mesh: The mesh object to visualize (must be a 2D mesh, either Grid or GenericMesh)
         show_nodes: Whether to show node IDs
         show_faces: Whether to show face IDs
         show_cells: Whether to show cell IDs
@@ -46,9 +47,6 @@ def plot_mesh(
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
-    # Get grid dimensions
-    nx, ny = mesh.nx, mesh.ny
-
     # Extract node coordinates
     node_coords = np.array(
         [[node.coordinate.x, node.coordinate.y] for node in mesh.nodes]
@@ -62,19 +60,15 @@ def plot_mesh(
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
     ax.set_ylim(y_min - y_pad, y_max + y_pad)
 
-    # Draw grid lines (horizontal and vertical)
-    for i in range(nx):
+    # Draw faces (edges) - this works for both structured and unstructured meshes
+    for face in mesh.faces:
+        face_coords = node_coords[face.nodes]
         ax.plot(
-            node_coords[i * ny : (i + 1) * ny, 0],
-            node_coords[i * ny : (i + 1) * ny, 1],
+            face_coords[:, 0],
+            face_coords[:, 1],
             "k-",
             linewidth=0.5,
             alpha=0.3,
-        )
-
-    for j in range(ny):
-        ax.plot(
-            node_coords[j::ny, 0], node_coords[j::ny, 1], "k-", linewidth=0.5, alpha=0.3
         )
 
     # Plot cells with IDs
@@ -92,6 +86,16 @@ def plot_mesh(
 
             # Get coordinates of cell nodes
             cell_coords = node_coords[node_ids]
+
+            # Draw cell boundary
+            # Sort nodes anticlockwise to form proper polygon
+            from shapely.geometry import Polygon
+            poly = Polygon([(cell_coords[i, 0], cell_coords[i, 1]) for i in range(len(cell_coords))])
+            if not poly.is_valid:
+                # If polygon is not valid, try to fix it
+                poly = poly.buffer(0)
+            x, y = poly.exterior.xy
+            ax.plot(x, y, color=cell_color, linewidth=1.0, alpha=0.5)
 
             # Draw cell center and ID
             center_x = cell.coordinate.x
@@ -158,7 +162,7 @@ def plot_mesh(
     # Set labels and title
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.grid(True, alpha=0.3)
+    ax.grid(False)
     ax.set_aspect("equal")
 
     if title:
