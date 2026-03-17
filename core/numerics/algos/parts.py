@@ -20,16 +20,23 @@ from collections import defaultdict
 class SharedInfo:
     """Halo communication information."""
 
-    neighbours: List[int] = field(default_factory=list)  # Neighbor shard IDs
+    # Neighbor shard IDs
+    neighbours: List[int] = field(default_factory=list)
+
+    # Sender pack data: "Send my local_idx data to target_global_idx on neighbor"
     send_map: Dict[int, List[Tuple[int, int]]] = field(
         default_factory=dict
     )  # [target_shard, (local_idx, target_global_idx)]
+
+    # Receiver unpack data: "Put data from source into my local_ghost_idxs"
     recv_map: Dict[int, List[int]] = field(
         default_factory=dict
-    )  # [source_shard, local_ghost_idxs], for unpack
+    )  # [source_shard, local_ghost_idxs]
+
+    # Synchronous operations where both sides own the entity (e.g., node, face)
     shared_map: Dict[int, List[int]] = field(
         default_factory=dict
-    )  # [neighbour_part, shared_local_idxs], for sync
+    )  # [neighbour_part, shared_local_idxs]
 
 
 @dataclass(slots=True)
@@ -39,21 +46,87 @@ class MeshShard:
     shard_id: int
     gpu: torch.device
 
-    # Local entities (global indices)
-    cells: np.ndarray  # ghost cells at the end
+    # Local entities (global indices): [Core..., Ghost...]
+    cells: np.ndarray
     faces: np.ndarray
     nodes: np.ndarray
 
-    # Entity mapping:global -> local
-    cell_g2l: Dict  # no ghost cells
-    halo_g2l: Dict  # ghost cells
-    face_g2l: Dict
-    node_g2l: Dict
+    # Entity indices mapping: global -> local (Owner only)
+    cell_g2l_core: Dict[int, int]
+    face_g2l_core: Dict[int, int]
+    node_g2l_core: Dict[int, int]
 
-    # 3-levels halo information
+    # Entity indices mapping: global -> local (Ghost only)
+    cell_g2l_halo: Dict[int, int]
+    face_g2l_halo: Dict[int, int]
+    node_g2l_halo: Dict[int, int]
+
+    # Halo communication info
     cell_halo: SharedInfo
     face_halo: SharedInfo
     node_halo: SharedInfo
+
+    # Metadata: Count of core vs ghost
+    n_core_cells: int
+    n_core_faces: int
+    n_core_nodes: int
+
+    @property
+    def n_ghost_cells(self) -> int:
+        return len(self.cell_g2l_halo)
+
+    @property
+    def n_ghost_faces(self) -> int:
+        return len(self.face_g2l_halo)
+
+    @property
+    def n_ghost_nodes(self) -> int:
+        return len(self.node_g2l_halo)
+
+    @staticmethod
+    def from_size(
+        element_size: int,
+        etype: ElementType = ElementType.CELL,
+        device: str = settings.device,
+    ) -> "MeshShard":
+        """Return a mini partition without partition."""
+        ids = np.arange(element_size, dtype=np.int64)
+        g2l = {i: i for i in range(element_size)}
+
+        cells, faces, nodes = [], [], []
+        cell_g2l, face_g2l, node_g2l = {}, {}, {}
+
+        if etype == ElementType.CELL:
+            cells = ids.copy()
+            cell_g2l = g2l.copy()
+        elif etype == ElementType.FACE:
+            faces = ids.copy()
+            face_g2l = g2l.copy()
+        elif etype == ElementType.NODE:
+            nodes = ids.copy()
+            node_g2l = g2l.copy()
+        else:
+            raise ValueError("Unsupport ElementType!")
+
+        return MeshShard(
+            shard_id=0,
+            gpu=torch.device(device),
+            cells=cells,
+            faces=faces,
+            nodes=nodes,
+            cell_g2l_core=cell_g2l,
+            face_g2l_core=face_g2l,
+            node_g2l_core=node_g2l,
+            cell_g2l_halo={},
+            face_g2l_halo={},
+            node_g2l_halo={},
+            cell_halo=SharedInfo(),
+            face_halo=SharedInfo(),
+            node_halo=SharedInfo(),
+            n_core_cells=len(cells),
+            n_core_faces=len(faces),
+            n_core_nodes=len(nodes),
+        )
 
 
 class MeshPart:
@@ -61,8 +134,8 @@ class MeshPart:
 
     def __init__(self, global_mesh: Mesh):
         self._mesh = global_mesh
-        self._topo = global_mesh.get_topo_assistant() if global_mesh else None
-        self._geom = global_mesh.get_geom_assistant() if global_mesh else None
+        self._topo = global_mesh.get_topo_assistant()
+        self._geom = global_mesh.get_geom_assistant()
 
         self._cell_parts: np.ndarray = None
         self._shards: List[MeshShard] = None
@@ -70,27 +143,6 @@ class MeshPart:
     def reset(self, mesh: Mesh):
         """Reset mesh."""
         self.__init__(mesh)
-
-    @staticmethod
-    def MiniPart(element_size: int, device: str = settings.device) -> "MeshShard":
-        """Return a mini partition without partition."""
-        shard = MeshShard(
-            shard_id=0,
-            gpu=torch.device(device),
-            cells=np.arange(element_size),
-            faces=np.arange(element_size),
-            nodes=np.arange(element_size),
-            cell_g2l={i: i for i in range(element_size)},
-            halo_g2l={},
-            face_g2l={i: i for i in range(element_size)},
-            node_g2l={i: i for i in range(element_size)},
-            cell_halo=SharedInfo(),
-            face_halo=SharedInfo(),
-            node_halo=SharedInfo(),
-        )
-        part = MeshPart(None)
-        part._shards = [shard]
-        return part
 
     @property
     def num_shards(self) -> int:
@@ -115,12 +167,6 @@ class MeshPart:
 
     def get_size(self, etype: ElementType) -> int:
         """Return the size of a given entity type."""
-        if self._mesh is None:
-            if self._shards is None:
-                return 0
-            else:
-                return len(self._shards[0].cells)
-
         if etype == ElementType.CELL:
             return self._mesh.cell_count
         elif etype == ElementType.FACE:
@@ -128,21 +174,18 @@ class MeshPart:
         elif etype == ElementType.NODE:
             return self._mesh.node_count
         else:
-            raise ValueError(f"Unknown entity type {etype}")
+            return None
 
     def partition(
         self,
         num_shards: int,
         device: str = settings.device,
-        gpus: List[int | str] = settings.gpus,
+        gpus: List[int] = settings.gpus,
     ) -> List[MeshShard]:
-        """Run partitioning with devices."""
-        if self._mesh is None:
-            return self._shards or None
-
+        """Run partitioning with specified devices."""
         # Check devices
         if device == "cuda" and len(gpus) < num_shards:
-            raise ValueError(f"GPU count {len(gpus)} less than shard num {num_shards}.")
+            raise ValueError(f"GPU count {len(gpus)} less than shard num {num_shards}")
         if device == "cpu":
             gpus = None
 
@@ -152,153 +195,200 @@ class MeshPart:
 
         # Build shards
         for sid in range(num_shards):
-            shard = self._build_shard(sid, gpus)
+            shard = self._build_shard_core(sid, gpus)
             self._shards.append(shard)
 
         # Build halos
-        self._build_halos()
+        self._build_halos_consistent()
 
         return self._shards
 
-    def _part_cells(self, num_shards: int) -> np.ndarray:
+    def _part_cells(self, num_shards: int):
         """Partition cells."""
         options = pymetis.Options()
         options.minconn = True
         options.contig = True
 
-        adjacency = self._topo.cell_neighbours
-        recursive = num_shards <= 8
         _, membership = pymetis.part_graph(
             num_shards,
-            adjacency=adjacency,
-            recursive=recursive,  # Small-scale partition
+            adjacency=self._topo.cell_neighbours,
+            recursive=num_shards <= 8,  # Small-scale
             options=options,
         )
         return np.array(membership)
 
-    def _build_shard(self, sid: int, gpus: List[int | str]) -> MeshShard:
+    def _build_shard_core(self, sid: int, gpus):
         """Build a shard."""
         # Get local cells
         local_cells = np.where(self.cell_parts == sid)[0]
-        local_cells = np.unique(local_cells)
 
         # Get local faces
         local_faces = []
         for fid, (cl, cr) in enumerate(self._topo.face_cells):
-            li = cl is not None and self._cell_parts[cl] == sid
-            ri = cr is not None and self._cell_parts[cr] == sid
-            if li or ri:
+            # the face's owner cell is local
+            if self._cell_parts[cl] == sid:
                 local_faces.append(fid)
         local_faces = np.array(local_faces)
 
         # Get local nodes
         local_nodes = set()
-        for cid in local_cells:
-            local_nodes.update(self._topo.cell_nodes[cid])
         for fid in local_faces:
             local_nodes.update(self._topo.face_nodes[fid])
-        local_nodes = np.array(sorted(local_nodes))
+        local_nodes = np.array(list(local_nodes))
 
         # Build global -> local maps
         cell_g2l = {g: l for l, g in enumerate(local_cells)}
         face_g2l = {g: l for l, g in enumerate(local_faces)}
         node_g2l = {g: l for l, g in enumerate(local_nodes)}
 
-        # Set GPU device
-        gpu = gpus[sid] if gpus is not None else None
-        gpu = parse_gpu(gpu)
-
+        # Build shard with core info
         return MeshShard(
             shard_id=sid,
-            gpu=gpu,
-            cells=local_cells,
-            faces=local_faces,
-            nodes=local_nodes,
-            cell_g2l=cell_g2l,
-            face_g2l=face_g2l,
-            node_g2l=node_g2l,
-            halo_g2l={},
+            gpu=parse_gpu(gpus[sid] if gpus else None),
+            cells=local_cells,  # Will append ghosts later
+            faces=local_faces,  # Will append ghosts later
+            nodes=local_nodes,  # Will append ghosts later
+            cell_g2l_core=cell_g2l,
+            face_g2l_core=face_g2l,
+            node_g2l_core=node_g2l,
+            cell_g2l_halo={},
+            face_g2l_halo={},
+            node_g2l_halo={},
             cell_halo=SharedInfo(),
             face_halo=SharedInfo(),
             node_halo=SharedInfo(),
+            n_core_cells=len(local_cells),
+            n_core_faces=len(local_faces),
+            n_core_nodes=len(local_nodes),
         )
 
-    def _build_halos(self):
-        """Build halo info."""
-        # Get interfaces
+    def _build_halos_consistent(self):
+        """Build halo info consistently for Cells, Faces, and Nodes."""
+        # --- Cell Halos ---
         interfaces = defaultdict(list)
         for fid, (cl, cr) in enumerate(self._topo.face_cells):
-            if cr is None:  # Boundary face
+            if cr is None:
                 continue
-            pl = self._cell_parts[cl]
-            pr = self._cell_parts[cr]
-            if pl != pr:  # Interface face
-                ps = tuple(sorted((pl, pr)))
-                interfaces[ps].append((fid, cl, cr, pl, pr))
+            pl, pr = self._cell_parts[cl], self._cell_parts[cr]
+            if pl != pr:
+                interfaces[tuple(sorted((pl, pr)))].append((fid, cl, cr))
 
-        # Cell/Face Halo
-        for (pa, pb), items in interfaces.items():
-            sa, sb = self._shards[pa], self._shards[pb]
-            for fid, cl, cr, pl, pr in items:
-                # pa own the cl, pb own the cr
-                if pl == pa:
-                    self._add_cell_halo(sa, sb, fid, cl)
-                    self._add_cell_halo(sb, sa, fid, cr)
-                    self._add_face_halo(sa, sb, fid)
-                else:
-                    self._add_cell_halo(sb, sa, fid, cl)
-                    self._add_cell_halo(sa, sb, fid, cr)
-                    self._add_face_halo(sb, sa, fid)
+        for (pl, pr), items in interfaces.items():
+            sl, sr = self._shards[pl], self._shards[pr]
+            for fid, cl, cr in items:
+                # sender (owner of cell) and receiver (needs ghost)
+                self._add_halo_entity(sl, sr, "cell", cl)
+                self._add_halo_entity(sr, sl, "cell", cr)
+                # Left cell owns the face as sender
+                self._add_halo_entity(sl, sr, "face", fid)
 
-        # Node Halo
-        self._add_node_halo()
+        # --- Node Halos ---
+        node_to_shards = defaultdict(set)
+        for s in self._shards:
+            for cid in s.cells:
+                for nid in self._topo.cell_nodes[cid]:
+                    node_to_shards[nid].add(s.shard_id)
 
-    def _add_cell_halo(
-        self, sender: MeshShard, receiver: MeshShard, fid: int, ghost_cell: int
+        for nid, shard_ids in node_to_shards.items():
+            if len(shard_ids) == 1:  # Internal node
+                continue
+
+            # Owner: Min shard ID
+            owner_sid = min(shard_ids)
+            for sid in shard_ids:
+                s = self._shards[sid]
+                if sid == owner_sid:  # Owner: Needs to be Core
+                    pass
+                else:  # Non-owner: Needs to be Ghost
+                    if nid in s.node_g2l_core:
+                        pass
+                    self._add_halo_node(s, self._shards[owner_sid], "node", nid)
+
+    def _add_halo_entity(
+        self, sender: MeshShard, receiver: MeshShard, etype: str, global_id: int
     ):
-        """Add cell halo entry."""
-        # Allocate ghost cell in receiver
-        ghost_idx = len(receiver.cells) + len(receiver.halo_g2l)
-        receiver.halo_g2l[ghost_cell] = ghost_idx
-        receiver.cells = np.append(receiver.cells, ghost_cell)
+        """
+        Establish a Ghost relationship: Sender (Owner) -> Receiver (Ghost).
+        """
+        # Get references based on type
+        if etype == "cell":
+            r_arr = receiver.cells
+            r_g2l_core = receiver.cell_g2l_core
+            r_g2l_halo = receiver.cell_g2l_halo
+            r_halo_info = receiver.cell_halo
 
-        # Recorder halo mapping
-        sender.cell_halo.send_map.setdefault(receiver.shard_id, []).append(
-            (sender.cell_g2l[ghost_cell], ghost_cell)
-        )
-        receiver.cell_halo.recv_map.setdefault(
-            sender.shard_id,
-            [],
-        ).append(ghost_idx)
+            s_g2l_core = sender.cell_g2l_core
+            s_halo_info = sender.cell_halo
+        elif etype == "face":
+            r_arr = receiver.faces
+            r_g2l_core = receiver.face_g2l_core
+            r_g2l_halo = receiver.face_g2l_halo
+            r_halo_info = receiver.face_halo
 
-        # Update neighbor lists
-        if receiver.shard_id not in sender.cell_halo.neighbours:
-            sender.cell_halo.neighbours.append(receiver.shard_id)
-        if sender.shard_id not in receiver.cell_halo.neighbours:
-            receiver.cell_halo.neighbours.append(sender.shard_id)
+            s_g2l_core = sender.face_g2l_core
+            s_halo_info = sender.face_halo
+        elif etype == "node":
+            r_arr = receiver.nodes
+            r_g2l_core = receiver.node_g2l_core
+            r_g2l_halo = receiver.node_g2l_halo
+            r_halo_info = receiver.node_halo
 
-    def _add_face_halo(self, s1: MeshShard, s2: MeshShard, fid: int):
-        """Add face halo entry."""
-        for a, b in [(s1, s2), (s2, s1)]:
-            a.face_halo.shared_map.setdefault(b.shard_id, []).append(a.face_g2l[fid])
+            s_g2l_core = sender.node_g2l_core
+            s_halo_info = sender.node_halo
+        else:
+            raise ValueError(f"Unknown entity type: {etype}")
 
-    def _add_node_halo(self):
-        """Add node halo entry."""
-        if self.num_shards <= 1:
+        # Skip if already present (either as core or ghost)
+        if global_id in r_g2l_core or global_id in r_g2l_halo:
             return
 
-        node_parts = defaultdict(set[int])
-        for s in self._shards:
-            for nid in s.nodes:
-                node_parts[nid].add(s.shard_id)
+        # Calculate new local index for the ghost entity
+        ghost_idx = len(r_arr)
 
-        for nid, parts in node_parts.items():
-            for sid in parts:
-                s = self._shards[sid]
-                li = s.node_g2l[nid]
-                for other in parts:
-                    if other != sid:
-                        s.node_halo.shared_map.setdefault(
-                            other,
-                            [],
-                        ).append(li)
+        # Extend Receiver's physical array
+        if etype == "cell":
+            receiver.cells = np.append(receiver.cells, global_id)
+        elif etype == "face":
+            receiver.faces = np.append(receiver.faces, global_id)
+        elif etype == "node":
+            receiver.nodes = np.append(receiver.nodes, global_id)
+
+        # Update Receiver's Halo Map
+        r_g2l_halo[global_id] = ghost_idx
+
+        # Sender must own this entity (should be in its Core map)
+        if global_id not in s_g2l_core:
+            raise RuntimeError(
+                f"Logic Error: Sender Shard {sender.shard_id} does not own {etype} {global_id}. "
+                f"Cannot establish halo from non-owner."
+            )
+
+        # Update Sender's SEND map in ordered
+        s_local_idx = s_g2l_core[global_id]
+        s_halo_info.send_map.setdefault(receiver.shard_id, []).append(
+            (s_local_idx, global_id)
+        )
+
+        # Update Receiver's RECV map
+        r_halo_info.recv_map.setdefault(sender.shard_id, []).append(ghost_idx)
+
+        # Update Neighbour lists
+        if receiver.shard_id not in s_halo_info.neighbours:
+            s_halo_info.neighbours.append(receiver.shard_id)
+        if sender.shard_id not in r_halo_info.neighbours:
+            r_halo_info.neighbours.append(sender.shard_id)
+
+    def _add_halo_node(
+        self, receiver: MeshShard, sender: MeshShard, etype: str, global_id: int
+    ):
+        """Establish a Ghost relationship for nodes."""
+        if etype == "node":
+            if global_id in receiver.node_g2l_core:
+                pass
+
+        # Just record the dependency in shared_map for sync
+        li = receiver.node_g2l_core.get(global_id)
+        if li is None:
+            li = receiver.node_g2l_halo.get(global_id)
+        if li is not None:
+            receiver.node_halo.shared_map.setdefault(sender.shard_id, []).append(li)

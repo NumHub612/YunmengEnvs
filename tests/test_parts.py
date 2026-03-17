@@ -163,7 +163,7 @@ class TestStructuredGrid:
             assert len(shard.cells) > 0
 
         # Check that all cells are accounted for
-        total_cells = sum(len(shard.cell_g2l) for shard in shards)
+        total_cells = sum(s.n_core_cells for s in shards)
         assert total_cells == part.get_size(ElementType.CELL)
 
     def test_partition_single_shard_gpu(self, grid2d_4x4: Grid):
@@ -196,7 +196,7 @@ class TestStructuredGrid:
             assert len(shard.cells) > 0
 
         # Check that all cells are accounted for
-        total_cells = sum(len(shard.cell_g2l) for shard in shards)
+        total_cells = sum(s.n_core_cells for s in shards)
         assert total_cells == part.get_size(ElementType.CELL)
 
     def test_cell_parts_property(self, grid2d_6x6: Grid):
@@ -237,22 +237,21 @@ class TestStructuredGrid:
 
         for shard in shards:
             # Check that all local cells have a global-to-local mapping
-            for global_idx in shard.cells:
-                if global_idx not in shard.halo_g2l:  # Skip ghost cells
-                    assert global_idx in shard.cell_g2l
-                    local_idx = shard.cell_g2l[global_idx]
-                    assert 0 <= local_idx < len(shard.cells)
+            for global_idx in shard.cells[: shard.n_core_cells]:
+                assert global_idx in shard.cell_g2l_core
+                local_idx = shard.cell_g2l_core[global_idx]
+                assert 0 <= local_idx < len(shard.cells)
 
             # Check that all local faces have a global-to-local mapping
-            for global_idx in shard.faces:
-                assert global_idx in shard.face_g2l
-                local_idx = shard.face_g2l[global_idx]
+            for global_idx in shard.faces[: shard.n_core_faces]:
+                assert global_idx in shard.face_g2l_core
+                local_idx = shard.face_g2l_core[global_idx]
                 assert 0 <= local_idx < len(shard.faces)
 
             # Check that all local nodes have a global-to-local mapping
-            for global_idx in shard.nodes:
-                assert global_idx in shard.node_g2l
-                local_idx = shard.node_g2l[global_idx]
+            for global_idx in shard.nodes[: shard.n_core_nodes]:
+                assert global_idx in shard.node_g2l_core
+                local_idx = shard.node_g2l_core[global_idx]
                 assert 0 <= local_idx < len(shard.nodes)
 
 
@@ -289,7 +288,7 @@ class TestUnstructuredMesh:
             assert len(shard.cells) > 0
 
         # Check that all cells are accounted for
-        total_cells = sum(len(shard.cell_g2l) for shard in shards)
+        total_cells = sum(s.n_core_cells for s in shards)
         assert total_cells == part.get_size(ElementType.CELL)
 
     def test_partition_single_shard_gpu(self, mesh2d_4x4: Mesh):
@@ -322,7 +321,7 @@ class TestUnstructuredMesh:
             assert len(shard.cells) > 0
 
         # Check that all cells are accounted for
-        total_cells = sum(len(shard.cell_g2l) for shard in shards)
+        total_cells = sum(s.n_core_cells for s in shards)
         assert total_cells == part.get_size(ElementType.CELL)
 
     def test_cell_parts_property(self, mesh2d_6x6: Mesh):
@@ -363,20 +362,19 @@ class TestUnstructuredMesh:
 
         for shard in shards:
             # Check that all local cells have a global-to-local mapping
-            for global_idx in shard.cells:
-                if global_idx not in shard.halo_g2l:  # Skip ghost cells
-                    assert global_idx in shard.cell_g2l
-                    local_idx = shard.cell_g2l[global_idx]
-                    assert 0 <= local_idx < len(shard.cells)
+            for global_idx in shard.cells[: shard.n_core_cells]:
+                assert global_idx in shard.cell_g2l_core
+                local_idx = shard.cell_g2l_core[global_idx]
+                assert 0 <= local_idx < len(shard.cells)
 
             # Check that all local faces have a global-to-local mapping
-            for global_idx in shard.faces:
-                assert global_idx in shard.face_g2l
-                local_idx = shard.face_g2l[global_idx]
+            for global_idx in shard.faces[: shard.n_core_faces]:
+                assert global_idx in shard.face_g2l_core
+                local_idx = shard.face_g2l_core[global_idx]
                 assert 0 <= local_idx < len(shard.faces)
 
             # Check that all local nodes have a global-to-local mapping
-            for global_idx in shard.nodes:
-                assert global_idx in shard.node_g2l
-                local_idx = shard.node_g2l[global_idx]
+            for global_idx in shard.nodes[: shard.n_core_nodes]:
+                assert global_idx in shard.node_g2l_core
+                local_idx = shard.node_g2l_core[global_idx]
                 assert 0 <= local_idx < len(shard.nodes)
