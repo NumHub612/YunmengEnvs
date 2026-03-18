@@ -206,7 +206,7 @@ class MeshTopo:
 
         for f, cells in cell_faces_map.items():
             if len(cells) == 1:
-                # Boundary face
+                # Boundary face: left cell as owner.
                 face_cells_list[f] = [cells[0], None]
             elif len(cells) == 2:
                 # Internal face

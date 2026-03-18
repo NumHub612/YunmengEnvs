@@ -54,7 +54,7 @@ class Variable:
         back = get_backend()
         data = back.array(
             [x],
-            dtype=back.xp.float64,
+            dtype=back.float64,
             requires_grad=requires_grad,
         )
         return Variable(data, VariableType.SCALAR)
@@ -65,7 +65,7 @@ class Variable:
         back = get_backend()
         data = back.array(
             [x, y, z],
-            dtype=back.xp.float64,
+            dtype=back.float64,
             requires_grad=requires_grad,
         )
         return Variable(data, VariableType.VECTOR)
@@ -75,27 +75,27 @@ class Variable:
         """Tensor variable."""
         back = get_backend()
         data = back.array(
-            args, dtype=back.xp.float64, requires_grad=requires_grad
+            args, dtype=back.float64, requires_grad=requires_grad
         ).reshape(3, 3)
         return Variable(data, VariableType.TENSOR)
 
     @staticmethod
-    def zero(dtype: VariableType, requires_grad: bool = False) -> "Variable":
+    def zero(vtype: VariableType, requires_grad: bool = False) -> "Variable":
         """Zeros variable."""
-        if dtype == VariableType.SCALAR:
+        if vtype == VariableType.SCALAR:
             args = [0.0]
-        elif dtype == VariableType.VECTOR:
+        elif vtype == VariableType.VECTOR:
             args = [0.0] * 3
-        elif dtype == VariableType.TENSOR:
+        elif vtype == VariableType.TENSOR:
             args = [0.0] * 9
         else:
             raise NotImplementedError
 
         back = get_backend()
         data = back.array(
-            args, dtype=back.xp.float64, requires_grad=requires_grad
-        ).reshape(dtype.value)
-        return Variable(data, dtype)
+            args, dtype=back.float64, requires_grad=requires_grad
+        ).reshape(vtype.value)
+        return Variable(data, vtype)
 
     @staticmethod
     def from_numpy(arr: np.ndarray) -> "Variable":
@@ -109,8 +109,7 @@ class Variable:
             raise ValueError(f"Invalid numpy shape {arr.shape}.")
 
         back = get_backend()
-        xp = back.xp
-        data = Backend.from_numpy(arr, xp)
+        data = back.array(arr, dtype=back.float64)
         return Variable(data, vtype, back)
 
     def to_numpy(self) -> np.ndarray:

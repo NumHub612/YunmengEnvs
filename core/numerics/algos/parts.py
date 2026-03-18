@@ -83,6 +83,46 @@ class MeshShard:
     def n_ghost_nodes(self) -> int:
         return len(self.node_g2l_halo)
 
+    def get_halo_info(self, etype: ElementType) -> SharedInfo:
+        if etype == ElementType.CELL:
+            return self.cell_halo
+        elif etype == ElementType.FACE:
+            return self.face_halo
+        elif etype == ElementType.NODE:
+            return self.node_halo
+        else:
+            raise ValueError("Unsupport ElementType!")
+
+    def get_entities(self, etype: ElementType) -> np.ndarray:
+        if etype == ElementType.CELL:
+            return self.cells
+        elif etype == ElementType.FACE:
+            return self.faces
+        elif etype == ElementType.NODE:
+            return self.nodes
+        else:
+            raise ValueError("Unsupport ElementType!")
+
+    def get_g2l_maps(self, etype: ElementType) -> tuple:
+        if etype == ElementType.CELL:
+            return self.cell_g2l_core, self.cell_g2l_halo
+        elif etype == ElementType.FACE:
+            return self.face_g2l_core, self.face_g2l_halo
+        elif etype == ElementType.NODE:
+            return self.node_g2l_core, self.node_g2l_halo
+        else:
+            raise ValueError("Unsupport ElementType!")
+
+    def get_sizes(self, etype: ElementType) -> tuple:
+        if etype == ElementType.CELL:
+            return len(self.cells), self.n_core_cells, self.n_ghost_cells
+        elif etype == ElementType.FACE:
+            return len(self.faces), self.n_core_faces, self.n_ghost_faces
+        elif etype == ElementType.NODE:
+            return len(self.nodes), self.n_core_nodes, self.n_ghost_nodes
+        else:
+            raise ValueError("Unsupport ElementType!")
+
     @staticmethod
     def from_size(
         element_size: int,

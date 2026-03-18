@@ -6,8 +6,8 @@ Fields definition.
 """
 from core.numerics.fields.variables import Variable, VariableType
 from core.numerics.fields.backends import get_backend
-from core.numerics.algos.parts import MeshPart
-from core.numerics.enums import ElementType
+from core.numerics.algos.parts import MeshShard
+from core.numerics.enums import ElementType, BackendType
 
 import numpy as np
 import torch
@@ -41,8 +41,8 @@ class FieldMeta:
     version: int
     size: int
     etype: ElementType
-    dtype: VariableType
-    backend_name: str
+    vtype: VariableType
+    btype: BackendType
     requires_grad: bool = False
     unit: str = None
 
@@ -53,21 +53,21 @@ class FieldShard:
 
     shard_id: int
     gpu: torch.device
-    data: DataArray  # n_local + n_ghost
-    n_local: int
+    data: DataArray  # [Core..., Ghost...]
+    n_core: int
 
     @property
     def n_ghost(self) -> int:
         """Ghost data size"""
-        return self.data.shape[0] - self.n_local
+        return self.data.shape[0] - self.n_core
 
     def local_view(self) -> DataArray:
         """Local data view"""
-        return self.data[: self.n_local]
+        return self.data[: self.n_core]
 
     def ghost_view(self) -> DataArray:
         """Ghost data view"""
-        return self.data[self.n_local :]
+        return self.data[self.n_core :]
 
     def zero_grad(self):
         """Clear gradients"""
@@ -88,41 +88,30 @@ class FieldShard:
 
 
 class Field:
-    """Distributed physical field."""
-
-    __slots__ = (
-        "_meta",
-        "_shards",
-        "_backend",
-        "_mesh_part",
-        "_halo_buffers",
-        "_global_in_shard",
-        "_comm_group",
-        "_dirty_flags",
-    )
+    """Distributed physical field based on mesh partition."""
 
     def __init__(
         self,
-        mesh_part: MeshPart,
-        dtype: VariableType,
+        mesh_shards: list[MeshShard],
+        vtype: VariableType,
         etype: ElementType,
         init_val: DataItem = None,
         requires_grad: bool = False,
     ):
         # Init metadata
         self._backend = get_backend()
-        self._mesh_part = mesh_part
+        self._mesh_shards = mesh_shards
         self._meta = FieldMeta(
             version=0,
-            size=mesh_part.get_size(etype),
+            size=self._get_total_size(mesh_shards, etype),
             etype=etype,
-            dtype=dtype,
-            backend_name=self._backend.name,
+            vtype=vtype,
+            btype=self._backend.type,
             requires_grad=requires_grad,
         )
 
         # Init shards for each mesh shard
-        self._shards: Dict[int, FieldShard] = {}
+        self._shards: List[FieldShard] = []
         self._init_shards(init_val, requires_grad)
 
         # Init halo communication buffers
@@ -130,130 +119,216 @@ class Field:
         self._init_halo_buffers()
 
         # Build global-shard index maps
-        self._global_in_shard: List = []
+        self._global_in_shard = []
         self._build_global_index_maps()
 
         # Comms group (NCCL/NCCL-like)
         self._comm_group = None
 
         # Dirty flags for shard halo sync
-        self._dirty_flags: Dict[int, bool] = {
-            sid: False for sid in range(mesh_part.num_shards)
-        }
+        self._dirty_flags = {s.shard_id: False for s in mesh_shards}
 
-    def _init_shards(self, init_val, requires_grad: bool = True):
+    def _get_total_size(self, mesh_shards, etype):
+        """Get total size of field data."""
+        if etype == ElementType.CELL:
+            return sum([s.n_core_cells for s in mesh_shards])
+        elif etype == ElementType.NODE:
+            return sum([s.n_core_nodes for s in mesh_shards])
+        elif etype == ElementType.FACE:
+            return sum([s.n_core_faces for s in mesh_shards])
+        else:
+            raise ValueError(f"Invalid element type: {etype}")
+
+    def _init_shards(self, init_val, requires_grad=True):
         """Init field shards."""
-        for mesh_shard in self._mesh_part.shards:
-            sid = mesh_shard.shard_id
-            n_data, n_comp, n_ghost = self._get_shard_shape(sid)
+        for shard in self._mesh_shards:
+            sid = shard.shard_id
+            n_data, n_core, _ = shard.get_sizes(self._meta.etype)
+            n_comp = self._meta.vtype.value
+
+            fill_shape = (n_data, *n_comp)
             init_val = self._get_init_val(init_val)
+            data = self._backend.full(
+                fill_shape, init_val, self._backend.float64, shard.gpu, requires_grad
+            )
 
-            if self._backend.name == "torch":
-                with torch.cuda.device(mesh_shard.gpu):
-                    data = torch.full(
-                        (n_data, *n_comp),
-                        init_val,
-                        dtype=torch.float64,
-                        device=mesh_shard.gpu,
-                        requires_grad=requires_grad,
-                    )
-            else:  # numpy
-                data = np.full(
-                    (n_data, *n_comp),
-                    init_val,
-                    dtype=np.float64,
+            self._shards.append(
+                FieldShard(
+                    shard_id=sid,
+                    gpu=shard.gpu,
+                    data=data,
+                    n_core=n_core,
                 )
-
-            self._shards[sid] = FieldShard(
-                shard_id=sid,
-                gpu=mesh_shard.gpu,
-                data=data,
-                n_local=n_data - n_ghost,
             )
 
     def _get_init_val(self, init_val) -> Variable:
         """Get initial value for this shard."""
         if init_val is None:
-            return Variable.zero(self._meta.dtype, self._meta.requires_grad).data
+            return Variable.zero(self._meta.vtype, self._meta.requires_grad).data
         if isinstance(init_val, Variable):
             return init_val.data
         if isinstance(init_val, (float, np.ndarray, torch.Tensor)):
             return init_val
-
-    def _get_shard_shape(self, sid) -> tuple:
-        """Get the shape of mesh shard data."""
-        shard = self._mesh_part.shards[sid]
-
-        # element count depends on field type
-        n_ghost = 0
-        if self._meta.etype == ElementType.CELL:
-            n_elements = len(shard.cells)  # local + ghost
-            n_ghost = len(shard.halo_g2l)
-        elif self._meta.etype == ElementType.FACE:
-            n_elements = len(shard.faces)
-        elif self._meta.etype == ElementType.NODE:
-            n_elements = len(shard.nodes)
-        else:
-            n_elements = 0
-
-        # component count depends on variable type
-        n_components = self._meta.dtype.value
-
-        # return the full shape for this shard
-        return (n_elements, n_components, n_ghost)
+        return None
 
     def _init_halo_buffers(self):
         """Pre-allocate halo communication buffers."""
-        for mesh_shard in self._mesh_part.shards:
-            sid = mesh_shard.shard_id
-            cell_halo = mesh_shard.cell_halo
-            n_components = self._meta.dtype.value
+        if len(self._shards) < 2:
+            return
 
-            # Pre-allocate send/recv buffers for each neighbor
+        for shard in self._mesh_shards:
+            sid = shard.shard_id
+            halo_info = shard.get_halo_info(self._meta.etype)
+            n_comp = self._meta.vtype.value
+
+            # Send/recv buffers for each neighbor
             buffers = {}
-            for neighbor_id in cell_halo.neighbours:
+            for neighbor_id in halo_info.neighbours:
                 # Send
-                send_map = cell_halo.send_map[neighbor_id]
-                n_send = len(send_map)
+                send_list = halo_info.send_map[neighbor_id]
+                n_send = len(send_list)
 
                 # Recv
-                recv_map = cell_halo.recv_map[neighbor_id]
-                n_recv = len(recv_map)
+                recv_list = halo_info.recv_map[neighbor_id]
+                n_recv = len(recv_list)
 
+                if n_send == 0 and n_recv == 0:
+                    continue
+
+                # Buffer
                 buffers[neighbor_id] = {
-                    "send_buf": self._make_buffer(
-                        n_send,
-                        n_components,
-                        mesh_shard.gpu,
+                    "send_buf": self._backend.empty(
+                        (n_send, *n_comp), device=shard.gpu
                     ),
-                    "recv_buf": self._make_buffer(
-                        n_recv,
-                        n_components,
-                        mesh_shard.gpu,
+                    "recv_buf": self._backend.empty(
+                        (n_recv, *n_comp), device=shard.gpu
                     ),
-                    "send_indices": [local_idx for local_idx, _ in send_map],
-                    "recv_indices": recv_map,  # ghost cell indices
+                    "send_indices": [l_idx for l_idx, _ in send_list],
+                    "recv_indices": recv_list,  # ghost
                 }
             self._halo_buffers[sid] = buffers
-
-    def _make_buffer(self, size, shape, device):
-        if self._backend.name == "torch":
-            return torch.empty(
-                size,
-                shape,
-                device=device,
-                dtype=torch.float64,
-            )
-        else:
-            return np.empty((size, shape), dtype=np.float64)
 
     def _build_global_index_maps(self):
         """Build global index -> (shard_id, local_index) mapping."""
         self._global_in_shard = np.empty(self._meta.size, dtype=object)
-        for shard in self._mesh_part.shards:
+        for shard in self._mesh_shards:
             sid = shard.shard_id
-            for g, l in shard.cell_g2l.items():
+            for g, l in shard.cell_g2l_core.items():
                 self._global_in_shard[g] = (sid, l)
+
+    # --------------------------------------------------
+    # region Properties
+    # --------------------------------------------------
+
+    @property
+    def meta(self) -> FieldMeta:
+        return self._meta
+
+    @property
+    def shards(self) -> List[FieldShard]:
+        return self._shards
+
+    @property
+    def etype(self) -> ElementType:
+        return self._meta.etype
+
+    @property
+    def vtype(self) -> VariableType:
+        return self._meta.vtype
+
+    @property
+    def size(self) -> int:
+        return self._meta.size
+
+    # --------------------------------------------------
+    # region Core operations
+    # --------------------------------------------------
+
+    @staticmethod
+    def from_array(
+        data: DataArray, mesh_shards: list[MeshShard], meta: FieldMeta
+    ) -> "Field":
+        """Create a field from a global array."""
+        assert data.shape[0] == meta.size, "Data size != field size"
+        field = Field(
+            mesh_shards,
+            meta.vtype,
+            meta.etype,
+            requires_grad=meta.requires_grad,
+        )
+
+        for g in range(meta.size):
+            sid, l = field._global_in_shard[g]
+            field._shards[sid].data[l] = data[g]
+        return field
+
+    @staticmethod
+    def from_shard(
+        shards: list[FieldShard], mesh_shards: list[MeshShard], meta: FieldMeta
+    ) -> "Field":
+        """Create a field from pre-initialized shards."""
+        total_size = sum([shard.n_core for shard in shards])
+        assert total_size == meta.size, "Shard size != field size"
+
+        field = Field(
+            mesh_shards,
+            meta.vtype,
+            meta.etype,
+            requires_grad=meta.requires_grad,
+        )
+        field._shards = shards
+        return field
+
+    @staticmethod
+    def from_size(
+        size: int,
+        vtype: VariableType = VariableType.SCALAR,
+        etype: ElementType = ElementType.CELL,
+        init_val: Variable = None,
+        requires_grad: bool = False,
+    ) -> "Field":
+        """Create a continuous field with specified size."""
+        shard = MeshShard.from_size(size, etype)
+        return Field(
+            [shard],
+            vtype,
+            etype,
+            init_val=init_val,
+            requires_grad=requires_grad,
+        )
+
+    def apply(self, func: Callable) -> "Field":
+        """
+        Apply a in-place function to each element of the field.
+        (Local operation, non-communication)
+        """
+        # Apply func to each shard's data in-place
+        for shard in self._shards:
+            func(shard.data)
+
+        # Mark all shards as dirty for halo sync
+        self._mark_dirty()
+        return self
+
+    def __getitem__(self, indices: DataIndex) -> DataArray:
+        shard_indices = self._get_shard_indices(indices)
+        values = [self._shards[sid].data[l] for sid, l in shard_indices]
+        if len(values) == 1:
+            return values[0]
+        else:
+            return self._backend.stack(values)
+
+    def __setitem__(self, indices: DataIndex, value):
+        shard_indices = self._get_shard_indices(indices)
+        if isinstance(value, (float, Variable)):
+            value = [value]
+        for (sid, l), val in zip(shard_indices, value):
+            if isinstance(val, Variable):
+                val = val.data
+            data = self._backend.data(
+                val, dtype=self._backend.float64, gpu=self._shards[sid].gpu
+            )
+            self._shards[sid].data[l] = data
 
     def _get_shard_indices(self, indices: DataIndex):
         # Get the global indices for this slice
@@ -275,123 +350,22 @@ class Field:
             l_indices.append((sid, l))
         return l_indices
 
-    def _to_data(self, value, sid):
-        if isinstance(value, Variable):
-            value = value.data
-        if self._backend.name == "torch":
-            return torch.as_tensor(
-                value, dtype=torch.float64, device=self._shards[sid].gpu
-            )
-        else:
-            return np.array(value, dtype=np.float64)
-
-    # --------------------------------------------------
-    # Property accessors
-    # --------------------------------------------------
-
-    @property
-    def meta(self) -> FieldMeta:
-        return self._meta
-
-    @property
-    def shards(self) -> List[FieldShard]:
-        return self._shards.values()
-
-    @property
-    def etype(self) -> ElementType:
-        return self._meta.etype
-
-    @property
-    def dtype(self) -> VariableType:
-        return self._meta.dtype
-
-    @property
-    def size(self) -> int:
-        return self._meta.size
-
-    @property
-    def mesh_part(self) -> MeshPart:
-        return self._mesh_part
-
-    # --------------------------------------------------
-    # Core field operations
-    # --------------------------------------------------
-
-    @staticmethod
-    def from_array(data: DataArray, mesh_part: MeshPart, meta: FieldMeta) -> "Field":
-        """Create a field from a global array."""
-        assert data.shape[0] == meta.size, "Data size must match field size"
-        field = Field(
-            mesh_part,
-            meta.dtype,
-            meta.etype,
-            requires_grad=meta.requires_grad,
-        )
-
-        for g in range(meta.size):
-            sid, l = field._global_in_shard[g]
-            field._shards[sid].data[l] = data[g]
-        return field
-
-    @staticmethod
-    def from_shard(
-        shards: Dict[int, FieldShard], mesh_part: MeshPart, meta: FieldMeta
-    ) -> "Field":
-        """Create a field from pre-initialized shards."""
-        total_size = sum([shard.n_local for shard in shards.values()])
-        assert total_size == meta.size, "Shard sizes must sum to field size"
-
-        field = Field(
-            mesh_part,
-            meta.dtype,
-            meta.etype,
-            requires_grad=meta.requires_grad,
-        )
-        field._shards = shards
-        return field
-
-    def apply(self, func: Callable) -> "Field":
-        """
-        Apply a function to each element of the field.
-        (Local operation, non-communication)
-        """
-        # Apply func to each shard's data in-place
-        for shard in self._shards.values():
-            shard.data = func(shard.data)
-
-        # Mark all shards as dirty for halo sync
-        self._mark_dirty()
-        return self
-
-    def __getitem__(self, indices: DataIndex) -> DataArray:
-        shard_indices = self._get_shard_indices(indices)
-        results = [self._shards[sid].data[l] for sid, l in shard_indices]
-        if len(results) == 1:
-            return results[0]
-        elif self._backend.name == "torch":
-            return torch.stack(results)
-        else:
-            return np.array(results)
-
-    def __setitem__(self, indices: DataIndex, value):
-        shard_indices = self._get_shard_indices(indices)
-        if isinstance(value, Variable):
-            value = [value]
-        for (sid, l), val in zip(shard_indices, value):
-            self._shards[sid].data[l] = self._to_data(val, sid)
-
     def _binary_op(self, other: "Field", op: Callable) -> "Field":
         """Unified binary operation, auto-align shards."""
         if isinstance(other, Field):
-            assert self._mesh_part is other._mesh_part, "MeshPart mismatch"
+            assert self._mesh_shards is other._mesh_shards, "Meshshards mismatch"
             # align_shards
-            new_shards = {}
-            for sid in self._shards.keys():
-                f1 = self._shards[sid]
+            new_shards = []
+            for sid, f1 in enumerate(self._shards):
                 f2 = other._shards[sid]
-                new_f = FieldShard(sid, f1.gpu, op(f1.data, f2.data), f1.n_local)
-                new_shards[sid] = new_f
-            return Field.from_shard(new_shards, self._mesh_part, self._meta)
+                new_f = FieldShard(
+                    shard_id=sid,
+                    gpu=f1.gpu,
+                    data=op(f1.data, f2.data),
+                    n_core=f1.n_core,
+                )
+                new_shards.append(new_f)
+            return Field.from_shard(new_shards, self._mesh_shards, self._meta)
 
     def __add__(self, other: "Field") -> "Field":
         return self._binary_op(other, lambda a, b: a + b)
@@ -400,12 +374,17 @@ class Field:
         return self._binary_op(other, lambda a, b: a - b)
 
     def __mul__(self, scalar: float) -> "Field":
-        new_shards = {}
-        for sid, shard in self._shards.items():
-            new_shards[sid] = FieldShard(
-                sid, shard.gpu, shard.data * scalar, shard.n_local
+        new_shards = []
+        for sid, shard in enumerate(self._shards):
+            new_shards.append(
+                FieldShard(
+                    shard_id=sid,
+                    gpu=shard.gpu,
+                    data=shard.data * scalar,
+                    n_core=shard.n_core,
+                )
             )
-        return Field.from_shard(new_shards, self._mesh_part, self._meta)
+        return Field.from_shard(new_shards, self._mesh_shards, self._meta)
 
     __rmul__ = __mul__
 
@@ -417,104 +396,144 @@ class Field:
         return self * -1
 
     def __iter__(self):
-        for sid in self._shards:
-            for data in self._shards[sid].data:
+        for shard in self._shards:
+            for data in shard.data:
                 yield data
 
     def requires_grad(self, requires_grad: bool = True):
-        if self._backend.name == "torch":
-            for shard in self._shards.values():
+        if self._backend.type == BackendType.TORCH:
+            for shard in self._shards:
                 shard.data.requires_grad_(requires_grad)
             self._meta.requires_grad = requires_grad
 
     def gradient(self):
-        """Get gradient (only for torch backend)."""
-        if self._backend.name != "torch":
-            raise RuntimeError("backward() only available for torch backend")
+        """Get gradient (only for torch backend).
+
+        NOTE: this function not work steady, need to be fixed.
+        """
+        if self._backend.type != BackendType.TORCH:
+            raise RuntimeError("gradient() only available for torch backend")
         if not self._meta.requires_grad:
             raise RuntimeError("requires_grad=False")
 
         # Collect all gradients from all shards
         grads = torch.empty(
-            (self._meta.size, self._meta.dtype.value), dtype=torch.float64
+            (self._meta.size, *self._meta.vtype.value), dtype=torch.float64
         )
         for i in range(self._meta.size):
             sid, l = self._global_in_shard[i]
+            if self._shards[sid].data.grad is None:
+                continue
             grads[i] = self._shards[sid].data.grad[l]
         return grads
 
     # --------------------------------------------------
-    # Core Halo sync
+    # region Core Halo sync
     # --------------------------------------------------
 
     def sync_halos(self, op: HaloMode = HaloMode.OVERWRITE):
-        """
-        Synchronize halo regions with neighbors.
-
-        NOTE:
-        1. Overlap computation with communication using CUDA streams
-        2. Merge small messages to avoid launch overhead
-        3. Lazy execution: only sync when needed
-        """
+        """Synchronize halo regions with neighbors."""
+        # Check if need to sync
+        if len(self._shards) < 2:
+            return self
         if not any(self._dirty_flags.values()):
             return self
 
-        for sid, shard in self._shards.items():
+        # Sender pack data to buffer
+        self._sender_pack()
+
+        # Communicate
+        self._exchange()
+
+        # Receiver unpack data
+        self._receiver_unpack(op)
+
+        # Clear dirty flags
+        self._clear_dirty()
+        self._meta.version += 1
+        return self
+
+    def _sender_pack(self):
+        """Pack data in shard.data to send buffers."""
+        for sid, shard in enumerate(self._shards):
+            if not self._dirty_flags[sid]:
+                continue
+
+            # Pack send data (local -> send buffer)
+            buffers = self._halo_buffers[sid]
+            for _, buf in buffers.items():
+                send_idxs = buf["send_indices"]
+                if self._backend.type == BackendType.TORCH:
+                    send_idxs = self._backend.array(
+                        send_idxs, dtype=torch.int64, gpu=shard.gpu
+                    )
+                    buf["send_buf"].copy_(shard.data[send_idxs])
+                else:
+                    buf["send_buf"] = shard.data[send_idxs]
+
+    def _exchange(self):
+        """Send/recv halo data."""
+        for sid, _ in enumerate(self._shards):
             if not self._dirty_flags[sid]:
                 continue
 
             buffers = self._halo_buffers[sid]
-            for neighbor_id, buf in buffers.items():
-                # 1. Pack send data (local cells -> send buffer)
-                send_indices = torch.tensor(buf["send_indices"], device=shard.device)
-                buf["send_buf"].copy_(shard.data[send_indices])
+            for nbr_id, buf in buffers.items():
+                send_buf = buf["send_buf"]
 
-                # 2. Non-blocking send/recv
-                self._send_receive(
-                    send_buf=buf["send_buf"],
-                    recv_buf=buf["recv_buf"],
-                    dst=neighbor_id,
-                    src=neighbor_id,
-                )
+                # Find the corresponding recv buffer in the neighbor shard
+                nbr_buffers = self._halo_buffers.get(nbr_id, {})
+                target_buf = nbr_buffers.get(sid)
+                recv_buf = target_buf["recv_buf"]
 
-                # 3. Unpack recv data to ghost positions
-                recv_indices = buf["recv_indices"]
-                shard.data[recv_indices] = buf["recv_buf"]
+                # Direct Copy
+                if isinstance(send_buf, torch.Tensor):
+                    recv_buf.copy_(send_buf)
+                else:
+                    recv_buf[:] = send_buf
 
-                # 4. Apply aggregation operation
+    def _receiver_unpack(self, op):
+        """Unpack data from recv buffers to ghost positions."""
+        for sid, shard in enumerate(self._shards):
+            if not self._dirty_flags[sid]:
+                continue
+
+            buffers = self._halo_buffers[sid]
+            for _, buf in buffers.items():
+                recv_idxs = buf["recv_indices"]
+
+                # Unpack recv data to ghost positions
+                if self._backend.type == BackendType.TORCH:
+                    recv_idxs = self._backend.array(
+                        recv_idxs, dtype=torch.int64, gpu=shard.gpu
+                    )
+                recv_data = buf["recv_buf"]
+
                 if op == HaloMode.SUM:
-                    shard.data[recv_indices] += buf["recv_buf"]
+                    shard.data[recv_idxs] += recv_data
                 elif op == HaloMode.MAX:
-                    shard.data[recv_indices] = torch.max(
-                        shard.data[recv_indices], buf["recv_buf"]
+                    shard.data[recv_idxs] = self._minmax_op(op)(
+                        shard.data[recv_idxs], recv_data
                     )
                 elif op == HaloMode.MIN:
-                    shard.data[recv_indices] = torch.min(
-                        shard.data[recv_indices], buf["recv_buf"]
+                    shard.data[recv_idxs] = self._minmax_op(op)(
+                        shard.data[recv_idxs], recv_data
                     )
+                else:
+                    shard.data[recv_idxs] = recv_data
 
-        self._clear_dirty()
-        self._version += 1
-        return self
-
-    def _send_receive(self, send_buf, recv_buf, dst, src):
-        """
-        Perform non-blocking send and receive using torch.distributed.
-        Assumes that the current process corresponds to the shard's rank.
-        """
-        import torch.distributed as dist
-
-        # Ensure tensors are on GPU and contiguous
-        send_buf = send_buf.contiguous()
-        recv_buf = recv_buf.contiguous()
-
-        # Non-blocking send and receive
-        send_handle = dist.isend(tensor=send_buf, dst=dst)
-        recv_handle = dist.irecv(tensor=recv_buf, src=src)
-
-        # Wait for both operations to complete
-        send_handle.wait()
-        recv_handle.wait()
+    def _minmax_op(self, op: HaloMode):
+        if self._backend.type == BackendType.TORCH:
+            if op == HaloMode.MAX:
+                return torch.max
+            elif op == HaloMode.MIN:
+                return torch.min
+        else:
+            if op == HaloMode.MAX:
+                return np.maximum
+            elif op == HaloMode.MIN:
+                return np.minimum
+        raise RuntimeError("Invalid halo op")
 
     def _mark_dirty(self):
         """Flag all shards as dirty for halo sync."""
@@ -527,50 +546,48 @@ class Field:
             self._dirty_flags[sid] = False
 
     # --------------------------------------------------
-    # IO operations
+    # region IO operations
     # --------------------------------------------------
 
     def gather_to_host(self) -> np.ndarray:
         """Collect all partition data to the host global array."""
         global_size = self._meta.size
-        n_comp = self._meta.dtype.value
+        n_comp = self._meta.vtype.value
         global_arr = np.empty((global_size, *n_comp), dtype=np.float64)
 
-        for sid, shard in self._shards.items():
-            mesh_shard = self._mesh_part.shards[sid]
+        for sid, shard in enumerate(self._shards):
+            mesh_shard = self._mesh_shards[sid]
             local_data = shard.local_view()
-            if self._backend.name == "torch":
-                local_data = local_data.cpu().numpy()
+            local_data = self._backend.to_numpy(local_data)
 
-            # Return by global index
-            global_indices = mesh_shard.cells[: shard.n_local]
+            # Return the local data to the global array
+            global_indices = mesh_shard.cells[: shard.n_core]
             global_arr[global_indices] = local_data
 
         return global_arr
 
     def scatter_from_host(self, global_arr: np.ndarray):
         """Distribute from the host global array to each shard."""
-        for sid, shard in self._shards.items():
-            mesh_shard = self._mesh_part.shards[sid]
-            local_indices = mesh_shard.cells[: shard.n_local]
+        for sid, shard in enumerate(self._shards):
+            mesh_shard = self._mesh_shards[sid]
+            local_indices = mesh_shard.cells[: shard.n_core]
 
             # Extract the local part and upload
             local_data = torch.from_numpy(global_arr[local_indices]).to(shard.gpu)
-            shard.data[: shard.n_local] = local_data
+            shape = self._meta.vtype.value
+            shard.data[: shard.n_core] = local_data.view((-1, *shape))
 
         self._mark_dirty()
 
     def scalarize(self) -> list["Field"]:
-        """
-        Convert the field to a list of scalar fields.
-        """
-        if self._meta.dtype == VariableType.TENSOR:
+        """Convert the field to a list of scalar fields."""
+        if self._meta.vtype == VariableType.TENSOR:
             raise ValueError("Cannot scalarize a tensor field.")
 
         data = self.gather_to_host()
         scalar_fields = []
         for i in range(data.shape[1]):
-            field = Field.from_array(data[:, i], self._mesh_part, self._meta)
+            field = Field.from_array(data[:, i], self._mesh_shards, self._meta)
             scalar_fields.append(field)
 
         return scalar_fields

@@ -7,6 +7,25 @@ Enumerations for numerical algorithms and data structures.
 from enum import Enum
 
 # --------------------------------------------------
+# region Backends
+# --------------------------------------------------
+
+
+class BackendType(Enum):
+    """Backend for numerical computation."""
+
+    NUMPY = "numpy"
+    TORCH = "torch"
+
+    @staticmethod
+    def from_str(value: str) -> "BackendType":
+        try:
+            return BackendType(value.upper())
+        except ValueError:
+            raise ValueError(f"Invalid backend: {value}")
+
+
+# --------------------------------------------------
 # region Mats
 # --------------------------------------------------
 
@@ -16,13 +35,12 @@ class EngineMethod(Enum):
 
     NUMPY = "numpy"
     SCIPY = "scipy"
-    CUPY = "cupy"
     TORCH = "torch"
 
     @staticmethod
     def from_str(value: str) -> "EngineMethod":
         try:
-            return EngineMethod(value.lower())
+            return EngineMethod(value.upper())
         except ValueError:
             raise ValueError(f"Invalid engine method: {value}")
 
@@ -43,7 +61,7 @@ class MeshDimension(Enum):
     @staticmethod
     def from_str(value: str) -> "MeshDimension":
         try:
-            return MeshDimension(value.lower())
+            return MeshDimension(value.upper())
         except ValueError:
             raise ValueError(f"Invalid mesh dimension: {value}")
 
@@ -60,7 +78,7 @@ class GeomType(Enum):
     @staticmethod
     def from_str(value: str | int) -> "GeomType":
         if isinstance(value, str):
-            value = value.lower()
+            value = value.upper()
         try:
             return GeomType(value)
         except ValueError:
@@ -78,7 +96,7 @@ class ElementType(Enum):
     @staticmethod
     def from_str(value: str) -> "ElementType":
         try:
-            return ElementType(value.lower())
+            return ElementType(value.upper())
         except ValueError:
             raise ValueError(f"Invalid element type: {value}")
 
