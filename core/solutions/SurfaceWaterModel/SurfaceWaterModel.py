@@ -180,8 +180,8 @@ class SurfaceWaterModel(models.BaseModel):
                 field = None  # TODO: implement Field.from_data()
             elif f_expr is not None:
                 cell_count = self._mesh.cell_count
-                etype = ElementType.from_str(domain)
-                dtype = VariableType.from_str(dtype)
+                etype = ElementType(domain.upper())
+                dtype = VariableType(dtype.upper())
                 field = Field(self._mesh.get_part_assistant(), dtype, etype)
                 for expr in f_expr:
                     zone_id = expr["zone"]

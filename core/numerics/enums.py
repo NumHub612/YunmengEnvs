@@ -17,13 +17,6 @@ class BackendType(Enum):
     NUMPY = "numpy"
     TORCH = "torch"
 
-    @staticmethod
-    def from_str(value: str) -> "BackendType":
-        try:
-            return BackendType(value.upper())
-        except ValueError:
-            raise ValueError(f"Invalid backend: {value}")
-
 
 # --------------------------------------------------
 # region Mats
@@ -36,13 +29,6 @@ class EngineMethod(Enum):
     NUMPY = "numpy"
     SCIPY = "scipy"
     TORCH = "torch"
-
-    @staticmethod
-    def from_str(value: str) -> "EngineMethod":
-        try:
-            return EngineMethod(value.upper())
-        except ValueError:
-            raise ValueError(f"Invalid engine method: {value}")
 
 
 # --------------------------------------------------
@@ -58,13 +44,6 @@ class MeshDimension(Enum):
     D3 = "3d"
     NONE = "none"
 
-    @staticmethod
-    def from_str(value: str) -> "MeshDimension":
-        try:
-            return MeshDimension(value.upper())
-        except ValueError:
-            raise ValueError(f"Invalid mesh dimension: {value}")
-
 
 class GeomType(Enum):
     """The geometry types."""
@@ -75,15 +54,6 @@ class GeomType(Enum):
     Polygon = 3
     Polyhedron = 4
 
-    @staticmethod
-    def from_str(value: str | int) -> "GeomType":
-        if isinstance(value, str):
-            value = value.upper()
-        try:
-            return GeomType(value)
-        except ValueError:
-            raise ValueError(f"Invalid geometry type: {value}")
-
 
 class ElementType(Enum):
     """Element types in CFD."""
@@ -92,13 +62,6 @@ class ElementType(Enum):
     FACE = "face"
     NODE = "node"
     NONE = "none"  # might be useful for id-based elements
-
-    @staticmethod
-    def from_str(value: str) -> "ElementType":
-        try:
-            return ElementType(value.upper())
-        except ValueError:
-            raise ValueError(f"Invalid element type: {value}")
 
 
 # --------------------------------------------------
@@ -123,16 +86,6 @@ class VariableType(Enum):
         if len(value) == 3:
             return VariableType.VECTOR
         raise ValueError(f"Invalid shape: {value}")
-
-    def from_str(name: str) -> "VariableType":
-        s = name.lower()
-        if s == "scalar":
-            return VariableType.SCALAR
-        if s == "vector":
-            return VariableType.VECTOR
-        if s == "tensor":
-            return VariableType.TENSOR
-        raise ValueError(f"Invalid variable type: {name}")
 
     def check_shape(self, arr) -> bool:
         """Check if the array shape matches the variable type."""

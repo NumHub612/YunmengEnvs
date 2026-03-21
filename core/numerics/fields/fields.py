@@ -389,11 +389,12 @@ class Field:
     __rmul__ = __mul__
 
     def __truediv__(self, scalar: float) -> "Field":
-        scalar = 1.0 / scalar if abs(scalar) > 1e-12 else 0.0
-        return self * scalar
+        if abs(scalar) < 1e-12:
+            raise ZeroDivisionError("Division by zero")
+        return self * (1.0 / scalar)
 
     def __neg__(self) -> "Field":
-        return self * -1
+        return self * -1.0
 
     def __iter__(self):
         for shard in self._shards:
