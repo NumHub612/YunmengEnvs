@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Datahubs for managing of the fields and its history.
 """
 from core.numerics.enums import ElementType
-from core.numerics.fields import Field
+from core.numerics.fields.fields import Field
 from dataclasses import dataclass
 
 

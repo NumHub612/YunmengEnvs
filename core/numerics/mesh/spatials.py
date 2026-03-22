@@ -153,7 +153,7 @@ class Mesh:
 
     def get_topo_assistant(self):
         """Return the mesh topology assistant."""
-        from core.numerics.algos import MeshTopo
+        from core.numerics.algos.topos import MeshTopo
 
         if self._topo is None:
             self._topo = MeshTopo(self)
@@ -161,7 +161,7 @@ class Mesh:
 
     def get_geom_assistant(self):
         """Return the mesh geometry assistant."""
-        from core.numerics.algos import MeshGeom
+        from core.numerics.algos.geoms import MeshGeom
 
         if self._geom is None:
             self._geom = MeshGeom(self)
@@ -169,7 +169,7 @@ class Mesh:
 
     def get_part_assistant(self):
         """Return the mesh partition assistant."""
-        from core.numerics.algos import MeshPart
+        from core.numerics.algos.parts import MeshPart
 
         if self._part is None:
             self._part = MeshPart(self)

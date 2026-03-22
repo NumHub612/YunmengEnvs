@@ -11,9 +11,10 @@ from core.numerics.enums import ElementType, BackendType
 
 import numpy as np
 import torch
-from typing import Callable, Union, List, Dict
+from typing import Callable, Union, List, Dict, Tuple
 from dataclasses import dataclass
 from enum import Enum, auto
+from copy import deepcopy
 
 
 # --------------------------------------------------
@@ -225,8 +226,12 @@ class Field:
         return self._meta
 
     @property
-    def shards(self) -> List[FieldShard]:
+    def field_shards(self) -> List[FieldShard]:
         return self._shards
+
+    @property
+    def mesh_shards(self) -> List[MeshShard]:
+        return self._mesh_shards
 
     @property
     def etype(self) -> ElementType:
@@ -235,6 +240,10 @@ class Field:
     @property
     def vtype(self) -> VariableType:
         return self._meta.vtype
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        return (self._meta.size, *self._meta.vtype.value)
 
     @property
     def size(self) -> int:
@@ -587,8 +596,10 @@ class Field:
 
         data = self.gather_to_host()
         scalar_fields = []
+        raw_meta = deepcopy(self._meta)
+        raw_meta.vtype = VariableType.SCALAR
         for i in range(data.shape[1]):
-            field = Field.from_array(data[:, i], self._mesh_shards, self._meta)
+            field = Field.from_array(data[:, i], self._mesh_shards, raw_meta)
             scalar_fields.append(field)
 
         return scalar_fields

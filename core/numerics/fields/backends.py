@@ -145,9 +145,14 @@ def use_torch():
     return __torch_back
 
 
-def get_backend():
-    """Get backend according to settings.device."""
-    if settings.device == "cuda":
+def get_backend(type: BackendType = None):
+    """Get backend."""
+    if type is None:
+        type = BackendType.TORCH if settings.device == "cuda" else BackendType.NUMPY
+
+    if type == BackendType.NUMPY:
+        return __numpy_back
+    elif type == BackendType.TORCH:
         return __torch_back
     else:
-        return __numpy_back
+        raise ValueError(f"Unknown backend type: {type}")

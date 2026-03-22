@@ -5,8 +5,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Auxiliary functions for mesh processing.
 """
 from core.numerics.enums import MeshDimension
-from core.numerics.mesh import Element, Coordinate, Face, Mesh
-from core.numerics.fields import Variable, Var
+from core.numerics.mesh.spatials import Face, Mesh
+from core.numerics.mesh.elements import Element, Coordinate
+from core.numerics.fields.variables import Variable, Var
 from core.numerics.algos.topos import (
     MeshTopo,
     sort_anticlockwise,

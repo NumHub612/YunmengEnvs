@@ -589,13 +589,13 @@ class TestFieldOperations:
                 assert v == 3.0
 
             loss = torch.tensor(
-                0.0, dtype=torch.float64, device=field_grad.shards[0].gpu
+                0.0, dtype=torch.float64, device=field_grad.field_shards[0].gpu
             )
-            loss = loss + field_grad.shards[0].data.sum()
+            loss = loss + field_grad.field_shards[0].data.sum()
             loss.backward()
 
             grads = field_grad.gradient()
-            n_core = field_grad.shards[0].n_core
+            n_core = field_grad.field_shards[0].n_core
             assert isinstance(grads, torch.Tensor)
             assert grads.shape[0] == field_grad.size
             # assert grads[0] == torch.Tensor([2.0])
@@ -633,9 +633,9 @@ class TestFieldOperations:
 
         # Set Shard 0 to 100, Shard 1 to 200
         for i in range(grid2d_shards[0].n_core_cells):
-            field.shards[0].data[i] = rank_0_val
+            field.field_shards[0].data[i] = rank_0_val
         for i in range(grid2d_shards[1].n_core_cells):
-            field.shards[1].data[i] = rank_1_val
+            field.field_shards[1].data[i] = rank_1_val
 
         field._mark_dirty()
 
@@ -648,10 +648,10 @@ class TestFieldOperations:
             raise
 
         # --- Step 3: Verify Data Propagation ---
-        val_shard1_start = float(field.shards[1].data[0])
-        val_shard1_end = float(field.shards[1].data[-1])
-        val_shard0_start = float(field.shards[0].data[0])
-        val_shard0_end = float(field.shards[0].data[-1])
+        val_shard1_start = float(field.field_shards[1].data[0])
+        val_shard1_end = float(field.field_shards[1].data[-1])
+        val_shard0_start = float(field.field_shards[0].data[0])
+        val_shard0_end = float(field.field_shards[0].data[-1])
         tol = 1e-5
 
         # If sync worked:

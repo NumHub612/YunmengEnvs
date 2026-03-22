@@ -5,7 +5,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Mesh topology processing.
 """
 from core.numerics.enums import MeshDimension
-from core.numerics.mesh import Element, Coordinate, Mesh
+from core.numerics.mesh.elements import Element, Coordinate
+from core.numerics.mesh.spatials import Mesh
 
 from typing import List, Optional
 import collections

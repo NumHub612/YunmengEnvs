@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh partitioning methods.
 """
-from core.numerics.mesh import Mesh, ElementType
+from core.numerics.mesh.spatials import Mesh, ElementType
 from core.utils.ParseGpu import parse_gpu
 from configs.settings import settings
 import numpy as np
