@@ -49,13 +49,13 @@ class IBoundaryCondition(ABC):
     @abstractmethod
     def update(self):
         """
-        Update the boundary condition parameters.
+        Modifies the boundary condition.
         """
         pass
 
     @abstractmethod
     def evaluate(self) -> tuple:
         """
-        Evaluate the boundary condition.
+        Gets current boundary condition.
         """
         pass

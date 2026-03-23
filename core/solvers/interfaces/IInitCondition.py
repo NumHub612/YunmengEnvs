@@ -17,7 +17,7 @@ class IInitCondition(ABC):
     @abstractmethod
     def get_name(cls) -> str:
         """
-        The unique name of this method.
+        The unique name of the method.
         """
         pass
 
@@ -32,6 +32,6 @@ class IInitCondition(ABC):
     @abstractmethod
     def apply(self, field: Field):
         """
-        Initializes the field variables.
+        Initializes the target field.
         """
         pass

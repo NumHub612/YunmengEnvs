@@ -6,8 +6,8 @@ Laplacian operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, NodeField, Vector, Scalar
-from core.numerics.mesh import Grid
+from core.numerics.fields import Field, Variable, VariableType
+from core.numerics.mesh import Grid, ElementType
 
 
 class Lap01(IOperator):
@@ -39,35 +39,22 @@ class Lap01(IOperator):
         self._mesh = mesh
         self._topo = mesh.get_topo_assistant()
         self._geom = mesh.get_geom_assistant()
+        self._part = mesh.get_part_assistant()
         self._source = FileNotFoundError
 
     def run(self, source: Field) -> Field | LinearEqs:
-        data_type = source.dtype
-        if data_type not in ["scalar", "vector"]:
-            raise ValueError("Lap01 operator only supports scalar and vector fields.")
+        dtype = source.dtype
+        if dtype == VariableType.TENSOR:
+            raise ValueError("Laplacian operator only supports scalar or vector field.")
+
         self._source = source
+        init_val = Variable.zero(dtype)
+        results = Field(self._part, dtype, source.etype, self._mesh.version, init_val)
 
-        if data_type == "scalar":
-            results = NodeField(
-                self._source.size,
-                "scalar",
-                data=Scalar.zero(),
-                variable=self._source.variable,
-            )
-        else:
-            results = NodeField(
-                self._source.size,
-                "vector",
-                data=Vector.zero(),
-                variable=self._source.variable,
-            )
-
-        for element in self._mesh.node_indices:
-            neighbours = self._mesh.retrieve_node_neighborhoods(element)
-            data_type = self._source.dtype
-
+        for element in range(self._mesh.node_count):
+            neighbours = self._topo.node_neighbours(element)
             # calculate
-            if data_type == "scalar":
+            if dtype == VariableType.SCALAR:
                 result = self._calculate_scalar_laplacian(element, neighbours)
             else:
                 result = self._calculate_vector_laplacian(element, neighbours)
@@ -80,10 +67,10 @@ class Lap01(IOperator):
         self,
         element: int,
         neighbours: list[int],
-    ) -> Scalar:
+    ) -> Variable:
         """Excute laplacian operator on scalar field."""
         if element in self._topo.boundary_node_indices:
-            return Scalar.zero()
+            return Variable.scalar(0.0)
 
         east, west, north, south, top, bot = neighbours
         results = []
@@ -102,16 +89,16 @@ class Lap01(IOperator):
                 ds = 0.5 * (ds1 + ds2)
                 results.append((part1 - part2) / ds)
 
-        return Scalar(sum(results))
+        return Variable.scalar(sum(results))
 
     def _calculate_vector_laplacian(
         self,
         element: int,
         neighbours: list[int],
-    ) -> Vector:
+    ) -> Variable:
         """Excute laplacian operator on vector field."""
         if element in self._topo.boundary_node_indices:
-            return Vector.zero()
+            return Variable.vector(0.0, 0.0, 0.0)
 
         east, west, north, south, top, bot = neighbours
         dists, values = [], []
@@ -146,4 +133,4 @@ class Lap01(IOperator):
 
             results.append(sum(result))
 
-        return Vector(*results)
+        return Variable.vector(*results)

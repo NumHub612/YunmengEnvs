@@ -6,7 +6,7 @@ Grad operators for the finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, CellField, Tensor, Vector, VariableType, DataHub
+from core.numerics.fields import Field, Field, Variable, VariableType, DataHub
 from core.numerics.mesh import Grid, ElementType
 
 import numpy as np
@@ -38,17 +38,21 @@ class Grad01(IOperator):
         self._mesh = None
         self._topo = None
         self._geom = None
+        self._part = None
+        self._var = ""
 
-    def prepare(self, mesh: Grid, boundaries: dict):
+    def prepare(self, fields: list[str], mesh: Grid, bounds: dict):
         if not isinstance(mesh, Grid):
             raise ValueError("Fvm Grad01 operator only supports Grid.")
 
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._part = self._mesh.get_part_assistant()
+        self._var = fields[0]
 
-    def run(self, source: DataHub) -> Field | LinearEqs:
-        source = source.fetch().data
+    def run(self, sources: DataHub) -> Field | LinearEqs:
+        source = sources.field(self._var).data
         src_type = source.dtype
         if src_type != VariableType.SCALAR and src_type != VariableType.VECTOR:
             raise ValueError(
@@ -65,13 +69,12 @@ class Grad01(IOperator):
         grads = np.zeros((source.size, 3))
         for cid in range(self._mesh.cell_count):
             grads[cid] = grand_func(source, cid)
+        return Field.from_array(grads, self._part, source._meta)
 
-        return CellField.from_data(grads)
-
-    def _calculate_scalar_grad(self, source, element) -> Vector:
+    def _calculate_scalar_grad(self, source, element) -> Variable:
         """Calculate the gradient of scalar."""
         face_values = []
-        for nb in self._mesh.retrieve_cell_neighbours(element):
+        for nb in self._mesh.get_cell_neighbours(element):
             # east, west, north, south, top, bot
             if nb is not None:
                 val = (source[element] + source[nb]) / 2.0
@@ -86,11 +89,11 @@ class Grad01(IOperator):
             dist = dists[i // 2]
             if face_values[i] is not None and face_values[i + 1] is not None:
                 grad = (face_values[i + 1] - face_values[i]) / dist
-                results.append(grad.value)
+                results.append(grad.data)
             else:
                 results.append(0.0)  # TODO: can be better
         return results
 
-    def _calculate_vector_grad(self, source, element) -> Tensor:
+    def _calculate_vector_grad(self, source, element) -> Variable:
         """Calculate the gradient of vector."""
         raise NotImplementedError()

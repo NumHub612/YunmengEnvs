@@ -2,9 +2,11 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Data quality checkings for mesh and network data.
+Mesh and field filtering methods.
 """
-from core.numerics.mesh import Mesh, Grid, Face, Cell, Node, Edge
+from __future__ import annotations
+from core.numerics.mesh.elements import Face, Cell, Node
+from core.numerics.mesh.spatials import Mesh
 from shapely.geometry import box, Polygon
 
 
@@ -14,7 +16,7 @@ class MeshFilter:
     """
 
     @staticmethod
-    def filter_face_patch(mesh: Mesh, expr: str):
+    def filter_face_patch(mesh: "Mesh", expr: str):
         """
         Filter mesh faces by given expression.
 
@@ -28,13 +30,13 @@ class MeshFilter:
         filter_func = eval(expr)
 
         patch = []
-        for face in mesh.faces:
+        for i, face in enumerate(mesh.faces):
             if filter_func(face.coordinate.x, face.coordinate.y, face.coordinate.z):
-                patch.append(face.id)
+                patch.append(i)
         return patch
 
     @staticmethod
-    def filter_cell_zone(mesh: Mesh, **conditions):
+    def filter_cell_zone(mesh: "Mesh", **conditions):
         """
         Filter mesh cells by given conditions.
 
@@ -51,40 +53,21 @@ class MeshFilter:
 
         if "expr" in conditions:
             expr = conditions["expr"]
-            filter_func = eval(f"lambda x, y, z: {expr}")
-            for cell in mesh.cells:
+            filter_func = eval(expr)
+            for i, cell in enumerate(mesh.cells):
                 if filter_func(cell.coordinate.x, cell.coordinate.y, cell.coordinate.z):
-                    zone.append(cell.id)
+                    zone.append(i)
         elif "countour" in conditions:
             contour = conditions["countour"]
             coors = [mesh.nodes[c].coordinate.to_np() for c in contour]
             profiler = Polygon(coors)
-            for cell in mesh.cells:
-                coors = [mesh.faces[f].coordinate.to_np() for f in cell.faces]
+            for i, cell in enumerate(mesh.cells):
+                coors = [mesh.faces[f].coordinate.to_numpy() for f in cell.faces]
                 minx = min([c[0] for c in coors])
                 maxx = max([c[0] for c in coors])
                 miny = min([c[1] for c in coors])
                 maxy = max([c[1] for c in coors])
                 extent = box(minx, miny, maxx, maxy)
                 if profiler.intersects(extent):
-                    zone.append(cell.id)
+                    zone.append(i)
         return zone
-
-
-class MeshChecker:
-    """Mesh data checker."""
-
-    @staticmethod
-    def check_mesh_nodes(mesh: Mesh):
-        """Check the mesh nodes."""
-        pass
-
-    @staticmethod
-    def check_face_patch_connectivity(mesh: Mesh, group_id: str) -> bool:
-        """Check the face patch connectivity."""
-        return True
-
-    @staticmethod
-    def check_face_patch_overlap(mesh: Mesh, group_ids: list[str]) -> list[int]:
-        """Check the face patches overlap."""
-        return []

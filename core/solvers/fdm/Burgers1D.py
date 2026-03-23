@@ -6,8 +6,9 @@ Solving the 1D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
 from core.solvers.commons import inits
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo, MeshDim
-from core.numerics.fields import NodeField, Scalar, VariableType
+from core.numerics.mesh import Mesh, MeshDimension, ElementType
+from core.numerics.algos import MeshGeom, MeshTopo, MeshPart
+from core.numerics.fields import VariableType, Variable, Field
 
 import copy
 import time
@@ -54,14 +55,21 @@ class Burgers1D(BaseSolver):
         Constructor of the Burgers1D solver.
         """
         super().__init__(id, mesh)
-        if mesh.dimension != MeshDim.DIM1:
+        if mesh.dimension != MeshDimension.D1:
             raise ValueError("The dimension of the mesh must be 1D.")
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
+        self._part = MeshPart(mesh)
 
-        self._default_ic = inits.UniformInitialization("default", Scalar(0.0))
-        self._fields = {"u": NodeField(mesh.node_count, VariableType.SCALAR)}
+        self._default_ic = inits.UniformInitialization("default", Variable.scalar(0.0))
+        self._fields = {
+            "u": Field(
+                self._part,
+                VariableType.SCALAR,
+                ElementType.NODE,
+            )
+        }
 
         self._total_time = 0.0
         self._dt = 0.0
@@ -133,7 +141,7 @@ class Burgers1D(BaseSolver):
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_nodes:
+        for node in self._topo.internal_nodes:
             lnode, rnode = self._mesh.retrieve_node_neighbours(node)[:2]
             if lnode > rnode:
                 lnode, rnode = rnode, lnode

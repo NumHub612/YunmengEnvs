@@ -6,7 +6,7 @@ To provide the Dirichlet boundary condition.
 """
 from core.solvers.interfaces import IBoundaryCondition, BoundaryType
 from core.numerics.mesh import Element
-from core.numerics.fields import Variable, make_var_from_value
+from core.numerics.fields import Variable, Var
 from configs.settings import logger
 
 
@@ -23,22 +23,16 @@ class FixedBoundary(IBoundaryCondition):
     def get_type(cls) -> BoundaryType:
         return BoundaryType.FIXED
 
-    def __init__(
-        self,
-        id: str,
-        value: float | list[float],
-        dtype: str = "vector",
-    ):
+    def __init__(self, id: str, value: float | list[float]):
         """
         Initialize the custom boundary condition.
 
         Args:
             id: The unique identifier.
             value: The specified boundary value.
-            dtype: The data type of the boundary value.
         """
         self._id = id
-        self._value = make_var_from_value(value, dtype)
+        self._value = Var(value)
 
     @property
     def id(self) -> str:

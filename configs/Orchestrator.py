@@ -3,10 +3,8 @@
 Support yml configuration.
 """
 from configs.settings import settings, logger
-
 import os
 import yaml
-from argparse import ArgumentParser
 
 
 class Orchestrator:
@@ -17,11 +15,10 @@ class Orchestrator:
     but it does not instantiate any components.
     """
 
-    REQUIRED_LINK_FIELDS = ["MODELS", "LINKS", "SCHEDULES"]
+    REQUIRED_LINK_FIELDS = ["MODELS", "ENV", "LINKS", "SCHEDULES"]
     REQUIRED_MODEL_FIELDS = [
         "PROJECT",
         "TYPE",
-        "ENV",
         "SPATIAL",
         "TEMPORAL",
         "DATAS",
@@ -30,15 +27,22 @@ class Orchestrator:
         "CUSTOMS",
     ]
 
-    def __init__(self, configs: ArgumentParser):
-        self._parser = configs
+    def __init__(self, configs):
+        self._config_file = configs.config
         self._root = None
         self._config = {}
+
+        self._load()
 
     @property
     def schedules(self) -> dict:
         """Schedule configurations."""
         return self._config.get("SCHEDULES", {})
+
+    @property
+    def envs(self) -> dict:
+        """Environment configurations."""
+        return self._config.get("ENV", {})
 
     @property
     def links(self) -> list:
@@ -50,34 +54,30 @@ class Orchestrator:
         """Model configurations."""
         return self._config.get("MODELS", {})
 
-    def activate(self):
+    def _load(self):
         """Load and activate the configurations."""
-        args = self._parser.parse_args()
-        # Activate the settings
-        self._activate_settings(args)
-
         # Load the configurations
-        config_file = args.config
-        if not os.path.exists(config_file):
-            raise ValueError(f"Config file {config_file} doesn't exist.")
+        if not os.path.exists(self._config_file):
+            raise ValueError(f"Config file {self._config_file} doesn't exist.")
 
-        self._root = os.path.dirname(config_file)
+        self._root = os.path.dirname(self._config_file)
         raw_configs = yaml.load(
-            open(config_file, "r", encoding="utf-8"),
+            open(self._config_file, "r", encoding="utf-8"),
             Loader=yaml.FullLoader,
         )
-
         self._parse_configs(raw_configs)
-        summary = self.summary()
-        logger.info(f"Configs loaded:{summary}.")
 
-    def _activate_settings(self, args: ArgumentParser):
+        # Activate the settings
+        self._activate_env_settings(self.envs)
+
+        # Log
+        summary = self.summary()
+        logger.info(f"Yunmeng Configs loaded. {summary}.")
+
+    def _activate_env_settings(self, configs: dict):
         """Activate the settings."""
-        logger.setLevel(args.log_level)
-        if args.cpu:
-            settings.DEVICE = "cpu"
-        if args.gpus:
-            settings.GPUs = args.gpus
+        for key, value in configs.items():
+            settings[key] = value
 
     def _parse_configs(self, configs: dict):
         """
@@ -97,6 +97,9 @@ class Orchestrator:
 
         # Parse `SCHEDULES` section
         self._parse_schedule_configs(configs["SCHEDULES"])
+
+        # Check `ENV` section.
+        self._config["SCHEDULES"] = configs.get("ENV", {})
 
     def _parse_schedule_configs(self, configs: dict):
         """
@@ -175,12 +178,7 @@ class Orchestrator:
             if field not in model_config:
                 raise ValueError(f"Field {field} is missing in {model_file}.")
 
-        envs = model_config["ENV"]
-        if envs is None:
-            envs = {}
-
         # Check each field.
-        self._check_env_configs(model_config["ENV"])
         self._check_spatial_configs(model_config["SPATIAL"])
         self._check_temporal_configs(model_config["TEMPORAL"])
         self._check_datas_configs(model_config["DATAS"])
@@ -192,13 +190,6 @@ class Orchestrator:
         model_config.update({"IOS": io_config})
 
         return model_config
-
-    def _check_env_configs(self, config: dict):
-        """
-        Check the global configurations.
-        """
-        if not config:
-            return
 
     def _check_temporal_configs(self, config: dict):
         """
@@ -308,23 +299,26 @@ class Orchestrator:
         if "ics" not in config:
             raise ValueError(f"Solver {sid} configs miss ics.")
         if config["ics"] is not None:
+            required_ic_fields = {"id", "field", "method"}
             for ic in config["ics"]:
-                if not ({"var", "method"} <= ic.keys()):
-                    raise ValueError(f"IC {ic} miss var, method.")
+                if not (required_ic_fields <= ic.keys()):
+                    raise ValueError(f"IC {ic} miss {required_ic_fields}.")
 
         if "bcs" not in config:
             raise ValueError(f"Solver {sid} configs miss bcs.")
         if config["bcs"] is not None:
+            required_bc_fields = {"id", "field", "method", "patches"}
             for bc in config["bcs"]:
-                if not ({"id", "patches", "var", "method"} <= bc.keys()):
-                    raise ValueError(f"BC {bc} miss config.")
+                if not (required_bc_fields <= bc.keys()):
+                    raise ValueError(f"BC {bc} miss {required_bc_fields}.")
 
         if "cbs" not in config:
             raise ValueError(f"Solver {sid} configs miss cbs.")
         if config["cbs"] is not None:
+            required_cb_fields = {"id", "method"}
             for cb in config["cbs"]:
-                if not ({"id", "method"} <= cb.keys()):
-                    raise ValueError(f"CB {cb} miss id, method.")
+                if not (required_cb_fields <= cb.keys()):
+                    raise ValueError(f"CB {cb} miss {required_cb_fields}.")
 
     def _check_operators_configs(self, config: dict):
         """
@@ -391,6 +385,6 @@ class Orchestrator:
         links_num = len(links_ids)
 
         summary = (
-            f"Models: {models_num} ({models_ids}), \nLinks: {links_num} ({links_ids})"
+            f"Models: {models_num} ({models_ids}), \tLinks: {links_num} ({links_ids})"
         )
         return summary

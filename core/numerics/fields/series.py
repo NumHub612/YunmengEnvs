@@ -3,8 +3,6 @@
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Time-, curve- and pattern-series data structures.
-
-NOTE: Do not use one series instance in multiple places to avoid confusion.
 """
 import numpy as np
 from typing import Hashable, Any

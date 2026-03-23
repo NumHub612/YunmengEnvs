@@ -4,19 +4,12 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Linear algebra class.
 """
-from core.numerics.mats import Matrix, SparseMatrix
-from core.numerics.fields import Field, VariableType, ElementType
-from configs.settings import settings
-import numpy as np
+from core.numerics.mats.matrix import Matrix
+from core.numerics.mats.sparse import TorchMatrix, NumpyMatrix
+from core.numerics.fields.fields import Field, BackendType, get_backend
 import torch
-import cupy as cp
-import scipy.sparse as sp
-from scipy.sparse.linalg import cg as scipy_cg
-from scipy.sparse.linalg import spsolve as scipy_spsolve
-from scipy.sparse import dok_matrix
-from cupyx.scipy.sparse import coo_matrix
-from cupyx.scipy.sparse.linalg import spsolve as cupy_spsolve
-from cupyx.scipy.sparse.linalg import cg as cupy_cg
+import scipy as sp
+import numpy as np
 
 
 class LinearEqs:
@@ -24,26 +17,7 @@ class LinearEqs:
     Linear equations solver.
     """
 
-    def __init__(
-        self,
-        mat: Matrix,
-        rhs: Field,
-        variable: str = "none",
-        device: torch.device = None,
-    ):
-        """Linear equations solver.
-
-        Args:
-            mat: The coefficient matrix of the linear equations.
-            rhs: The right-hand side of the linear equations.
-            variable: The target variable.
-            device: The device.
-        """
-        self._device = device or settings.DEVICE
-        if isinstance(self._device, str):
-            self._device = torch.device(self._device)
-
-        self._var = variable
+    def __init__(self, mat: Matrix, rhs: Field):
         self._mat = mat
         self._rhs = rhs
 
@@ -52,31 +26,7 @@ class LinearEqs:
                 f"The matrix is not square: {mat.shape}, or not compatible \
                     with the rhs: {rhs.size}."
             )
-        if mat.dtype != VariableType.SCALAR and mat.dtype != rhs.dtype:
-            raise ValueError(
-                f"The matrix type {mat.dtype} is not compatible with the \
-                    rhs type {rhs.dtype}."
-            )
-
-        self._size = self._rhs.size
-
-    # -----------------------------------------------
-    # region static methods
-    # -----------------------------------------------
-
-    @staticmethod
-    def zeros(
-        size: int,
-        matrix_type: VariableType = VariableType.SCALAR,
-        rhs_type: VariableType = VariableType.SCALAR,
-        ele_type: ElementType = ElementType.CELL,
-        variable: str = "none",
-        device: torch.device = None,
-    ) -> "LinearEqs":
-        """Create a linear equations with all elements set to zero."""
-        mat = SparseMatrix.zeros((size, size), matrix_type, device)
-        rhs = Field(size, ele_type, rhs_type, device=device)
-        return LinearEqs(mat, rhs, variable, device)
+        self._size = rhs.size
 
     # -----------------------------------------------
     # region properties
@@ -88,44 +38,17 @@ class LinearEqs:
         return self._size
 
     @property
-    def variable(self) -> str:
-        """The target variable."""
-        return self._var
-
-    @property
     def matrix(self) -> Matrix:
         """The cooefficient matrix."""
         return self._mat
-
-    @matrix.setter
-    def matrix(self, value: Matrix):
-        """Set the coefficient matrix."""
-        if not isinstance(value, Matrix):
-            raise ValueError(f"Invalid matrix type: {type(value)}.")
-        if self._mat.shape != value.shape:
-            raise ValueError(f"Invalid matrix shape: {value.shape}.")
-        if self._mat.dtype != value.dtype:
-            raise ValueError(f"Invalid matrix type: {value.dtype}.")
-        self._mat = value
 
     @property
     def rhs(self) -> Field:
         """The right-hand side vector."""
         return self._rhs
 
-    @rhs.setter
-    def rhs(self, value: Field):
-        """Set the right-hand side."""
-        if not isinstance(value, Field):
-            raise ValueError(f"Invalid rhs type: {type(value)}.")
-        if self._rhs.size != value.size:
-            raise ValueError(f"Invalid rhs size: {value.size}.")
-        if self._rhs.dtype != value.dtype:
-            raise ValueError(f"Invalid rhs type: {value.dtype}.")
-        self._rhs = value
-
     # -----------------------------------------------
-    # region operations methods
+    # region operations
     # -----------------------------------------------
 
     def __add__(self, other: "LinearEqs"):
@@ -133,11 +56,7 @@ class LinearEqs:
         return LinearEqs(
             self._mat + other.matrix,
             self._rhs + other.rhs,
-            self.variable,
         )
-
-    def __radd__(self, other):
-        return self.__add__(other)
 
     def __iadd__(self, other: "LinearEqs"):
         self._check_compatible(other)
@@ -150,15 +69,6 @@ class LinearEqs:
         return LinearEqs(
             self._mat - other.matrix,
             self._rhs - other.rhs,
-            self.variable,
-        )
-
-    def __rsub__(self, other: "LinearEqs"):
-        self._check_compatible(other)
-        return LinearEqs(
-            other.matrix - self._mat,
-            other.rhs - self._rhs,
-            self.variable,
         )
 
     def __isub__(self, other: "LinearEqs"):
@@ -167,248 +77,97 @@ class LinearEqs:
         self._rhs -= other.rhs
         return self
 
-    def __neg__(self):
-        return LinearEqs(-self._mat, -self._rhs, self._var)
-
-    def _check_compatible(self, other):
+    def _check_compatible(self, other: "LinearEqs"):
         if not isinstance(other, LinearEqs):
-            raise ValueError(f"Invalid LinearEqs operation with {type(other)}.")
+            raise ValueError(f"Require LinearEqs type, got {type(other)}.")
         if other.size != self.size:
             raise ValueError(
                 f"Invalid LinearEqs operation with different sizes: \
                     {self.size} vs {other.size}."
             )
-        if other.variable != self.variable:
-            raise ValueError(
-                f"Invalid LinearEqs operation with different variables: \
-                    {self.variable} vs {other.variable}."
-            )
-        if other.matrix.dtype != self.matrix.dtype:
-            raise ValueError(
-                f"Invalid LinearEqs operation with different matrix types: \
-                    {self.matrix.dtype} vs {other.matrix.dtype}."
-            )
-        if other.rhs.dtype != self.rhs.dtype:
+        if other.rhs.vtype != self.rhs.vtype:
             raise ValueError(
                 f"Invalid LinearEqs operation with different rhs types: \
-                    {self.rhs.dtype} vs {other.rhs.dtype}."
+                    {self.rhs.vtype} vs {other.rhs.vtype}."
             )
 
     # -----------------------------------------------
-    # region solve methods
+    # region solve
     # -----------------------------------------------
 
     def scalarize(self) -> list["LinearEqs"]:
         """Scalarize the vector equations."""
-        mat_lst = self._mat.scalarize()
         rhs_lst = self._rhs.scalarize()
-
-        eqs = []
-        if len(mat_lst) == 1:
-            for i, rhs in enumerate(rhs_lst):
-                var = f"{self.variable}_{i}"
-                eqs.append(LinearEqs(mat_lst[0], rhs, var))
-        else:
-            for mat, rhs, i in zip(mat_lst, rhs_lst, range(len(mat_lst))):
-                var = f"{self.variable}_{i}"
-                eqs.append(LinearEqs(mat, rhs, var))
+        eqs = [LinearEqs(self.matrix, rhs) for rhs in rhs_lst]
         return eqs
 
-    def solve(self, method: str = None) -> Field:
+    def solve(self) -> Field:
         """Solve the linear equations."""
-        if method is None:
-            if isinstance(self._mat, SparseMatrix):
-                method = self._mat.backend
+        results = []
+        for eq in self.scalarize():
+            mat = eq.matrix
+            rhs_val = eq.rhs.gather_to_host()
+
+            if isinstance(mat, TorchMatrix):
+                rhs_val = torch.as_tensor(rhs_val, device=mat.data.device)
+                result = self._solve_torch(mat.data, rhs_val)
+            elif isinstance(mat, NumpyMatrix):
+                result = self._solve_numpy(mat.data, rhs_val)
             else:
-                method = "scipy"
+                raise TypeError(f"Unsupported matrix type: {type(mat)}")
 
-        if settings.DEVICE == "cpu" and method == "cupy":
-            method = "scipy"
+            if result.ndim > 1:
+                result = result.squeeze(-1)
+            results.append(result)
 
-        if method == "torch" or method == "scipy":
-            solutions = self._solve_by_scipy()
-        elif method == "numpy":
-            solutions = self._solve_by_numpy()
-        elif method == "cupy":
-            solutions = self._solve_by_cupy()
-        elif method == "torch":
-            solutions = self._solve_by_scipy()
-        else:
-            raise ValueError(f"Unsupported algorithm {method}.")
-
-        result = Field(
-            self.size,
-            self._rhs.etype,
-            self._rhs.dtype,
-            solutions,
-            self._var,
-            self._device,
+        field_meta = self._rhs.meta
+        back = get_backend(field_meta.btype)
+        values = back.stack(results, axis=0)
+        if field_meta.btype == BackendType.TORCH:
+            values = values.moveaxis(0, -1)
+        else:  # numpy
+            values = np.moveaxis(values, 0, -1)
+        return Field.from_array(
+            values,
+            self.rhs.mesh_shards,
+            field_meta,
         )
-        return result
 
-    def _solve_by_numpy(self) -> np.ndarray:
-        """Solve the linear equations using numpy."""
-        solutions = []
-        for eqs in self.scalarize():
+    def _solve_torch(
+        self, mat_tensor: torch.Tensor, rhs_tensor: torch.Tensor
+    ) -> torch.Tensor:
+        """Internal solver for PyTorch matrices."""
+        # Ensure RHS is correct shape (N, 1) or (N,)
+        if rhs_tensor.dim() == 1:
+            rhs_tensor = rhs_tensor.unsqueeze(-1)
+
+        if mat_tensor.is_sparse:
             try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    solutions.append(eqs.rhs.to_np().flatten())
-                else:
-                    res = np.linalg.solve(eqs.matrix.to_dense(), eqs.rhs.to_np())
-                    solutions.append(res.flatten())
-            except:
-                raise RuntimeError("Can not solve linear equations.")
-        return np.array(solutions).T
+                # Attempt sparse CG (Conjugate Gradient)
+                from torch.sparse import linalg as sparse_linalg
 
-    def _solve_by_scipy(self) -> np.ndarray:
-        """Solve the linear equations using scipy."""
-        fptype = np.float64 if settings.FPTYPE == "fp64" else np.float32
-        if settings.FPTYPE == "fp16":
-            fptype = np.float16
+                solution, _ = sparse_linalg.cg(mat_tensor, rhs_tensor)
+                return solution.squeeze(-1)
+            except Exception:
+                # Final fallback
+                dense_mat = mat_tensor.to_dense()
+                solution = torch.linalg.solve(dense_mat, rhs_tensor)
+                return solution.squeeze(-1)
+        else:  # Dense matrix
+            return torch.linalg.solve(
+                mat_tensor,
+                rhs_tensor,
+            ).squeeze(-1)
 
-        solutions = []
-        for eqs in self.scalarize():
-            try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    solutions.append(eqs.rhs.to_np().flatten())
-                else:
-                    shape = eqs.matrix.shape
-                    mat = eqs.matrix.data
-                    if isinstance(mat, torch.Tensor):
-                        indices = mat.indices().cpu().numpy()
-                        data = mat.values().cpu().numpy()
-                        mat = sp.coo_matrix(
-                            (data, (indices[0], indices[1])),
-                            shape=shape,
-                            dtype=fptype,
-                        )
-                        mat = mat.tocsr()
-                    elif isinstance(mat, coo_matrix):
-                        rows = cp.asnumpy(mat.row)
-                        cols = cp.asnumpy(mat.col)
-                        data = cp.asnumpy(mat.data)
-                        mat = sp.coo_matrix(
-                            (data, (rows, cols)), shape=shape, dtype=fptype
-                        )
-                        mat = mat.tocsr()
-                    elif isinstance(mat, dok_matrix):
-                        mat = mat.tocsr()
+    def _solve_numpy(self, mat_sparse, rhs_array: np.ndarray) -> np.ndarray:
+        """Internal solver for Scipy/Numpy matrices."""
+        from scipy.sparse.linalg import splu, spsolve
 
-                    b = eqs.rhs.to_np().flatten()
-                    if shape[0] < 10_000:
-                        res = scipy_spsolve(mat, b).flatten()
-                    else:
-                        tol, maxiter = settings.ITERATION
-                        res = scipy_cg(
-                            mat,
-                            b,
-                            tol=tol,
-                            maxiter=maxiter,
-                            atol=settings.TOLERANCE,
-                        )[0].flatten()
-                    solutions.append(res)
-            except:
-                raise RuntimeError("Cannot solve linear equations.")
-        return np.array(solutions).T
-
-    def _solve_by_torch(self) -> torch.Tensor:
-        """Solve the linear equations using torch."""
-        fptype = torch.float64 if settings.FPTYPE == "fp64" else torch.float32
-        if settings.FPTYPE == "fp16":
-            fptype = torch.float16
-
-        solutions = []
-        for eqs in self.scalarize():
-            try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    solutions.append(eqs.rhs.to_tensor(self._device).flatten())
-                else:
-                    shape = eqs.matrix.shape
-                    mat = eqs.matrix.data
-                    if isinstance(mat, coo_matrix):
-                        data = torch.as_tensor(
-                            mat.data, device=settings.DEVICE, dtype=fptype
-                        )
-                        indices = torch.as_tensor(
-                            cp.vstack((mat.row, mat.col)), device=settings.DEVICE
-                        )
-                        coo = torch.sparse_coo_tensor(indices, data, shape)
-                        mat = coo.to_sparse_csr()
-                    elif isinstance(mat, dok_matrix):
-                        indices = torch.as_tensor(
-                            mat.nonzero(), device=settings.DEVICE, dtype=fptype
-                        )
-                        data = torch.tensor(
-                            np.array(list(mat.values())),
-                            dtype=fptype,
-                            device=settings.DEVICE,
-                        )
-                        coo = torch.sparse_coo_tensor(indices, data, shape)
-                        mat = coo.to_sparse_csr()
-
-                    b = eqs.rhs.to_tensor(self._device)
-                    res = torch.sparse.spsolve(mat, b)
-                    solutions.append(res.flatten())
-            except:
-                raise RuntimeError("Cannot solve linear equations.")
-        return torch.stack(solutions).T
-
-    def _solve_by_cupy(self) -> cp.ndarray:
-        """Solve the linear equations using cupy."""
-        fptype = cp.float64 if settings.FPTYPE == "fp64" else cp.float32
-        if settings.FPTYPE == "fp16":
-            fptype = cp.float16
-
-        solutions = []
-        for eqs in self.scalarize():
-            try:
-                # If the matrix is all zeros, return the right-hand side.
-                if eqs.matrix.nnz[0] == 0:
-                    res = eqs.rhs.to_np().flatten()
-                    arr = cp.asarray(res)
-                    solutions.append(arr)
-                else:
-                    shape = eqs.matrix.shape
-                    mat = eqs.matrix.data
-                    if isinstance(mat, torch.Tensor):
-                        indices = mat.indices().cpu().numpy()
-                        rows = cp.asarray(indices[0])
-                        cols = cp.asarray(indices[1])
-                        data = cp.asarray(mat.values().cpu().numpy())
-                        mat = coo_matrix(
-                            (data, (rows, cols)),
-                            shape=shape,
-                            dtype=fptype,
-                        )
-                    elif isinstance(mat, dok_matrix):
-                        indices = mat.nonzero()
-                        data = np.array(list(mat.values()))
-                        rows = cp.array(indices[0])
-                        cols = cp.array(indices[1])
-                        values = cp.array(data)
-                        mat = coo_matrix(
-                            (values, (rows, cols)), shape=shape, dtype=fptype
-                        )
-
-                    b = eqs.rhs.to_np().flatten()
-                    b = cp.asarray(b)
-                    if shape[0] < 10_000:
-                        res = cupy_spsolve(mat, b).flatten()
-                    else:
-                        tol, maxiter = settings.ITERATION
-                        res = cupy_cg(
-                            mat,
-                            b,
-                            tol=tol,
-                            maxiter=maxiter,
-                            atol=settings.TOLERANCE,
-                        )[0].flatten()
-                    solutions.append(res)
-            except:
-                raise RuntimeError("Cannot solve linear equations.")
-        result = cp.stack(solutions).T
-        result = torch.as_tensor(result, device=self._device)  # convert to torch
-        return result
+        # Ensure RHS is correct shape
+        if rhs_array.ndim == 1:
+            # spsolve handles 1D rhs
+            return spsolve(mat_sparse, rhs_array)
+        else:
+            # For multiple RHS, splu is more efficient
+            lu = splu(mat_sparse)
+            return lu.solve(rhs_array)

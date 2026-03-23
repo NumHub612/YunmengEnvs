@@ -9,11 +9,6 @@ TYPE: SurfaceWaterModel
 BRIEF: 2D Burgers Equation on Grid mesh for usage example.
 
 # ===============================================================================
-# 环境配置
-# ===============================================================================
-ENV: null
-
-# ===============================================================================
 # 时间域配置
 # ===============================================================================
 TEMPORAL:
@@ -105,7 +100,7 @@ DATAS:
       from: null
   # 流场数据
   fields:
-    - id: &phi0 phi_field
+    - id: phi_field
       var: phi
       etype: cell
       dtype: scalar
@@ -158,41 +153,29 @@ SOLVER:
   # 模型参数
   params:
     max_iter: 100
+    engine: numpy
   # 初始条件，只能使用框架提供的初始化方法
   ics:
-    # 热启动方式
-    - id: phi_ic1
-      var: phi
-      method: uniform
-      params:
-        value: 0.0
-        dtype: scalar
-    - id: phi_ic2
-      var: phi
-      method: hotstart
-      from: *phi0
     - id: u_ic1
-      var: u
+      field: u
       method: hotstart
       from: *u0
   # 边界条件，只能使用框架提供的边界条件类型
   bcs:
     # Dirichlet边界条件
     - id: u_bc1
-      patches: [*west, *east]
-      var: u
+      patches: [*west, *south]
+      field: u
       method: dirichlet
       params:
         value: [1.0, 1.0, 0.0]
-        dtype: vector
     # Neumann边界条件
     - id: u_bc2
-      patches: [*south, *north]
-      var: u
-      method: neumann
+      patches: [*east, *north]
+      field: u
+      method: dirichlet
       params:
-        flux: [1.0, 1.0, 0.0]
-        dtype: vector
+        value: [1.0, 1.0, 0.0]
   # 回调函数，只能使用框架提供的回调函数类型
   cbs:
     - id: profiler

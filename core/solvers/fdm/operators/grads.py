@@ -6,7 +6,7 @@ Grad operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
 from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, NodeField, Tensor, Vector
+from core.numerics.fields import Field, Variable, VariableType
 from core.numerics.mesh import Grid
 
 import numpy as np
@@ -42,34 +42,23 @@ class Grad01(IOperator):
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._geom = self._mesh.get_geom_assistant()
+        self._part = self._mesh.get_part_assistant()
         self._source = None
 
     def run(self, source: Field) -> Field | LinearEqs:
-        src_field_type = source.dtype
-        if src_field_type not in ["scalar", "vector"]:
+        dtype = source.dtype
+        if dtype == VariableType.TENSOR:
             raise ValueError("Grad01 operator only supports scalar and vector fields.")
         self._source = source
 
-        if src_field_type == "scalar":
-            results = NodeField(
-                source.size,
-                "vector",
-                data=Vector.zero(),
-                variable=source.variable,
-            )
-        else:
-            results = NodeField(
-                source.size,
-                "tensor",
-                data=Tensor.zero(),
-                variable=source.variable,
-            )
+        init_val = Variable.zero(dtype)
+        results = Field(self._part, dtype, source.etype, self._mesh.version, init_val)
 
-        for element in self._mesh.node_indices:
-            neighbours = self._mesh.retrieve_node_neighborhoods(element)
+        for element in range(self._mesh.node_count):
+            neighbours = self._topo.node_neighbours(element)
 
             # calculate
-            if src_field_type == "scalar":
+            if dtype == VariableType.SCALAR:
                 grad = self._calculate_scalar_grad(element, neighbours)
             else:
                 grad = self._calculate_vector_grad(element, neighbours)
@@ -82,10 +71,10 @@ class Grad01(IOperator):
         self,
         element: int,
         neighbours: list[int],
-    ) -> Vector:
+    ) -> Variable:
         """Calculate the gradient of scalar."""
         if element in self._topo.boundary_node_indices:
-            return Vector.zero()
+            return Variable.vector(0.0, 0.0, 0.0)
 
         east, west, north, south, top, bot = neighbours
         results = []
@@ -98,16 +87,16 @@ class Grad01(IOperator):
             else:
                 results.append(0.0)
 
-        return Vector(*results)
+        return Variable.vector(*results)
 
     def _calculate_vector_grad(
         self,
         element: int,
         neighbours: list[int],
-    ) -> Tensor:
+    ) -> Variable:
         """Calculate the gradient of vector."""
         if element in self._topo.boundary_node_indices:
-            return Tensor.zero()
+            return Variable.tensor(np.zeros((3, 3)))
 
         east, west, north, south, top, bot = neighbours
         results = []
@@ -132,4 +121,4 @@ class Grad01(IOperator):
             results.append(row)
 
         results = np.array(results).T
-        return Tensor.from_np(results)
+        return Variable.from_numpy(results)

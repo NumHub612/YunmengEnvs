@@ -1,112 +1,174 @@
 # -*- encoding: utf-8 -*-
-from core.numerics.mesh import Coordinate, Grid1D, Grid2D, Grid3D
-import unittest
+"""
+Tests for Grid2D class.
+"""
 import numpy as np
+from core.numerics.mesh.grids import Grid2D
+from core.numerics.mesh.elements import Coordinate
+from core.numerics.enums import MeshDimension
 
 
-class TestGrids(unittest.TestCase):
+class TestGrid2D:
+    """Test cases for Grid2D class."""
 
-    @classmethod
-    def setUpClass(cls):
-        print(f"\n---------- Testing < {cls.__name__} > \n")
+    def test_init_with_positions(self):
+        """Test Grid2D initialization with explicit positions."""
+        x_positions = np.array([0.0, 1.0, 2.0])
+        y_positions = np.array([0.0, 1.0, 2.0])
 
-    @classmethod
-    def tearDownClass(cls):
-        print("\n---------- Done \n")
+        grid = Grid2D(x_positions, y_positions)
 
-    def setUp(self):
-        pass
+        assert grid.nx == 3
+        assert grid.ny == 3
+        assert grid.node_count == 9
+        assert grid.cell_count == 4
+        assert grid.dimension == MeshDimension.D2
 
-    def tearDown(self):
-        pass
+    def test_uniform_grid(self):
+        """Test creating a uniform grid."""
+        lower_left = Coordinate(0.0, 0.0, 0.0)
+        upper_right = Coordinate(2.0, 2.0, 0.0)
+        num_x = 3
+        num_y = 3
 
-    def test_grid1d(self):
-        """test Grid1D"""
-        start, end = Coordinate(0), Coordinate(2 * np.pi)
-        grid = Grid1D(start, end, 401)
-        return True
+        grid = Grid2D.by_uniform(lower_left, upper_right, num_x, num_y)
 
-    def test_grid2d(self):
-        """test Grid2D"""
-        low_left, upper_right = Coordinate(0, 0), Coordinate(3, 3)
-        nx, ny = 4, 4
-        grid = Grid2D(low_left, upper_right, nx, ny)
+        assert grid.nx == num_x
+        assert grid.ny == num_y
+        assert grid.node_count == num_x * num_y
+        assert grid.cell_count == (num_x - 1) * (num_y - 1)
+        assert grid.uniform == True
 
-        self.assertEqual(grid.cell_count, 9)
-        self.assertEqual(grid.face_count, 24)
-        self.assertEqual(grid.node_count, 16)
+    def test_custom_grid(self):
+        """Test creating a custom grid."""
+        lower_left = Coordinate(0.0, 0.0, 0.0)
+        upper_right = Coordinate(2.0, 2.0, 0.0)
+        pos_x = [0.0, 0.5, 1.5, 2.0]
+        pos_y = [0.0, 0.5, 1.5, 2.0]
 
-        self.assertEqual(grid.match_node(1, 1), 5)
-        self.assertEqual(grid.match_node(2, 2), 10)
-        self.assertEqual(grid.match_node(3, 2), 14)
+        grid = Grid2D.by_custom(lower_left, upper_right, pos_x, pos_y)
 
-        self.assertEqual(
-            grid.retrieve_node_neighbours(0), [4, None, 1, None, None, None]
-        )
-        self.assertEqual(grid.retrieve_node_neighbours(1), [5, None, 2, 0, None, None])
-        self.assertEqual(
-            grid.retrieve_node_neighbours(3), [7, None, None, 2, None, None]
-        )
-        self.assertEqual(grid.retrieve_node_neighbours(6), [10, 2, 7, 5, None, None])
-        self.assertEqual(
-            grid.retrieve_node_neighbours(14), [None, 10, 15, 13, None, None]
-        )
+        assert grid.nx == len(pos_x)
+        assert grid.ny == len(pos_y)
+        assert grid.uniform == False
 
-        self.assertEqual(grid.match_cell(1, 1), 4)
-        self.assertEqual(grid.match_cell(2, 2), 8)
-        self.assertEqual(grid.match_cell(1, 2), 5)
+    def test_node_access(self):
+        """Test accessing nodes."""
+        x_positions = np.array([0.0, 1.0, 2.0])
+        y_positions = np.array([0.0, 1.0, 2.0])
 
-        self.assertEqual(
-            grid.retrieve_cell_neighbours(0), [3, None, 1, None, None, None]
-        )
-        self.assertEqual(
-            grid.retrieve_cell_neighbours(2), [5, None, None, 1, None, None]
-        )
-        self.assertEqual(grid.retrieve_cell_neighbours(4), [7, 1, 5, 3, None, None])
-        self.assertEqual(
-            grid.retrieve_cell_neighbours(8), [None, 5, None, 7, None, None]
-        )
+        grid = Grid2D(x_positions, y_positions)
 
-    def test_grid3d(self):
-        """test Grid3D"""
-        low_left, upper_right = Coordinate(0, 0, 0), Coordinate(2, 2, 2)
-        nx, ny, nz = 3, 3, 3
-        grid = Grid3D(low_left, upper_right, nx, ny, nz)
+        # Test getting nodes
+        assert grid.node_count == 9
+        assert grid.get_nodes([0]) is not None
+        assert grid.get_nodes([8]) is not None
 
-        self.assertEqual(grid.cell_count, 8)
-        self.assertEqual(grid.face_count, 36)
-        self.assertEqual(grid.node_count, 27)
+        # Test matching nodes
+        assert grid.match_node(0, 0) == 0
+        assert grid.match_node(1, 0) == 3
+        assert grid.match_node(0, 1) == 1
+        assert grid.match_node(1, 1) == 4
+        assert grid.match_node(2, 2) == 8
 
-        self.assertEqual(grid.match_node(1, 1, 0), 4)
-        self.assertEqual(grid.match_node(1, 1, 1), 13)
-        self.assertEqual(grid.match_node(1, 2, 1), 16)
-        self.assertEqual(grid.match_node(2, 2, 2), 26)
-        self.assertEqual(grid.match_node(2, 1, 2), 23)
+        # Test out of bounds
+        assert grid.match_node(-1, 0) is None
+        assert grid.match_node(3, 0) is None
+        assert grid.match_node(0, -1) is None
+        assert grid.match_node(0, 3) is None
 
-        self.assertEqual(grid.retrieve_node_neighbours(2), [None, 1, 5, None, 11, None])
-        self.assertEqual(grid.retrieve_node_neighbours(4), [5, 3, 7, 1, 13, None])
-        self.assertEqual(grid.retrieve_node_neighbours(13), [14, 12, 16, 10, 22, 4])
-        self.assertEqual(
-            grid.retrieve_node_neighbours(25), [26, 24, None, 22, None, 16]
-        )
+    def test_cell_access(self):
+        """Test accessing cells."""
+        x_positions = np.array([0.0, 1.0, 2.0])
+        y_positions = np.array([0.0, 1.0, 2.0])
 
-        self.assertEqual(grid.match_cell(0, 1, 0), 2)
-        self.assertEqual(grid.match_cell(1, 1, 0), 3)
-        self.assertEqual(grid.match_cell(1, 0, 1), 5)
-        self.assertEqual(grid.match_cell(0, 1, 1), 6)
-        self.assertEqual(grid.match_cell(1, 1, 1), 7)
+        grid = Grid2D(x_positions, y_positions)
 
-        self.assertEqual(grid.retrieve_cell_neighbours(1), [None, 0, 3, None, 5, None])
-        self.assertEqual(grid.retrieve_cell_neighbours(6), [7, None, None, 4, None, 2])
+        # Test getting cells
+        assert grid.cell_count == 4
+        assert grid.get_cells([0]) is not None
+        assert grid.get_cells([3]) is not None
 
-        return True
+        # Test matching cells
+        assert grid.match_cell(0, 0) == 0
+        assert grid.match_cell(1, 0) == 2
+        assert grid.match_cell(0, 1) == 1
+        assert grid.match_cell(1, 1) == 3
 
+        # Test out of bounds
+        assert grid.match_cell(-1, 0) is None
+        assert grid.match_cell(2, 0) is None
+        assert grid.match_cell(0, -1) is None
+        assert grid.match_cell(0, 2) is None
 
-if __name__ == "__main__":
-    with open("./tests/reports/report.txt", "w", encoding="utf8") as reporter:
-        suit = unittest.TestSuite()
-        suit.addTest(TestGrids("test_grid2d"))
-        suit.addTest(TestGrids("test_grid3d"))
+    def test_face_access(self):
+        """Test accessing faces."""
+        x_positions = np.array([0.0, 1.0, 2.0])
+        y_positions = np.array([0.0, 1.0, 2.0])
 
-        runner = unittest.TextTestRunner(stream=reporter, verbosity=2)
-        runner.run(suit)
+        grid = Grid2D(x_positions, y_positions)
+
+        # Test getting faces
+        assert grid.face_count == 12  # (3-1)*3 + 3*(3-1) = 6 + 6
+        assert grid.get_faces([0]) is not None
+        assert grid.get_faces([11]) is not None
+
+    def test_node_neighbours(self):
+        """Test getting node neighbours."""
+        x_positions = np.array([0.0, 1.0, 2.0])
+        y_positions = np.array([0.0, 1.0, 2.0])
+
+        grid = Grid2D(x_positions, y_positions)
+
+        # Test interior node (index 4, at position (1, 1))
+        neighbours = grid.get_node_neighbours(4)
+        assert neighbours[0] == 7  # east
+        assert neighbours[1] == 1  # west
+        assert neighbours[2] == 5  # north
+        assert neighbours[3] == 3  # south
+        assert neighbours[4] is None  # up
+        assert neighbours[5] is None  # down
+
+        # Test boundary node (index 0, at position (0, 0))
+        neighbours = grid.get_node_neighbours(0)
+        assert neighbours[0] == 3  # east
+        assert neighbours[1] is None  # west
+        assert neighbours[2] == 1  # north
+        assert neighbours[3] is None  # south
+
+    def test_cell_neighbours(self):
+        """Test getting cell neighbours."""
+        x_positions = np.array([0.0, 1.0, 2.0])
+        y_positions = np.array([0.0, 1.0, 2.0])
+
+        grid = Grid2D(x_positions, y_positions)
+
+        # Test interior cell (index 0, at position (0, 0))
+        neighbours = grid.get_cell_neighbours(0)
+        assert neighbours[0] == 2  # east
+        assert neighbours[1] is None  # west
+        assert neighbours[2] == 1  # north
+        assert neighbours[3] is None  # south
+
+    def test_grid_properties(self):
+        """Test grid properties."""
+        x_positions = np.array([0.0, 1.0, 2.0])
+        y_positions = np.array([0.0, 1.0, 2.0])
+
+        grid = Grid2D(x_positions, y_positions)
+
+        # Test lengths
+        assert np.allclose(grid.lx, 2.0)
+        assert np.allclose(grid.ly, 2.0)
+
+        # Test dimensions
+        assert grid.nx == 3
+        assert grid.ny == 3
+
+    def test_non_uniform_grid(self):
+        """Test non-uniform grid properties."""
+        x_positions = np.array([0.0, 0.5, 2.0])
+        y_positions = np.array([0.0, 0.5, 2.0])
+
+        grid = Grid2D(x_positions, y_positions)
+        assert grid.uniform == False

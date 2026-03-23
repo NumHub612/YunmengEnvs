@@ -2,281 +2,209 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-1d/2d/2d structured grids.
+1d/2d/3d structured grids.
 """
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.mesh import Coordinate, Node, Face, Cell
-from core.numerics.types import ElementType, MeshDim
-from configs.settings import logger
-
+from core.numerics.enums import MeshDimension
+from core.numerics.mesh.elements import Coordinate, Node, Face, Cell
+from core.numerics.mesh.spatials import Grid
+from core.numerics.algos.topos import sort_anticlockwise, calculate_center
 import numpy as np
-from abc import abstractmethod
-import os
-import pickle
-
-
-class Grid(Mesh):
-    """Abstract class for orthogonal structured grids."""
-
-    def __init__(self):
-        super().__init__()
-        self._orthogonal = True
-        self._nx = None
-        self._ny = None
-        self._nz = None
-        self._dx = None
-        self._dy = None
-        self._dz = None
-
-    # -----------------------------------------------
-    # region properties
-    # -----------------------------------------------
-
-    @property
-    def nx(self) -> int:
-        """Discretization size in the x-direction."""
-        return self._nx
-
-    @property
-    def ny(self) -> int:
-        """Discretization size in the y-direction."""
-        return self._ny
-
-    @property
-    def nz(self) -> int:
-        """Discretization size in the z-direction."""
-        return self._nz
-
-    @property
-    def dx(self) -> float:
-        """Discretization step in the x-direction."""
-        return self._dx
-
-    @property
-    def dy(self) -> float:
-        """Discretization step in the y-direction."""
-        return self._dy
-
-    @property
-    def dz(self) -> float:
-        """Discretization step in the z-direction."""
-        return self._dz
-
-    # -----------------------------------------------
-    # region methods
-    # -----------------------------------------------
-
-    def update(self, mask_indices: list[int]):
-        raise NotImplementedError("Grid can't be updated.")
-
-    @abstractmethod
-    def match_node(self, i: int, j: int, k: int) -> int:
-        """Match node with the local indices."""
-        pass
-
-    @abstractmethod
-    def match_cell(self, i: int, j: int, k: int) -> int:
-        """Match cell with the local indices."""
-        pass
-
-    @abstractmethod
-    def retrieve_node_neighbours(self, index: int) -> list[int]:
-        """Get the neighbours node indices.
-
-        The neighbours are sorted in the orders:
-        [east, west, north, south, top, bottom]
-        """
-        pass
-
-    @abstractmethod
-    def retrieve_cell_neighbours(self, index: int) -> list[int]:
-        """Get the neighbours cell indices.
-
-        The neighbour cells sorted in the orders:
-        [east, west, north, south, top, bottom]
-        """
-        pass
 
 
 # -----------------------------------------------
-# region --- Grid1D ---
-# -----------------------------------------------
-
-
-class Grid1D(Grid):
-    """1D uniform structured grid in x-direction.
-
-    Notes:
-        - The 1d grid is a special case, somehow it's viered.
-        - All nodes y- ans z-coordinates are set to 0.
-    """
-
-    def __init__(self, start: Coordinate, end: Coordinate, num: int):
-        """
-        Initialize a 1D uniform structured grid.
-
-        Args:
-            start_coord: The starting coordinate of the grid.
-            end_coord: The ending coordinate of the grid.
-            num: The number of nodes in the grid.
-        """
-        super().__init__()
-        self._dim = MeshDim.DIM1
-        self._nx = num
-        self._dx = (end.x - start.x) / (num - 1)
-
-        self._generate(start, end, num)
-
-    def _generate(self, start, end, num):
-        # generate nodes
-        for i in range(num):
-            x = start.x + i * self._dx
-            node = Node(i, Coordinate(x))
-            self._nodes.append(node)
-
-        # generate mesh
-        for i in range(num):
-            node1 = self._nodes[i]
-
-            # face
-            face1 = Face(i, node1.coordinate, [i])
-            self._faces.append(face1)
-
-            # cell
-            if i == num - 1:
-                break
-            node2 = self._nodes[i + 1]
-            center = 0.5 * (node1.coordinate + node2.coordinate)
-            cell = Cell(i, center, [i, i + 1])
-            self._cells.append(cell)
-
-    def match_node(self, i: int, j: int = None, k: int = None) -> int:
-        return i
-
-    def match_cell(self, i: int, j: int = None, k: int = None) -> int:
-        return i
-
-    def retrieve_node_neighbours(self, index: int) -> list:
-        east = index + 1 if index < self._nx - 1 else None
-        west = index - 1 if index > 0 else None
-        return [east, west, None, None, None, None]
-
-    def retrieve_cell_neighbours(self, index: int) -> list:
-        east = index + 1 if index < self._nx - 1 else None
-        west = index - 1 if index > 0 else None
-        return [east, west, None, None, None, None]
-
-
-# -----------------------------------------------
-# region --- Grid2D ---
+# region Grid2D
 # -----------------------------------------------
 
 
 class Grid2D(Grid):
-    """2D structured grid in x-y plane."""
+    """2D structured grid in x-y plane.
 
-    def __init__(
-        self,
-        lower_left: Coordinate,
-        upper_right: Coordinate,
-        num_x: int,
-        num_y: int,
-        mode: str = None,
-        **kwargs
-    ):
+    NOTE:
+    The grid's index is encoded by columns from the bottom left corner.
+    """
+
+    def __init__(self, x_positions: np.ndarray, y_positions: np.ndarray):
         """
-        Initialize a 2D structured grid.
+        Initialize a 2D structured grid with explicit node positions.
 
         Args:
-            lower_left: The lower left corner of the grid.
-            upper_right: The upper right corner.
-            num_x: The number of nodes in the x-direction.
-            num_y: The number of nodes in the y-direction.
-            mode: The node distribution mode.
-            kwargs: The extra settings corresponding to `mode`.
-
-        Note:
-            if `mode` is None, the extra settings would be invalid.
-            if `mode` is xxx, the following configs needed:
-                + dx (float):
-                + dy (float):
-            if `mode` is xxx: the following configs needed:
-                + ratio_x (float):
-                + ratio_x (float):
-            if `mode` is xxx: the following configs needed:
-                + pos_x (list):
-                + pos_y (list):
+            x_positions: Array of x positions for the grid nodes
+            y_positions: Array of y positions for the grid nodes
         """
         super().__init__()
-        self._dim = MeshDim.DIM2
-        self._ll = lower_left
-        self._ur = upper_right
-        self._nx = num_x
-        self._ny = num_y
-        self._dx = None
-        self._dy = None
-        self._dz = None
+        self._dim = MeshDimension.D2
 
+        x_positions = np.asarray(x_positions)
+        y_positions = np.asarray(y_positions)
+
+        # Validate inputs
+        if len(x_positions) < 2:
+            raise ValueError("x_positions must more than 2 points")
+        if len(y_positions) < 2:
+            raise ValueError("y_positions must more than 2 points")
+        if not np.all(np.diff(x_positions) > 0):
+            raise ValueError("x_positions must be increasing")
+        if not np.all(np.diff(y_positions) > 0):
+            raise ValueError("y_positions must be increasing")
+
+        # Store positions
+        self._x_positions = x_positions
+        self._y_positions = y_positions
+
+        # Calculate grid dimensions
+        self._nx = len(x_positions)
+        self._ny = len(y_positions)
+
+        # Calculate lengths
+        self._lx = abs(x_positions[-1] - x_positions[0])
+        self._ly = abs(y_positions[-1] - y_positions[0])
+
+        # Calculate average spacings
+        self._dx = self._lx / (self._nx - 1)
+        self._dy = self._ly / (self._ny - 1)
+
+        # Determine if grid is uniform
+        self._uniform = np.allclose(np.diff(x_positions), self._dx) and np.allclose(
+            np.diff(y_positions), self._dy
+        )
+
+        # Generate mesh
         self._generate()
 
+    @staticmethod
+    def by_uniform(
+        lower_left: Coordinate, upper_right: Coordinate, num_x: int, num_y: int
+    ) -> "Grid2D":
+        """
+        Create a uniform 2D grid.
+
+        Args:
+            lower_left: The lower left corner of the grid
+            upper_right: The upper right corner
+            num_x: Number of nodes in the x-axis
+            num_y: Number of nodes in the y-axis
+        """
+        x_positions = np.linspace(lower_left.x, upper_right.x, num_x)
+        y_positions = np.linspace(lower_left.y, upper_right.y, num_y)
+        return Grid2D(x_positions, y_positions)
+
+    @staticmethod
+    def by_custom(
+        lower_left: Coordinate, upper_right: Coordinate, xs: list, ys: list
+    ) -> "Grid2D":
+        """
+        Create a 2D grid with custom node positions.
+
+        Args:
+            lower_left: The lower left corner of the grid
+            upper_right: The upper right corner
+            xs: List of x positions
+            ys: List of y positions
+        """
+        lx = upper_right.x - lower_left.x
+        ly = upper_right.y - lower_left.y
+
+        # Normalize and scale x positions
+        x_positions = np.array(xs)
+        x_positions = (x_positions - x_positions[0]) / (
+            x_positions[-1] - x_positions[0]
+        ) * lx + lower_left.x
+
+        # Normalize and scale y positions
+        y_positions = np.array(ys)
+        y_positions = (y_positions - y_positions[0]) / (
+            y_positions[-1] - y_positions[0]
+        ) * ly + lower_left.y
+
+        return Grid2D(x_positions, y_positions)
+
     def _generate(self):
-        self._dx = (self._ur.x - self._ll.x) / (self._nx - 1)
-        self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
+        """Generate the grid."""
+        xs = self._x_positions
+        ys = self._y_positions
+        node_size = self._nx * self._ny
 
-        # generate nodes
-        nid = 0
-        for i in range(self._nx):
-            x = self._ll.x + i * self._dx
+        # Set dx and dy
+        if self._uniform:
+            self._dx = xs[1] - xs[0]
+            self._dy = ys[1] - ys[0]
+        else:
+            self._dx = self._lx / (self._nx - 1)
+            self._dy = self._ly / (self._ny - 1)
+
+        # Create meshgrid
+        X, Y = np.meshgrid(xs, ys, indexing="ij")
+
+        # Generate coordinates
+        coords = np.column_stack((X.ravel(), Y.ravel(), np.zeros(node_size)))
+
+        # Create nodes
+        nodes = np.array(
+            [Node(Coordinate(x, y, 0.0)) for x, y in zip(coords[:, 0], coords[:, 1])]
+        )
+        self._nodes = nodes
+
+        # Horizontal Segments (Lying on y=const, connecting x_i and x_{i+1})
+        # These serve as the South and North faces of the cells.
+        h_face_count = (self._nx - 1) * self._ny
+        h_faces = []
+
+        # Iterate to match the logical index:
+        # face_h(i, j) connects node(i,j) and node(i+1, j)
+        for i in range(self._nx - 1):
             for j in range(self._ny):
-                y = self._ll.y + j * self._dy
-                node = Node(nid, Coordinate(x, y))
-                self._nodes.append(node)
-                nid += 1
+                lid = i * self._ny + j
+                rid = (i + 1) * self._ny + j
+                node_ids = [lid, rid]
 
-        # generate faces
-        fid = 0
+                center = 0.5 * (
+                    self._nodes[lid].coordinate + self._nodes[rid].coordinate
+                )
+                h_faces.append(Face(center, node_ids))
+
+        # Vertical Segments (Lying on x=const, connecting y_j and y_{j+1})
+        # These serve as the West and East faces of the cells.
+        v_face_count = self._nx * (self._ny - 1)
+        v_faces = []
+
+        # Storage order: i (0..Nx-1) outer, j (0..Ny-2) inner.
         for i in range(self._nx):
-            for j in range(self._ny):
-                n_lu = self._nodes[i * self._ny + j]
+            for j in range(self._ny - 1):
+                bid = i * self._ny + j
+                tid = i * self._ny + (j + 1)
+                node_ids = [bid, tid]
 
-                # face 1, n_lu -> n_ru
-                if i < self._nx - 1:
-                    n_ru = self._nodes[(i + 1) * self._ny + j]
-                    nodes = sorted([n_lu.id, n_ru.id], reverse=True)
-                    center = 0.5 * (n_lu.coordinate + n_ru.coordinate)
-                    face1 = Face(fid, center, nodes)
-                    self._faces.append(face1)
-                    fid += 1
+                center = 0.5 * (
+                    self._nodes[bid].coordinate + self._nodes[tid].coordinate
+                )
+                v_faces.append(Face(center, node_ids))
 
-                # face 2, n_lu -> n_ld
-                if j < self._ny - 1:
-                    n_ld = self._nodes[i * self._ny + j + 1]
-                    nodes = sorted([n_lu.id, n_ld.id])
-                    center = 0.5 * (n_lu.coordinate + n_ld.coordinate)
-                    face2 = Face(fid, center, nodes)
-                    self._faces.append(face2)
-                    fid += 1
+        # Combine all faces
+        self._faces = np.array(h_faces + v_faces)
+        h_offset = 0
+        v_offset = len(h_faces)
 
-        # generate cells
-        cid = 0
+        # Generate Cells
+        cell_size = (self._nx - 1) * (self._ny - 1)
+        cells = []
         for i in range(self._nx - 1):
             for j in range(self._ny - 1):
-                f_n = i * (2 * (self._ny - 1) + 1) + 2 * j
-                f_w = f_n + 1
-                f_s = f_w + 1
-                if i < self._nx - 2:
-                    f_e = (i + 1) * (2 * (self._ny - 1) + 1) + 2 * j + 1
-                else:
-                    f_e = (i + 1) * (2 * (self._ny - 1) + 1) + j
+                # Calculate global face indices
+                idx_s = i * self._ny + j
+                idx_n = i * self._ny + (j + 1)
+                idx_w = v_offset + i * (self._ny - 1) + j
+                idx_e = v_offset + (i + 1) * (self._ny - 1) + j
+                face_ids = [idx_n, idx_w, idx_s, idx_e]
 
-                face_ids = [f_n, f_w, f_s, f_e]
+                # Retrieve face objects and sort
                 faces = self.get_faces(face_ids)
-                faces = MeshTopo.sort_anticlockwise(faces)
-                center = MeshGeom.calculate_center(faces)
-                face_ids = [f.id for f in faces]
-                cell = Cell(cid, center, face_ids)
-                self._cells.append(cell)
-                cid += 1
+                sorted_faces, sorted_face_ids = sort_anticlockwise(faces, face_ids)
+
+                # Calculate cell center
+                center = calculate_center(sorted_faces)
+                cells.append(Cell(center, sorted_face_ids))
+
+        self._cells = np.array(cells)
 
     def match_node(self, i: int, j: int, k: int = None) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
@@ -292,7 +220,7 @@ class Grid2D(Grid):
         cid = i * (self._ny - 1) + j
         return cid if 0 <= cid < self.cell_count else None
 
-    def retrieve_node_neighbours(self, index: int) -> list:
+    def get_node_neighbours(self, index: int) -> list:
         i = index // self._ny
         j = index % self._ny
 
@@ -302,7 +230,7 @@ class Grid2D(Grid):
         east = self.match_node(i + 1, j)
         return [east, west, north, south, None, None]
 
-    def retrieve_cell_neighbours(self, index: int) -> list:
+    def get_cell_neighbours(self, index: int) -> list:
         i = index // (self._ny - 1)
         j = index % (self._ny - 1)
 
@@ -316,215 +244,3 @@ class Grid2D(Grid):
 # -----------------------------------------------
 # region --- Grid3D ---
 # -----------------------------------------------
-
-
-class Grid3D(Grid):
-    """3D structured grid."""
-
-    def __init__(
-        self,
-        lower_left_front: Coordinate,
-        upper_right_back: Coordinate,
-        num_x: int,
-        num_y: int,
-        num_z: int,
-    ):
-        """
-        Initialize a 3D structured grid.
-
-        Args:
-            lower_left_front: The lower left front corner of the grid.
-            upper_right_back: The upper right back corner of the grid.
-            num_x: The number of nodes in the x-direction.
-            num_y: The number of nodes in the y-direction.
-            num_z: The number of nodes in the z-direction.
-        """
-        super().__init__()
-        self._dim = MeshDim.DIM3
-        self._ll = lower_left_front
-        self._ur = upper_right_back
-        self._nx = num_x
-        self._ny = num_y
-        self._nz = num_z
-        self._dx = None
-        self._dy = None
-        self._dz = None
-
-        self._generate()
-
-    def _generate(self):
-        self._dx = (self._ur.x - self._ll.x) / (self._nx - 1)
-        self._dy = (self._ur.y - self._ll.y) / (self._ny - 1)
-        self._dz = (self._ur.z - self._ll.z) / (self._nz - 1)
-
-        # generate nodes
-        nid = 0
-        for k in range(self._nz):
-            z = self._ll.z + k * self._dz
-            for j in range(self._ny):
-                y = self._ll.y + j * self._dy
-                for i in range(self._nx):
-                    x = self._ll.x + i * self._dx
-                    node = Node(nid, Coordinate(x, y, z))
-                    self._nodes.append(node)
-                    nid += 1
-
-        # generate faces
-        fid = 0
-        for k in range(self._nz):
-            # faces in x-direction
-            for j in range(self._ny - 1):
-                if k >= self._nz - 1:
-                    continue
-                for i in range(self._nx):
-                    n_ll = k * self._nx * self._ny + j * self._nx + i
-                    n_rl = k * self._nx * self._ny + (j + 1) * self._nx + i
-                    n_ru = (k + 1) * self._nx * self._ny + (j + 1) * self._nx + i
-                    n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i
-                    node_ids = [n_ll, n_rl, n_ru, n_lu]
-                    nodes = self.get_nodes(node_ids)
-                    nodes = MeshTopo.sort_anticlockwise(nodes)
-                    center = MeshGeom.calculate_center(nodes)
-                    node_ids = [n.id for n in nodes]
-                    face = Face(fid, center, node_ids)
-                    self._faces.append(face)
-                    fid += 1
-
-            # faces in y-direction
-            for i in range(self._nx - 1):
-                if k >= self._nz - 1:
-                    continue
-                for j in range(self._ny):
-                    n_rl = k * self._nx * self._ny + j * self._nx + i
-                    n_ru = (k + 1) * self._nx * self._ny + j * self._nx + i
-                    n_lu = (k + 1) * self._nx * self._ny + j * self._nx + i + 1
-                    n_ll = k * self._nx * self._ny + j * self._nx + i + 1
-                    node_ids = [n_rl, n_ru, n_lu, n_ll]
-                    nodes = self.get_nodes(node_ids)
-                    nodes = MeshTopo.sort_anticlockwise(nodes)
-                    center = MeshGeom.calculate_center(nodes)
-                    node_ids = [n.id for n in nodes]
-                    face = Face(fid, center, node_ids)
-                    self._faces.append(face)
-                    fid += 1
-
-            # faces in z-direction
-            for j in range(self._ny - 1):
-                for i in range(self._nx - 1):
-                    n_lu = k * self._nx * self._ny + j * self._nx + i
-                    n_ll = k * self._nx * self._ny + j * self._nx + i + 1
-                    n_ul = k * self._nx * self._ny + (j + 1) * self._nx + i + 1
-                    n_lr = k * self._nx * self._ny + (j + 1) * self._nx + i
-                    node_ids = [n_lu, n_ll, n_ul, n_lr]
-                    nodes = self.get_nodes(node_ids)
-                    nodes = MeshTopo.sort_anticlockwise(nodes)
-                    center = MeshGeom.calculate_center(nodes)
-                    node_ids = [n.id for n in nodes]
-                    face = Face(fid, center, node_ids)
-                    self._faces.append(face)
-                    fid += 1
-
-        # generate cells
-        cid = 0
-        faces_along_x = self._nx * (self._ny - 1)
-        faces_along_y = self._ny * (self._nx - 1)
-        faces_along_z = (self._nx - 1) * (self._ny - 1)
-        faces_per_layer = (
-            (self._nx - 1) * (self._ny - 1)
-            + self._nx * (self._ny - 1)
-            + self._ny * (self._nx - 1)
-        )
-        for k in range(self._nz - 1):
-            for j in range(self._ny - 1):
-                for i in range(self._nx - 1):
-                    f_n = k * faces_per_layer + j * self._nx + i
-                    f_s = k * faces_per_layer + j * self._nx + i + 1
-                    f_w = k * faces_per_layer + faces_along_x + i * self._ny + j
-                    f_e = k * faces_per_layer + faces_along_x + i * self._ny + j + 1
-                    f_d = (
-                        k * faces_per_layer
-                        + faces_along_x
-                        + faces_along_y
-                        + j * (self._nx - 1)
-                        + i
-                    )
-                    if k < self._nz - 2:
-                        f_u = (
-                            (k + 1) * faces_per_layer
-                            + faces_along_x
-                            + faces_along_y
-                            + j * (self._nx - 1)
-                            + i
-                        )
-                    else:
-                        f_u = (
-                            k * faces_per_layer
-                            + faces_along_z
-                            + faces_along_x
-                            + faces_along_y
-                            + j * (self._nx - 1)
-                            + i
-                        )
-                    face_ids = [f_n, f_s, f_w, f_e, f_d, f_u]
-                    faces = self.get_faces(face_ids)
-                    center = MeshGeom.calculate_center(faces)
-                    cell = Cell(cid, center, face_ids)
-                    self._cells.append(cell)
-                    cid += 1
-
-    def match_node(self, i: int, j: int, k: int) -> int:
-        if i < 0 or i >= self._nx or j < 0 or j >= self._ny or k < 0 or k >= self._nz:
-            return None
-
-        return k * self._nx * self._ny + j * self._nx + i
-
-    def match_cell(self, i: int, j: int, k: int) -> int:
-        if (
-            i < 0
-            or i >= self._nx - 1
-            or j < 0
-            or j >= self._ny - 1
-            or k < 0
-            or k >= self._nz - 1
-        ):
-            return None
-
-        return k * (self._nx - 1) * (self._ny - 1) + j * (self._nx - 1) + i
-
-    def retrieve_node_neighbours(self, index: int) -> list:
-        k = index // (self._nx * self._ny)
-        j = (index - k * self._nx * self._ny) // self._nx
-        i = index % self._nx
-
-        north = self.match_node(i, j + 1, k)
-        south = self.match_node(i, j - 1, k)
-        west = self.match_node(i - 1, j, k)
-        east = self.match_node(i + 1, j, k)
-        down = self.match_node(i, j, k - 1)
-        up = self.match_node(i, j, k + 1)
-        return [east, west, north, south, up, down]
-
-    def retrieve_cell_neighbours(self, index: int) -> list:
-        k = index // ((self._nx - 1) * (self._ny - 1))
-        j = (index - k * (self._nx - 1) * (self._ny - 1)) // (self._nx - 1)
-        i = (index - k * (self._nx - 1) * (self._ny - 1)) % (self._nx - 1)
-
-        north = self.match_cell(i, j + 1, k)
-        south = self.match_cell(i, j - 1, k)
-        west = self.match_cell(i - 1, j, k)
-        east = self.match_cell(i + 1, j, k)
-        down = self.match_cell(i, j, k - 1)
-        up = self.match_cell(i, j, k + 1)
-        return [east, west, north, south, up, down]
-
-
-# -----------------------------------------------
-# region --- QuadGrid2D ---
-# -----------------------------------------------
-
-
-class QuadGrid2D(Grid2D):
-    """2D structured grid with quadrilateral cells."""
-
-    def __init__(self):
-        pass

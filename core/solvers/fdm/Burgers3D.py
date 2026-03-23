@@ -5,8 +5,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Solving the 3D Burgers equation using finite difference method.
 """
 from core.solvers.commons import BaseSolver
-from core.numerics.mesh import Mesh, MeshGeom, MeshTopo
-from core.numerics.fields import NodeField, VariableType
+from core.numerics.mesh import Mesh, ElementType
+from core.numerics.algos import MeshGeom, MeshTopo, MeshPart
+from core.numerics.fields import Field, VariableType
 from core.numerics.mesh import Grid3D
 from configs.settings import logger
 
@@ -74,6 +75,7 @@ class Burgers3D(BaseSolver):
 
         self._geom = MeshGeom(mesh)
         self._topo = MeshTopo(mesh)
+        self._part = MeshPart(mesh)
 
         self._total_time = 0.0
         self._dt = 0.0
@@ -95,7 +97,13 @@ class Burgers3D(BaseSolver):
             time_steps: The total time steps of the simulation.
             nu: The viscosity of the Burgers equation.
         """
-        self._fields = {"vel": NodeField(self._mesh.node_count, VariableType.VECTOR)}
+        self._fields = {
+            "vel": Field(
+                self._part,
+                VariableType.VECTOR,
+                ElementType.NODE,
+            )
+        }
 
         # Check initial conditions
         if "vel" not in self._ics:
@@ -150,7 +158,7 @@ class Burgers3D(BaseSolver):
                 new_u[node] = val
 
         # Update interior nodes
-        for node in self._topo.interior_nodes:
+        for node in self._topo.internal_nodes:
             eid, wid, nid, sid, tid, bid = self._mesh.retrieve_node_neighbours(node)
             p = u[node]
             e, w, n, s, t, b = u[eid], u[wid], u[nid], u[sid], u[tid], u[bid]

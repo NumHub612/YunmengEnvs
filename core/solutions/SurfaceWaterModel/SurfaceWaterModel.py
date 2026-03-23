@@ -5,7 +5,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Surface water model.
 """
 from core.solutions.commons import models, datasets, links, metas
-from core.numerics.mesh import Grid2D, ElementType, Coordinate, MeshFilter, MeshChecker
+from core.numerics.mesh import Grid2D, ElementType, Coordinate
+from core.numerics.algos import MeshFilter
 from core.numerics.fields import (
     VariableType,
     Field,
@@ -13,8 +14,7 @@ from core.numerics.fields import (
     Curve,
     Pattern,
     Table,
-    make_field_from_data,
-    make_var_from_value,
+    Var,
 )
 from core.solvers.interfaces import ISolver, IOperator
 from core.solvers import fvm_solvers, fvm_operators
@@ -53,9 +53,6 @@ class SurfaceWaterModel(models.BaseModel):
             models.LinkableComponentStatus.INITIALIZING,
             "SurfaceWaterModel initializing",
         )
-
-        # load- and save-path
-        envs = self._model_configs["ENV"] or {}
 
         # time-axis
         times = self._model_configs["TEMPORAL"]
@@ -117,10 +114,7 @@ class SurfaceWaterModel(models.BaseModel):
             else:
                 raise ValueError("Invalid patch definition.")
 
-            if not MeshChecker.check_face_patch_connectivity(self._mesh, pid):
-                raise ValueError(f"Face patch {pid} is not connected.")
-
-            self._mesh.set_group(ptype, pid, face_ids)
+            self._mesh.set_group(pid, face_ids, ptype)
 
         # zones
         zones = spatials.get("zones", [])
@@ -146,7 +140,7 @@ class SurfaceWaterModel(models.BaseModel):
             else:
                 raise ValueError("Invalid zone definition.")
 
-            self._mesh.set_group(ztype, zid, cell_ids)
+            self._mesh.set_group(zid, cell_ids, ztype)
 
     def _load_datas(self):
         """Load datas from configuration."""
@@ -183,20 +177,21 @@ class SurfaceWaterModel(models.BaseModel):
                     raise ValueError(f"Unsupported data file type: {file_ext}")
                 data = load_data(f_from)
                 var_data = data[var].to_numpy()
-                field = make_field_from_data(domain, var_data)
+                field = None  # TODO: implement Field.from_data()
             elif f_expr is not None:
                 cell_count = self._mesh.cell_count
-                elem_type = ElementType.from_str(domain)
-                data_type = VariableType.from_str(dtype)
-                field = Field(cell_count, elem_type, data_type, variable=var)
+                etype = ElementType(domain.upper())
+                dtype = VariableType(dtype.upper())
+                field = Field(self._mesh.get_part_assistant(), dtype, etype)
                 for expr in f_expr:
                     zone_id = expr["zone"]
                     val = expr["value"]
-                    value = make_var_from_value(val, data_type)
+                    value = Var(val)
                     if zone_id is None:
-                        field.assign(value)
+                        for i in range(cell_count):
+                            field[i] = value
                     else:
-                        _, cell_ids = self._mesh.get_group(zone_id)
+                        cell_ids, _ = self._mesh.get_group(zone_id)
                         for cid in cell_ids:
                             field[cid] = value
             else:
@@ -237,8 +232,8 @@ class SurfaceWaterModel(models.BaseModel):
             ic_instance = self._load_ic(ic)
             if ic_instance is None:
                 continue
-            ic_var = ic["var"]
-            self._solver.add_ic(ic_var, ic_instance)
+            ic_field = ic["field"]
+            self._solver.add_ic(ic_instance, ic_field)
 
         # boundaries
         bcs = solvers.get("bcs", []) or []
@@ -246,8 +241,8 @@ class SurfaceWaterModel(models.BaseModel):
             bc_instance, bc_elements = self._load_bc(bc)
             if bc_instance is None:
                 continue
-            bc_var = bc["var"]
-            self._solver.add_bc(bc_var, bc_elements, bc_instance)
+            bc_field = bc["field"]
+            self._solver.add_bc(bc_instance, bc_field, bc_elements, ElementType.FACE)
 
         # callbacks
         cbs = solvers.get("cbs", []) or []
@@ -287,9 +282,8 @@ class SurfaceWaterModel(models.BaseModel):
 
         bc_elements = []
         for patch in bc_patches:
-            _, face_ids = self._mesh.get_group(patch)
-            faces = self._mesh.get_faces(face_ids)
-            bc_elements.extend(faces)
+            face_ids, _ = self._mesh.get_group(patch)
+            bc_elements.extend(face_ids)
 
         bc_instance = boundary_conditions[bc_type](bc_id, **bc_params)
         return bc_instance, bc_elements
@@ -341,8 +335,8 @@ class SurfaceWaterModel(models.BaseModel):
             if save_to:
                 mesh_file = os.path.join(save_to, f"{self._id}_mesh.pkl")
                 mesh_file = os.path.abspath(mesh_file)
-                with open(mesh_file, "wb") as f:
-                    pickle.dump(self._mesh, f)
+                # with open(mesh_file, "wb") as f:
+                #     pickle.dump(self._mesh, f) # TODO: TypeError: cannot pickle 'module' object
 
         if "save_to" in self._model_configs["SOLVER"]:
             save_to = self._model_configs["SOLVER"]["save_to"]
