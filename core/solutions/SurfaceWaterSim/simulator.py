@@ -5,21 +5,16 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Surface water model.
 """
 from core.solutions.commons import models, datasets, links, metas
-from core.numerics.mesh import Grid2D, ElementType, Coordinate
-from core.numerics.algos import MeshFilter
-from core.numerics.fields import (
-    VariableType,
-    Field,
-    Timeseries,
-    Curve,
-    Pattern,
-    Table,
-    Var,
-)
+from core.numerics.enums import ElementType, VariableType
+from core.numerics.mesh.grids import Grid2D, Coordinate
+from core.numerics.algos.filters import MeshFilter
+from core.numerics.fields.fields import VariableType, Field
+from core.numerics.fields.variables import Var
+from core.numerics.fields.series import Timeseries, Curve, Pattern
 from core.solvers.interfaces import ISolver, IOperator
-from core.solvers import fvm_solvers, fvm_operators
-from core.solvers.commons import boundary_conditions, init_methods, callback_handlers
 from core.utils.LoadData import load_data
+from core.solvers import ym_solvers, ym_operators, SolverType
+from core.solvers.commons import boundary_conditions, init_methods, callback_handlers
 from configs.settings import logger
 
 from dateutil.parser import parse
@@ -30,9 +25,8 @@ import os
 import json
 
 
-class SurfaceWaterModel(models.BaseModel):
-    """Surface water/shallow water/two-dimensional flow model,
-    based on Grid2D grid and FVM algorithm Burgers equation."""
+class SurfaceWaterSimulator(models.BaseModel):
+    """Surface water flow simulator."""
 
     def __init__(self, id: str, model_configs: dict, link_configs: dict):
         super().__init__(id)

@@ -17,8 +17,9 @@ from core.solvers.interfaces import (
     SolverType,
 )
 from core.numerics.enums import ElementType
-from core.numerics.fields import Field
-from core.numerics.mesh import Mesh, Element
+from core.numerics.fields.fields import Field
+from core.numerics.mesh.elements import Element
+from core.numerics.mesh.meshes import Mesh
 from configs.settings import logger
 
 

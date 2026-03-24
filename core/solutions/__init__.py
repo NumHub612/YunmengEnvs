@@ -22,7 +22,7 @@ for _, module_name, _ in pkgutil.iter_modules([str(Path(__file__).parent)]):
             and obj is not BaseModel
         ):
             if name in ym_models:
-                raise ValueError(f"Duplicated model name: {name}.")
+                raise ValueError(f"Duplicated model: {name}.")
             globals()[name] = obj
             ym_models[name] = obj
 
