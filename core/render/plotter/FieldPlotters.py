@@ -4,11 +4,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Plotters for visualizing the fluid fields.
 """
-from core.numerics.mesh import Mesh, MeshDimension
+from core.numerics.mesh.meshes import Mesh, MeshDimension
 from core.numerics.algos.topos import sort_anticlockwise, MeshTopo
 from core.numerics.algos.geoms import MeshGeom
-from core.numerics.fields import Field, VariableType
-from core.renders.plotter import PlotKits
+from core.numerics.fields.fields import Field, VariableType
+from core.render.plotter import PlotKits
 import numpy as np
 
 
