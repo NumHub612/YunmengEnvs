@@ -1,3 +1,8 @@
+"""
+FDM solvers are mainly developed on grids for the purpose of studying the
+numerical discretization of PDEs.
+"""
+
 from core.solvers.fdm.operators import fdm_operators
 from core.solvers.interfaces.ISolver import ISolver
 from core.solvers.commons import BaseSolver

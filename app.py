@@ -6,7 +6,7 @@ YunmengEnvs entrence.
 """
 from core.solutions.commons.links import Scheduler
 from core.solutions import ym_models
-from configs.orchestrator import Orchestrator
+from core.architecter import Orchestrator
 from configs.settings import LOGO, logger
 
 import datetime
