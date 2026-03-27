@@ -4,7 +4,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Enumerations for numerical algorithms and data structures.
 """
-from enum import Enum
+from enum import Enum, auto
 
 # --------------------------------------------------
 # region Backends
@@ -19,16 +19,31 @@ class BackendType(Enum):
 
 
 # --------------------------------------------------
-# region Mats
+# region Fields
 # --------------------------------------------------
 
 
-class EngineMethod(Enum):
-    """Engine method for solving linear equations."""
+class VariableType(Enum):
+    """Variable types."""
 
-    NUMPY = "numpy"
-    SCIPY = "scipy"
-    TORCH = "torch"
+    SCALAR = (1,)
+    VECTOR = (3,)
+    TENSOR = (3, 3)
+
+    @staticmethod
+    def from_shape(value: tuple) -> "VariableType":
+        """Get the variable type from the shape."""
+        if len(value) == 1:
+            return VariableType.SCALAR
+        if len(value) == 3 and value[1] == 3 and value[2] == 3:
+            return VariableType.TENSOR
+        if len(value) == 3:
+            return VariableType.VECTOR
+        raise ValueError(f"Invalid shape: {value}")
+
+    def check_shape(self, arr) -> bool:
+        """Check if the shape matching."""
+        return arr.shape == self.value
 
 
 # --------------------------------------------------
@@ -61,32 +76,4 @@ class ElementType(Enum):
     CELL = "cell"
     FACE = "face"
     NODE = "node"
-    NONE = "none"  # might be useful for id-based elements
-
-
-# --------------------------------------------------
-# region Fields
-# --------------------------------------------------
-
-
-class VariableType(Enum):
-    """Variable types."""
-
-    SCALAR = (1,)
-    VECTOR = (3,)
-    TENSOR = (3, 3)
-
-    @staticmethod
-    def from_shape(value: tuple) -> "VariableType":
-        """Get the variable type from the shape."""
-        if len(value) == 1:
-            return VariableType.SCALAR
-        if len(value) == 3 and value[1] == 3 and value[2] == 3:
-            return VariableType.TENSOR
-        if len(value) == 3:
-            return VariableType.VECTOR
-        raise ValueError(f"Invalid shape: {value}")
-
-    def check_shape(self, arr) -> bool:
-        """Check if the array shape matches the variable type."""
-        return arr.shape == self.value
+    NONE = "none"

@@ -223,30 +223,37 @@ class Field:
 
     @property
     def meta(self) -> FieldMeta:
+        """Field metadata."""
         return self._meta
 
     @property
     def field_shards(self) -> List[FieldShard]:
+        """Field shards."""
         return self._shards
 
     @property
     def mesh_shards(self) -> List[MeshShard]:
+        """Mesh shards."""
         return self._mesh_shards
 
     @property
     def etype(self) -> ElementType:
+        """Element type."""
         return self._meta.etype
 
     @property
     def vtype(self) -> VariableType:
+        """Variable type."""
         return self._meta.vtype
 
     @property
     def shape(self) -> Tuple[int, ...]:
+        """Field shape."""
         return (self._meta.size, *self._meta.vtype.value)
 
     @property
     def size(self) -> int:
+        """Field size."""
         return self._meta.size
 
     # --------------------------------------------------

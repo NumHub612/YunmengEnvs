@@ -8,6 +8,41 @@ from core.numerics.enums import MeshDimension, ElementType
 from core.numerics.mesh.elements import Node, Face, Cell
 
 import numpy as np
+from enum import Enum, auto
+from abc import abstractmethod
+
+
+# -----------------------------------------------
+# region Modifier
+# -----------------------------------------------
+
+
+class MeshModifyMode(Enum):
+    """Mesh update modes."""
+
+    GEOMETRY = auto()  # Geometry changes (Moving mesh, deformation)
+    TOPOLOGY = auto()  # Topology changes (AMR, remeshing)
+    HYBRID = auto()  # Both topology and geometry change
+
+
+class MeshModifier:
+    """Abstract class for mesh modification operations."""
+
+    @abstractmethod
+    @property
+    def mode(self) -> MeshModifyMode:
+        """The modification mode."""
+        pass
+
+    @abstractmethod
+    def validate(self, mesh: "Mesh", **kwargs) -> bool:
+        """Validate if the modification can be applied."""
+        pass
+
+    @abstractmethod
+    def modify(self, mesh: "Mesh", **kwargs):
+        """Apply the modification to the mesh."""
+        pass
 
 
 # -----------------------------------------------
@@ -16,7 +51,7 @@ import numpy as np
 
 
 class Mesh:
-    """Abstract mesh class for spatial domains."""
+    """Abstract mesh class for spatial domain."""
 
     def __init__(self):
         self._dim = MeshDimension.NONE
@@ -85,6 +120,28 @@ class Mesh:
     # methods
     # -----------------------------------------------
 
+    def get_element_count(self, etype: ElementType) -> int:
+        """Return the number of elements of the given type."""
+        if etype == ElementType.NODE:
+            return self.node_count
+        elif etype == ElementType.FACE:
+            return self.face_count
+        elif etype == ElementType.CELL:
+            return self.cell_count
+        else:
+            raise ValueError("Invalid element type.")
+
+    def get_elements(self, etype: ElementType) -> np.ndarray:
+        """Return all elements of the given type."""
+        if etype == ElementType.NODE:
+            return self._nodes
+        elif etype == ElementType.FACE:
+            return self._faces
+        elif etype == ElementType.CELL:
+            return self._cells
+        else:
+            raise ValueError("Invalid element type.")
+
     def get_nodes(self, node_ids: list[int]) -> list[Node]:
         """Get the nodes with the given ids."""
         return self._nodes[node_ids]
@@ -96,18 +153,6 @@ class Mesh:
     def get_cells(self, cell_ids: list[int]) -> list[Cell]:
         """Get the cells with the given ids."""
         return self._cells[cell_ids]
-
-    def update(self, masks: list[int]):
-        """Update the mesh with given mask list during AMR.
-
-        The mask list has the same length to mesh cells.
-        Each element corresponds to a cell:
-
-        + 1 indicates the cell should be refined.
-        + 0 indicates the cell should remain unchanged.
-        + -1 indicates the cell should be coarsened.
-        """
-        raise NotImplementedError()
 
     # -----------------------------------------------
     # groups
@@ -131,7 +176,7 @@ class Mesh:
             raise ValueError("Element type: None.")
 
         if min_id < 0 or max_id >= elem_count:
-            raise ValueError("Invalid group ids, out of mesh.")
+            raise ValueError("Invalid group ids.")
         self._groups[group_id] = (element_ids, etype)
 
     def delete_group(self, group_id: str):
@@ -150,6 +195,18 @@ class Mesh:
     # -----------------------------------------------
     # assistants
     # -----------------------------------------------
+
+    def modify(self, modifier: MeshModifier, **kwargs):
+        """Modify the mesh."""
+        if modifier.validate(self, **kwargs):
+            modifier.modify(self, **kwargs)
+            self._version += 1
+            self._geom = None
+            if modifier.mode != MeshModifyMode.GEOMETRY:
+                self._topo = None
+                self._part = None
+        else:
+            raise ValueError("Invalid modifier.")
 
     def get_topo_assistant(self):
         """Return the mesh topology assistant."""

@@ -17,7 +17,7 @@ import numpy as np
 
 
 class Grid2D(Grid):
-    """2D structured grid in x-y plane.
+    """2D structured grid in x-y plane (zero z-coordinate).
 
     NOTE:
     The grid's index is encoded by columns from the bottom left corner.

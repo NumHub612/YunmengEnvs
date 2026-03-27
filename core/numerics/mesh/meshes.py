@@ -123,9 +123,6 @@ class GenericMesh(Mesh):
         normal = np.cross(cs[1] - cs[0], cs[2] - cs[0])
         return normal
 
-    def update(self, mask_indices: list[int]):
-        raise NotImplementedError()
-
 
 # -----------------------------------------------
 # region GridMesh
