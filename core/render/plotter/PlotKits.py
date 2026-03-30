@@ -13,8 +13,14 @@ import numpy as np
 import os
 import copy
 
+from core.numerics.mesh.meshes import Mesh, MeshDimension
+from core.numerics.fields.fields import Field, VariableType
+from core.numerics.algos.topos import sort_anticlockwise, extract_coordinates, MeshTopo
+from core.numerics.algos.geoms import MeshGeom
+
+
 # ---------------------------------------------------
-# matplotlib 2d plot kits
+# region matplotlib 2D
 # ---------------------------------------------------
 
 installed_fonts = [f.name for f in fm.fontManager.ttflist]
@@ -30,10 +36,10 @@ plt.rcParams["axes.unicode_minus"] = False
 def plot_lines(
     x: list | np.ndarray,
     ys: dict,
-    *,
     title: str = "data series",
-    figsize: tuple = (8, 6),
     save_dir: str = None,
+    *,
+    figsize: tuple = (8, 6),
     show: bool = True,
     style: str = "merged",
     xlabel: str = "x",
@@ -46,9 +52,9 @@ def plot_lines(
     Args:
         x: List of 1d x-axis values.
         ys: Dictionary of y-axis values and redering theme descriptions.
+        save_dir: Directory to save the plot.
         title: Title of the plot.
         figsize: Figure size.
-        save_dir: Directory to save the plot.
         show: Whether to show the plot.
         style: Style of the plot, options: "merged", "separated".
         xlabel: Label of x-axis.
@@ -118,21 +124,22 @@ def plot_lines(
 def plot_heatmap(
     matrix: np.ndarray,
     title: str = "Heatmap",
+    save_dir: str = None,
+    *,
     cmap: str = "viridis",
     figsize: tuple = (8, 6),
     show: bool = True,
-    save_dir: str = None,
 ):
     """
-    Plot a heatmap of a matrix.
+    Plot a heatmap.
 
     Args:
         matrix: The matrix to be plotted.
-        title: The title of the plot.
-        cmap: The color map of the heatmap.
-        figsize: Figure size.
-        show: Whether to show the plot.
-        save_dir: Directory to save.
+        title: The title.
+        save_dir: Folder to save.
+        cmap: The color map.
+        figsize: The figure size.
+        show: Whether to show.
     """
     plt.figure(figsize=figsize)
     sns.heatmap(matrix, annot=True, cmap=cmap)
@@ -151,10 +158,10 @@ def plot_scatter(
     rows: np.ndarray,
     cols: np.ndarray,
     data: np.ndarray,
-    *,
     title: str = "Scatter Plot",
-    figsize: tuple = (8, 6),
     save_dir: str = None,
+    *,
+    figsize: tuple = (8, 6),
     show: bool = True,
     xlabel: str = "x",
     ylabel: str = "y",
@@ -172,8 +179,8 @@ def plot_scatter(
         cols: 1d array of y-axis values.
         data: 2d array of z-axis values.
         title: Title of the plot.
-        figsize: Figure size.
         save_dir: Directory to save the plot.
+        figsize: Figure size.
         show: Whether to show the plot.
         xlabel: Label of x-axis.
         ylabel: Label of y-axis.
@@ -211,7 +218,7 @@ def plot_scatter(
 
 
 # ---------------------------------------------------
-# pyvista 3d plot kits
+# region pyvista 3D
 # ---------------------------------------------------
 
 
@@ -221,16 +228,16 @@ def plot_mesh_cloudmap(
     mesh_type: str,
     scalars: np.ndarray,
     domain: str,
-    *,
     title: str = "Cloudmap",
+    save_dir: str = None,
+    *,
     label: str = "value",
     figsize: tuple = (8, 6),
-    save_dir: str = None,
     show: bool = True,
     cmap: str = "coolwarm",
     show_edges: bool = False,
-    slice_set: dict = None,
     show_scalars: bool = False,
+    slice_set: dict = None,
 ):
     """
     Plot cloudmap with unstructured mesh.
@@ -240,19 +247,16 @@ def plot_mesh_cloudmap(
         cells: Polygons or polyhedrons of the mesh.
         mesh_type: Type of the mesh, options: "2d", "3d".
         scalars: Scalar values.
-        domain: Domain of the values bounded, options: "point", "cell".
+        domain: Domain of the values, options: "point", "cell".
         title: Title of the plot.
+        save_dir: Directory to save the plot.
         label: Label of the values.
         figsize: Figure size.
-        save_dir: Directory to save the plot.
         show: Whether to show the plot.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
-        slice_set: Choose slice style and configs.
         show_scalars: Whether to show scalars.
-
-    Notes:
-        - `show` and `save_dir` are mutually exclusive.
+        slice_set: Choose slice style.
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
@@ -294,11 +298,11 @@ def plot_mesh_streamplot(
     mesh_type: str,
     vectors: np.ndarray,
     domain: str,
-    *,
     title: str = "Streamplot",
+    save_dir: str = None,
+    *,
     label: str = "value",
     figsize: tuple = (8, 6),
-    save_dir: str = None,
     show: bool = True,
     color: str = "red",
     mag: float = 0.1,
@@ -313,19 +317,16 @@ def plot_mesh_streamplot(
         cells: Polygons or polyhedrons of the mesh.
         mesh_type: Type of the mesh, options: "2d", "3d".
         vectors: Vector values.
-        domain: Domain of the values bounded, options: "point", "cell".
+        domain: Domain of the values, e.g. "point", "cell".
         title: Title of the plot.
+        save_dir: Directory to save the plot.
         label: Label of the values.
         figsize: Figure size.
-        save_dir: Directory to save the plot.
         show: Whether to show the plot.
         color: Color of the arrows.
         mag: Magnitude of the arrows.
         show_edges: Whether to show edges.
-        slice_set: Choose slice style and configs.
-
-    Notes:
-        - `show` and `save_dir` are mutually exclusive.
+        slice_set: Choose slice style.
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
@@ -358,11 +359,11 @@ def plot_mesh_streamplot(
 def plot_mesh_scatters(
     points_coordinates: np.ndarray,
     scalars: np.ndarray,
-    *,
     title: str = "Scatters",
+    save_dir: str = None,
+    *,
     label: str = "value",
     figsize: tuple = (8, 6),
-    save_dir: str = None,
     show: bool = True,
     cmap: str = "viridis",
     show_edges: bool = False,
@@ -374,15 +375,12 @@ def plot_mesh_scatters(
         points_coordinates: List of coordinates of points.
         scalars: Scalar field values.
         title: Title of the plot.
+        save_dir: Directory to save the plot.
         label: Label of the values.
         figsize: Figure size.
-        save_dir: Directory to save the plot.
         show: Whether to show.
         cmap: Colormap of the plot.
         show_edges: Whether to show edges.
-
-    Notes:
-        - `show` and `save_dir` are mutually exclusive.
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
@@ -402,10 +400,10 @@ def plot_mesh_geometry(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
     mesh_type: str,
-    *,
     title: str = "Mesh",
-    figsize: tuple = (8, 6),
     save_dir: str = None,
+    *,
+    figsize: tuple = (8, 6),
     show: bool = True,
     show_edges: bool = False,
     slice_set: dict = None,
@@ -418,15 +416,12 @@ def plot_mesh_geometry(
         points_coordinates: List of coordinates of points.
         cells: Polygons or polyhedrons of the mesh.
         mesh_type: Type of the mesh, options: "2d", "3d".
-        domain: Domain of the values bounded, options: "point", "cell".
+        domain: Domain of the values, e.g. "point", "cell".
         title: Title of the plot.
-        figsize: Figure size.
         save_dir: Directory to save the plot.
+        figsize: Figure size.
         show: Whether to show the plot.
         show_edges: Whether to show edges.
-
-    Notes:
-        - `show` and `save_dir` are mutually exclusive.
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
@@ -452,7 +447,7 @@ def plot_mesh_geometry(
 
 
 # ---------------------------------------------------
-# plot utils
+# region utils
 # ---------------------------------------------------
 
 
@@ -494,3 +489,48 @@ def _save_plot(
         plotter.screenshot(save_path, window_size=winsize)
     if show:
         plotter.show()
+
+
+def _extract_mesh_data(mesh: Mesh):
+    """
+    Extract the data of the given mesh.
+    """
+    topo, geom = MeshTopo(mesh), MeshGeom(mesh)
+
+    # extract the points
+    points = extract_coordinates(mesh.nodes)
+    points_splited = {"x": points[:, 0], "y": points[:, 1], "z": points[:, 2]}
+
+    cells = []
+    if mesh.dimension.value == "2d":
+        for i, cell in enumerate(mesh.cells):
+            node_ids = topo.cell_nodes[i]
+            nodes = mesh.get_nodes(node_ids)
+            _, indexes = sort_anticlockwise(nodes, node_ids)
+            cells.append([len(indexes)] + indexes)
+    else:
+        for cid in range(mesh.cell_count):
+            cell_faces = topo.cell_faces[cid]
+            node_ids1 = topo.face_nodes[cell_faces[-1]]
+            node_ids2 = topo.face_nodes[cell_faces[-2]]
+            cell = node_ids1 + node_ids2
+            cells.append([len(cell)] + cell)
+
+    return cells, points, points_splited
+
+
+def _extract_field_data(field: Field):
+    """
+    Extract the data of the given field.
+    """
+    values = field.gather_to_host()
+
+    if field.vtype == VariableType.SCALAR:
+        return values, {"x": values}
+    elif field.vtype == VariableType.VECTOR:
+        us = values[:, 0]
+        vs = values[:, 1]
+        ws = values[:, 2]
+        return values, {"x": us, "y": vs, "z": ws}
+    else:
+        raise ValueError(f"Unsupported field type: {field.vtype}")

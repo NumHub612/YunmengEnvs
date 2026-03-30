@@ -6,11 +6,13 @@ Mesh visualization utilities for 2D meshs.
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from core.numerics.mesh.spatials import Grid, MeshDimension, Mesh
-from core.numerics.mesh.elements import Coordinate
+from matplotlib.lines import Line2D
+
+from core.numerics.mesh.spatials import MeshDimension, Mesh
+from core.render.plotter.PlotKits import _extract_mesh_data, plot_mesh_geometry
 
 
-def plot_mesh(
+def plot_mesh_ids(
     mesh: Mesh,
     show_nodes: bool = True,
     show_faces: bool = True,
@@ -25,10 +27,10 @@ def plot_mesh(
 ):
     """
     Plot a 2D mesh with node, face and cell IDs labeled.
-    Supports both structured grids (Grid) and unstructured meshes (GenericMesh).
+    Supports structured grids and unstructured meshes.
 
     Args:
-        mesh: The mesh object to visualize (must be a 2D mesh, either Grid or GenericMesh)
+        mesh: The mesh object to visualize
         show_nodes: Whether to show node IDs
         show_faces: Whether to show face IDs
         show_cells: Whether to show cell IDs
@@ -90,19 +92,38 @@ def plot_mesh(
             # Draw cell boundary
             # Sort nodes anticlockwise to form proper polygon
             from shapely.geometry import Polygon
-            poly = Polygon([(cell_coords[i, 0], cell_coords[i, 1]) for i in range(len(cell_coords))])
+
+            poly = Polygon(
+                [
+                    (cell_coords[i, 0], cell_coords[i, 1])
+                    for i in range(len(cell_coords))
+                ]
+            )
             if not poly.is_valid:
                 # If polygon is not valid, try to fix it
                 poly = poly.buffer(0)
             x, y = poly.exterior.xy
-            ax.plot(x, y, color=cell_color, linewidth=1.0, alpha=0.5)
+            ax.plot(
+                x,
+                y,
+                color=cell_color,
+                linewidth=1.0,
+                alpha=0.5,
+            )
 
             # Draw cell center and ID
             center_x = cell.coordinate.x
             center_y = cell.coordinate.y
 
             # Draw a small marker at cell center
-            ax.plot(center_x, center_y, "s", color=cell_color, markersize=8, alpha=0.3)
+            ax.plot(
+                center_x,
+                center_y,
+                "s",
+                color=cell_color,
+                markersize=8,
+                alpha=0.3,
+            )
 
             # Add cell ID label
             ax.text(
@@ -174,8 +195,6 @@ def plot_mesh(
         )
 
     # Add legend
-    from matplotlib.lines import Line2D
-
     legend_elements = []
     if show_nodes:
         legend_elements.append(
@@ -215,7 +234,6 @@ def plot_mesh(
         )
     if legend_elements:
         ax.legend(handles=legend_elements, loc="upper right")
-
     plt.tight_layout()
 
     # Save or show
@@ -224,3 +242,40 @@ def plot_mesh(
         print(f"Figure saved to {save_path}")
 
     return fig, ax
+
+
+def plot_mesh(
+    mesh: Mesh,
+    *,
+    title: str = "MeshPlot",
+    save_dir: str = None,
+    show: bool = False,
+    show_edges: bool = False,
+    slice_set: dict = None,
+    **kwargs,
+):
+    """
+    Plot the mesh.
+
+    Args:
+        mesh: The mesh to be plotted.
+        title: The title of the plot.
+        save_dir: The directory to save the plot.
+        show: Whether to show the plot.
+        show_edges: Whether to show the edges.
+        slice_set: Slice style and configs.
+    """
+    cells, points, _ = _extract_mesh_data(mesh)
+    mesh_type = mesh.dimension.value
+
+    plot_mesh_geometry(
+        points,
+        cells,
+        mesh_type,
+        save_dir=save_dir,
+        show=show,
+        title=title,
+        show_edges=show_edges,
+        slice_set=slice_set,
+        **kwargs,
+    )
