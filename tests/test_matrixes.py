@@ -1,4 +1,7 @@
 # -*- encoding: utf-8 -*-
+"""
+Unittests for matrixes module.
+"""
 import pytest
 import torch
 import numpy as np

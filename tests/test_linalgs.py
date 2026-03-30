@@ -1,9 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
-
 Unit tests for LinearEqs class.
-Tests include initialization, operations, and solving with different matrix types.
 """
 import pytest
 import numpy as np

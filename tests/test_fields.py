@@ -1,9 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
-
 Unit tests for Field class with actual mesh (grid2d and mesh2d).
-Tests include both partitioned and non-partitioned scenarios on CPU and GPU.
 """
 import pytest
 import numpy as np
