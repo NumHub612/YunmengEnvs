@@ -11,6 +11,7 @@ from core.numerics.mesh.grids import Grid2D, Coordinate
 from core.numerics.fields.fields import Field, Variable
 from core.numerics.enums import VariableType, ElementType
 from core.solvers.commons.inits import HotstartInitialization
+from core.solvers.commons.boundaries import WallBoundary
 from core.render.plotter.MeshPlotters import plot_mesh
 from core.render.plotter.FieldPlotters import plot_field
 
@@ -92,3 +93,6 @@ class TestSwe2D:
         # initial condition
         u_init = HotstartInitialization("U0", U0)
         h_init = HotstartInitialization("H0", H0)
+
+        # boundary condition
+        wall_bc = WallBoundary("wall")

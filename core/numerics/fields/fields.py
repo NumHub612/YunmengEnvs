@@ -589,7 +589,7 @@ class Field:
 
         return global_arr
 
-    def scatter_from_host(self, global_arr: np.ndarray):
+    def scatter_from_host(self, data: np.ndarray):
         """Distribute from the host global array to each shard."""
         etype = self._meta.etype
         for sid, shard in enumerate(self._shards):
@@ -597,7 +597,7 @@ class Field:
             indices = mesh_shard.get_entities(etype)[: shard.n_core]
 
             # Extract the local part and upload
-            local_data = torch.from_numpy(global_arr[indices]).to(shard.gpu)
+            local_data = torch.from_numpy(data[indices]).to(shard.gpu)
             shape = self._meta.vtype.value
             shard.data[: shard.n_core] = local_data.view((-1, *shape))
 

@@ -25,7 +25,7 @@ class IInitCondition(ABC):
     @abstractmethod
     def id(self) -> str:
         """
-        The initial condition id.
+        The instance id.
         """
         pass
 

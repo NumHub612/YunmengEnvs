@@ -1,7 +1,7 @@
-from core.solvers.commons.boundaries.custom import *
-from core.solvers.commons.boundaries.fixed import *
+from core.solvers.commons.boundaries.value import *
 from core.solvers.commons.boundaries.mixed import *
-from core.solvers.commons.boundaries.natural import *
+from core.solvers.commons.boundaries.flux import *
+from core.solvers.commons.boundaries.wall import *
 
 
 # register all the boundary conditions.

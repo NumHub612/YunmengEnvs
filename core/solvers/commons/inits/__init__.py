@@ -1,5 +1,4 @@
 from core.solvers.commons.inits.uniform import *
-from core.solvers.commons.inits.custom import *
 from core.solvers.commons.inits.hotstart import *
 
 

@@ -5,16 +5,38 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Interfaces for boundary conditions at faces of a mesh.
 """
 from abc import ABC, abstractmethod
-import enum
+from typing import Dict, Optional, Union, Any
+from enum import Enum, auto
+from dataclasses import dataclass
+from core.numerics.fields.variables import Variable
 
 
-class BoundaryType(enum.Enum):
-    """Boundary type"""
+@dataclass
+class BoundaryValue:
+    """Boundary condition value container."""
 
-    FIXED = "dirichlet"
-    NATURAL = "neumann"
-    MIXED = "robin"
-    UNKNOWN = "unknown"
+    # Prescribed value (water level, velocity, temperature, etc.)
+    value: Optional[Variable] = None
+
+    # Prescribed flux (discharge, mass flux, momentum flux, etc.)
+    flux: Optional[Variable] = None
+
+    # Type-specific extra data (coefficients, etc.)
+    extra: Optional[Dict[str, Any]] = None
+
+
+class BoundaryType(Enum):
+    """Environmental fluid mechanics boundary types."""
+
+    # Fundamental mathematical types
+    VALUE = auto()
+    FLUX = auto()
+    MIXED = auto()
+
+    # Environmental fluid specifics
+    OPEN = auto()
+    WALL = auto()
+    COUPLED = auto()
 
 
 class IBoundaryCondition(ABC):
@@ -42,19 +64,19 @@ class IBoundaryCondition(ABC):
     @abstractmethod
     def id(self) -> str:
         """
-        The boundary condition id.
+        The instance name.
         """
         pass
 
     @abstractmethod
     def update(self):
         """
-        Modifies the boundary condition.
+        Updates the boundary value.
         """
         pass
 
     @abstractmethod
-    def evaluate(self) -> tuple:
+    def evaluate(self) -> BoundaryValue:
         """
         Gets current boundary condition.
         """

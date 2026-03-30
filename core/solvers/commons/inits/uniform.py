@@ -20,13 +20,6 @@ class UniformInitialization(IInitCondition):
         return "uniform"
 
     def __init__(self, id: str, value: float | list[float]):
-        """
-        Initialize the uniform initialization condition.
-
-        Args:
-            id: The identifier.
-            value: The value used for initialization.
-        """
         self._id = id
         self._value = Var(value)
 
@@ -34,5 +27,11 @@ class UniformInitialization(IInitCondition):
     def id(self) -> str:
         return self._id
 
-    def apply(self, field: Field) -> None:
-        field.assign(self._value)
+    def apply(self, target_field: Field):
+        if target_field.vtype != self._value.type:
+            raise ValueError(
+                f"The uniform init value must have the same type {self._value.type} "
+                f"as the target field {target_field.vtype}."
+            )
+        full_data = np.full(target_field.size, self._value.data, dtype=np.float64)
+        target_field.scatter_from_host(full_data)

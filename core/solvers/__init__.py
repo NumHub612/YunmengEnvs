@@ -1,3 +1,4 @@
+from core.solvers.interfaces import SolverType
 from core.solvers.commons import boundaries
 from core.solvers.commons import inits
 from core.solvers.commons import callbacks
