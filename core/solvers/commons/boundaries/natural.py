@@ -5,8 +5,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 To provide the Neumann boundary condition.
 """
 from core.solvers.interfaces import IBoundaryCondition, BoundaryType
-from core.numerics.mesh import Element
-from core.numerics.fields import Variable, Var
+from core.numerics.mesh.elements import Element
+from core.numerics.fields.variables import Variable, Var
 from configs.settings import logger
 
 

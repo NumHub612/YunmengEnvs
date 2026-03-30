@@ -5,9 +5,11 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Solution of the 2D source term equation using finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Field, Variable, DataHub
-from core.numerics.mesh import Grid, ElementType
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.mesh.grids import Grid
+from core.numerics.fields.fields import Field
+from core.numerics.fields.datahubs import DataHub
+
 
 import numpy as np
 

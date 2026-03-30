@@ -5,9 +5,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Laplacian operators for the finite difference method.
 """
 from core.solvers.interfaces import IOperator
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Variable, VariableType
-from core.numerics.mesh import Grid, ElementType
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.fields.fields import Field, Variable, VariableType
+from core.numerics.mesh.grids import Grid
 
 
 class Lap01(IOperator):

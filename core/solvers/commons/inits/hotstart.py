@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Initialization by hot-starting field.
 """
 from core.solvers.interfaces import IInitCondition
-from core.numerics.fields import Field
+from core.numerics.fields.fields import Field
 
 
 class HotstartInitialization(IInitCondition):
@@ -17,21 +17,24 @@ class HotstartInitialization(IInitCondition):
     def get_name(cls) -> str:
         return "hotstart"
 
-    def __init__(self, id: str, field: Field):
-        """
-        Initialize the initialization method.
-
-        Args:
-            id: The identifier.
-            field: The field used for initialization.
-        """
+    def __init__(self, id: str, src_field: Field):
         self._id = id
-        self._field = field
+        self._src_field = src_field
 
     @property
     def id(self) -> str:
         return self._id
 
-    def apply(self, field: Field):
-        for i in range(field.size):
-            field[i] = self._field[i]
+    def apply(self, target_field: Field):
+        if target_field.vtype != self._src_field.vtype:
+            raise ValueError(
+                f"The hotstart field must have the same vtype {self._src_field.vtype} "
+                f"as the target field {target_field.vtype}."
+            )
+        if target_field.size != self._src_field.size:
+            raise ValueError(
+                f"The hotstart field must have the same size {self._src_field.size} "
+                f"as the target field {target_field.size}."
+            )
+
+        target_field.scatter_from_host(self._src_field.gather_to_host())

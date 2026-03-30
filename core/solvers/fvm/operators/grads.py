@@ -5,9 +5,12 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Grad operators for the finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Field, Variable, VariableType, DataHub
-from core.numerics.mesh import Grid, ElementType
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.mesh.grids import Grid
+from core.numerics.enums import ElementType
+from core.numerics.fields.fields import Field, Variable, VariableType
+from core.numerics.fields.datahubs import DataHub
+
 
 import numpy as np
 

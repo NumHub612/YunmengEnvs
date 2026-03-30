@@ -10,6 +10,7 @@ from core.numerics.algos.parts import MeshShard
 from core.numerics.mesh.grids import Grid2D, Coordinate
 from core.numerics.fields.fields import Field, Variable
 from core.numerics.enums import VariableType, ElementType
+from core.solvers.commons.inits import HotstartInitialization
 from core.render.plotter.MeshPlotters import plot_mesh
 from core.render.plotter.FieldPlotters import plot_field
 
@@ -77,12 +78,17 @@ class TestSwe2D:
 
     def test_swe2d_grid(self, grid_41x41: Grid2D, H0: Field, U0: Field):
         """Test swe2d on grid2d."""
-        plot_mesh(
-            grid_41x41, title="grid_41x41", save_dir="tests/results/", show_edges=True
-        )
-        plot_field(
-            H0, grid_41x41, title="H0", save_dir="tests/results/", show_edges=True
-        )
-        plot_field(
-            U0, grid_41x41, title="U0", save_dir="tests/results/", show_edges=True
-        )
+        # visualize the grid and initial conditions
+        # plot_mesh(
+        #     grid_41x41, title="grid_41x41", save_dir="tests/results/", show_edges=True
+        # )
+        # plot_field(
+        #     H0, grid_41x41, title="H0", save_dir="tests/results/", show_edges=True
+        # )
+        # plot_field(
+        #     U0, grid_41x41, title="U0", save_dir="tests/results/", show_edges=True
+        # )
+
+        # initial condition
+        u_init = HotstartInitialization("U0", U0)
+        h_init = HotstartInitialization("H0", H0)

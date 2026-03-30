@@ -3,6 +3,13 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 2D Shallow Water Equations (SWE) solver in FDM format.
+
+The 2D-SWE are the core governing equations in fluid mechanics for describing
+free surface flows (such as rivers, lakes, tsunamis, dam-break floods, etc.).
+Its core assumption is that:
+the vertical scale is much smaller than the horizontal scale
+(i.e., the long-wave assumption), so vertical acceleration can be neglected,
+and the pressure distribution is approximately hydrostatic.
 """
 from core.solvers.commons import (
     BaseSolver,
@@ -13,8 +20,8 @@ from core.solvers.commons import (
 )
 from core.solvers.commons import inits, boundaries
 from core.numerics.mesh.grids import Grid2D
-from core.numerics.enums import ElementType
-from core.numerics.fields.fields import Field, VariableType
+from core.numerics.enums import ElementType, MeshDimension
+from core.numerics.fields.fields import Field, VariableType, FieldMeta
 from core.numerics.fields.datahubs import DataHub, Sample
 from configs.settings import logger
 
@@ -31,29 +38,26 @@ class SweSolver(BaseSolver):
     def get_meta(cls) -> SolverMeta:
         metas = SolverMeta()
         metas.description = "Fdm solver for the 2d shallow water equation"
-        metas.type = SolverType.FVM
-        metas.equation = "2d shallow water equation"
-        metas.equation_expr = ""
-        metas.dimension = "2d"
-        metas.default_ics = {"u": "uniform(0.0)"}
-        metas.default_bcs = {"u": "neumann(0.0)"}
+        metas.type = SolverType.FDM
+        metas.equation = "2d shallow water equation in conservation form"
+        metas.equation_expr = "ddt(h) + div(h*U) = 0  \
+                            ddt(h*U) + div(h*U*U) + grad(0.5*g*sqr(h)) = -g*h*grad(b)"
+        metas.dimension = MeshDimension.D2
+        metas.default_ics = {"U": inits.UniformInitialization}
+        metas.default_bcs = {"U": boundaries.NaturalBoundary}
         metas.fields = {
-            "u": {
-                "description": "vector field",
-                "etype": "cell",
-                "dtype": "vector",
-            },
+            "U": FieldMeta(
+                vtype=VariableType.VECTOR,
+                etype=ElementType.NODE,
+            )
         }
         return metas
 
     @classmethod
     def get_name(cls) -> str:
-        return "Burgers2D"
+        return "SweFdm2D"
 
     def __init__(self, id: str, mesh: Grid2D, operators: dict[str, IOperator]):
-        """
-        Constructor of 2D Burgers equation solver.
-        """
         super().__init__(id, mesh, operators)
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
@@ -131,7 +135,7 @@ class SweSolver(BaseSolver):
         for callback in self._callbacks:
             callback.on_step()
 
-        # Solve linear system
+        # Solve
         self._step += 1
 
         # Update status

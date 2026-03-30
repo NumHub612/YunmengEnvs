@@ -5,10 +5,13 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Time derivative operators for the finite volume method.
 """
 from core.solvers.interfaces import IOperator, OperatorType
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, DataHub
-from core.numerics.mesh import Mesh
-from core.numerics.algos import MeshTopo, MeshGeom, MeshPart
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.fields.fields import Field
+from core.numerics.fields.datahubs import DataHub
+from core.numerics.mesh.spatials import Mesh
+from core.numerics.algos.topos import MeshTopo
+from core.numerics.algos.geoms import MeshGeom
+from core.numerics.algos.parts import MeshPart
 
 import copy
 

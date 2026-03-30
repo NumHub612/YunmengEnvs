@@ -2,7 +2,7 @@
 """
 Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Interfaces for initializing the firield variables.
+Interfaces for initializing the solver fields.
 """
 from core.numerics.fields.fields import Field
 from abc import ABC, abstractmethod
@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 
 class IInitCondition(ABC):
     """
-    Interface class for initializing field.
+    Interface class for initializing the field.
     """
 
     @classmethod
@@ -30,8 +30,8 @@ class IInitCondition(ABC):
         pass
 
     @abstractmethod
-    def apply(self, field: Field):
+    def apply(self, target_field: Field):
         """
-        Initializes the target field.
+        Initializes the target field in-place.
         """
         pass

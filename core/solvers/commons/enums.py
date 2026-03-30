@@ -15,3 +15,4 @@ class SolverType(Enum):
     FEM = "fem"
     LBM = "lbm"
     AIM = "aim"
+    UNKNOWN = "unknown"

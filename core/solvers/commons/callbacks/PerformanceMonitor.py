@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Performance Monitor Callback.
 """
 from core.solvers.interfaces import ISolverCallback, ISolver
-from core.numerics.mesh import Mesh
+from core.numerics.mesh.spatials import Mesh
 from configs.settings import logger
 
 import subprocess

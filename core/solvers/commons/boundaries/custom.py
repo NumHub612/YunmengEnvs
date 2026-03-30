@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Custom defined boundary condition.
 """
 from core.solvers.interfaces import IBoundaryCondition
-from core.numerics.mesh import Element
+from core.numerics.mesh.elements import Element
 from configs.settings import logger
 
 from typing import Callable

@@ -6,10 +6,11 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 """
 from core.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from core.solvers.commons import inits, boundaries
-from core.numerics.mesh import Mesh, ElementType
-from core.numerics.fields import Field, VariableType, DataHub, Sample
-from core.numerics.mats import LinearEqs
-from core.numerics.algos.engines import get_engine_method
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.fields.fields import Field, Variable
+from core.numerics.fields.datahubs import DataHub, Sample
+from core.numerics.mesh.spatials import Mesh
+from core.numerics.enums import VariableType, ElementType
 from configs.settings import logger
 
 import time
@@ -97,7 +98,7 @@ class Burgers2D(BaseSolver):
         self._status = SolverStatus()
 
         # Init parameters
-        self._engine = get_engine_method(engine)
+        # self._engine = get_engine_method(engine)
         self._max_iter = max_iter
         self._tol = tol
 

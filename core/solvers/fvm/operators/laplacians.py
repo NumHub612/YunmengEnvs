@@ -10,10 +10,13 @@ from core.solvers.interfaces import (
     OperatorType,
     BoundaryType,
 )
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Variable, DataHub
-from core.numerics.mesh import Grid
-from core.numerics.algos import MeshTopo, MeshGeom, MeshPart
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.mesh.grids import Grid
+from core.numerics.algos.topos import MeshTopo
+from core.numerics.algos.geoms import MeshGeom
+from core.numerics.algos.parts import MeshPart
+from core.numerics.fields.fields import Field, Variable
+from core.numerics.fields.datahubs import DataHub
 
 
 class Lap01(IOperator):

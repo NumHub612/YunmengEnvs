@@ -5,8 +5,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Basic and simple equation class for user customized pde equations.
 """
 from core.solvers.interfaces import IEquation, IOperator
-from core.numerics.fields import Variable, Field
-from core.numerics.mats import LinearEqs
+from core.numerics.fields.fields import Variable, Field
+from core.numerics.mats.linalgs import LinearEqs
 from core.utils.SympifyNumExpr import lambdify_numexpr
 
 import numpy as np

@@ -10,9 +10,9 @@ from core.solvers.interfaces import (
     OperatorType,
     BoundaryType,
 )
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, Variable, DataHub
-from core.numerics.mesh import Grid
+from core.numerics.mesh.grids import Grid
+from core.numerics.fields.fields import Field, Variable
+from core.numerics.fields.datahubs import DataHub
 
 
 class CFL01(IOperator):

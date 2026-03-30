@@ -5,8 +5,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Initialization by custom method.
 """
 from core.solvers.interfaces import IInitCondition
-from core.numerics.mesh import Mesh
-from core.numerics.fields import Field
+from core.numerics.mesh.spatials import Mesh
+from core.numerics.fields.fields import Field
 
 from typing import Callable
 

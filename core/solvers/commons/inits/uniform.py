@@ -5,7 +5,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Initialization by uniform value method.
 """
 from core.solvers.interfaces import IInitCondition
-from core.numerics.fields import Field, Var
+from core.numerics.fields.fields import Field
+from core.numerics.fields.variables import Var
 import numpy as np
 
 
