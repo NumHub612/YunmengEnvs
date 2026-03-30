@@ -15,6 +15,7 @@ from core.solutions.standards import (
     LinkableComponentStatusChangeEventArgs,
 )
 from core.solutions.commons import events
+from core.solutions.commons.enums import EnvRunMode
 from typing import Any
 
 
@@ -39,17 +40,18 @@ class BaseModel(ILinkableComponent, IManageState):
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []
 
+        self._run_mode = EnvRunMode.DEVELOP
         self._cascading = False
         self._status = LinkableComponentStatus.CREATED
         self._event_manager = events.EventManager()
 
     @property
-    def arguments(self) -> list[IArgument]:
-        return self._arguments
-
-    @property
     def status(self) -> LinkableComponentStatus:
         return self._status
+
+    @property
+    def arguments(self) -> list[IArgument]:
+        return self._arguments
 
     @property
     def outputs(self) -> list[IOutput]:
@@ -64,8 +66,8 @@ class BaseModel(ILinkableComponent, IManageState):
         return self._cascading
 
     @CascadingUpdate.setter
-    def CascadingUpdate(self, value: bool):
-        self._cascading = value
+    def CascadingUpdate(self, cascading: bool):
+        self._cascading = cascading
 
     def initialize(self):
         raise NotImplementedError()
