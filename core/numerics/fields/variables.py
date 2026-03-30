@@ -60,7 +60,7 @@ class Variable:
         return Variable(data, VariableType.SCALAR)
 
     @staticmethod
-    def vector(x: float, y: float, z: float, requires_grad=False) -> "Variable":
+    def vector(x: float, y: float, z: float = 0.0, requires_grad=False) -> "Variable":
         """Vector variable."""
         back = get_backend()
         data = back.array(

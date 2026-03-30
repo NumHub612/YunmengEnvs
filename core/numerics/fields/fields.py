@@ -39,11 +39,11 @@ class HaloMode(Enum):
 class FieldMeta:
     """Field metadata."""
 
-    version: int
-    size: int
-    etype: ElementType
-    vtype: VariableType
-    btype: BackendType
+    version: int = 0
+    size: int = None
+    etype: ElementType = ElementType.CELL
+    vtype: VariableType = VariableType.SCALAR
+    btype: BackendType = BackendType.NUMPY
     requires_grad: bool = False
     unit: str = None
 
@@ -214,7 +214,12 @@ class Field:
         self._global_in_shard = np.empty(self._meta.size, dtype=object)
         for shard in self._mesh_shards:
             sid = shard.shard_id
-            for g, l in shard.cell_g2l_core.items():
+            g2ls = shard.cell_g2l_core
+            if self._meta.etype == ElementType.NODE:
+                g2ls = shard.node_g2l_core
+            elif self._meta.etype == ElementType.FACE:
+                g2ls = shard.face_g2l_core
+            for g, l in g2ls.items():
                 self._global_in_shard[g] = (sid, l)
 
     # --------------------------------------------------
@@ -570,6 +575,7 @@ class Field:
         """Collect all partition data to the host global array."""
         global_size = self._meta.size
         n_comp = self._meta.vtype.value
+        etype = self._meta.etype
         global_arr = np.empty((global_size, *n_comp), dtype=np.float64)
 
         for sid, shard in enumerate(self._shards):
@@ -578,19 +584,20 @@ class Field:
             local_data = self._backend.to_numpy(local_data)
 
             # Return the local data to the global array
-            global_indices = mesh_shard.cells[: shard.n_core]
-            global_arr[global_indices] = local_data
+            indices = mesh_shard.get_entities(etype)[: shard.n_core]
+            global_arr[indices] = local_data
 
         return global_arr
 
     def scatter_from_host(self, global_arr: np.ndarray):
         """Distribute from the host global array to each shard."""
+        etype = self._meta.etype
         for sid, shard in enumerate(self._shards):
             mesh_shard = self._mesh_shards[sid]
-            local_indices = mesh_shard.cells[: shard.n_core]
+            indices = mesh_shard.get_entities(etype)[: shard.n_core]
 
             # Extract the local part and upload
-            local_data = torch.from_numpy(global_arr[local_indices]).to(shard.gpu)
+            local_data = torch.from_numpy(global_arr[indices]).to(shard.gpu)
             shape = self._meta.vtype.value
             shard.data[: shard.n_core] = local_data.view((-1, *shape))
 

@@ -28,8 +28,8 @@ class MeshModifyMode(Enum):
 class MeshModifier:
     """Abstract class for mesh modification operations."""
 
-    @abstractmethod
     @property
+    @abstractmethod
     def mode(self) -> MeshModifyMode:
         """The modification mode."""
         pass

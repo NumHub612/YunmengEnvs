@@ -129,7 +129,7 @@ class MeshShard:
         etype: ElementType = ElementType.CELL,
         device: str = settings.device,
     ) -> "MeshShard":
-        """Return a mini partition without partition."""
+        """Single shard."""
         ids = np.arange(element_size, dtype=np.int64)
         g2l = {i: i for i in range(element_size)}
 
