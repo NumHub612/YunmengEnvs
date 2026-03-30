@@ -8,8 +8,8 @@ from core.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from core.solvers.interfaces.IInitCondition import IInitCondition
 from core.solvers.interfaces.ISolverCallback import ISolverCallback
 from core.solvers.interfaces.IEquation import IEquation
-from core.numerics.enums import ElementType
-from core.numerics.fields import Field
+from core.numerics.enums import ElementType, MeshDimension, VariableType
+from core.numerics.fields.fields import Field, FieldMeta
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import enum
@@ -33,30 +33,33 @@ class SolverMeta:
     The meta description of the solver.
     """
 
-    description: str = ""  # A brief description about this solver.
+    description: str = ""  # Brief description about the solver.
     type: SolverType = SolverType.UNKNOWN  # The solver type.
-    equation: str = ""  # The equation solved by the solver, e.g. Burgers, etc.
-    equation_expr: str = ""  # The mathematical expression of the equation.
-    dimension: str = ""  # The equation dimension, e.g. 1d, 2d, 3d.
-    default_ics: dict = None  # Default initialization conditions.
-    default_bcs: dict = None  # Default boundary conditions.
-    fields: dict = None  # The dictionary of available fields.
+    equation: str = ""  # The equation to be solved, e.g. Swe2D.
+    equation_expr: str = ""  # The mathematical expression.
+    dimension: MeshDimension = MeshDimension.NONE
+    default_ics: dict[str, IInitCondition] = None
+    default_bcs: dict[str, IBoundaryCondition] = None
+    fields: dict[str, FieldMeta] = None  # The available fields.
 
 
 @dataclass
 class SolverStatus:
     """
-    The current status of the solver, excluding the solutions.
+    The current status of the solver.
     """
 
-    elapsed_time: float = 0.0  # Time spent on the current step.
-    residual: float = 0.0  # The max residual in current step.
-    iteration: int = 0  # The iteration number.
-    time_step: float = 0.0  # The current calculation time step.
-    progress: float = 0.0  # Progress percentage (0~1).
     finished: bool = False  # Whether the solver has finished.
-    converged: bool = False  # Whether the solver has converged.
-    etc: Any = None  # Any extra information, error or warnings.
+    current_time: float = 0.0  # Current physical time.
+    end_time: float = 0.0  # End time.
+    time_step: float = 0.0  # Current time step.
+    residual: float = 0.0  # Current step residual.
+    step_time: float = 0.0  # Current step time.
+    total_time: float = 0.0  # Total elapsed time.
+    iteration: int = 0  # Current iteration.
+    error_code: int = 0  # 0 for no error,non-zero for errors.
+    error_message: str = ""  # Error message.
+    etc: Any = None  # Any extra information.
 
 
 class ISolver(ABC):
@@ -69,12 +72,6 @@ class ISolver(ABC):
     def get_meta(cls) -> SolverMeta:
         """
         The meta infomations of solver.
-
-        Notes:
-            - The `fields` contains all the avaiable fields with followings:
-                - description (str): A brief description.
-                - dtype (str): Data type, [scalar, vector, tensor].
-                - etype (str): Element type, [node, face, cell, none].
         """
         pass
 
@@ -98,7 +95,7 @@ class ISolver(ABC):
     @abstractmethod
     def status(self) -> SolverStatus:
         """
-        The current status of the solver, not including the solution.
+        The current status.
         """
         pass
 

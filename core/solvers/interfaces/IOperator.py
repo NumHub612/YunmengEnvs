@@ -5,9 +5,10 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Interface for pde numerical operators.
 """
 from core.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field, DataHub
-from core.numerics.mesh import Mesh
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.fields.fields import Field
+from core.numerics.fields.datahubs import DataHub
+from core.numerics.mesh.spatials import Mesh
 from abc import ABC, abstractmethod
 import enum
 

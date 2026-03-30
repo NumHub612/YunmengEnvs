@@ -11,9 +11,9 @@ are also driven by the `Solver`.
 For known problems, more efficient solver can be directly developed.
 """
 from core.numerics.enums import VariableType
-from core.numerics.mats import LinearEqs
-from core.numerics.fields import Field
-from core.numerics.mesh import Mesh
+from core.numerics.mats.linalgs import LinearEqs
+from core.numerics.fields.fields import Field
+from core.numerics.mesh.spatials import Mesh
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
