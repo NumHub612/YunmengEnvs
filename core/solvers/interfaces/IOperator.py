@@ -16,14 +16,15 @@ import enum
 class OperatorType(enum.Enum):
     """The operator type."""
 
-    D2DT2 = "d2dt2"
+    LAPLACIAN = "laplacian"
     DIV = "div"
     GRAD = "grad"
-    LAPLACIAN = "laplacian"
+    D2DT2 = "d2dt2"
     DDT = "ddt"
     CURL = "curl"
     FUNC = "func"
     SRC = "src"
+    LIMITER = "limiter"
     UNKNOWN = "unknown"
 
 
