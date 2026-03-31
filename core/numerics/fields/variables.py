@@ -145,6 +145,14 @@ class Variable:
         """Magnitude of variable."""
         return self._back.norm(self._data)
 
+    @property
+    def minmax(self) -> tuple:
+        """Min and max of variable."""
+        return (
+            self._back.min(self._data),
+            self._back.max(self._data),
+        )
+
     # -----------------------------------------------
     # region operators
     # -----------------------------------------------

@@ -50,15 +50,15 @@ class SolverStatus:
     """
 
     finished: bool = False  # Whether the solver has finished.
-    current_time: float = 0.0  # Current physical time.
-    end_time: float = 0.0  # End time.
-    time_step: float = 0.0  # Current time step.
-    residual: float = 0.0  # Current step residual.
-    step_time: float = 0.0  # Current step time.
-    total_time: float = 0.0  # Total elapsed time.
-    iteration: int = 0  # Current iteration.
+    current_time: float = None  # Current physical time.
+    end_time: float = None  # End time.
+    time_step: float = None  # Current time step.
+    residual: float = None  # Current step residual.
+    step_time: float = None  # Current step time.
+    total_time: float = None  # Total elapsed time.
+    iteration: int = None  # Current iteration.
     error_code: int = 0  # 0 for no error,non-zero for errors.
-    error_message: str = ""  # Error message.
+    error_message: str = None  # Error message.
     etc: Any = None  # Any extra information.
 
 
@@ -121,7 +121,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def add_ic(self, ic: IInitCondition, field: str):
+    def add_ic(self, field: str, ic: IInitCondition):
         """
         Add an initial condition.
         """
@@ -130,8 +130,8 @@ class ISolver(ABC):
     @abstractmethod
     def add_bc(
         self,
-        bc: IBoundaryCondition,
         field: str,
+        bc: IBoundaryCondition,
         eids: list[int],
         etype: ElementType,
     ):

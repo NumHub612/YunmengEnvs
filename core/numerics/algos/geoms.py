@@ -71,9 +71,13 @@ class MeshGeom:
         self._cell_surfaces: Optional[np.ndarray] = None
 
         # Distance caches
-        self._cell2cell_dists: Optional[List[Dict[int, float]]] = None
-        self._cell2face_dists: Optional[List[Dict[int, float]]] = None
-        self._cell2node_dists: Optional[List[Dict[int, float]]] = None
+        self._cell2cell_dists: List[Dict[int, float]] = None
+        self._cell2face_dists: List[Dict[int, float]] = None
+        self._cell2node_dists: List[Dict[int, float]] = None
+
+        # statistics(min, max, mean)
+        self._node_dists_stats: tuple[float, float, float] = None
+        self._cell_dists_stats: tuple[float, float, float] = None
 
         # Vector caches
         self._cell2cell_vects: List[Dict[int, Variable]] = None
@@ -123,7 +127,6 @@ class MeshGeom:
     @property
     def face_perimeter(self) -> np.ndarray:
         """Face perimeter."""
-        print(self._mesh.dimension)
         if self._face_perimeters is None:
             if self._mesh.dimension == MeshDimension.NONE:
                 face_perimeters = [0.0] * self._mesh.face_count
@@ -413,3 +416,28 @@ class MeshGeom:
 
             self._cell2face_vects = cell_face_vectors_list
         return self._cell2face_vects
+
+    def get_cell2cell_distance(self, cell_id: int, nbr_id: int) -> float:
+        """Get the distance between a cell and its neighbour."""
+        try:
+            return self.cell2cell_distance[cell_id][nbr_id]
+        except KeyError:
+            return self.cell2cell_distance[nbr_id][cell_id]
+
+    # -----------------------------------------------
+    # region non-Continous statis
+    # -----------------------------------------------
+
+    @property
+    def cell2cell_distance_stats(self) -> tuple[float, float, float]:
+        """Statistics of cell-to-cell distances."""
+        if self._cell_dists_stats is None:
+            all_dists = []
+            for cell_dists in self.cell2cell_distance:
+                all_dists.extend(cell_dists.values())
+            self._cell_dists_stats = (
+                float(np.min(all_dists)),
+                float(np.max(all_dists)),
+                float(np.mean(all_dists)),
+            )
+        return self._cell_dists_stats

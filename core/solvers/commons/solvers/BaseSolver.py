@@ -21,6 +21,7 @@ from core.numerics.fields.fields import Field
 from core.numerics.mesh.elements import Element
 from core.numerics.mesh.meshes import Mesh
 from configs.settings import logger
+from collections import defaultdict
 
 
 class BaseSolver(ISolver):
@@ -45,14 +46,14 @@ class BaseSolver(ISolver):
         self._status: SolverStatus = SolverStatus()
 
         self._callbacks: list[ISolverCallback] = []
-        self._fields: dict[str, Field] = {}
+        self._fields: dict[str, Field] = defaultdict(dict)
         self._operators: dict[str, IOperator] = operators
 
         self._default_ics: IInitCondition = None
-        self._ics: dict[str, IInitCondition] = {}
+        self._ics: dict[str, IInitCondition] = defaultdict(dict)
 
         self._default_bcs: IBoundaryCondition = None
-        self._bcs: dict[int, dict[str, IBoundaryCondition]] = {}
+        self._bcs: dict[int, dict[str, IBoundaryCondition]] = defaultdict(dict)
 
     @property
     def id(self) -> str:
@@ -76,7 +77,7 @@ class BaseSolver(ISolver):
         cb.setup(self, self._mesh)
         self._callbacks.append(cb)
 
-    def add_ic(self, ic: IInitCondition, field: str):
+    def add_ic(self, field: str, ic: IInitCondition):
         if not isinstance(ic, IInitCondition):
             raise ValueError(f"Invalid initial condition: {ic}")
 
@@ -94,8 +95,8 @@ class BaseSolver(ISolver):
 
     def add_bc(
         self,
-        bc: IBoundaryCondition,
         field: str,
+        bc: IBoundaryCondition,
         eids: list[int],
         etype: ElementType,
     ):
@@ -117,9 +118,6 @@ class BaseSolver(ISolver):
                     f"Solver {self._id} boundary condition element id {eid} "
                     f"out of range for element type {etype.name}."
                 )
-
-            if eid not in self._bcs:
-                self._bcs[eid] = {}
 
             if field in self._bcs[eid]:
                 logger.warning(

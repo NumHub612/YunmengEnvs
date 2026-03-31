@@ -62,6 +62,21 @@ class FieldShard:
         """Ghost data size"""
         return self.data.shape[0] - self.n_core
 
+    @property
+    def minmax(self) -> Tuple[Variable, Variable]:
+        """Min/max values of this shard."""
+        local_view = self.local_view()
+        if isinstance(self.data, torch.Tensor):
+            return (
+                local_view.min().item(),
+                local_view.max().item(),
+            )
+        else:
+            return (
+                local_view.min(),
+                local_view.max(),
+            )
+
     def local_view(self) -> DataArray:
         """Local data view"""
         return self.data[: self.n_core]
@@ -252,7 +267,7 @@ class Field:
         return self._meta.vtype
 
     @property
-    def shape(self) -> Tuple[int, ...]:
+    def shape(self) -> Tuple:
         """Field shape."""
         return (self._meta.size, *self._meta.vtype.value)
 
@@ -261,8 +276,14 @@ class Field:
         """Field size."""
         return self._meta.size
 
+    @property
+    def minmax(self) -> Tuple[Variable, Variable]:
+        """Field min/max values."""
+        ls, us = zip(*[sd.minmax for sd in self._shards])
+        return min(ls), max(us)
+
     # --------------------------------------------------
-    # region Core operations
+    # region methods
     # --------------------------------------------------
 
     @staticmethod
@@ -450,7 +471,7 @@ class Field:
         return grads
 
     # --------------------------------------------------
-    # region Core Halo sync
+    # region Halo sync
     # --------------------------------------------------
 
     def sync_halos(self, op: HaloMode = HaloMode.OVERWRITE):
@@ -617,3 +638,23 @@ class Field:
             scalar_fields.append(field)
 
         return scalar_fields
+
+    def merge(self, f1: "Field", f2: "Field", f3: "Field" = None) -> "Field":
+        """Merge two or three scalar fields into a vector field."""
+        fields = [f1, f2]
+        if f3 is not None:
+            fields.append(f3)
+
+        for f in fields:
+            if f._meta.vtype != VariableType.SCALAR:
+                raise ValueError("Only scalar fields can be merged.")
+
+        if not all(f._meta.size == fields[0]._meta.size for f in fields):
+            raise ValueError("Field size mismatch.")
+
+        data = [f.gather_to_host() for f in fields]
+        merged_data = np.stack(data, axis=-1)
+
+        merged_meta = deepcopy(fields[0]._meta)
+        merged_meta.vtype = VariableType.VECTOR
+        return Field.from_array(merged_data, self._mesh_shards, merged_meta)

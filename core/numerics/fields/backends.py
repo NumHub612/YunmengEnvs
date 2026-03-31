@@ -100,6 +100,21 @@ class Backend:
     def dot(self, a, b):
         return self.xp.dot(a, b)
 
+    def abs(self, arr):
+        if self.type == BackendType.TORCH:
+            return torch.abs(arr)
+        return self.xp.abs(arr)
+
+    def min(self, arr):
+        if self.type == BackendType.TORCH:
+            return torch.min(arr).item()
+        return float(self.xp.min(arr))
+
+    def max(self, arr):
+        if self.type == BackendType.TORCH:
+            return torch.max(arr).item()
+        return float(self.xp.max(arr))
+
     def to_numpy(self, obj) -> np.ndarray:
         if isinstance(obj, torch.Tensor):
             return obj.detach().cpu().numpy()

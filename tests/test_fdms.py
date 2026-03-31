@@ -12,6 +12,8 @@ from core.numerics.fields.fields import Field, Variable
 from core.numerics.enums import VariableType, ElementType
 from core.solvers.commons.inits import HotstartInitialization
 from core.solvers.commons.boundaries import WallBoundary
+from core.solvers.commons.callbacks import ImageRender
+from core.solvers.fdm.SweSolver import SweSolver
 from core.render.plotter.MeshPlotters import plot_mesh
 from core.render.plotter.FieldPlotters import plot_field
 
@@ -96,3 +98,35 @@ class TestSwe2D:
 
         # boundary condition
         wall_bc = WallBoundary("wall")
+        bc_nodes = grid_41x41.get_topo_assistant().boundary_nodes
+
+        # callbacks
+        cb = ImageRender("render", "tests/results/", frequency=1.0)
+
+        # operators
+        operators = {}
+
+        # solver
+        solver = SweSolver("solver", grid_41x41, operators)
+        solver.add_ic("U", u_init)
+        solver.add_ic("h", h_init)
+        solver.add_bc("U", wall_bc, bc_nodes, ElementType.NODE)
+        solver.add_bc("h", wall_bc, bc_nodes, ElementType.NODE)
+        solver.add_callback(cb)
+
+        # initialize
+        solver.initialize(total_time=9.0, time_step=0.01, cfl=0.5)
+
+        # run the simulation
+        while not solver.status.finished:
+            solver.inference()
+
+        # visualize results
+        u_end = solver.get_solution("U")
+        h_end = solver.get_solution("h")
+        plot_field(
+            h_end, grid_41x41, title="h_end", save_dir="tests/results/", show_edges=True
+        )
+        plot_field(
+            u_end, grid_41x41, title="u_end", save_dir="tests/results/", show_edges=True
+        )

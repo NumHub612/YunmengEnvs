@@ -12,6 +12,7 @@ from core.render.animator import ImageSetPlayer
 
 import os
 import shutil
+from typing import Dict
 
 
 class ImageRender(ISolverCallback):
@@ -27,34 +28,38 @@ class ImageRender(ISolverCallback):
     def id(self) -> str:
         return self._id
 
-    def __init__(self, id: str, output_dir: str, fields: dict = None):
+    def __init__(
+        self,
+        id: str,
+        output_dir: str,
+        fields: Dict[str, Dict] = None,
+        frequency: float = None,
+    ):
         """Initialize the callback.
 
         Args:
             output_dir: The output directory for the rendered images.
-            fields: The expected fields to be rendered.
-
-        Notes:
-            - `fields` is a dictionary with the field names as keys,
-               and the rendering options as values.
-            - `fields` can be None, in which render all fields.
+            fields: Rendering field options, e.g.,
+                {"h": {"cmap": "viridis", "vmin": 0.8, "vmax": 1.2}}.
+            frequency: The frequency of rendering.
         """
         self._id = id
-        self._output_dir = os.path.abspath(output_dir)
-        if not os.path.exists(self._output_dir):
-            os.makedirs(self._output_dir)
+        self._output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
 
         self._fields = fields
         self._solver = None
         self._mesh = None
         self._frame = 0
+        self._frequency = frequency
+        self._clock = 0.0
 
     def setup(self, solver: ISolver, mesh: Mesh, **kwargs):
         self._solver = solver
         self._mesh = mesh
 
-        _, available_fields = self._check_solver()
-        if self._fields is None or not self._fields:
+        available_fields = self._solver.get_meta().fields
+        if self._fields is None:
             self._fields = {f: {} for f in available_fields.keys()}
 
         for fname in self._fields.keys():
@@ -62,59 +67,41 @@ class ImageRender(ISolverCallback):
             if os.path.exists(dir):
                 shutil.rmtree(dir)
             os.makedirs(dir)
-            self._fields[fname].update(
-                {
-                    "save_dir": dir,
-                }
-            )
+            self._fields[fname].update({"save_dir": dir})
 
     def cleanup(self):
         self._solver = None
         self._mesh = None
         self._frame = 0
 
-    def _check_solver(self):
-        """Check the solver's status and solutions."""
-        if self._solver is None or not isinstance(self._solver, ISolver):
-            raise RuntimeError("Solver is invalid.")
-
-        status = self._solver.status
-        meta = self._solver.get_meta()
-        if meta.fields is None:
-            raise ValueError(f"Solver {self._solver.id} has no fields.")
-
-        solutions = {}
-        for fname in meta.fields.keys():
-            field = self._solver.get_solution(fname)
-            if field is not None:
-                solutions[fname] = field
-
-        return status, solutions
-
     def on_task_begin(self, **kwargs):
-        title = f"{self._solver.id}-mesh"
-        show_edges = False
-        for fname, field in self._fields.items():
-            if "show_edges" in field:
-                show_edges = field["show_edges"]
-                break
+        if not self._if_render():
+            return
+
         plot_mesh(
-            self._mesh,
-            title=title,
-            save_dir=self._output_dir,
-            show_edges=show_edges,
+            self._mesh, title=f"{self._solver.id}-mesh", save_dir=self._output_dir
         )
+        self._plot_field()
 
-        status, solutions = self._check_solver()
-        self._plot_field(status, solutions)
+    def _if_render(self):
+        if self._frequency is None:
+            return True
+        else:
+            return self._solver.status.current_time >= self._clock
 
-    def _plot_field(self, solver_status, solver_solutions):
+    def _get_frame_name(self):
+        status = self._solver.status
+        if status.current_time is not None:
+            return f"t{status.current_time:.4f}"
+        else:
+            return f"step{self._frame:04d}"
+
+    def _plot_field(self):
         """Plot the field solutions."""
-        for fname, field in solver_solutions.items():
-            if fname not in self._fields or field is None:
-                continue
-
-            title = f"{fname}-{self._frame}"
+        for fname in self._fields.keys():
+            field = self._solver.get_solution(fname)
+            frame = self._get_frame_name()
+            title = f"{fname}-{frame}"
 
             options = self._fields[fname]
             options.update(
@@ -125,14 +112,11 @@ class ImageRender(ISolverCallback):
                     "show": False,
                 }
             )
-
             plot_field(field, self._mesh, **options)
 
     def on_task_end(self, **kwargs):
         for fname, field in self._fields.items():
             img_dir = field["save_dir"]
-            if not os.path.exists(img_dir):
-                continue
             player = ImageSetPlayer(img_dir, pause=0.01)
             player.play(show=False, save=True)
 
@@ -143,6 +127,8 @@ class ImageRender(ISolverCallback):
         pass
 
     def on_step_end(self, **kwargs):
+        if not self._if_render():
+            return
+        self._clock += self._frequency if self._frequency is not None else 0.0
         self._frame += 1
-        status, solutions = self._check_solver()
-        self._plot_field(status, solutions)
+        self._plot_field()
