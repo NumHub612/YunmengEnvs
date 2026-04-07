@@ -11,7 +11,7 @@ from yunmeng.solutions.standards import (
     LinkableComponentStatus,
 )
 from yunmeng.solutions.commons.links import LoopController, AdapterFactory
-from yunmeng.wirings.architecter import Orchestrator
+from yunmeng.wirings.parser import Orchestrator
 
 from typing import Union, Tuple, Callable
 from enum import Enum

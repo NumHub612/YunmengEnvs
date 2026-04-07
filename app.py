@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunMengEnvs Project Contributors. Welcome aboard Yunmeng
 YunmengEnvs entrence.
 """
 import yunmeng as ym
-from yunmeng.wirings.architecter import Orchestrator
+from yunmeng.wirings.parser import Orchestrator
 from yunmeng.wirings.scheduler import Scheduler
 from yunmeng.setting import print_logo
 from yunmeng.solutions import ym_models
