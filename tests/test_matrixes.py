@@ -6,8 +6,8 @@ import pytest
 import torch
 import numpy as np
 import scipy.sparse as sp
-from core.numerics.mats.sparse import TorchMatrix, NumpyMatrix
-from core.numerics.mats.matrix import Matrix
+from yunmeng.numerics.mats.sparse import TorchMatrix, NumpyMatrix
+from yunmeng.numerics.mats.matrix import Matrix
 
 
 # ============================================

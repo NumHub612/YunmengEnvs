@@ -4,10 +4,12 @@ Copyright (C) 2024, The YunMengEnvs Project Contributors. Welcome aboard Yunmeng
 
 YunmengEnvs entrence.
 """
-from core.solutions.commons.links import Scheduler
-from core.solutions import ym_models
-from core.architecter import Orchestrator
-from configs.settings import LOGO, logger
+import yunmeng as ym
+from yunmeng.wirings.architecter import Orchestrator
+from yunmeng.wirings.scheduler import Scheduler
+from yunmeng.setting import print_logo
+from yunmeng.solutions import ym_models
+from yunmeng.setting import logger
 
 import datetime
 import argparse
@@ -30,15 +32,9 @@ class YunmengEnvsApp:
         self._parser.add_argument("config", type=str, help="config yaml")
 
     def prologue(self):
-        version_file = os.path.join(os.path.dirname(__file__), "VERSION")
-        with open(version_file, "r") as f:
-            version = f.read().strip()
         year = datetime.datetime.now().year
-        print(LOGO % version)
-        print(
-            f"Copyright (C) {year}, The YunMengEnvs Project Contributors. Welcome aboard YunmengEnvs!"
-        )
-        print("https://github.com/NumHub612/YunmengEnvs\n")
+        version = ym.__version__
+        print_logo(version, year)
 
         try:
             self._configer = Orchestrator(self._parser.parse_args())

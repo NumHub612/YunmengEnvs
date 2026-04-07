@@ -5,17 +5,17 @@ Unittests for the fdms solvers.
 import pytest
 import numpy as np
 
-from core.numerics.algos.modifiers import ElevationModifier
-from core.numerics.algos.parts import MeshShard
-from core.numerics.mesh.grids import Grid2D, Coordinate
-from core.numerics.fields.fields import Field, Variable
-from core.numerics.enums import VariableType, ElementType
-from core.solvers.commons.inits import HotstartInitialization
-from core.solvers.commons.boundaries import WallBoundary
-from core.solvers.commons.callbacks import ImageRender
-from core.solvers.fdm.SweSolver import SweSolver
-from core.render.plotter.MeshPlotters import plot_mesh
-from core.render.plotter.FieldPlotters import plot_field
+from yunmeng.numerics.algos.modifiers import ElevationModifier
+from yunmeng.numerics.algos.parts import MeshShard
+from yunmeng.numerics.mesh.grids import Grid2D, Coordinate
+from yunmeng.numerics.fields.fields import Field, Variable
+from yunmeng.numerics.enums import VariableType, ElementType
+from yunmeng.solvers.commons.inits import HotstartInitialization
+from yunmeng.solvers.commons.boundaries import WallBoundary
+from yunmeng.solvers.commons.callbacks import ImageRender
+from yunmeng.solvers.fdm.SweSolver import SweSolver
+from yunmeng.render.plotter.MeshPlotters import plot_mesh
+from yunmeng.render.plotter.FieldPlotters import plot_field
 
 
 # ============================================

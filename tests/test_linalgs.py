@@ -7,11 +7,11 @@ import numpy as np
 import torch
 import scipy.sparse as sp
 
-from core.numerics.mats.linalgs import LinearEqs
-from core.numerics.mats.sparse import TorchMatrix, NumpyMatrix
-from core.numerics.fields.fields import Field
-from core.numerics.enums import VariableType, ElementType, BackendType
-from core.numerics.algos.parts import MeshShard
+from yunmeng.numerics.mats.linalgs import LinearEqs
+from yunmeng.numerics.mats.sparse import TorchMatrix, NumpyMatrix
+from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.enums import VariableType, ElementType, BackendType
+from yunmeng.numerics.algos.parts import MeshShard
 
 
 # ============================================
