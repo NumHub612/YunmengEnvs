@@ -13,7 +13,6 @@ from yunmeng.setting import logger
 
 import datetime
 import argparse
-import os
 import sys
 
 

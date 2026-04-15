@@ -76,8 +76,7 @@ class Orchestrator:
 
     def _activate_env_settings(self, configs: dict):
         """Activate the settings."""
-        for key, value in configs.items():
-            settings[key] = value
+        settings.load(configs)
 
     def _parse_configs(self, configs: dict):
         """
