@@ -200,6 +200,11 @@ class SweSolver(BaseSolver):
         # Update status
         time_cost = time.perf_counter() - start
         self._update_status(time_cost, dt)
+
+        if self._status.finished:
+            for callback in self._callbacks:
+                callback.on_task_end()
+
         return self._status
 
     def _scheme(self, h, u, v, dt):

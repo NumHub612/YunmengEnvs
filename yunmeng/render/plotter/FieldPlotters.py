@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Plotters for visualizing the fluid fields.
 """
 from yunmeng.numerics.mesh.meshes import Mesh, MeshDimension
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.fields.fields import Field, VariableType
 from yunmeng.render.plotter.PlotKits import (
     _extract_field_data,
     _extract_mesh_data,
@@ -114,7 +114,7 @@ def plot_field(
             label=label,
             **kwargs,
         )
-    elif style == "streamplot" and field.vtype.value == "vector":
+    elif style == "streamplot" and field.vtype == VariableType.VECTOR:
         plot_mesh_streamplot(
             points,
             cells,
@@ -129,4 +129,4 @@ def plot_field(
             **kwargs,
         )
     else:
-        raise ValueError(f"Unsupported style: {style}")
+        raise ValueError(f"Unsupported style: {style} with field type: {field.vtype}")

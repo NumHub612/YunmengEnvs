@@ -639,8 +639,14 @@ class Field:
 
         return scalar_fields
 
-    def merge(self, f1: "Field", f2: "Field", f3: "Field" = None) -> "Field":
+    @staticmethod
+    def merge(f1: "Field", f2: "Field", f3: "Field" = None) -> "Field":
         """Merge two or three scalar fields into a vector field."""
+        if f1.mesh_shards != f2.mesh_shards:
+            raise ValueError("Field mesh shards mismatch.")
+        if f3 is not None and f3.mesh_shards != f1.mesh_shards:
+            raise ValueError("Field mesh shards mismatch.")
+        mesh_shards = f1.mesh_shards
         fields = [f1, f2]
         if f3 is not None:
             fields.append(f3)
@@ -648,13 +654,11 @@ class Field:
         for f in fields:
             if f._meta.vtype != VariableType.SCALAR:
                 raise ValueError("Only scalar fields can be merged.")
-
         if not all(f._meta.size == fields[0]._meta.size for f in fields):
             raise ValueError("Field size mismatch.")
 
         data = [f.gather_to_host() for f in fields]
         merged_data = np.stack(data, axis=-1)
-
         merged_meta = deepcopy(fields[0]._meta)
         merged_meta.vtype = VariableType.VECTOR
-        return Field.from_array(merged_data, self._mesh_shards, merged_meta)
+        return Field.from_array(merged_data, mesh_shards, merged_meta)

@@ -6,7 +6,9 @@ Mesh visualization utilities for 2D meshs.
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 from matplotlib.lines import Line2D
+from shapely.geometry import Polygon
 
 from yunmeng.numerics.mesh.spatials import MeshDimension, Mesh
 from yunmeng.render.plotter.PlotKits import _extract_mesh_data, plot_mesh_geometry
@@ -23,7 +25,7 @@ def plot_mesh_ids(
     figsize: tuple = (12, 10),
     dpi: int = 100,
     title: str = None,
-    save_path: str = None,
+    save_dir: str = None,
 ):
     """
     Plot a 2D mesh with node, face and cell IDs labeled.
@@ -40,7 +42,7 @@ def plot_mesh_ids(
         figsize: Figure size (width, height)
         dpi: DPI for the figure
         title: Title for the plot
-        save_path: If provided, save the figure to this path
+        save_dir: If provided, save the figure to this path
     """
     # Check if mesh is 2D
     if mesh.dimension != MeshDimension.D2:
@@ -64,7 +66,12 @@ def plot_mesh_ids(
 
     # Draw faces (edges) - this works for both structured and unstructured meshes
     for face in mesh.faces:
-        face_coords = node_coords[face.nodes]
+        if not hasattr(face, "nodes") or face.nodes is None:
+            continue
+        face_node_ids = np.asarray(face.nodes)
+        if len(face_node_ids) < 2:
+            continue
+        face_coords = node_coords[face_node_ids]
         ax.plot(
             face_coords[:, 0],
             face_coords[:, 1],
@@ -77,39 +84,23 @@ def plot_mesh_ids(
     if show_cells:
         for cell_idx in range(mesh.cell_count):
             cell = mesh.cells[cell_idx]
-            # Get faces of this cell
+            # Get faces of this cell (already sorted anticlockwise by mesh generator)
             faces = mesh.get_faces(cell.faces)
 
-            # Get unique nodes from all faces
-            node_ids = set()
-            for face in faces:
-                node_ids.update(face.nodes)
-            node_ids = sorted(list(node_ids))
+            # Build cell boundary by traversing faces in order
+            # For each face, get its two endpoints and build a closed loop
+            boundary_coords = _build_cell_boundary(faces, node_coords)
 
-            # Get coordinates of cell nodes
-            cell_coords = node_coords[node_ids]
-
-            # Draw cell boundary
-            # Sort nodes anticlockwise to form proper polygon
-            from shapely.geometry import Polygon
-
-            poly = Polygon(
-                [
-                    (cell_coords[i, 0], cell_coords[i, 1])
-                    for i in range(len(cell_coords))
-                ]
-            )
-            if not poly.is_valid:
-                # If polygon is not valid, try to fix it
-                poly = poly.buffer(0)
-            x, y = poly.exterior.xy
-            ax.plot(
-                x,
-                y,
-                color=cell_color,
-                linewidth=1.0,
-                alpha=0.5,
-            )
+            if boundary_coords is not None and len(boundary_coords) >= 3:
+                # Close the polygon
+                boundary_coords = np.vstack([boundary_coords, boundary_coords[0]])
+                ax.plot(
+                    boundary_coords[:, 0],
+                    boundary_coords[:, 1],
+                    color=cell_color,
+                    linewidth=1.0,
+                    alpha=0.5,
+                )
 
             # Draw cell center and ID
             center_x = cell.coordinate.x
@@ -141,8 +132,14 @@ def plot_mesh_ids(
     if show_faces:
         for face_idx in range(mesh.face_count):
             face = mesh.faces[face_idx]
+            if not hasattr(face, "nodes") or face.nodes is None:
+                continue
+            face_node_ids = np.asarray(face.nodes)
+            if len(face_node_ids) < 2:
+                continue
+
             # Get coordinates of face nodes
-            face_coords = node_coords[face.nodes]
+            face_coords = node_coords[face_node_ids]
 
             # Calculate face center
             center_x = np.mean(face_coords[:, 0])
@@ -237,11 +234,82 @@ def plot_mesh_ids(
     plt.tight_layout()
 
     # Save or show
-    if save_path:
+    if save_dir:
+        # Sanitize title for filename
+        safe_title = str(title) if title else "mesh_visualization"
+        safe_title = "".join(
+            c if c.isalnum() or c in (" ", "-", "_") else "_" for c in safe_title
+        )
+        save_path = os.path.join(save_dir, f"{safe_title}.png")
         plt.savefig(save_path, dpi=dpi, bbox_inches="tight")
         print(f"Figure saved to {save_path}")
 
     return fig, ax
+
+
+def _build_cell_boundary(faces, node_coords):
+    """
+    Build a closed polygon boundary from a list of faces.
+    Assumes faces are ordered and form a closed loop.
+
+    For a quadrilateral cell with 4 faces, traces the outer boundary
+    by connecting face endpoints in sequence.
+    """
+    if faces is None or len(faces) < 3:
+        return None
+
+    # Build edge connectivity: map each node to its neighbors in the face loop
+    from collections import defaultdict
+
+    node_neighbors = defaultdict(set)
+
+    for face in faces:
+        if not hasattr(face, "nodes") or face.nodes is None:
+            continue
+        node_ids = list(face.nodes)
+        for i in range(len(node_ids)):
+            a, b = node_ids[i], node_ids[(i + 1) % len(node_ids)]
+            node_neighbors[a].add(b)
+            node_neighbors[b].add(a)
+
+    # Find a starting node (any node with neighbors)
+    start_node = None
+    for node, neighbors in node_neighbors.items():
+        if len(neighbors) == 2:  # Corner node has exactly 2 neighbors in boundary
+            start_node = node
+            break
+
+    if start_node is None:
+        # Fallback: use any node
+        start_node = next(iter(node_neighbors))
+
+    # Trace the boundary
+    boundary = [start_node]
+    prev_node = None
+    current = start_node
+
+    while True:
+        neighbors = list(node_neighbors[current])
+        # Pick next node that is not the one we came from
+        next_node = None
+        for n in neighbors:
+            if n != prev_node:
+                next_node = n
+                break
+
+        if next_node is None or next_node == start_node:
+            break
+
+        boundary.append(next_node)
+        prev_node = current
+        current = next_node
+
+        if len(boundary) > len(node_neighbors) * 2:  # Safety break
+            break
+
+    # Convert to coordinates
+    boundary_coords = np.array([node_coords[n] for n in boundary])
+    return boundary_coords
 
 
 def plot_mesh(
