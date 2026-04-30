@@ -651,10 +651,14 @@ class Field:
 
         data = self.gather_to_host()
         scalar_fields = []
-        raw_meta = deepcopy(self._meta)
-        raw_meta.vtype = VariableType.SCALAR
         for i in range(data.shape[1]):
-            field = Field.from_array(data[:, i], self._mesh_shards, raw_meta)
+            field = Field.from_array(
+                data[:, i],
+                self._mesh_shards,
+                VariableType.SCALAR,
+                self._meta.etype,
+                self._meta.requires_grad,
+            )
             scalar_fields.append(field)
 
         return scalar_fields
@@ -679,6 +683,10 @@ class Field:
 
         data = [f.gather_to_host() for f in fields]
         merged_data = np.stack(data, axis=-1)
-        merged_meta = deepcopy(fields[0]._meta)
-        merged_meta.vtype = VariableType.VECTOR
-        return Field.from_array(merged_data, mesh_shards, merged_meta)
+        return Field.from_array(
+            merged_data,
+            mesh_shards,
+            VariableType.VECTOR,
+            f1.meta.etype,
+            f1.meta.requires_grad,
+        )

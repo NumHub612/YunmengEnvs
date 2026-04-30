@@ -87,7 +87,7 @@ class LinearEqs:
             )
         if other.rhs.vtype != self.rhs.vtype:
             raise ValueError(
-                f"Invalid LinearEqs operation with different rhs types: \
+                f"Invalid LinearEqs operation with different types: \
                     {self.rhs.vtype} vs {other.rhs.vtype}."
             )
 
@@ -130,7 +130,9 @@ class LinearEqs:
         return Field.from_array(
             values,
             self.rhs.mesh_shards,
-            field_meta,
+            field_meta.vtype,
+            field_meta.etype,
+            field_meta.requires_grad,
         )
 
     def _solve_torch(
