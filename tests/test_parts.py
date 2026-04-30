@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 import torch
 
-from core.numerics.mesh.grids import Grid2D, Grid
-from core.numerics.mesh.meshes import GenericMesh, Mesh
-from core.numerics.enums import ElementType
+from yunmeng.numerics.mesh.grids import Grid2D, Grid
+from yunmeng.numerics.mesh.meshes import GenericMesh, Mesh
+from yunmeng.numerics.enums import ElementType
 
 # ============================================
 # region Fixtures
