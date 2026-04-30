@@ -5,10 +5,10 @@ Unit tests for MeshGeom.
 
 import pytest
 import numpy as np
-from core.numerics.mesh.grids import Grid2D, Grid
-from core.numerics.mesh.meshes import GenericMesh, Mesh
-from core.numerics.mesh.elements import Coordinate
-from core.numerics.algos.geoms import calculate_distance
+from yunmeng.numerics.mesh.grids import Grid2D, Grid
+from yunmeng.numerics.mesh.meshes import GenericMesh, Mesh
+from yunmeng.numerics.mesh.elements import Coordinate
+from yunmeng.numerics.algos.geoms import calculate_distance
 
 
 # ============================================

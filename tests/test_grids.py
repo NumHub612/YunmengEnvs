@@ -3,9 +3,9 @@
 Tests for Grid2D class.
 """
 import numpy as np
-from core.numerics.mesh.grids import Grid2D
-from core.numerics.mesh.elements import Coordinate
-from core.numerics.enums import MeshDimension
+from yunmeng.numerics.mesh.grids import Grid2D
+from yunmeng.numerics.mesh.elements import Coordinate
+from yunmeng.numerics.enums import MeshDimension
 
 
 class TestGrid2D:

@@ -1,21 +1,18 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
-
 Unit tests for Field class with actual mesh (grid2d and mesh2d).
-Tests include both partitioned and non-partitioned scenarios on CPU and GPU.
 """
 import pytest
 import numpy as np
 import torch
 
-from configs.settings import settings
-from core.numerics.mesh.grids import Grid2D
-from core.numerics.mesh.meshes import GenericMesh
-from core.numerics.mesh.elements import Coordinate
-from core.numerics.fields.fields import Field, HaloMode
-from core.numerics.enums import ElementType, VariableType
-from core.numerics.algos.parts import MeshShard
+from yunmeng.setting import settings
+from yunmeng.numerics.mesh.grids import Grid2D
+from yunmeng.numerics.mesh.meshes import GenericMesh
+from yunmeng.numerics.mesh.elements import Coordinate
+from yunmeng.numerics.fields.fields import Field, HaloMode
+from yunmeng.numerics.enums import ElementType, VariableType
+from yunmeng.numerics.algos.parts import MeshShard
 
 
 # ============================================
