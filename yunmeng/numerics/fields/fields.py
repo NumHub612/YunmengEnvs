@@ -327,15 +327,6 @@ class Field:
         return field
 
     @staticmethod
-    def from_field(other: "Field") -> "Field":
-        """Create a field by copying another field."""
-        return Field.from_shard(
-            [deepcopy(s) for s in other._shards],
-            other._mesh_shards,
-            other._meta,
-        )
-
-    @staticmethod
     def from_size(
         size: int,
         vtype: VariableType = VariableType.SCALAR,
@@ -350,6 +341,14 @@ class Field:
             etype,
             init_val=init_val,
             requires_grad=requires_grad,
+        )
+
+    def copy(self) -> "Field":
+        """Copy a field by copying another field."""
+        return Field.from_shard(
+            [deepcopy(s) for s in self._shards],
+            self._mesh_shards,
+            self._meta,
         )
 
     def apply(self, func: Callable) -> "Field":

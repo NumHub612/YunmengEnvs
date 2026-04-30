@@ -130,7 +130,7 @@ class BurgersExplicitSolver(BaseSolver):
                 f"Solver {self._id} has no div operator, using default Div01."
             )
         if "lap" not in self._operators:
-            self._operators["lap"] = Lap01()
+            self._operators["lap"] = Lap01(self._nu)
             logger.warning(
                 f"Solver {self._id} has no lap operator, using default Lap01."
             )

@@ -66,7 +66,7 @@ class Div01(IOperator):
 
     def run(self, sources: DataHub, timestep: float) -> Field:
         old_field = sources.field(self._var, loc=ElementType.NODE).data
-        new_field = Field.from_field(old_field)
+        new_field = old_field.copy()
         if len(old_field.mesh_shards) != 1:
             # TODO: Support multi-gpu divergence operator
             raise ValueError("FDM op div01 only supports cpu.")
@@ -91,7 +91,7 @@ class Div01(IOperator):
         # Upwind check
         F = lambda c: (max(c / (abs(c) + 1e-6), 0), max(-c / (abs(c) + 1e-6), 0))
 
-        new_field = Field.from_field(field)
+        new_field = field.copy()
         kx = dt / self._dx
         ky = dt / self._dy
 
