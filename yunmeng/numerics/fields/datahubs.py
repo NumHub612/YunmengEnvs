@@ -14,7 +14,6 @@ class Sample:
     """A sample of the field."""
 
     timestamp: float
-    timestep: float
     data: Field
 
 

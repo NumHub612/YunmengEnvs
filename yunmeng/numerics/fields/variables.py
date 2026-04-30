@@ -158,7 +158,7 @@ class Variable:
     # -----------------------------------------------
 
     def __str__(self) -> str:
-        return f"{self._type.name}({self._back.name}, {self._data})"
+        return f"{self._type.name}({self._data})"
 
     __repr__ = __str__
 

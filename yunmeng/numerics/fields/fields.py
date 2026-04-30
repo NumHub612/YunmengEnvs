@@ -288,18 +288,23 @@ class Field:
 
     @staticmethod
     def from_array(
-        data: DataArray, mesh_shards: list[MeshShard], meta: FieldMeta
+        data: DataArray,
+        mesh_shards: list[MeshShard],
+        vtype: VariableType = VariableType.SCALAR,
+        etype: ElementType = ElementType.CELL,
+        requires_grad: bool = False,
     ) -> "Field":
         """Create a field from a global array."""
-        assert data.shape[0] == meta.size, "Data size != field size"
+        mesh_size = sum([s.get_sizes(etype)[1] for s in mesh_shards])
+        assert data.shape[0] == mesh_size, "Data size != mesh size"
         field = Field(
             mesh_shards,
-            meta.vtype,
-            meta.etype,
-            requires_grad=meta.requires_grad,
+            vtype,
+            etype,
+            requires_grad=requires_grad,
         )
 
-        for g in range(meta.size):
+        for g in range(mesh_size):
             sid, l = field._global_in_shard[g]
             field._shards[sid].data[l] = data[g]
         return field
@@ -322,6 +327,15 @@ class Field:
         return field
 
     @staticmethod
+    def from_field(other: "Field") -> "Field":
+        """Create a field by copying another field."""
+        return Field.from_shard(
+            [deepcopy(s) for s in other._shards],
+            other._mesh_shards,
+            other._meta,
+        )
+
+    @staticmethod
     def from_size(
         size: int,
         vtype: VariableType = VariableType.SCALAR,
@@ -330,9 +344,8 @@ class Field:
         requires_grad: bool = False,
     ) -> "Field":
         """Create a continuous field with specified size."""
-        shard = MeshShard.from_size(size, etype)
         return Field(
-            [shard],
+            [MeshShard.from_size(size, etype)],
             vtype,
             etype,
             init_val=init_val,
@@ -368,15 +381,21 @@ class Field:
             if isinstance(val, Variable):
                 val = val.data
             data = self._backend.data(
-                val, dtype=self._backend.float64, gpu=self._shards[sid].gpu
+                val,
+                dtype=self._backend.float64,
+                gpu=self._shards[sid].gpu,
             )
             self._shards[sid].data[l] = data
 
     def _get_shard_indices(self, indices: DataIndex):
         # Get the global indices for this slice
         if isinstance(indices, slice):
-            g_indices = np.arange(indices.start, indices.stop, indices.step)
-        elif isinstance(indices, int):
+            g_indices = np.arange(
+                indices.start,
+                indices.stop,
+                indices.step,
+            )
+        elif isinstance(indices, (int, np.integer)):
             g_indices = np.array([indices])
         elif isinstance(indices, list):
             g_indices = np.array(indices)
@@ -461,7 +480,8 @@ class Field:
 
         # Collect all gradients from all shards
         grads = torch.empty(
-            (self._meta.size, *self._meta.vtype.value), dtype=torch.float64
+            (self._meta.size, *self._meta.vtype.value),
+            dtype=torch.float64,
         )
         for i in range(self._meta.size):
             sid, l = self._global_in_shard[i]

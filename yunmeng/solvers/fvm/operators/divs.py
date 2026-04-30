@@ -36,19 +36,18 @@ class Div01(IOperator):
     def get_name(cls) -> str:
         return "div01"
 
-    def __init__(self, rho: float):
+    def __init__(self):
         self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._geom: MeshGeom = None
         self._part: MeshPart = None
 
         self._bcs = None
-        self._rho = rho
         self._var = ""
 
     def prepare(self, fields: list[str], mesh: Grid, bounds: dict):
         if not isinstance(mesh, Grid):
-            raise ValueError("Fvm Grad01 operator only supports Grid.")
+            raise ValueError("FVM div01 operator only supports Grid.")
 
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()

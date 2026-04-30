@@ -10,10 +10,11 @@ from yunmeng.numerics.algos.parts import MeshShard
 from yunmeng.numerics.mesh.grids import Grid2D, Coordinate
 from yunmeng.numerics.fields.fields import Field, Variable
 from yunmeng.numerics.enums import VariableType, ElementType
-from yunmeng.solvers.commons.inits import HotstartInitialization
-from yunmeng.solvers.commons.boundaries import WallBoundary
+from yunmeng.solvers.commons.inits import *
+from yunmeng.solvers.commons.boundaries import *
 from yunmeng.solvers.commons.callbacks import ImageRender
-from yunmeng.solvers.fdm.SweSolver import SweSolver
+from yunmeng.solvers.fdm.BurgersSolver import *
+from yunmeng.solvers.fdm.operators import *
 from yunmeng.render.plotter.MeshPlotters import plot_mesh
 from yunmeng.render.plotter.FieldPlotters import plot_field
 
@@ -24,10 +25,10 @@ from yunmeng.render.plotter.FieldPlotters import plot_field
 
 
 @pytest.fixture
-def grid_41x41():
+def grid_41x41() -> Grid2D:
     """Create a flat 2D grid for testing."""
-    ll, ur = Coordinate(0, 0), Coordinate(10, 10)
-    grid_41x41 = Grid2D.by_uniform(ll, ur, 41, 41)
+    ll, ur = Coordinate(0, 0), Coordinate(2.0, 2.0)
+    grid_41x41 = Grid2D.by_uniform(ll, ur, 101, 101)
 
     # Add elevation modifier
     modifier = ElevationModifier()
@@ -64,29 +65,42 @@ def H0(grid_41x41: Grid2D) -> Field:
 @pytest.fixture
 def U0(grid_41x41: Grid2D) -> Field:
     """Initial condition for the velocity field."""
-    init_val = Variable.vector(0.0, 0.0, 0.0)
+    init_val = Variable.vector(1.0, 1.0, 0.0)
     U0 = Field.from_size(
         grid_41x41.node_count, VariableType.VECTOR, ElementType.NODE, init_val
     )
+
+    nx, ny = grid_41x41.nx, grid_41x41.ny
+    dx = grid_41x41.lx / (nx - 1)
+    dy = grid_41x41.ly / (ny - 1)
+
+    y_start = int(0.5 / dy)
+    y_end = int(1 / dy + 1)
+    x_start = int(0.5 / dx)
+    x_end = int(1 / dx + 1)
+
+    for i in range(nx):
+        for j in range(ny):
+            idx = grid_41x41.match_node(i, j)
+            if y_start <= j <= y_end and x_start <= i <= x_end:
+                U0[idx] = Variable.vector(2.0, 2.0, 0.0)
+
     return U0
 
 
 # ============================================
-# region Swe2D Tests
+# region Burgers2D Tests
 # ============================================
 
 
-class TestSwe2D:
-    """Test suite for SWE2D solver."""
+class TestBurgers2D:
+    """Test suite for Burgers2D solver."""
 
-    def test_swe2d_grid(self, grid_41x41: Grid2D, H0: Field, U0: Field):
-        """Test swe2d on grid2d."""
+    def test_2d_grid(self, grid_41x41: Grid2D, H0: Field, U0: Field):
+        """Test burgers2d on grid2d."""
         # visualize the grid and initial conditions
         # plot_mesh(
         #     grid_41x41, title="grid_41x41", save_dir="tests/results/", show_edges=True
-        # )
-        # plot_field(
-        #     H0, grid_41x41, title="H0", save_dir="tests/results/", show_edges=True
         # )
         # plot_field(
         #     U0, grid_41x41, title="U0", save_dir="tests/results/", show_edges=True
@@ -94,39 +108,40 @@ class TestSwe2D:
 
         # initial condition
         u_init = HotstartInitialization("U0", U0)
-        h_init = HotstartInitialization("H0", H0)
 
         # boundary condition
-        wall_bc = WallBoundary("wall")
+        value_bc = ValueBoundary("bc", Var([1.0, 1.0, 0.0]))
         bc_nodes = grid_41x41.get_topo_assistant().boundary_nodes
 
         # callbacks
-        cb = ImageRender("render", "tests/results/", frequency=1.0)
+        cb = ImageRender("render", "tests/results/", frequency=0.05)
 
         # operators
-        operators = {}
+        operators = {
+            "div": Div01(),
+            "lap": Lap01(),
+        }
 
         # solver
-        solver = SweSolver("solver", grid_41x41, operators)
-        solver.add_ic("U", u_init)
-        solver.add_ic("h", h_init)
-        solver.add_bc("U", wall_bc, bc_nodes, ElementType.NODE)
-        solver.add_bc("h", wall_bc, bc_nodes, ElementType.NODE)
+        solver = BurgersExplicitSolver("solver", grid_41x41, operators)
+        solver.add_ic("u", u_init)
+        solver.add_bc("u", value_bc, bc_nodes, ElementType.NODE)
         solver.add_callback(cb)
 
         # initialize
-        solver.initialize(total_time=9.0, time_step=0.01, cfl=0.5)
+        solver.initialize(total_time=1.0, time_step=0.008, cfl=0.5)
 
         # run the simulation
         while not solver.status.finished:
-            solver.inference()
+            status = solver.inference()
+            print(
+                f"Time: {status.current_time:.4f} / {status.end_time:.4f}, "
+                f"Time step: {status.time_step:.4f}, "
+                f"Step time: {status.step_time:.4f}"
+            )
 
         # visualize results
-        u_end = solver.get_solution("U")
-        h_end = solver.get_solution("h")
-        plot_field(
-            h_end, grid_41x41, title="h_end", save_dir="tests/results/", show_edges=True
-        )
+        u_end = solver.get_solution("u")
         plot_field(
             u_end, grid_41x41, title="u_end", save_dir="tests/results/", show_edges=True
         )

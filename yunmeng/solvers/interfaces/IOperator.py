@@ -16,7 +16,7 @@ import enum
 class OperatorType(enum.Enum):
     """The operator type."""
 
-    LAPLACIAN = "laplacian"
+    LAPLACIAN = "lap"
     DIV = "div"
     GRAD = "grad"
     D2DT2 = "d2dt2"
@@ -24,7 +24,7 @@ class OperatorType(enum.Enum):
     CURL = "curl"
     FUNC = "func"
     SRC = "src"
-    LIMITER = "limiter"
+    LIMITER = "lim"
     UNKNOWN = "unknown"
 
 
@@ -69,8 +69,11 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def run(self, sources: DataHub, timestep: float) -> Field | LinearEqs:
         """
-        Run the operator on mesh.
+        Run the operator on field.
+
+        For explicit operators, it returns a `Field` for the updated field.
+        For implicit operators, it returns a `LinearEqs` to be solved.
         """
         pass

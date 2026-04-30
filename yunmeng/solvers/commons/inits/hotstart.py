@@ -37,4 +37,5 @@ class HotstartInitialization(IInitCondition):
                 f"as the target field {target_field.size}."
             )
 
-        target_field.scatter_from_host(self._src_field.gather_to_host())
+        local_field = self._src_field.gather_to_host()
+        target_field.scatter_from_host(local_field)

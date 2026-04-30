@@ -16,12 +16,12 @@ from yunmeng.solvers.interfaces import (
     SolverStatus,
     SolverType,
 )
-from yunmeng.numerics.enums import ElementType
-from yunmeng.numerics.fields.fields import Field
-from yunmeng.numerics.mesh.elements import Element
-from yunmeng.numerics.mesh.meshes import Mesh
+from yunmeng.numerics.mesh import Element, ElementType, Mesh, Grid
+from yunmeng.numerics.fields import Field
 from yunmeng.setting import logger
+
 from collections import defaultdict
+from typing import Union
 
 
 class BaseSolver(ISolver):
@@ -42,7 +42,7 @@ class BaseSolver(ISolver):
 
         if not isinstance(mesh, Mesh):
             raise ValueError(f"Invalid mesh: {mesh}")
-        self._mesh: Mesh = mesh
+        self._mesh: Union[Mesh, Grid] = mesh
         self._status: SolverStatus = SolverStatus()
 
         self._callbacks: list[ISolverCallback] = []

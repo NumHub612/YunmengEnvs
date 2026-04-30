@@ -6,28 +6,42 @@ Time step limiters for the solvers.
 """
 from yunmeng.numerics.mesh.spatials import Mesh, Grid
 from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.enums import G
 import numpy as np
 
 
-def cfl_time_step(
-    mesh: Mesh, water_depth: Field, velocity: Field, cfl_nb: float
+def cfl_timestep(
+    mesh: Mesh,
+    velocity: Field,
+    cfl_nb: float,
+    diffusivity: float = None,
+    water_depth: Field = None,
+    min_dt: float = 1e-6,
 ) -> float:
     """
     Compute the time step based on the CFL condition.
+
+    Args:
+        mesh: The mesh.
+        velocity: The velocity field.
+        cfl_nb: The CFL number.
+        diffusivity: The diffusivity coefficient.
+        water_depth: The water depth field.
+        min_dt: The minimum time step.
+
+    Returns:
+        The time step.
     """
     if mesh.dimension.value != "2d":
         raise NotImplementedError(f"Not support for {mesh.dimension}.")
 
     # Compute the wave speed
-    g = 9.81
-    gh = g * water_depth.gather_to_host()
-    c = np.sqrt(gh)  # wave speed
-    speed = np.abs(velocity.gather_to_host()) + c
-    max_speed = np.max(speed)
-    if max_speed < 1e-8:
-        return 1e-3
+    wave = 0.0
+    if water_depth is not None:
+        gh = G * water_depth.gather_to_host()
+        wave = np.sqrt(gh)  # wave speed
 
-    # Compute the time step
+    # Compute min distance
     geom = mesh.get_geom_assistant()
     etype = velocity.meta.etype.value
     if isinstance(mesh, Grid):
@@ -41,5 +55,17 @@ def cfl_time_step(
     else:
         raise NotImplementedError(f"Not support for {etype}.")
 
+    # Convective time step
+    speed = np.abs(velocity.gather_to_host()) + wave
+    max_speed = np.max(speed)
+    if max_speed < 1e-8:
+        return 1e-3
     dt = cfl_nb * min_dist / max_speed
+
+    # Diffusive time step
+    if diffusivity is not None:
+        dt_diff = cfl_nb * min_dist**2 / diffusivity
+        dt = min(dt, dt_diff)
+
+    dt = max(dt, min_dt)
     return dt

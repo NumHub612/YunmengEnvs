@@ -49,17 +49,16 @@ class SolverStatus:
     The current status of the solver.
     """
 
-    finished: bool = False  # Whether the solver has finished.
     current_time: float = None  # Current physical time.
     end_time: float = None  # End time.
     time_step: float = None  # Current time step.
-    residual: float = None  # Current step residual.
+    residual: float = None  # Current residual.
     step_time: float = None  # Current step time.
     total_time: float = None  # Total elapsed time.
-    iteration: int = None  # Current iteration.
-    error_code: int = 0  # 0 for no error,non-zero for errors.
-    error_message: str = None  # Error message.
-    etc: Any = None  # Any extra information.
+    iters: int = None  # Current iterations.
+    finished: bool = False  # Whether finished.
+    errors: str = None  # Error message.
+    extras: Any = None  # Any extra information used.
 
 
 class ISolver(ABC):
