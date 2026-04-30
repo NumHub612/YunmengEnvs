@@ -127,8 +127,9 @@ class ImageRender(ISolverCallback):
         pass
 
     def on_step_end(self, **kwargs):
-        if not self._if_render():
+        if not self._if_render() and not self._solver.status.finished:
             return
+
         self._clock += self._frequency if self._frequency is not None else 0.0
         self._frame += 1
         self._plot_field()

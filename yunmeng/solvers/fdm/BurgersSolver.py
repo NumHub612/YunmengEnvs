@@ -15,7 +15,7 @@ from yunmeng.solvers.commons import (
     IOperator,
 )
 from yunmeng.solvers.commons import inits, boundaries, supports
-from yunmeng.solvers.fdm.operators import Div01, Lap01
+from yunmeng.solvers.fdm.operators import Div01, Lap01, Src01
 from yunmeng.setting import logger
 
 import time
@@ -77,7 +77,6 @@ class BurgersExplicitSolver(BaseSolver):
         self,
         total_time: float,
         time_step: float,
-        nu: float = 0.01,
         cfl: float = 0.5,
     ):
         """
@@ -86,7 +85,6 @@ class BurgersExplicitSolver(BaseSolver):
         Args:
             total_time: The total time of the simulation.
             time_step: The time step for the simulation.
-            nu: The viscosity of the Burgers equation.
             cfl: The CFL number for time step calculation.
         """
 
@@ -118,7 +116,6 @@ class BurgersExplicitSolver(BaseSolver):
 
         # Init configs
         self._time_step = time_step
-        self._nu = nu
         self._cfl = cfl
         self._dx = self._mesh.lx / self._mesh.nx
         self._dy = self._mesh.ly / self._mesh.ny
@@ -130,11 +127,15 @@ class BurgersExplicitSolver(BaseSolver):
                 f"Solver {self._id} has no div operator, using default Div01."
             )
         if "lap" not in self._operators:
-            self._operators["lap"] = Lap01(self._nu)
+            self._operators["lap"] = Lap01(0.01)
             logger.warning(
                 f"Solver {self._id} has no lap operator, using default Lap01."
             )
-
+        if "src" not in self._operators:
+            self._operators["src"] = Src01()
+            logger.warning(
+                f"Solver {self._id} has no src operator, using default Src01."
+            )
         for _, op in self._operators.items():
             op.prepare(["u"], self._mesh, bounds=self._bcs)
 
@@ -151,7 +152,8 @@ class BurgersExplicitSolver(BaseSolver):
     def inference(self) -> SolverStatus:
         # Operator splitting based on the Lie-Trotter splitting principle:
         # u_half = u_old - dt * conv_term(u_old)
-        # u_new = u_half - dt * diff_term(u_half)
+        # u_star = u_half + dt * diff_term(u_half)
+        # u_new = u_star + dt * src_term(u_star)
         start = time.perf_counter()
 
         # Compute time step
@@ -167,10 +169,14 @@ class BurgersExplicitSolver(BaseSolver):
             callback.on_step_begin()
 
         # Update solution
-        u_half = self._operators["div"].run(self._buffs, dt)
-        self._buffs.push_field("u", Sample(start.real, u_half))
+        u_new = self._operators["div"].run(self._buffs, dt)
+        self._buffs.push_field("u", Sample(start.real, u_new))
 
         u_new = self._operators["lap"].run(self._buffs, dt)
+        self._fields["u"] = u_new
+        self._buffs.push_field("u", Sample(start.real, u_new))
+
+        u_new = self._operators["src"].run(self._buffs, dt)
         self._fields["u"] = u_new
         self._buffs.push_field("u", Sample(start.real, u_new))
 

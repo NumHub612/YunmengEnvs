@@ -31,6 +31,8 @@ def cfl_timestep(
 
     Returns:
         The time step.
+
+    TODO: # Add source term effect on time step.
     """
     if mesh.dimension.value != "2d":
         raise NotImplementedError(f"Not support for {mesh.dimension}.")
@@ -58,13 +60,11 @@ def cfl_timestep(
     # Convective time step
     speed = np.abs(velocity.gather_to_host()) + wave
     max_speed = np.max(speed)
-    if max_speed < 1e-8:
-        return 1e-3
-    dt = cfl_nb * min_dist / max_speed
+    dt = cfl_nb * min_dist / (max_speed + 1e-8)
 
     # Diffusive time step
     if diffusivity is not None:
-        dt_diff = cfl_nb * min_dist**2 / diffusivity
+        dt_diff = cfl_nb * min_dist**2 / (2 * diffusivity)
         dt = min(dt, dt_diff)
 
     dt = max(dt, min_dt)

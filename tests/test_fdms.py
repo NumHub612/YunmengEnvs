@@ -120,9 +120,20 @@ class TestBurgers2D:
         cb = ImageRender("render", "tests/results/", frequency=0.05)
 
         # operators
+        def source_func(loc: Coordinate, u: Variable) -> float:
+            # Gaussian forcing
+            x, y, z = loc.x, loc.y, loc.z
+            if 0.5 <= x <= 1.0 and 0.5 <= y <= 1.0:
+                v = np.exp(-((x - 0.75) ** 2 + (y - 0.75) ** 2))
+            else:
+                v = 0.0
+            forcing = Variable.vector(v, v, 0.0)
+            return forcing
+
         operators = {
             "div": Div01(),
             "lap": Lap01(diffusivity=0.01),
+            "src": Src01(tau=1.0, source_func=source_func),
         }
 
         # solver
@@ -132,14 +143,14 @@ class TestBurgers2D:
         solver.add_callback(cb)
 
         # initialize
-        total_time = 1.5
+        total_time = 1.0
         solver.initialize(total_time, time_step=0.008, cfl=0.5)
 
         # run the simulation
         t, dt = 0.0, total_time / 10
         while not solver.status.finished:
             status = solver.inference()
-            if status.current_time >= t:
+            if status.current_time >= t or status.finished:
                 t += dt
                 print(
                     f"Time: {status.current_time:.4f} / {status.end_time:.4f}, "
