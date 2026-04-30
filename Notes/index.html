@@ -1103,6 +1103,95 @@ PETSc、Trilinos 广泛支持。</p>
 <h2 id="numpy">numpy():<a class="headerlink" href="#numpy" title="Permanent link">&para;</a></h2>
 <p>目的: 将 tensor 转换为 NumPy 数组。</p>
 <p>结果: 这个操作 会 断裂计算图。NumPy 数组是独立于 PyTorch 计算图的对象。为了安全地进行转换，PyTorch 需要确保 tensor 不需要梯度（即 tensor.requires_grad 必须为 False）。如果 tensor 的 requires_grad=True，调用 .numpy() 会抛出错误。因此，只有 requires_grad=False 的 tensor 才能转换为 NumPy 数组，这本身就表明它已经与计算图断开连接（或者从未连接过）。</p>
+<hr />
+<h1 id="_15">梯度算子（∇）是列向量还是行向量？<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h1>
+<p>这是一个关于CFD（计算流体力学）中数学表示法的理论问题，不需要使用任何工具。让我直接为你解答。</p>
+<h2 id="cfd_2">CFD中梯度算子的本质<a class="headerlink" href="#cfd_2" title="Permanent link">&para;</a></h2>
+<p><strong>梯度算子（∇）本身是一个向量微分算子，其"方向性"取决于你如何使用它。</strong></p>
+<h3 id="1">1. 标准数学定义<a class="headerlink" href="#1" title="Permanent link">&para;</a></h3>
+<p>在直角坐标系中，Nabla算子定义为：</p>
+<div class="arithmatex">\[\nabla = \frac{\partial}{\partial x}\mathbf{i} + \frac{\partial}{\partial y}\mathbf{j} + \frac{\partial}{\partial z}\mathbf{k} = \left[\frac{\partial}{\partial x}, \frac{\partial}{\partial y}, \frac{\partial}{\partial z}\right]^T\]</div>
+<p><strong>严格来说，它是一个列向量形式的算子。</strong></p>
+<h3 id="2">2. 不同运算中的表现形式<a class="headerlink" href="#2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>运算</th>
+<th>数学形式</th>
+<th>结果类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>梯度</strong> <span class="arithmatex">\(\nabla \phi\)</span></td>
+<td><span class="arithmatex">\(\nabla\)</span> 作用于标量场</td>
+<td><strong>列向量</strong></td>
+<td><span class="arithmatex">\(\nabla \phi = [\partial\phi/\partial x, \partial\phi/\partial y, \partial\phi/\partial z]^T\)</span></td>
+</tr>
+<tr>
+<td><strong>散度</strong> <span class="arithmatex">\(\nabla \cdot \mathbf{u}\)</span></td>
+<td><span class="arithmatex">\(\nabla^T \mathbf{u}\)</span>（内积）</td>
+<td><strong>标量</strong></td>
+<td>行向量与列向量的点积</td>
+</tr>
+<tr>
+<td><strong>旋度</strong> <span class="arithmatex">\(\nabla \times \mathbf{u}\)</span></td>
+<td>叉积运算</td>
+<td><strong>列向量</strong></td>
+<td>向量结果</td>
+</tr>
+<tr>
+<td><strong>对流项</strong> <span class="arithmatex">\((\mathbf{u} \cdot \nabla)\mathbf{u}\)</span></td>
+<td><span class="arithmatex">\(\mathbf{u}^T \nabla \mathbf{u}\)</span></td>
+<td><strong>列向量</strong></td>
+<td>行向量u与梯度算子的组合</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-cfd">3. CFD编程中的实际处理<a class="headerlink" href="#3-cfd" title="Permanent link">&para;</a></h3>
+<p>在代码实现中（如OpenFOAM、FEniCS等），通常采用**列向量约定**：</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// OpenFOAM风格伪代码</span>
+<span class="n">volVectorField</span><span class="w"> </span><span class="n">gradP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fvc</span><span class="o">::</span><span class="n">grad</span><span class="p">(</span><span class="n">p</span><span class="p">);</span><span class="w">  </span><span class="c1">// 梯度是向量场（列向量）</span>
+<span class="n">volScalarField</span><span class="w"> </span><span class="n">divU</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fvc</span><span class="o">::</span><span class="n">div</span><span class="p">(</span><span class="n">U</span><span class="p">);</span><span class="w">     </span><span class="c1">// 散度是标量场</span>
+</code></pre></div>
+<p><strong>但需要注意索引顺序：</strong>
+- 梯度张量 <span class="arithmatex">\(\nabla \mathbf{u}\)</span> 的分量为 <span class="arithmatex">\(\frac{\partial u_i}{\partial x_j}\)</span>，是 <span class="arithmatex">\(3 \times 3\)</span> 矩阵
+- 如果写成 <span class="arithmatex">\(\frac{\partial u_j}{\partial x_i}\)</span>，则是其转置</p>
+<h3 id="4-vs">4. 关键区分：梯度 vs 梯度转置<a class="headerlink" href="#4-vs" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>表示</th>
+<th>含义</th>
+<th>CFD应用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\nabla \mathbf{u}\)</span></td>
+<td><span class="arithmatex">\(\frac{\partial u_j}{\partial x_i}\)</span>（i行j列）</td>
+<td>变形率张量相关</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\((\nabla \mathbf{u})^T\)</span></td>
+<td><span class="arithmatex">\(\frac{\partial u_i}{\partial x_j}\)</span></td>
+<td>速度梯度常用形式</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\mathbf{u} \cdot \nabla\)</span></td>
+<td>对流算子</td>
+<td>作为行向量使用</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5">5. 总结<a class="headerlink" href="#5" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>∇ 算子本质上是列向量</strong>，但在具体运算中：
+- 参与点积（如散度）时，形式上表现为行向量 <span class="arithmatex">\(\nabla^T\)</span>
+- 参与叉积或单独作用时，保持列向量形式
+- <strong>CFD文献和代码中默认采用列向量约定</strong>，但阅读论文时需特别注意作者的符号定义</p>
+</blockquote>
 
 
 
