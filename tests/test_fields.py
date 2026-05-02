@@ -2,6 +2,7 @@
 """
 Unit tests for Field class with actual mesh (grid2d and mesh2d).
 """
+
 import pytest
 import numpy as np
 import torch
@@ -13,7 +14,6 @@ from yunmeng.numerics.mesh.elements import Coordinate
 from yunmeng.numerics.fields.fields import Field, HaloMode
 from yunmeng.numerics.enums import ElementType, VariableType
 from yunmeng.numerics.algos.parts import MeshShard
-
 
 # ============================================
 # region Fixtures
@@ -682,3 +682,153 @@ class TestFieldOperations:
                 pytest.skip("Dist env needed for full mode test")
             else:
                 raise
+
+
+# ============================================
+# region Multiply Tests
+# ============================================
+
+
+class TestFieldMultiplications:
+    """
+    Robust tests for field multiplications with data consistency checks.
+    """
+
+    def test_field_dot_product(self, grid2d_shards: list[MeshShard]):
+        """Test Vector * Vector -> Scalar (Dot Product)"""
+        # Create two vector fields
+        # Field1: All vectors are (1, 2, 3)
+        # Field2: All vectors are (4, 5, 6)
+        field1 = Field(
+            mesh_shards=grid2d_shards,
+            vtype=VariableType.VECTOR,
+            etype=ElementType.CELL,
+            init_val=0.0,
+            requires_grad=False,
+        )
+        field2 = Field(
+            mesh_shards=grid2d_shards,
+            vtype=VariableType.VECTOR,
+            etype=ElementType.CELL,
+            init_val=0.0,
+            requires_grad=False,
+        )
+
+        # Initialize data: (1,2,3) and (4,5,6)
+        for shard in field1._shards:
+            shard.data[:] = np.array([1.0, 2.0, 3.0])
+        for shard in field2._shards:
+            shard.data[:] = np.array([4.0, 5.0, 6.0])
+
+        # Perform dot product
+        result_field = field1 * field2  # Should be 1*4 + 2*5 + 3*6 = 32
+
+        # Check result type and values
+        assert result_field.vtype == VariableType.SCALAR
+        for shard in result_field._shards:
+            # Check shape: (N, 1) for scalar field
+            assert shard.data.shape[1] == 1
+            # Check value: Should be 32.0
+            np.testing.assert_allclose(shard.data, 32.0, rtol=1e-5)
+
+    def test_field_matmul_vector_tensor(self, grid2d_shards: list[MeshShard]):
+        """Test Vector @ Tensor -> Vector"""
+        # Create a vector field (1, 0, 0)
+        vector_field = Field(
+            mesh_shards=grid2d_shards,
+            vtype=VariableType.VECTOR,
+            etype=ElementType.CELL,
+            init_val=0.0,
+        )
+        # Create a 3x3 Identity tensor field
+        tensor_field = Field(
+            mesh_shards=grid2d_shards,
+            vtype=VariableType.TENSOR,
+            etype=ElementType.CELL,
+            init_val=0.0,
+        )
+
+        # Initialize: Vector = [1, 0, 0]
+        for shard in vector_field._shards:
+            shard.data[:] = np.array([1.0, 0.0, 0.0])
+
+        # Initialize: Tensor = Identity Matrix [[[1,0,0], [0,1,0], [0,0,0]]]
+        # Note: Reshaping to fit (N, 3, 3)
+        ident = np.eye(3).reshape(1, 3, 3)
+        for shard in tensor_field._shards:
+            shard.data[:] = ident
+
+        # Perform: [1,0,0] @ I = [1,0,0]
+        result_field = vector_field @ tensor_field
+
+        # Assertions
+        assert result_field.vtype == VariableType.VECTOR
+        for shard in result_field._shards:
+            # Check shape
+            assert shard.data.shape[1] == 3
+            # Check values: Should still be [1, 0, 0]
+            target = np.ones((shard.data.shape[0], 3)) * np.array([1.0, 0.0, 0.0])
+            np.testing.assert_allclose(shard.data, target, rtol=1e-5)
+
+    def test_field_outer_product(self, grid2d_shards: list[MeshShard]):
+        """Test Vector ^ Vector -> Tensor (Outer Product)"""
+        # Create two vector fields
+        # A = (1, 0, 0)
+        # B = (2, 0, 0)
+        field_a = Field(
+            mesh_shards=grid2d_shards,
+            vtype=VariableType.VECTOR,
+            etype=ElementType.CELL,
+            init_val=0.0,
+        )
+        field_b = Field(
+            mesh_shards=grid2d_shards,
+            vtype=VariableType.VECTOR,
+            etype=ElementType.CELL,
+            init_val=0.0,
+        )
+
+        # Initialize data
+        for shard in field_a._shards:
+            shard.data[:] = np.array([1.0, 0.0, 0.0])
+        for shard in field_b._shards:
+            shard.data[:] = np.array([2.0, 0.0, 0.0])
+
+        # Perform outer product: A ^ B
+        # Expected result: [[2,0,0], [0,0,0], [0,0,0]]
+        result_field = field_a ^ field_b
+
+        # Assertions
+        assert result_field.vtype == VariableType.TENSOR
+        expected_tensor = np.zeros((3, 3))
+        expected_tensor[0, 0] = 2.0  # 1 * 2
+
+        for shard in result_field._shards:
+            # Check shape
+            assert shard.data.shape[1:] == (3, 3)
+            # Check values against the expected 3x3 tensor
+            np.testing.assert_allclose(shard.data[0], expected_tensor, rtol=1e-5)
+
+    def test_field_scalar_broadcast(self, grid2d_shards: list[MeshShard]):
+        """Test Scalar * Tensor (Broadcasting)"""
+        # Create a tensor field (Identity)
+        tensor_field = Field(
+            mesh_shards=grid2d_shards,
+            vtype=VariableType.TENSOR,
+            etype=ElementType.CELL,
+            init_val=0.0,
+        )
+
+        # Initialize to Identity
+        ident = np.eye(3).reshape(1, 3, 3)
+        for shard in tensor_field._shards:
+            shard.data[:] = ident
+
+        # Multiply by scalar 2.0
+        result_field = tensor_field * 2.0
+
+        # Check
+        for shard in result_field._shards:
+            n_elements = shard.data.shape[0]
+            expected = np.tile(ident * 2.0, (n_elements, 1, 1))
+            np.testing.assert_allclose(shard.data, expected, rtol=1e-5)
