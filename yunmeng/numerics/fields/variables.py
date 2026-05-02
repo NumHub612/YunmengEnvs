@@ -4,6 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Variables definition.
 """
+
 from yunmeng.numerics.enums import VariableType
 from yunmeng.numerics.fields.backends import Backend, get_backend
 import numpy as np
@@ -74,9 +75,15 @@ class Variable:
     def tensor(*args, requires_grad: bool = False) -> "Variable":
         """Tensor variable."""
         back = get_backend()
-        data = back.array(
-            args, dtype=back.float64, requires_grad=requires_grad
-        ).reshape(3, 3)
+        data = back.array(args, dtype=back.float64, requires_grad=requires_grad)
+        if len(args) == 9:
+            data = data.reshape((3, 3))
+        elif len(args) == 4:
+            data = data.reshape((2, 2))
+            # NOTE: always assume the plane is xy-plane
+            data = np.pad(data, ((0, 1), (0, 1)), mode="constant")
+        else:
+            raise ValueError("Invalid tensor shape.")
         return Variable(data, VariableType.TENSOR)
 
     @staticmethod

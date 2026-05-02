@@ -4,6 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Fields definition.
 """
+
 from yunmeng.numerics.fields.variables import Variable, VariableType
 from yunmeng.numerics.fields.backends import get_backend
 from yunmeng.numerics.algos.parts import MeshShard
@@ -15,7 +16,6 @@ from typing import Callable, Union, List, Dict, Tuple
 from dataclasses import dataclass
 from enum import Enum, auto
 from copy import deepcopy
-
 
 # --------------------------------------------------
 # region Field Infrastruct
@@ -282,8 +282,36 @@ class Field:
         ls, us = zip(*[sd.minmax for sd in self._shards])
         return min(ls), max(us)
 
+    def requires_grad(self, requires_grad: bool = True):
+        if self._backend.type == BackendType.TORCH:
+            for shard in self._shards:
+                shard.data.requires_grad_(requires_grad)
+            self._meta.requires_grad = requires_grad
+
+    def gradient(self):
+        """Get gradient (only for torch backend).
+
+        NOTE: this function not work steady, need to be fixed.
+        """
+        if self._backend.type != BackendType.TORCH:
+            raise RuntimeError("gradient() only available for torch backend")
+        if not self._meta.requires_grad:
+            raise RuntimeError("requires_grad=False")
+
+        # Collect all gradients from all shards
+        grads = torch.empty(
+            (self._meta.size, *self._meta.vtype.value),
+            dtype=torch.float64,
+        )
+        for i in range(self._meta.size):
+            sid, l = self._global_in_shard[i]
+            if self._shards[sid].data.grad is None:
+                continue
+            grads[i] = self._shards[sid].data.grad[l]
+        return grads
+
     # --------------------------------------------------
-    # region methods
+    # region Construction
     # --------------------------------------------------
 
     @staticmethod
@@ -410,6 +438,10 @@ class Field:
             l_indices.append((sid, l))
         return l_indices
 
+    # --------------------------------------------------
+    # region Operations
+    # --------------------------------------------------
+
     def _binary_op(self, other: "Field", op: Callable) -> "Field":
         """Unified binary operation, auto-align shards."""
         if isinstance(other, Field):
@@ -433,20 +465,171 @@ class Field:
     def __sub__(self, other: "Field") -> "Field":
         return self._binary_op(other, lambda a, b: a - b)
 
-    def __mul__(self, scalar: float) -> "Field":
+    def _field_op(self, other: "Field") -> "Field":
+        """Unified field operation with type inference, auto-align shards."""
+        assert self._mesh_shards is other._mesh_shards, "Meshshards mismatch"
+        xp = self._backend.xp
+
+        result_datas, result_vtype = [], None
+        for i in range(len(self._shards)):
+            a = self._shards[i].data
+            vtype_a = self._meta.vtype
+            b = other._shards[i].data
+            vtype_b = other._meta.vtype
+
+            # --- case 1: Scalar * Any (Broadcasting) ---
+            if vtype_a == VariableType.SCALAR:
+                shard_data = xp.multiply(a, b)
+                result_vtype = vtype_b
+                result_datas.append(shard_data)
+
+            # --- case 2: Any * Scalar (Broadcasting) ---
+            elif vtype_b == VariableType.SCALAR:
+                shard_data = xp.multiply(a, b)
+                result_vtype = vtype_a
+                result_datas.append(shard_data)
+
+            # --- case 3: Vector * Vector (Dot Product) ---
+            elif vtype_a == VariableType.VECTOR and vtype_b == VariableType.VECTOR:
+                # dot product: (N, 3) -> (N, 1)
+                shard_data = xp.einsum("ni,ni->n", a, b)
+                # make it (N, 1) for consistent storage
+                shard_data = shard_data[..., np.newaxis]
+                result_datas.append(shard_data)
+                result_vtype = VariableType.SCALAR
+
+            # --- case 4: Vector * Tensor ---
+            # (N, 3) * (N, 3, 3) -> (N, 3)
+            elif vtype_a == VariableType.VECTOR and vtype_b == VariableType.TENSOR:
+                shard_data = xp.einsum("ni,nij->nj", a, b)
+                result_datas.append(shard_data)
+                result_vtype = VariableType.VECTOR
+
+            # --- case 5: Tensor * Tensor (Element-wise) ---
+            elif vtype_a == VariableType.TENSOR and vtype_b == VariableType.TENSOR:
+                shard_data = xp.multiply(a, b)
+                result_datas.append(shard_data)
+                result_vtype = VariableType.TENSOR
+
+            else:
+                raise ValueError(
+                    f"Unsupported operation between {vtype_a} and {vtype_b}"
+                )
+
+        return self._build_field(result_datas, result_vtype)
+
+    def _build_field(self, shard_data_list, result_vtype):
         new_shards = []
         for sid, shard in enumerate(self._shards):
             new_shards.append(
                 FieldShard(
                     shard_id=sid,
                     gpu=shard.gpu,
-                    data=shard.data * scalar,
+                    data=shard_data_list[sid],
                     n_core=shard.n_core,
                 )
             )
-        return Field.from_shard(new_shards, self._mesh_shards, self._meta)
+        new_meta = FieldMeta(
+            version=0,
+            size=self._meta.size,
+            etype=self._meta.etype,
+            vtype=result_vtype,
+            btype=self._backend.type,
+            requires_grad=self._meta.requires_grad,
+        )
+        return Field.from_shard(new_shards, self._mesh_shards, new_meta)
+
+    def __mul__(self, other: Union[float, "Field"]) -> "Field":
+        if isinstance(other, Field):
+            return self._field_op(other)
+        elif isinstance(other, (float, Variable)) or np.isscalar(other):
+            if isinstance(other, Variable):
+                other = other.data
+            new_shards = [s.data * other for s in self._shards]
+            return self._build_field(new_shards, self._meta.vtype)
 
     __rmul__ = __mul__
+
+    def __matmul__(self, other: "Field") -> "Field":
+        """Execute matrix multiplication between two Fields: A @ B
+        - Tensor @ Tensor -> Tensor (std matmul)
+        - Vector @ Tensor -> Vector (vector right-multiply tensor)
+        - otherwise, raise error
+        """
+        assert self._mesh_shards is other._mesh_shards, "Meshshards mismatch"
+        xp = self._backend.xp
+
+        result_datas, result_vtype = [], None
+        for i in range(len(self._shards)):
+            a = self._shards[i].data
+            vtype_a = self._meta.vtype
+            b = other._shards[i].data
+            vtype_b = other._meta.vtype
+
+            # Tensor @ Tensor: [N, 3, 3] @ [N, 3, 3] -> [N, 3, 3]
+            if vtype_a == VariableType.TENSOR and vtype_b == VariableType.TENSOR:
+                # (N, 3, 3) @ (N, 3, 3) -> (N, 3, 3)
+                shard_data = xp.matmul(a, b)
+                result_datas.append(shard_data)
+                result_vtype = VariableType.TENSOR
+
+            # Vector @ Tensor: [N, 3] @ [N, 3, 3] -> [N, 3]
+            elif vtype_a == VariableType.VECTOR and vtype_b == VariableType.TENSOR:
+                # need to expand vector to (N, 1, 3) for matmul:
+                # (N, 3) -> (N, 1, 3)
+                # (N, 1, 3) @ (N, 3, 3) -> (N, 1, 3) -> (N, 3)
+                a_exp = xp.expand_dims(a, axis=1)  # (N, 1, 3)
+                shard_data = xp.matmul(a_exp, b)  # (N, 1, 3)
+                shard_data = xp.squeeze(shard_data, axis=1)  # (N, 3)
+                result_datas.append(shard_data)
+                result_vtype = VariableType.VECTOR
+
+            # Tensor @ Vector: [N, 3, 3] @ [N, 3] -> [N, 3]
+            elif vtype_a == VariableType.TENSOR and vtype_b == VariableType.VECTOR:
+                # (N, 3, 3) @ (N, 3, 1) -> (N, 3, 1) -> (N, 3)
+                b_exp = xp.expand_dims(b, axis=-1)  # (N, 3, 1)
+                shard_data = xp.matmul(a, b_exp)  # (N, 3, 1)
+                shard_data = xp.squeeze(shard_data, axis=-1)  # (N, 3)
+                result_datas.append(shard_data)
+                result_vtype = VariableType.VECTOR
+
+            else:
+                raise TypeError(f"Invalid matmul between {vtype_a} and {vtype_b}")
+
+        return self._build_field(result_datas, result_vtype)
+
+    __rmatmul__ = __matmul__
+
+    def __xor__(self, other: "Field") -> "Field":
+        """Execute outer product between two Fields: A ^ B
+        - Vector ^ Vector -> Tensor (P_ij = A_i * B_j)
+        - otherwise, raise error
+        """
+        assert self._mesh_shards is other._mesh_shards, "Meshshards mismatch"
+        xp = self._backend.xp
+
+        result_datas, result_vtype = [], None
+        for i in range(len(self._shards)):
+            # --- Einsum notation:
+            # 'n' for batch dimension, 'i', 'j', 'k' for component dimensions
+
+            a = self._shards[i].data
+            vtype_a = self._meta.vtype
+            b = other._shards[i].data
+            vtype_b = other._meta.vtype
+
+            # Vector * Vector -> Tensor
+            if vtype_a == VariableType.VECTOR and vtype_b == VariableType.VECTOR:
+                # (N, 3) & (N, 3) -> (N, 3, 3)
+                shard_data = xp.einsum("ni,nj->nij", a, b)
+                result_datas.append(shard_data)
+                result_vtype = VariableType.TENSOR
+            else:
+                raise TypeError(
+                    f"Invalid outer product between {vtype_a} and {vtype_b}"
+                )
+
+        return self._build_field(result_datas, result_vtype)
 
     def __truediv__(self, scalar: float) -> "Field":
         if abs(scalar) < 1e-12:
@@ -460,34 +643,6 @@ class Field:
         for shard in self._shards:
             for data in shard.data:
                 yield data
-
-    def requires_grad(self, requires_grad: bool = True):
-        if self._backend.type == BackendType.TORCH:
-            for shard in self._shards:
-                shard.data.requires_grad_(requires_grad)
-            self._meta.requires_grad = requires_grad
-
-    def gradient(self):
-        """Get gradient (only for torch backend).
-
-        NOTE: this function not work steady, need to be fixed.
-        """
-        if self._backend.type != BackendType.TORCH:
-            raise RuntimeError("gradient() only available for torch backend")
-        if not self._meta.requires_grad:
-            raise RuntimeError("requires_grad=False")
-
-        # Collect all gradients from all shards
-        grads = torch.empty(
-            (self._meta.size, *self._meta.vtype.value),
-            dtype=torch.float64,
-        )
-        for i in range(self._meta.size):
-            sid, l = self._global_in_shard[i]
-            if self._shards[sid].data.grad is None:
-                continue
-            grads[i] = self._shards[sid].data.grad[l]
-        return grads
 
     # --------------------------------------------------
     # region Halo sync
