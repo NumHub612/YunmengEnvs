@@ -74,6 +74,7 @@ class Variable:
     @staticmethod
     def tensor(*args, requires_grad: bool = False) -> "Variable":
         """Tensor variable."""
+        # args: ux,vx,wx,uy,vy,wy,uz,vz,wz
         back = get_backend()
         data = back.array(args, dtype=back.float64, requires_grad=requires_grad)
         if len(args) == 9:

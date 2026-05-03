@@ -2,6 +2,7 @@
 """
 Unittests for the fdms solvers.
 """
+
 import pytest
 import numpy as np
 
@@ -17,7 +18,6 @@ from yunmeng.solvers.fdm.BurgersSolver import *
 from yunmeng.solvers.fdm.operators import *
 from yunmeng.render.plotter.MeshPlotters import plot_mesh
 from yunmeng.render.plotter.FieldPlotters import plot_field
-
 
 # ============================================
 # region Fixtures
@@ -131,8 +131,8 @@ class TestBurgers2D:
             return forcing
 
         operators = {
-            "div": Div01(),
-            "lap": Lap01(diffusivity=0.01),
+            "grad": Grad01(),
+            "lap": Lap01(diffusivity=0.005),
             "src": Src01(tau=1.0, source_func=source_func),
         }
 

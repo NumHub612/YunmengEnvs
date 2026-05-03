@@ -15,12 +15,9 @@ from yunmeng.solvers.commons import (
     IOperator,
 )
 from yunmeng.solvers.commons import inits, boundaries, supports
-from yunmeng.solvers.fdm.operators import Div01, Lap01, Src01
 from yunmeng.setting import logger
 
 import time
-import numpy as np
-from copy import deepcopy
 
 
 class BurgersExplicitSolver(BaseSolver):
@@ -34,7 +31,7 @@ class BurgersExplicitSolver(BaseSolver):
         metas.description = "Fdm explicit solver for 2d Burgers equation"
         metas.type = SolverType.FDM
         metas.equation = "2d Burgers' equation"
-        metas.equation_expr = "ddt(u) + u*div(u) = nu*lap(u) + src(Q(u))"
+        metas.equation_expr = "ddt(u) + u*grad(u) = nu*lap(u) + src(Q)"
         metas.dimension = MeshDimension.D2
         metas.default_ics = {"u": inits.UniformInitialization}
         metas.default_bcs = {"u": boundaries.WallBoundary}
@@ -121,21 +118,6 @@ class BurgersExplicitSolver(BaseSolver):
         self._dy = self._mesh.ly / self._mesh.ny
 
         # Init operators
-        if "div" not in self._operators:
-            self._operators["div"] = Div01()
-            logger.warning(
-                f"Solver {self._id} has no div operator, using default Div01."
-            )
-        if "lap" not in self._operators:
-            self._operators["lap"] = Lap01(0.01)
-            logger.warning(
-                f"Solver {self._id} has no lap operator, using default Lap01."
-            )
-        if "src" not in self._operators:
-            self._operators["src"] = Src01()
-            logger.warning(
-                f"Solver {self._id} has no src operator, using default Src01."
-            )
         for _, op in self._operators.items():
             op.prepare(["u"], self._mesh, bounds=self._bcs)
 
@@ -150,10 +132,6 @@ class BurgersExplicitSolver(BaseSolver):
             callback.on_task_begin()
 
     def inference(self) -> SolverStatus:
-        # Operator splitting based on the Lie-Trotter splitting principle:
-        # u_half = u_old - dt * conv_term(u_old)
-        # u_star = u_half + dt * diff_term(u_half)
-        # u_new = u_star + dt * src_term(u_star)
         start = time.perf_counter()
 
         # Compute time step
@@ -169,20 +147,18 @@ class BurgersExplicitSolver(BaseSolver):
             callback.on_step_begin()
 
         # Update solution
-        u_new = self._operators["div"].run(self._buffs, dt)
-        self._buffs.push_field("u", Sample(start.real, u_new))
-
-        u_new = self._operators["lap"].run(self._buffs, dt)
-        self._fields["u"] = u_new
-        self._buffs.push_field("u", Sample(start.real, u_new))
-
-        u_new = self._operators["src"].run(self._buffs, dt)
-        self._fields["u"] = u_new
-        self._buffs.push_field("u", Sample(start.real, u_new))
+        old_u = self._fields["u"]
+        u_grad = self._operators["grad"].run(self._buffs, dt)
+        u_diff = self._operators["lap"].run(self._buffs, dt)
+        u_src = self._operators["src"].run(self._buffs, dt)
+        new_u = old_u - dt * old_u * u_grad + dt * u_diff + dt * u_src
 
         # Update status
         time_cost = time.perf_counter() - start
         self._update_status(time_cost, dt)
+
+        self._fields["u"] = new_u
+        self._buffs.push_field("u", Sample(self._status.current_time, new_u))
 
         # Call callbacks
         for callback in self._callbacks:

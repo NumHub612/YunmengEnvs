@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Source term operators for the finite difference method.
 """
+
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
@@ -12,7 +13,7 @@ from yunmeng.solvers.interfaces import (
 )
 from yunmeng.numerics.mesh import Grid, ElementType
 from yunmeng.numerics.algos.topos import MeshTopo
-from yunmeng.numerics.fields import DataHub, Field, Var
+from yunmeng.numerics.fields import DataHub, Field, VariableType
 from typing import Callable
 
 
@@ -53,18 +54,18 @@ class Src01(IOperator):
         self._var = fields[0]
         self._topo = self._mesh.get_topo_assistant()
 
-    def run(self, sources: DataHub, timestep: float) -> Field:
+    def run(self, sources: DataHub, timestep: float = None) -> Field:
         old_field = sources.field(self._var, loc=ElementType.NODE).data
-        new_field = old_field.copy()
+        new_field = Field(old_field.mesh_shards, old_field.vtype, old_field.etype)
 
         if len(old_field.mesh_shards) != 1:
             raise ValueError("FDM op src01 only supports cpu.")
 
-        # Apply boundary conditions
-        self._apply_bc(new_field)
+        for nid in range(self._mesh.node_count):
+            coor = self._mesh.nodes[nid].coordinate
+            source_val = self._tau * self._source_func(coor, old_field[nid])
+            new_field[nid] = source_val
 
-        # Update internal nodes with source term
-        new_field = self._update_internal(new_field, timestep)
         return new_field
 
     def _apply_bc(self, field: Field):
@@ -73,14 +74,3 @@ class Src01(IOperator):
             bc = self._bcs[nid][self._var]
             value = bc.evaluate().value
             field[nid] = value
-
-    def _update_internal(self, field: Field, dt: float) -> Field:
-        """Update internal nodes with source term."""
-        new_field = field.copy()
-
-        for nid in self._topo.internal_nodes:
-            coor = self._mesh.nodes[nid].coordinate
-            source_val = self._tau * self._source_func(coor, field[nid])
-            new_field[nid] = field[nid] + dt * source_val
-
-        return new_field
