@@ -31,7 +31,7 @@ class BurgersExplicitSolver(BaseSolver):
         metas.description = "Fdm explicit solver for 2d Burgers equation"
         metas.type = SolverType.FDM
         metas.equation = "2d Burgers' equation"
-        metas.equation_expr = "ddt(u) + u*grad(u) = nu*lap(u) + src(Q)"
+        metas.equation_expr = "ddt(u) + u*grad(u) = lap(u, nu) + src(Q)"
         metas.dimension = MeshDimension.D2
         metas.default_ics = {"u": inits.UniformInitialization}
         metas.default_bcs = {"u": boundaries.WallBoundary}
@@ -118,6 +118,12 @@ class BurgersExplicitSolver(BaseSolver):
         self._dy = self._mesh.ly / self._mesh.ny
 
         # Init operators
+        if "grad" not in self._operators:
+            raise ValueError("Solver {self._id} has no grad operator.")
+        if "lap" not in self._operators:
+            raise ValueError("Solver {self._id} has no lap operator.")
+        if "src" not in self._operators:
+            raise ValueError("Solver {self._id} has no src operator.")
         for _, op in self._operators.items():
             op.prepare(["u"], self._mesh, bounds=self._bcs)
 
