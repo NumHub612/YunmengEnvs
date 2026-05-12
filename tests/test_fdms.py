@@ -131,9 +131,9 @@ class TestBurgers2D:
             return forcing
 
         operators = {
-            "grad": Grad01(),
-            "lap": Lap01(diffusivity=0.01),
-            "src": Src01(tau=1.0, source_func=source_func),
+            "grad": Grad01(["u"]),
+            "lap": Lap01(["u"], diffusivity=0.01),
+            "src": Src01(["u"], tau=1.0, source_func=source_func),
         }
 
         # solver
@@ -212,16 +212,16 @@ class TestNavierStokes2D:
             return forcing
 
         operators = {
-            "grad": Grad01(),
-            "lap": Lap01(diffusivity=0.01),
-            "src": Src01(tau=1.0, source_func=source_func),
+            "grad": Grad01(["u"]),
+            "lap": Lap01(["u"], diffusivity=0.01),
+            "src": Src01(["u"], tau=1.0, source_func=source_func),
         }
 
         # solver
         solver = BurgersExplicitSolver("solver", grid_41x41, operators)
         solver.add_ic("u", u_init)
         solver.add_bc("u", value_bc, bc_nodes, ElementType.NODE)
-        solver.add_callback(cb)
+        # solver.add_callback(cb)
 
         # initialize
         total_time = 1.0

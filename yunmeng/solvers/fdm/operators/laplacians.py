@@ -29,19 +29,21 @@ class Lap01(IOperator):
     def get_name(cls) -> str:
         return "lap01"
 
-    def __init__(self, diffusivity: float = 1.0):
+    def __init__(self, fields: list[str], diffusivity: float = 1.0):
+        if len(fields) != 1:
+            raise ValueError("FDM op lap01 only supports one field.")
+        self._var = fields[0]
+
         self._mesh: Grid2D = None
         self._topo: MeshTopo = None
-
         self._bcs = None
-        self._var = ""
+
         self._nu = diffusivity
         self._dx = None
         self._dy = None
 
     def prepare(
         self,
-        fields: list[str],
         mesh: Grid2D,
         bounds: dict[int, dict[str, IBoundaryCondition]],
     ):
@@ -50,8 +52,7 @@ class Lap01(IOperator):
         if not mesh.orthogonal:
             # TODO: Support non-orthogonal grids
             raise ValueError("FDM op lap01 requires orthogonal grids.")
-        if len(fields) != 1:
-            raise ValueError("FDM op lap01 only supports one field.")
+
         for bc in bounds.values():
             # TODO: Support more types of boundary conditions
             for v in bc.values():
@@ -60,7 +61,6 @@ class Lap01(IOperator):
 
         self._mesh = mesh
         self._bcs = bounds
-        self._var = fields[0]
 
         self._topo = self._mesh.get_topo_assistant()
         self._dx = self._mesh.lx / (self._mesh.nx - 1)

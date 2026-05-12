@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface for pde numerical operators.
 """
+
 from yunmeng.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from yunmeng.numerics.mats.linalgs import LinearEqs
 from yunmeng.numerics.fields.fields import Field
@@ -59,7 +60,6 @@ class IOperator(ABC):
     @abstractmethod
     def prepare(
         self,
-        fields: list[str],
         mesh: Mesh,
         bounds: dict[int, dict[str, IBoundaryCondition]],
     ):

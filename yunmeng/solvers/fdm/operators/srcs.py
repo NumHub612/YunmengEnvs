@@ -28,17 +28,19 @@ class Src01(IOperator):
     def get_name(cls) -> str:
         return "src01"
 
-    def __init__(self, tau: float, source_func: Callable):
+    def __init__(self, fields: list[str], tau: float, source_func: Callable):
+        if len(fields) != 1:
+            raise ValueError("FDM op src01 only supports one field.")
+
         self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._bcs = None
-        self._var = ""
+        self._var = fields[0]
         self._tau = tau
         self._source_func = source_func
 
     def prepare(
         self,
-        fields: list[str],
         mesh: Grid,
         bounds: dict[int, dict[str, IBoundaryCondition]],
     ):
@@ -46,12 +48,9 @@ class Src01(IOperator):
             raise ValueError("FDM op src01 only supports Grid.")
         if not mesh.orthogonal:
             raise ValueError("FDM op src01 requires orthogonal grids.")
-        if len(fields) != 1:
-            raise ValueError("FDM op src01 only supports one field.")
 
         self._mesh = mesh
         self._bcs = bounds
-        self._var = fields[0]
         self._topo = self._mesh.get_topo_assistant()
 
     def run(self, sources: DataHub, timestep: float = None) -> Field:

@@ -125,7 +125,7 @@ class BurgersExplicitSolver(BaseSolver):
         if "src" not in self._operators:
             raise ValueError("Solver {self._id} has no src operator.")
         for _, op in self._operators.items():
-            op.prepare(["u"], self._mesh, bounds=self._bcs)
+            op.prepare(self._mesh, bounds=self._bcs)
 
         # Init buffers
         time_order = 2
