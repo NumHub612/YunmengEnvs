@@ -13,6 +13,7 @@ from yunmeng.solvers.commons import (
     SolverStatus,
     SolverType,
     IOperator,
+    OperatorType,
 )
 from yunmeng.solvers.commons import inits, boundaries, supports
 from yunmeng.setting import logger
@@ -47,7 +48,7 @@ class BurgersExplicitSolver(BaseSolver):
     def get_name(cls) -> str:
         return "BurgersFdm2D"
 
-    def __init__(self, id: str, mesh: Grid2D, operators: dict[str, IOperator]):
+    def __init__(self, id: str, mesh: Grid2D, operators: list[IOperator]):
         super().__init__(id, mesh, operators)
         assert isinstance(mesh, Grid2D), "BurgersFdm2D only supports Grid2D."
 
@@ -118,13 +119,7 @@ class BurgersExplicitSolver(BaseSolver):
         self._dy = self._mesh.ly / self._mesh.ny
 
         # Init operators
-        if "grad" not in self._operators:
-            raise ValueError("Solver {self._id} has no grad operator.")
-        if "lap" not in self._operators:
-            raise ValueError("Solver {self._id} has no lap operator.")
-        if "src" not in self._operators:
-            raise ValueError("Solver {self._id} has no src operator.")
-        for _, op in self._operators.items():
+        for op in self._operators:
             op.prepare(self._mesh, bounds=self._bcs)
 
         # Init buffers
@@ -154,9 +149,14 @@ class BurgersExplicitSolver(BaseSolver):
 
         # Update solution
         old_u = self._fields["u"]
-        u_grad = self._operators["grad"].run(self._buffs, dt)
-        u_diff = self._operators["lap"].run(self._buffs, dt)
-        u_src = self._operators["src"].run(self._buffs, dt)
+        u_grad, u_diff, u_src = None, None, None
+        for op in self._operators:
+            if op.get_type() == OperatorType.GRAD:
+                u_grad = op.run(self._buffs, dt)
+            elif op.get_type() == OperatorType.LAPLACIAN:
+                u_diff = op.run(self._buffs, dt)
+            elif op.get_type() == OperatorType.SRC:
+                u_src = op.run(self._buffs, dt)
         new_u = old_u - dt * old_u * u_grad + dt * u_diff + dt * u_src
 
         # Update status

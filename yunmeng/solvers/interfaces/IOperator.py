@@ -51,6 +51,13 @@ class IOperator(ABC):
         pass
 
     @property
+    def target_fields(self) -> list[str]:
+        """
+        The operator target fields.
+        """
+        pass
+
+    @property
     def time_order(self) -> int:
         """
         The time order of the operator.

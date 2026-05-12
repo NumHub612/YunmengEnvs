@@ -41,6 +41,10 @@ class Grad01(IOperator):
         self._dx = None
         self._dy = None
 
+    @property
+    def target_fields(self) -> list[str]:
+        return [self._var]
+
     def prepare(
         self,
         mesh: Grid2D,

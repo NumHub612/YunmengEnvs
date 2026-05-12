@@ -130,11 +130,11 @@ class TestBurgers2D:
             forcing = Variable.vector(v, v, 0.0)
             return forcing
 
-        operators = {
-            "grad": Grad01(["u"]),
-            "lap": Lap01(["u"], diffusivity=0.01),
-            "src": Src01(["u"], tau=1.0, source_func=source_func),
-        }
+        operators = [
+            Grad01(["u"]),
+            Lap01(["u"], diffusivity=0.01),
+            Src01(["u"], tau=1.0, source_func=source_func),
+        ]
 
         # solver
         solver = BurgersExplicitSolver("solver", grid_41x41, operators)
@@ -158,7 +158,8 @@ class TestBurgers2D:
                     f"Step time: {status.step_time:.4f}"
                 )
 
-        # visualize results
+        # visualize the last frame result
+        # TODO: 这里网格角点上的流速似乎一直是(1,1)，不受对流扩散影响。
         u_end = solver.get_solution("u")
         plot_field(
             u_end,
@@ -211,11 +212,11 @@ class TestNavierStokes2D:
             forcing = Variable.vector(v, v, 0.0)
             return forcing
 
-        operators = {
-            "grad": Grad01(["u"]),
-            "lap": Lap01(["u"], diffusivity=0.01),
-            "src": Src01(["u"], tau=1.0, source_func=source_func),
-        }
+        operators = [
+            Grad01(["u"]),
+            Lap01(["u"], diffusivity=0.01),
+            Src01(["u"], tau=1.0, source_func=source_func),
+        ]
 
         # solver
         solver = BurgersExplicitSolver("solver", grid_41x41, operators)

@@ -45,7 +45,7 @@ class FieldMeta:
     vtype: VariableType = VariableType.SCALAR
     btype: BackendType = BackendType.NUMPY
     requires_grad: bool = False
-    unit: str = None
+    field: str = None
 
 
 @dataclass

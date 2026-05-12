@@ -39,6 +39,10 @@ class Src01(IOperator):
         self._tau = tau
         self._source_func = source_func
 
+    @property
+    def target_fields(self) -> list[str]:
+        return [self._var]
+
     def prepare(
         self,
         mesh: Grid,
