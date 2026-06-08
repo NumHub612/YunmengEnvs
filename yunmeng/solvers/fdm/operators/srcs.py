@@ -50,15 +50,18 @@ class Src01(IOperator):
     ):
         if not isinstance(mesh, Grid):
             raise ValueError("FDM op src01 only supports Grid.")
-        if not mesh.orthogonal:
-            raise ValueError("FDM op src01 requires orthogonal grids.")
+        if not mesh.uniform:
+            raise ValueError("FDM op src01 requires uniform grids.")
 
         self._mesh = mesh
         self._bcs = bounds
         self._topo = self._mesh.get_topo_assistant()
 
-    def run(self, sources: DataHub, timestep: float = None) -> Field:
-        old_field = sources.field(self._var, loc=ElementType.NODE).data
+    def run(self, sources: Field | DataHub, dt: float = None) -> Field:
+        if isinstance(sources, Field):
+            old_field = sources
+        else:
+            old_field = sources.field(self._var, loc=ElementType.NODE).data
         new_field = Field(old_field.mesh_shards, old_field.vtype, old_field.etype)
 
         if len(old_field.mesh_shards) != 1:

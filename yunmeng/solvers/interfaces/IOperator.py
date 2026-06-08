@@ -76,11 +76,11 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def run(self, sources: DataHub, timestep: float) -> Field | LinearEqs:
+    def run(self, sources: Field | DataHub, dt: float) -> Field | LinearEqs:
         """
         Run the operator on field.
 
-        For explicit operators, it returns a `Field` for the updated field.
+        For explicit operators, it returns a `Field`  generated newly.
         For implicit operators, it returns a `LinearEqs` to be solved.
         """
         pass

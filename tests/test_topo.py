@@ -9,7 +9,6 @@ from yunmeng.numerics.mesh.grids import Grid2D, Grid
 from yunmeng.numerics.mesh.meshes import GenericMesh, Mesh
 from yunmeng.numerics.mesh.elements import Coordinate
 
-
 # ============================================
 # region Fixtures
 # ============================================
@@ -157,9 +156,7 @@ class TestGrid2DTopo:
             assert 2 <= len(node_faces[node_id]) <= 3
 
         # Internal nodes should be connected to 4 faces
-        print(len(node_faces))
         for node_id in topo.internal_nodes:
-            print(node_id)
             assert len(node_faces[node_id]) == 4
 
     def test_node_cells(self, grid2d: Grid):

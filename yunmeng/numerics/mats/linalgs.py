@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Linear algebra class.
 """
+
 from yunmeng.numerics.mats.matrix import Matrix
 from yunmeng.numerics.mats.sparse import TorchMatrix, NumpyMatrix
 from yunmeng.numerics.fields.fields import Field, BackendType, get_backend
@@ -81,15 +82,17 @@ class LinearEqs:
         if not isinstance(other, LinearEqs):
             raise ValueError(f"Require LinearEqs type, got {type(other)}.")
         if other.size != self.size:
-            raise ValueError(
-                f"Invalid LinearEqs operation with different sizes: \
-                    {self.size} vs {other.size}."
-            )
+            raise ValueError(f"Invalid LinearEqs operation with different sizes: \
+                    {self.size} vs {other.size}.")
         if other.rhs.vtype != self.rhs.vtype:
-            raise ValueError(
-                f"Invalid LinearEqs operation with different types: \
-                    {self.rhs.vtype} vs {other.rhs.vtype}."
-            )
+            raise ValueError(f"Invalid LinearEqs operation with different types: \
+                    {self.rhs.vtype} vs {other.rhs.vtype}.")
+
+    def reset_rhs(self, rhs: Field):
+        """Reset the right-hand side vector."""
+        if rhs.size != self.size:
+            raise ValueError(f"Invalid rhs size: {rhs.size} vs {self.size}.")
+        self._rhs = rhs
 
     # -----------------------------------------------
     # region solve
