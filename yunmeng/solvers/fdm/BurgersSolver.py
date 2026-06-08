@@ -32,7 +32,7 @@ class BurgersExplicitSolver(BaseSolver):
         metas.description = "Fdm explicit solver for 2d Burgers equation"
         metas.type = SolverType.FDM
         metas.equation = "2d Burgers' equation"
-        metas.equation_expr = "ddt(u) + u*grad(u) = lap(u, nu) + src(Q)"
+        metas.equation_expr = "ddt(u) + grad(u)@u = lap(u, nu) + src(Q)"
         metas.dimension = MeshDimension.D2
         metas.default_ics = {"u": inits.UniformInitialization}
         metas.default_bcs = {"u": boundaries.WallBoundary}
@@ -157,7 +157,7 @@ class BurgersExplicitSolver(BaseSolver):
                 u_diff = op.run(self._buffs, dt)
             elif op.get_type() == OperatorType.SRC:
                 u_src = op.run(self._buffs, dt)
-        new_u = old_u - dt * old_u * u_grad + dt * u_diff + dt * u_src
+        new_u = old_u - dt * u_grad @ old_u + dt * u_diff + dt * u_src
 
         # Update status
         time_cost = time.perf_counter() - start

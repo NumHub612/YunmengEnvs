@@ -73,8 +73,11 @@ class Variable:
 
     @staticmethod
     def tensor(*args, requires_grad: bool = False) -> "Variable":
-        """Tensor variable."""
-        # args: ux,vx,wx,uy,vy,wy,uz,vz,wz
+        """Tensor variable.
+
+        Args:
+            args (list[float]): (ux, ux, vx, vy) or (ux, uy, uz, vx, vy, vz, wx, wy, wz)
+        """
         back = get_backend()
         data = back.array(args, dtype=back.float64, requires_grad=requires_grad)
         if len(args) == 9:
@@ -263,18 +266,26 @@ class Variable:
                     VariableType.TENSOR,
                     self._back,
                 )
+            if self.type == VariableType.VECTOR and other.type == VariableType.TENSOR:
+                # vector-matrix multiplication
+                return Variable(
+                    self._back.xp.matmul(self._data, other._data),
+                    VariableType.VECTOR,
+                    self._back,
+                )
             if self.type == other.type:
                 if self.type == VariableType.VECTOR:
                     # dot product
                     return Variable.scalar(
                         self._back.xp.dot(self._data, other._data),
                     )
-                # element-wise multiplication
-                return Variable(
-                    self._back.xp.multiply(self._data, other._data),
-                    self._type,
-                    self._back,
-                )
+                elif self.type == VariableType.SCALAR:
+                    # element-wise multiplication
+                    return Variable(
+                        self._back.xp.multiply(self._data, other._data),
+                        self._type,
+                        self._back,
+                    )
             raise TypeError("Not supported multiplication.")
         if np.isscalar(other):
             return Variable(
