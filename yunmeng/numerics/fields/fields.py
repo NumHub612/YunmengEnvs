@@ -402,7 +402,7 @@ class Field:
 
     def __setitem__(self, indices: DataIndex, value):
         shard_indices = self._get_shard_indices(indices)
-        if isinstance(value, (float, Variable)):
+        if isinstance(value, (float, Variable, DataArray)):
             value = [value]
         for (sid, l), val in zip(shard_indices, value):
             if isinstance(val, Variable):

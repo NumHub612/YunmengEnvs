@@ -4,6 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interfaces for fluid equations solvers.
 """
+
 from yunmeng.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from yunmeng.solvers.interfaces.IInitCondition import IInitCondition
 from yunmeng.solvers.interfaces.ISolverCallback import ISolverCallback
@@ -55,6 +56,7 @@ class SolverStatus:
     residual: float = None  # Current residual.
     step_time: float = None  # Current step time.
     total_time: float = None  # Total elapsed time.
+    steps: int = None  # Current simulation steps.
     iters: int = None  # Current iterations.
     finished: bool = False  # Whether finished.
     errors: str = None  # Error message.

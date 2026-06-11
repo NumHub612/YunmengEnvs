@@ -15,6 +15,7 @@ from yunmeng.solvers.commons import (
     IOperator,
     OperatorType,
 )
+from yunmeng.solvers.interfaces import BoundaryType
 from yunmeng.solvers.commons import inits, boundaries, supports
 from yunmeng.numerics.consts import RHO
 from yunmeng.setting import logger
@@ -143,6 +144,7 @@ class NavierStokesSolver(BaseSolver):
         self._status.finished = False
         self._status.current_time = 0.0
         self._status.total_time = 0.0
+        self._status.steps = 0
 
         # Init configs
         self._time_step = time_step
@@ -180,6 +182,9 @@ class NavierStokesSolver(BaseSolver):
         for callback in self._callbacks:
             callback.on_step_begin()
 
+        # Apply boundary conditions
+        self._apply_boundary_conditions()
+
         # Update solution of u_star
         self._solve_momentum(dt, new_t)
 
@@ -203,32 +208,44 @@ class NavierStokesSolver(BaseSolver):
 
         return self._status
 
+    def _apply_boundary_conditions(self):
+        """Apply boundary conditions to the fields."""
+        for nid in self._topo.boundary_nodes:
+            for var in self._fields.keys():
+                bc = self._bcs[nid][var]
+                if bc.get_type() == BoundaryType.VALUE:
+                    value = bc.evaluate().value
+                    self._fields[var][nid] = value
+
     def _solve_momentum(self, dt: float, new_t: float):
         """Solve the momentum equation to get tentative velocity."""
         u = self._fields["u"]
         u_grad, u_diff = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD and "u" in op.target_fields:
-                u_grad = op.run(self._buffs, dt)
+                u_grad = op.run(u, dt)
             elif op.get_type() == OperatorType.LAPLACIAN and "u" in op.target_fields:
-                u_diff = op.run(self._buffs, dt)
+                u_diff = op.run(u, dt)
+
         u_star = u - dt * u_grad @ u + dt * u_diff
+        self._fields["u"] = u_star
 
         # update velocity and gradient temporarly
         self._buffs.push("u", Sample(new_t, u_star), Sample(new_t, u_grad))
 
     def _solve_pressure(self, dt: float, new_t: float):
         """Solve the poisson equation to get pressure."""
-        u_div, p_mat = None, None
+        u_div, p_eqs = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.DIV:
                 u_div = op.run(self._buffs, dt)
             elif op.get_type() == OperatorType.LAPLACIAN and "p" in op.target_fields:
-                p_mat = op.run(self._buffs, dt)
+                p_eqs = op.run(self._buffs, dt)
 
-        rhs = (RHO / dt) * u_div
-        p_mat.reset_rhs(rhs)
-        new_p = p_mat.solve()
+        rhs = p_eqs.rhs + (1 / dt) * u_div
+        p_eqs.reset_rhs(rhs)
+        new_p = p_eqs.solve()
+        self._fields["p"] = new_p
 
         # update pressure field
         self._buffs.push_field("p", Sample(new_t, new_p))
@@ -241,7 +258,7 @@ class NavierStokesSolver(BaseSolver):
             if op.get_type() == OperatorType.GRAD and "p" in op.target_fields:
                 p_grad = op.run(self._buffs, dt)
 
-        new_u = u - (dt / RHO) * p_grad
+        new_u = u - (dt / 1) * p_grad
         self._fields["u"] = new_u
 
         # update velocity
@@ -253,6 +270,7 @@ class NavierStokesSolver(BaseSolver):
         self._status.step_time = time_cost
         self._status.total_time += time_cost
         self._status.time_step = dt
+        self._status.steps += 1
 
         if self._status.current_time >= self._status.end_time:
             self._status.finished = True

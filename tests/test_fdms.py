@@ -17,7 +17,7 @@ from yunmeng.solvers.commons.callbacks import ImageRender
 from yunmeng.solvers.fdm.BurgersSolver import *
 from yunmeng.solvers.fdm.NavierStokesSolver import *
 from yunmeng.solvers.fdm.operators import *
-from yunmeng.render.plotter.MeshPlotters import plot_mesh
+from yunmeng.render.plotter.MeshPlotters import plot_mesh_ids, plot_mesh
 from yunmeng.render.plotter.FieldPlotters import plot_field
 
 # ============================================
@@ -176,6 +176,10 @@ class TestNavierStokes2D:
 
     def test_driven_cavity_flow(self, grid_41x41: Grid2D):
         """Test 2d Navier-Stokes solver on driven cavity flow."""
+        ll, ur = Coordinate(0, 0), Coordinate(2.0, 2.0)
+        grid_41x41 = Grid2D.by_uniform(ll, ur, 9, 9)
+        plot_mesh_ids(grid_41x41, title="grid_9X9", save_dir="tests/results/")
+
         # Initial Conditions
         u_init_val = Variable.vector(0.0, 0.0, 0.0)
         u_field = Field.from_size(
@@ -195,7 +199,7 @@ class TestNavierStokes2D:
         north_nodes, ohter_nodes = [], []
         for nid in all_bc_nodes:
             node = grid_41x41.nodes[nid]
-            if node.coordinate.y == 1.0:
+            if node.coordinate.y == 2.0:
                 north_nodes.append(nid)
             else:
                 ohter_nodes.append(nid)
@@ -217,7 +221,15 @@ class TestNavierStokes2D:
         ]
 
         # callbacks
-        cb = ImageRender("render", "tests/results/", frequency=0.05)
+        cb = ImageRender(
+            "render",
+            "tests/results/",
+            # frequency=0.05,
+            fields={
+                "u": {"style": "cloudmap", "show_edges": True},
+                "p": {"style": "cloudmap", "show_edges": True},
+            },
+        )
 
         # solver
         solver = NavierStokesSolver("solver", grid_41x41, operators)
@@ -231,12 +243,13 @@ class TestNavierStokes2D:
 
         # initialize
         total_time = 1.0
-        solver.initialize(total_time, time_step=0.001, cfl=0.2)
+        solver.initialize(total_time, time_step=0.005, cfl=0.5)
 
         # run the simulation
         t, dt = 0.0, total_time / 10
         while not solver.status.finished:
             status = solver.inference()
+            print(f"Time: {status.current_time:.4f} / {status.end_time:.4f}")
             if status.current_time >= t or status.finished:
                 t += dt
                 print(
@@ -244,6 +257,10 @@ class TestNavierStokes2D:
                     f"Time step: {status.time_step:.4f}, "
                     f"Step time: {status.step_time:.4f}"
                 )
+            # if status.steps > 5:
+            #     break
+            # if status.current_time >= 0.03:
+            #     break
 
         u_end = solver.get_solution("u")
         plot_field(

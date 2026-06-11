@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix plotter for matrix visualization.
 """
+
 from yunmeng.numerics.mats.linalgs import Matrix, LinearEqs
 from yunmeng.render.plotter import PlotKits
 
@@ -32,7 +33,6 @@ def show_matrix_heatmap(
         show: Whether to show the plot.
         save_dir: The directory to save.
     """
-    matrix = matrix.scalarize()[0]
     mat_np = matrix.to_dense()
 
     PlotKits.plot_heatmap(
@@ -57,7 +57,6 @@ def show_matrix_scatter(
         show: Whether to show the plot.
         save_dir: The directory to save.
     """
-    matrix = matrix.scalarize()[0]
     mat_np = matrix.to_dense()
     rows, cols = np.indices(mat_np.shape)
 
@@ -91,9 +90,9 @@ def show_lineareqs_heatmap(
         show: Whether to show the plot.
         save_dir: The directory to save.
     """
-    matrix = eqs.matrix.scalarize()[0]
+    matrix = eqs.matrix
     mat_np = matrix.to_dense()
-    rhs_np = eqs.rhs.data[0].numpy()
+    rhs_np = eqs.rhs.gather_to_host()
 
     fig = plt.figure(figsize=figsize)
     grid_spec = fig.add_gridspec(1, 2, width_ratios=[len(rhs_np), rhs_np.shape[1]])

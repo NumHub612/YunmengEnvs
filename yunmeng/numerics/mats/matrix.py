@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Matrix interface.
 """
+
 import torch
 import numpy as np
 from abc import abstractmethod
@@ -123,6 +124,10 @@ class Matrix:
 
     def to(self, device: torch.device) -> "Matrix":
         """Move matrix to a specific device."""
+        raise NotImplementedError()
+
+    def to_dense(self) -> TensorLike:
+        """Convert to dense matrix."""
         raise NotImplementedError()
 
     def to_numpy(self) -> "Matrix":

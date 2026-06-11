@@ -111,6 +111,8 @@ class Grad01(IOperator):
 
     def _check_upwind(self, c: float) -> tuple[float, float]:
         """Check if the flux is upwind or downwind."""
+        if abs(c) < 1e-6:  # Back to central difference
+            return (0.5, 0.5)
         return (max(c / (abs(c) + 1e-6), 0), max(-c / (abs(c) + 1e-6), 0))
 
     def _calculate_vector_field(self, field: Field) -> Field:
@@ -143,6 +145,37 @@ class Grad01(IOperator):
             vy = (un[1] - us[1]) * ky
 
             # Total gradient
+            grad = Variable.tensor(ux, uy, vx, vy)
+            new_field[nid] = grad
+
+        for nid in self._topo.boundary_nodes:
+            # Neighbour nodes
+            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
+            ui = field[nid]
+
+            # horizontal flux
+            if e and w:
+                fh1, fh2 = self._check_upwind(ui[0])
+                ue = ui * fh1 + field[e] * fh2
+                uw = field[w] * fh1 + ui * fh2
+            else:
+                ue = field[e] if e else ui
+                uw = field[w] if w else ui
+
+            # vertical flux
+            if n and s:
+                fv1, fv2 = self._check_upwind(ui[1])
+                un = ui * fv1 + field[n] * fv2
+                us = field[s] * fv1 + ui * fv2
+            else:
+                un = field[n] if n else ui
+                us = field[s] if s else ui
+
+            # Gradient
+            ux = (ue[0] - uw[0]) * kx
+            uy = (un[0] - us[0]) * ky
+            vx = (ue[1] - uw[1]) * kx
+            vy = (un[1] - us[1]) * ky
             grad = Variable.tensor(ux, uy, vx, vy)
             new_field[nid] = grad
 
@@ -289,9 +322,31 @@ class Grad02(IOperator):
 
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
+            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
+            ue, uw, un, us = field[[e, w, n, s]]
+
             if bc.get_type() == BoundaryType.FLUX:
                 flux = bc.evaluate().flux
                 new_field[nid] = flux
+            else:
+                if e and w:
+                    ux = (ue[0] - uw[0]) * kx
+                    vx = (ue[1] - uw[1]) * kx
+                else:
+                    ue = field[e] if e else field[w]
+                    uw = field[w] if w else field[e]
+                    ux = 2.0 * (ue[0] - uw[0]) * kx
+
+                if n and s:
+                    uy = (un[0] - us[0]) * ky
+                    vy = (un[1] - us[1]) * ky
+                else:
+                    un = field[n] if n else field[s]
+                    us = field[s] if s else field[n]
+                    uy = 2.0 * (un[0] - us[0]) * ky
+
+                new_field[nid] = Variable.tensor(ux, uy, vx, vy)
+
         return new_field
 
     def _calculate_scalar_field(self, field: Field) -> Field:

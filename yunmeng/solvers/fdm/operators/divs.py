@@ -65,5 +65,6 @@ class Div01(IOperator):
                 div = Variable.scalar(grad[0, 0] + grad[1, 1] + grad[2, 2])
             else:
                 div = Variable.scalar(grad[0] + grad[1] + grad[2])
+
             divs[i] = div
         return divs

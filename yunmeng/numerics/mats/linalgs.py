@@ -110,6 +110,8 @@ class LinearEqs:
         for eq in self.scalarize():
             mat = eq.matrix
             rhs_val = eq.rhs.gather_to_host()
+            if rhs_val.ndim == 2 and rhs_val.shape[1] == 1:
+                rhs_val = rhs_val.reshape(-1)
 
             if isinstance(mat, TorchMatrix):
                 rhs_val = torch.as_tensor(rhs_val, device=mat.data.device)

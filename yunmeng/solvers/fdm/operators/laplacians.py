@@ -184,6 +184,7 @@ class Lap02(IOperator):
 
         self._mesh: Grid2D = None
         self._topo: MeshTopo = None
+        self._bcs = None
 
         self._dx = None
         self._dy = None
@@ -201,6 +202,7 @@ class Lap02(IOperator):
             # TODO: Support non-uniform grids
             raise ValueError("FDM op lap02 requires uniform grids.")
 
+        self._bcs = bounds
         self._mesh = mesh
         self._topo = self._mesh.get_topo_assistant()
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
@@ -215,9 +217,7 @@ class Lap02(IOperator):
             # TODO: Support multi-gpu divergence operator
             raise ValueError("FDM op lap02 only supports cpu.")
 
-        matrix = self._generate_linear_eqs(old_field)
-        rhs = Field.from_size(old_field.size, old_field.vtype, old_field.etype)
-        eqs = LinearEqs(matrix, rhs)
+        eqs = self._generate_linear_eqs(old_field)
         return eqs
 
     def _create_matrix(self, field: Field) -> Matrix:
@@ -229,10 +229,11 @@ class Lap02(IOperator):
         else:
             raise ValueError("FDM op lap02 not support tensor fields.")
 
-    def _generate_linear_eqs(self, field: Field) -> Matrix:
+    def _generate_linear_eqs(self, field: Field) -> LinearEqs:
         """Calculate the vector field."""
         node_count = self._mesh.node_count
         values = np.zeros((node_count, node_count))
+        rhs = Field.from_shard(field.field_shards, field.mesh_shards, field.meta)
 
         kx = 1.0 / self._dx**2
         ky = 1.0 / self._dy**2
@@ -277,5 +278,16 @@ class Lap02(IOperator):
             else:
                 values[nid, s] += ky
 
+        # Boundary conditions
+        for nid in self._topo.boundary_nodes:
+            bc = self._bcs[nid][self._var]
+            if bc.get_type() == BoundaryType.VALUE:
+                value = bc.evaluate().value
+                for i in range(node_count):
+                    values[nid, i] = 0.0
+                values[nid, nid] = 1.0
+                rhs[nid] = value
+
         matrix = self._create_matrix(field).from_data(values)
-        return matrix
+        eqs = LinearEqs(matrix, rhs)
+        return eqs
