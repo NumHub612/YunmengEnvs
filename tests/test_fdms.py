@@ -177,8 +177,8 @@ class TestNavierStokes2D:
     def test_driven_cavity_flow(self, grid_41x41: Grid2D):
         """Test 2d Navier-Stokes solver on driven cavity flow."""
         ll, ur = Coordinate(0, 0), Coordinate(2.0, 2.0)
-        grid_41x41 = Grid2D.by_uniform(ll, ur, 9, 9)
-        plot_mesh_ids(grid_41x41, title="grid_9X9", save_dir="tests/results/")
+        grid_41x41 = Grid2D.by_uniform(ll, ur, 41, 41)
+        plot_mesh_ids(grid_41x41, title="grid_41X41", save_dir="tests/results/")
 
         # Initial Conditions
         u_init_val = Variable.vector(0.0, 0.0, 0.0)
@@ -224,9 +224,9 @@ class TestNavierStokes2D:
         cb = ImageRender(
             "render",
             "tests/results/",
-            # frequency=0.05,
+            frequency=0.05,
             fields={
-                "u": {"style": "cloudmap", "show_edges": True},
+                "u": {"style": "streamplot"},
                 "p": {"style": "cloudmap", "show_edges": True},
             },
         )
@@ -242,14 +242,13 @@ class TestNavierStokes2D:
         solver.add_callback(cb)
 
         # initialize
-        total_time = 1.0
+        total_time = 5.0
         solver.initialize(total_time, time_step=0.005, cfl=0.5)
 
         # run the simulation
         t, dt = 0.0, total_time / 10
         while not solver.status.finished:
             status = solver.inference()
-            print(f"Time: {status.current_time:.4f} / {status.end_time:.4f}")
             if status.current_time >= t or status.finished:
                 t += dt
                 print(
@@ -257,10 +256,6 @@ class TestNavierStokes2D:
                     f"Time step: {status.time_step:.4f}, "
                     f"Step time: {status.step_time:.4f}"
                 )
-            # if status.steps > 5:
-            #     break
-            # if status.current_time >= 0.03:
-            #     break
 
         u_end = solver.get_solution("u")
         plot_field(

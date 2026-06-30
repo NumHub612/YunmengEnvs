@@ -233,61 +233,132 @@ class Lap02(IOperator):
         """Calculate the vector field."""
         node_count = self._mesh.node_count
         values = np.zeros((node_count, node_count))
-        rhs = Field.from_shard(field.field_shards, field.mesh_shards, field.meta)
+        rhs_arr = np.zeros(node_count)
 
         kx = 1.0 / self._dx**2
         ky = 1.0 / self._dy**2
 
+        # --------------------------------------------------
+        # Internal nodes: standard 5-point stencil
+        # --------------------------------------------------
         for nid in self._topo.internal_nodes:
-            # Neighbour nodes
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
             values[nid, nid] = -2 * (kx + ky)
-
-            # Horizontal
             values[nid, e] = kx
             values[nid, w] = kx
-
-            # Vertical
             values[nid, n] = ky
             values[nid, s] = ky
 
-        for nid in self._topo.boundary_nodes:
-            # Neighbour nodes
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            values[nid, nid] = -2 * (kx + ky)
-
-            # Horizontal result
-            if e is None:
-                values[nid, nid] += kx
-            else:
-                values[nid, e] += kx
-
-            if w is None:
-                values[nid, nid] += kx
-            else:
-                values[nid, w] += kx
-
-            # Vertical result
-            if n is None:
-                values[nid, nid] += ky
-            else:
-                values[nid, n] += ky
-
-            if s is None:
-                values[nid, nid] += ky
-            else:
-                values[nid, s] += ky
-
-        # Boundary conditions
+        # --------------------------------------------------
+        # Boundary nodes
+        # --------------------------------------------------
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
-            if bc.get_type() == BoundaryType.VALUE:
-                value = bc.evaluate().value
-                for i in range(node_count):
-                    values[nid, i] = 0.0
-                values[nid, nid] = 1.0
-                rhs[nid] = value
+            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
 
+            if bc.get_type() == BoundaryType.VALUE:
+                # --------------------------------------------------
+                # Dirichlet: enforce p = value at boundary
+                # --------------------------------------------------
+                values[nid, :] = 0.0
+                values[nid, nid] = 1.0
+                val = bc.evaluate().value
+                if isinstance(val, Variable):
+                    val = val.data if val.type == VariableType.SCALAR else val.data
+                rhs_arr[nid] = float(val)
+
+            elif bc.get_type() == BoundaryType.FLUX:
+                # --------------------------------------------------
+                # Neumann: ghost node reflection (2nd-order)
+                #
+                # For ∂p/∂n = q at a boundary:
+                #   - Set ghost node via: p_ghost = p_inner ∓ 2*dx*q
+                #   - This doubles the inner neighbor coefficient
+                #   - Adds a source term ±2*q/dx to RHS
+                #
+                # When q = 0 (zero flux), this reduces to symmetric reflection:
+                #   p_ghost = p_inner, giving 2nd-order accurate Laplacian.
+                # --------------------------------------------------
+                flux = bc.evaluate().flux
+                qx, qy = self._extract_flux_components(flux)
+
+                # Clear the row
+                values[nid, :] = 0.0
+
+                diag_coeff = 0.0
+
+                # ---- Horizontal direction ----
+                if w is None and e is not None:
+                    # Left boundary (x=0), normal points -x
+                    # ∂p/∂x = qx, ghost: p_w = p_e - 2*dx*qx
+                    diag_coeff += -2 * kx
+                    values[nid, e] = 2 * kx
+                    rhs_arr[nid] += -2 * qx / self._dx
+
+                elif e is None and w is not None:
+                    # Right boundary (x=lx), normal points +x
+                    # ∂p/∂x = qx, ghost: p_e = p_w + 2*dx*qx
+                    diag_coeff += -2 * kx
+                    values[nid, w] = 2 * kx
+                    rhs_arr[nid] += 2 * qx / self._dx
+
+                elif e is not None and w is not None:
+                    # Not a horizontal boundary
+                    diag_coeff += -2 * kx
+                    values[nid, e] = kx
+                    values[nid, w] = kx
+
+                # ---- Vertical direction ----
+                if s is None and n is not None:
+                    # Bottom boundary (y=0), normal points -y
+                    # ∂p/∂y = qy, ghost: p_s = p_n - 2*dy*qy
+                    diag_coeff += -2 * ky
+                    values[nid, n] = 2 * ky
+                    rhs_arr[nid] += -2 * qy / self._dy
+
+                elif n is None and s is not None:
+                    # Top boundary (y=ly), normal points +y
+                    # ∂p/∂y = qy, ghost: p_n = p_s + 2*dy*qy
+                    diag_coeff += -2 * ky
+                    values[nid, s] = 2 * ky
+                    rhs_arr[nid] += 2 * qy / self._dy
+
+                elif n is not None and s is not None:
+                    # Not a vertical boundary
+                    diag_coeff += -2 * ky
+                    values[nid, n] = ky
+                    values[nid, s] = ky
+
+                values[nid, nid] = diag_coeff
+
+        # --------------------------------------------------
+        # Assemble linear system
+        # --------------------------------------------------
         matrix = self._create_matrix(field).from_data(values)
-        eqs = LinearEqs(matrix, rhs)
+
+        # Build RHS field from array
+        rhs_field = Field(field.mesh_shards, VariableType.SCALAR, field.etype)
+        for nid in range(node_count):
+            rhs_field[nid] = Variable.scalar(rhs_arr[nid])
+
+        eqs = LinearEqs(matrix, rhs_field)
         return eqs
+
+    @staticmethod
+    def _extract_flux_components(flux) -> tuple[float, float]:
+        """Extract (qx, qy) from a flux value (Variable, list, or scalar)."""
+        qx, qy = 0.0, 0.0
+        if isinstance(flux, Variable):
+            data = flux.data
+            if flux.type == VariableType.SCALAR:
+                qx = qy = float(data)
+            elif flux.type == VariableType.VECTOR:
+                qx = float(data[0])
+                qy = float(data[1])
+        elif isinstance(flux, (list, tuple, np.ndarray)):
+            arr = np.asarray(flux).flatten()
+            qx = float(arr[0]) if len(arr) >= 1 else 0.0
+            qy = float(arr[1]) if len(arr) >= 2 else 0.0
+        elif np.isscalar(flux):
+            qx = qy = float(flux)
+        return qx, qy
