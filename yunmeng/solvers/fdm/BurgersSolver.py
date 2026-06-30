@@ -13,7 +13,9 @@ from yunmeng.solvers.commons import (
     SolverStatus,
     SolverType,
     IOperator,
+    OperatorType,
 )
+from yunmeng.solvers.interfaces import BoundaryType
 from yunmeng.solvers.commons import inits, boundaries, supports
 from yunmeng.setting import logger
 
@@ -31,7 +33,7 @@ class BurgersExplicitSolver(BaseSolver):
         metas.description = "Fdm explicit solver for 2d Burgers equation"
         metas.type = SolverType.FDM
         metas.equation = "2d Burgers' equation"
-        metas.equation_expr = "ddt(u) + u*grad(u) = nu*lap(u) + src(Q)"
+        metas.equation_expr = "ddt(u) + grad(u)@u = lap(u, nu) + src(Q)"
         metas.dimension = MeshDimension.D2
         metas.default_ics = {"u": inits.UniformInitialization}
         metas.default_bcs = {"u": boundaries.WallBoundary}
@@ -47,7 +49,7 @@ class BurgersExplicitSolver(BaseSolver):
     def get_name(cls) -> str:
         return "BurgersFdm2D"
 
-    def __init__(self, id: str, mesh: Grid2D, operators: dict[str, IOperator]):
+    def __init__(self, id: str, mesh: Grid2D, operators: list[IOperator]):
         super().__init__(id, mesh, operators)
         assert isinstance(mesh, Grid2D), "BurgersFdm2D only supports Grid2D."
 
@@ -56,7 +58,6 @@ class BurgersExplicitSolver(BaseSolver):
         self._part = mesh.get_part_assistant()
 
         self._time_step = 0.001
-        self._cfl = 0.5
         self._nu = 0.01
         self._cfl = 0.5
         self._dx = None
@@ -118,8 +119,8 @@ class BurgersExplicitSolver(BaseSolver):
         self._dy = self._mesh.ly / self._mesh.ny
 
         # Init operators
-        for _, op in self._operators.items():
-            op.prepare(["u"], self._mesh, bounds=self._bcs)
+        for op in self._operators:
+            op.prepare(self._mesh, bounds=self._bcs)
 
         # Init buffers
         time_order = 2
@@ -148,16 +149,22 @@ class BurgersExplicitSolver(BaseSolver):
 
         # Update solution
         old_u = self._fields["u"]
-        u_grad = self._operators["grad"].run(self._buffs, dt)
-        u_diff = self._operators["lap"].run(self._buffs, dt)
-        u_src = self._operators["src"].run(self._buffs, dt)
-        new_u = old_u - dt * old_u * u_grad + dt * u_diff + dt * u_src
+        u_grad, u_diff, u_src = None, None, None
+        for op in self._operators:
+            if op.get_type() == OperatorType.GRAD:
+                u_grad = op.run(self._buffs, dt)
+            elif op.get_type() == OperatorType.LAPLACIAN:
+                u_diff = op.run(self._buffs, dt)
+            elif op.get_type() == OperatorType.SRC:
+                u_src = op.run(self._buffs, dt)
+        new_u = old_u - dt * u_grad @ old_u + dt * u_diff + dt * u_src
 
         # Update status
         time_cost = time.perf_counter() - start
         self._update_status(time_cost, dt)
 
         self._fields["u"] = new_u
+        self._apply_boundary_conditions()
         self._buffs.push_field("u", Sample(self._status.current_time, new_u))
 
         # Call callbacks
@@ -169,6 +176,14 @@ class BurgersExplicitSolver(BaseSolver):
                 callback.on_task_end()
 
         return self._status
+
+    def _apply_boundary_conditions(self):
+        """Apply boundary conditions to the velocity field."""
+        for nid in self._topo.boundary_nodes:
+            bc = self._bcs[nid]["u"]
+            if bc.get_type() == BoundaryType.VALUE:
+                value = bc.evaluate().value
+                self._fields["u"][nid] = value
 
     def _update_status(self, time_cost: float, dt: float):
         self._status.current_time += dt

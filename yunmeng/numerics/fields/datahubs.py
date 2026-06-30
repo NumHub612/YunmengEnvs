@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Datahubs for managing of the fields and its history.
 """
+
 from yunmeng.numerics.enums import ElementType
 from yunmeng.numerics.fields.fields import Field
 from dataclasses import dataclass
@@ -30,7 +31,7 @@ class DataHub:
                 self._buffs[_name] = RingBuffer(levels)
                 self._grads[_name] = RingBuffer(levels)
         self._size = levels
-        self._fields = fields
+        self._raws = fields
 
     def _inner_name(self, name: str, loc: ElementType):
         return f"{name}_{loc.name}"
@@ -59,16 +60,23 @@ class DataHub:
         _name = self._inner_name(name, loc)
         return self._grads[_name][level]
 
-    def has(self, name: str, level: int = 0) -> bool:
-        """Check if the datahub has the field and the given level."""
-        if name not in self._fields:
+    def has(
+        self, name: str, loc: ElementType, level: int = 0, grad: bool = False
+    ) -> bool:
+        """Check if the datahub has the target field."""
+        if name not in self._raws:
             return False
         if level >= self._size or level < 0:
             return False
-        return True
+
+        _name = self._inner_name(name, loc)
+        if grad:
+            return self._grads[_name][level] is not None
+        else:
+            return self._buffs[_name][level] is not None
 
     def clear(self):
-        """Clear the datahub."""
+        """Clear the datahub data."""
         for buff in self._buffs.values():
             buff.clear()
         for grad in self._grads.values():

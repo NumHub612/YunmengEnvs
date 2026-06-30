@@ -45,7 +45,7 @@ class FieldMeta:
     vtype: VariableType = VariableType.SCALAR
     btype: BackendType = BackendType.NUMPY
     requires_grad: bool = False
-    unit: str = None
+    field: str = None
 
 
 @dataclass
@@ -402,7 +402,7 @@ class Field:
 
     def __setitem__(self, indices: DataIndex, value):
         shard_indices = self._get_shard_indices(indices)
-        if isinstance(value, (float, Variable)):
+        if isinstance(value, (float, Variable, DataArray)):
             value = [value]
         for (sid, l), val in zip(shard_indices, value):
             if isinstance(val, Variable):
@@ -553,7 +553,7 @@ class Field:
     def __matmul__(self, other: "Field") -> "Field":
         """Execute matrix multiplication between two Fields: A @ B
         - Tensor @ Tensor -> Tensor (std matmul)
-        - Vector @ Tensor -> Vector (vector right-multiply tensor)
+        - Tensor @ Vector -> Vector (dot product)
         - otherwise, raise error
         """
         assert self._mesh_shards is other._mesh_shards, "Meshshards mismatch"

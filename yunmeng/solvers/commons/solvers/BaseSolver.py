@@ -4,6 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Base class for all solvers.
 """
+
 from yunmeng.solvers.interfaces import (
     IEquation,
     IOperator,
@@ -29,7 +30,7 @@ class BaseSolver(ISolver):
     Basic solver.
     """
 
-    def __init__(self, id: str, mesh: Mesh, operators: dict[str, IOperator] = None):
+    def __init__(self, id: str, mesh: Mesh, operators: list[IOperator] = None):
         """
         Basic solver.
 
@@ -47,8 +48,9 @@ class BaseSolver(ISolver):
 
         self._callbacks: list[ISolverCallback] = []
         self._fields: dict[str, Field] = defaultdict(dict)
-        self._operators: dict[str, IOperator] = operators
+        self._operators: list[IOperator] = operators
 
+        # TODO: Use uniform ConditionContainer managing the conditions.
         self._default_ics: IInitCondition = None
         self._ics: dict[str, IInitCondition] = defaultdict(dict)
 
