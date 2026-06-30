@@ -50,6 +50,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
         run: |
           cd ${{ github.workspace }}
+          cp README.md docs/README.md
           pip install mkdocs mkdocstrings[python] mkdocs-material
           mkdocs build --site-dir site
         env:

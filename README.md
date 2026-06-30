@@ -1,6 +1,12 @@
 <p align="center">
   <a href="https://github.com/NumHub612/YunmengEnvs">
-    <img src="./docs/assets/logo.jpg" alt="YunmengEnvs" width="540" height="460" />
+    <img 
+      src="./docs/assets/logo.jpg" 
+      onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='./assets/logo.jpg';}" 
+      alt="YunmengEnvs" 
+      width="540" 
+      height="460" 
+    />
   </a>
 </p>
 
