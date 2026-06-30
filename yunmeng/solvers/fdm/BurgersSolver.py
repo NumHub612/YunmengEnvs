@@ -15,6 +15,7 @@ from yunmeng.solvers.commons import (
     IOperator,
     OperatorType,
 )
+from yunmeng.solvers.interfaces import BoundaryType
 from yunmeng.solvers.commons import inits, boundaries, supports
 from yunmeng.setting import logger
 
@@ -57,7 +58,6 @@ class BurgersExplicitSolver(BaseSolver):
         self._part = mesh.get_part_assistant()
 
         self._time_step = 0.001
-        self._cfl = 0.5
         self._nu = 0.01
         self._cfl = 0.5
         self._dx = None
@@ -164,6 +164,7 @@ class BurgersExplicitSolver(BaseSolver):
         self._update_status(time_cost, dt)
 
         self._fields["u"] = new_u
+        self._apply_boundary_conditions()
         self._buffs.push_field("u", Sample(self._status.current_time, new_u))
 
         # Call callbacks
@@ -175,6 +176,14 @@ class BurgersExplicitSolver(BaseSolver):
                 callback.on_task_end()
 
         return self._status
+
+    def _apply_boundary_conditions(self):
+        """Apply boundary conditions to the velocity field."""
+        for nid in self._topo.boundary_nodes:
+            bc = self._bcs[nid]["u"]
+            if bc.get_type() == BoundaryType.VALUE:
+                value = bc.evaluate().value
+                self._fields["u"][nid] = value
 
     def _update_status(self, time_cost: float, dt: float):
         self._status.current_time += dt
