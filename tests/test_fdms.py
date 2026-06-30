@@ -155,7 +155,6 @@ class TestBurgers2D:
                 )
 
         # visualize the last frame result
-        # TODO: 这里网格角点上的流速似乎一直是(1,1)，不受对流扩散影响。
         u_end = solver.get_solution("u")
         plot_field(
             u_end,
@@ -224,10 +223,10 @@ class TestNavierStokes2D:
         cb = ImageRender(
             "render",
             "tests/results/",
-            frequency=0.05,
+            frequency=0.5,
             fields={
                 "u": {"style": "streamplot"},
-                "p": {"style": "cloudmap", "show_edges": True},
+                "p": {"style": "cloudmap"},
             },
         )
 
@@ -243,7 +242,7 @@ class TestNavierStokes2D:
 
         # initialize
         total_time = 5.0
-        solver.initialize(total_time, time_step=0.005, cfl=0.5)
+        solver.initialize(total_time, time_step=0.01, cfl=0.5)
 
         # run the simulation
         t, dt = 0.0, total_time / 10

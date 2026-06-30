@@ -4,6 +4,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Callback for rendering the solver solutions.
 """
+
 from yunmeng.solvers.interfaces import ISolverCallback, ISolver
 from yunmeng.numerics.mesh.meshes import Mesh
 from yunmeng.render.plotter.FieldPlotters import plot_field
@@ -115,6 +116,7 @@ class ImageRender(ISolverCallback):
             plot_field(field, self._mesh, **options)
 
     def on_task_end(self, **kwargs):
+        self._plot_field()
         for fname, field in self._fields.items():
             img_dir = field["save_dir"]
             player = ImageSetPlayer(img_dir, pause=0.01)
