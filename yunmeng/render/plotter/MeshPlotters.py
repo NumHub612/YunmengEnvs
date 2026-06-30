@@ -4,6 +4,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh visualization utilities for 2D meshs.
 """
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -242,7 +243,6 @@ def plot_mesh_ids(
         )
         save_path = os.path.join(save_dir, f"{safe_title}.png")
         plt.savefig(save_path, dpi=dpi, bbox_inches="tight")
-        print(f"Figure saved to {save_path}")
 
     return fig, ax
 

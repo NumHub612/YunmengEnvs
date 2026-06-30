@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface for pde numerical operators.
 """
+
 from yunmeng.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from yunmeng.numerics.mats.linalgs import LinearEqs
 from yunmeng.numerics.fields.fields import Field
@@ -50,6 +51,13 @@ class IOperator(ABC):
         pass
 
     @property
+    def target_fields(self) -> list[str]:
+        """
+        The operator target fields.
+        """
+        pass
+
+    @property
     def time_order(self) -> int:
         """
         The time order of the operator.
@@ -59,7 +67,6 @@ class IOperator(ABC):
     @abstractmethod
     def prepare(
         self,
-        fields: list[str],
         mesh: Mesh,
         bounds: dict[int, dict[str, IBoundaryCondition]],
     ):
@@ -69,11 +76,11 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def run(self, sources: DataHub, timestep: float) -> Field | LinearEqs:
+    def run(self, sources: Field | DataHub, dt: float) -> Field | LinearEqs:
         """
         Run the operator on field.
 
-        For explicit operators, it returns a `Field` for the updated field.
+        For explicit operators, it returns a `Field`  generated newly.
         For implicit operators, it returns a `LinearEqs` to be solved.
         """
         pass

@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Sparse matrixs.
 """
+
 # -*- encoding: utf-8 -*-
 """
 PyTorch Implementation of the Matrix Interface.
@@ -14,7 +15,6 @@ import scipy.sparse as sp
 import torch
 import numpy as np
 from typing import Union, Tuple, List
-
 
 # -----------------------------------------------
 # region TorchMatrix
@@ -210,6 +210,9 @@ class TorchMatrix(Matrix):
             return TorchMatrix(self._data.to_sparse_coo())
         else:
             raise RuntimeError(f"Format {format_str} not supported.")
+
+    def to_dense(self) -> np.ndarray:
+        return self._data.to_dense().numpy()
 
     def to_numpy(self) -> "NumpyMatrix":
         """Convert back to NumpyMatrix."""
@@ -433,6 +436,9 @@ class NumpyMatrix(Matrix):
         if device != "cpu":
             raise ValueError("NumpyMatrix cannot move to GPU.")
         return self
+
+    def to_dense(self) -> np.ndarray:
+        return self._data.toarray()
 
     def to_numpy(self) -> "NumpyMatrix":
         return self

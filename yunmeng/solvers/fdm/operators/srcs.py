@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Source term operators for the finite difference method.
 """
+
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
@@ -12,7 +13,7 @@ from yunmeng.solvers.interfaces import (
 )
 from yunmeng.numerics.mesh import Grid, ElementType
 from yunmeng.numerics.algos.topos import MeshTopo
-from yunmeng.numerics.fields import DataHub, Field, Var
+from yunmeng.numerics.fields import DataHub, Field, VariableType
 from typing import Callable
 
 
@@ -27,44 +28,50 @@ class Src01(IOperator):
     def get_name(cls) -> str:
         return "src01"
 
-    def __init__(self, tau: float, source_func: Callable):
+    def __init__(self, fields: list[str], tau: float, source_func: Callable):
+        if len(fields) != 1:
+            raise ValueError("FDM op src01 only supports one field.")
+
         self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._bcs = None
-        self._var = ""
+        self._var = fields[0]
         self._tau = tau
         self._source_func = source_func
 
+    @property
+    def target_fields(self) -> list[str]:
+        return [self._var]
+
     def prepare(
         self,
-        fields: list[str],
         mesh: Grid,
         bounds: dict[int, dict[str, IBoundaryCondition]],
     ):
         if not isinstance(mesh, Grid):
             raise ValueError("FDM op src01 only supports Grid.")
-        if not mesh.orthogonal:
-            raise ValueError("FDM op src01 requires orthogonal grids.")
-        if len(fields) != 1:
-            raise ValueError("FDM op src01 only supports one field.")
+        if not mesh.uniform:
+            raise ValueError("FDM op src01 requires uniform grids.")
 
         self._mesh = mesh
         self._bcs = bounds
-        self._var = fields[0]
         self._topo = self._mesh.get_topo_assistant()
 
-    def run(self, sources: DataHub, timestep: float) -> Field:
-        old_field = sources.field(self._var, loc=ElementType.NODE).data
-        new_field = old_field.copy()
+    def run(self, sources: Field | DataHub, dt: float = None) -> Field:
+        if isinstance(sources, Field):
+            old_field = sources
+        else:
+            old_field = sources.field(self._var, loc=ElementType.NODE).data
+        new_field = Field(old_field.mesh_shards, old_field.vtype, old_field.etype)
 
         if len(old_field.mesh_shards) != 1:
             raise ValueError("FDM op src01 only supports cpu.")
 
-        # Apply boundary conditions
-        self._apply_bc(new_field)
+        for nid in range(self._mesh.node_count):
+            coor = self._mesh.nodes[nid].coordinate
+            source_val = self._tau * self._source_func(coor, old_field[nid])
+            new_field[nid] = source_val
 
-        # Update internal nodes with source term
-        new_field = self._update_internal(new_field, timestep)
         return new_field
 
     def _apply_bc(self, field: Field):
@@ -73,14 +80,3 @@ class Src01(IOperator):
             bc = self._bcs[nid][self._var]
             value = bc.evaluate().value
             field[nid] = value
-
-    def _update_internal(self, field: Field, dt: float) -> Field:
-        """Update internal nodes with source term."""
-        new_field = field.copy()
-
-        for nid in self._topo.internal_nodes:
-            coor = self._mesh.nodes[nid].coordinate
-            source_val = self._tau * self._source_func(coor, field[nid])
-            new_field[nid] = field[nid] + dt * source_val
-
-        return new_field

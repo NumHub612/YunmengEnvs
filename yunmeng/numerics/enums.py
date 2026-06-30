@@ -4,14 +4,8 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Enumerations for numerical algorithms and data structures.
 """
+
 from enum import Enum, auto
-
-# --------------------------------------------------
-# region Constants
-# --------------------------------------------------
-G = 9.81
-PI = 3.141592653589793
-
 
 # --------------------------------------------------
 # region Backends
