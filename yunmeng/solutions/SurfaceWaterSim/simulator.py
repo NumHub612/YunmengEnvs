@@ -4,9 +4,10 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Surface water model.
 """
+
 from yunmeng.solutions.commons import models, datasets, links, metas
 from yunmeng.numerics.enums import ElementType, VariableType
-from yunmeng.numerics.mesh.grids import Grid2D, Coordinate
+from yunmeng.numerics.grids.grids import Grid2D, Coordinate
 from yunmeng.numerics.algos.filters import MeshFilter
 from yunmeng.numerics.fields.fields import VariableType, Field
 from yunmeng.numerics.fields.variables import Var
@@ -202,7 +203,7 @@ class SurfaceWaterSimulator(models.BaseModel):
             if scheme != "fvm":
                 raise ValueError("SurfaceWaterModel only supports fvm scheme.")
 
-            instance = fvm_operators[operator](**params)
+            instance = ym_operators[operator](**params)
             op_type = instance.get_type().value
             if op_type in self._operators:
                 raise ValueError(f"Duplicated operator: {op_type}, {operator}.")
@@ -218,7 +219,7 @@ class SurfaceWaterSimulator(models.BaseModel):
         scheme, solver = solvers["type"].split("::")
         if scheme != "fvm":
             raise ValueError("SurfaceWaterModel only supports fvm scheme.")
-        self._solver = fvm_solvers[solver](sid, self._mesh, self._operators)
+        self._solver = ym_solvers[solver](sid, self._mesh, self._operators)
 
         # initial conditions
         ics = solvers.get("ics", []) or []

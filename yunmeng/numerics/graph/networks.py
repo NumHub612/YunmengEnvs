@@ -4,7 +4,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Network structures mesh.
 """
-from yunmeng.numerics.mesh.spatials import Network
+
+from yunmeng.numerics.mesh import Network
 
 
 class RiverNet(Network):

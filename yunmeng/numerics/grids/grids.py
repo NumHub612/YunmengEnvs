@@ -4,12 +4,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 1d/2d/3d structured grids.
 """
+
 from yunmeng.numerics.enums import MeshDimension
-from yunmeng.numerics.mesh.elements import Coordinate, Node, Face, Cell
-from yunmeng.numerics.mesh.spatials import Grid
+from yunmeng.numerics.mesh import Coordinate, Node, Face, Cell, Grid
 from yunmeng.numerics.algos.topos import sort_anticlockwise, calculate_center
 import numpy as np
-
 
 # -----------------------------------------------
 # region Grid2D

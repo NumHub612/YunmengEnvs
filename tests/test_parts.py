@@ -2,12 +2,13 @@
 """
 Tests for MeshPart class.
 """
+
 import numpy as np
 import pytest
 import torch
 
-from yunmeng.numerics.mesh.grids import Grid2D, Grid
-from yunmeng.numerics.mesh.meshes import GenericMesh, Mesh
+from yunmeng.numerics.grids import Grid2D, Grid
+from yunmeng.numerics.mesh import GenericMesh, Mesh
 from yunmeng.numerics.enums import ElementType
 
 # ============================================

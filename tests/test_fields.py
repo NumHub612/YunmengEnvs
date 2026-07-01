@@ -8,9 +8,8 @@ import numpy as np
 import torch
 
 from yunmeng.setting import settings
-from yunmeng.numerics.mesh.grids import Grid2D
-from yunmeng.numerics.mesh.meshes import GenericMesh
-from yunmeng.numerics.mesh.elements import Coordinate
+from yunmeng.numerics.grids import Grid2D
+from yunmeng.numerics.mesh import GenericMesh, Coordinate
 from yunmeng.numerics.fields.fields import Field, HaloMode
 from yunmeng.numerics.enums import ElementType, VariableType
 from yunmeng.numerics.algos.parts import MeshShard

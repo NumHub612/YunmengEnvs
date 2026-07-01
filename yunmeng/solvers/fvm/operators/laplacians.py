@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 The Laplacian operators for the finite volume method.
 """
+
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
@@ -11,7 +12,7 @@ from yunmeng.solvers.interfaces import (
     BoundaryType,
 )
 from yunmeng.numerics.mats.linalgs import LinearEqs
-from yunmeng.numerics.mesh.grids import Grid
+from yunmeng.numerics.grids import Grid
 from yunmeng.numerics.algos.topos import MeshTopo
 from yunmeng.numerics.algos.geoms import MeshGeom
 from yunmeng.numerics.algos.parts import MeshPart

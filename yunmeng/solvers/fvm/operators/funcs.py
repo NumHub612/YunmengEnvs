@@ -4,13 +4,14 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 The function operators used in FVM.
 """
+
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
     OperatorType,
     BoundaryType,
 )
-from yunmeng.numerics.mesh.grids import Grid
+from yunmeng.numerics.grids import Grid
 from yunmeng.numerics.fields.fields import Field, Variable
 from yunmeng.numerics.fields.datahubs import DataHub
 
