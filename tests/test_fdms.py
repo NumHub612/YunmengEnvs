@@ -160,7 +160,7 @@ class TestBurgers2D:
             u_end,
             grid_41x41,
             title="u_end",
-            save_dir="tests/results/",
+            save_dir="tests/results/bg",
             show_edges=True,
         )
 

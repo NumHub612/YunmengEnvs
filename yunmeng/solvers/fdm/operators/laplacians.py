@@ -263,7 +263,7 @@ class Lap02(IOperator):
                 values[nid, nid] = 1.0
                 val = bc.evaluate().value
                 if isinstance(val, Variable):
-                    val = val.data if val.type == VariableType.SCALAR else val.data
+                    val = val.data if val.vtype == VariableType.SCALAR else val.data
                 rhs_arr[nid] = float(val)
 
             elif bc.get_type() == BoundaryType.FLUX:
@@ -349,9 +349,9 @@ class Lap02(IOperator):
         qx, qy = 0.0, 0.0
         if isinstance(flux, Variable):
             data = flux.data
-            if flux.type == VariableType.SCALAR:
+            if flux.vtype == VariableType.SCALAR:
                 qx = qy = float(data)
-            elif flux.type == VariableType.VECTOR:
+            elif flux.vtype == VariableType.VECTOR:
                 qx = float(data[0])
                 qy = float(data[1])
         elif isinstance(flux, (list, tuple, np.ndarray)):

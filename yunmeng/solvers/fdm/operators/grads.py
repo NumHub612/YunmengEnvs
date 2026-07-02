@@ -145,7 +145,7 @@ class Grad01(IOperator):
             vy = (un[1] - us[1]) * ky
 
             # Total gradient
-            grad = Variable.tensor(ux, uy, vx, vy)
+            grad = Variable.tensor([ux, uy, vx, vy])
             new_field[nid] = grad
 
         for nid in self._topo.boundary_nodes:
@@ -176,7 +176,7 @@ class Grad01(IOperator):
             uy = (un[0] - us[0]) * ky
             vx = (ue[1] - uw[1]) * kx
             vy = (un[1] - us[1]) * ky
-            grad = Variable.tensor(ux, uy, vx, vy)
+            grad = Variable.tensor([ux, uy, vx, vy])
             new_field[nid] = grad
 
         return new_field
@@ -318,7 +318,7 @@ class Grad02(IOperator):
             vx = (ue[1] - uw[1]) * kx
             vy = (un[1] - us[1]) * ky
 
-            new_field[nid] = Variable.tensor(ux, uy, vx, vy)
+            new_field[nid] = Variable.tensor([ux, uy, vx, vy])
 
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
@@ -345,7 +345,7 @@ class Grad02(IOperator):
                     us = field[s] if s else field[n]
                     uy = 2.0 * (un[0] - us[0]) * ky
 
-                new_field[nid] = Variable.tensor(ux, uy, vx, vy)
+                new_field[nid] = Variable.tensor([ux, uy, vx, vy])
 
         return new_field
 
@@ -360,8 +360,8 @@ class Grad02(IOperator):
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
 
             # Centeral difference
-            ux = (field[e][0] - field[w][0]) * kx
-            uy = (field[n][0] - field[s][0]) * ky
+            ux = (field[e] - field[w]) * kx
+            uy = (field[n] - field[s]) * ky
 
             new_field[nid] = Variable.vector(ux, uy)
 

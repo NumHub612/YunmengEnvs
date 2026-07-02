@@ -4,10 +4,20 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Backend of variabls and fields.
 """
+
+from yunmeng.numerics.enums import BackendType, DeviceType
 from yunmeng.setting import settings
-from yunmeng.numerics.enums import BackendType
+
+from typing import Dict, Optional, Union
+from contextlib import contextmanager
 import numpy as np
 import torch
+
+# --------------------------------------------------
+# region Backend
+# --------------------------------------------------
+
+ArrayLike = Union[np.ndarray, torch.Tensor]
 
 
 class Backend:
@@ -22,6 +32,14 @@ class Backend:
         self.btype = BackendType[name.upper()]
 
     @property
+    def is_torch(self) -> bool:
+        return self.btype == BackendType.TORCH
+
+    @property
+    def is_numpy(self) -> bool:
+        return self.btype == BackendType.NUMPY
+
+    @property
     def type(self) -> BackendType:
         return self.btype
 
@@ -33,14 +51,20 @@ class Backend:
     def float64(self):
         return self.xp.float64
 
-    def data(self, value, dtype=None, gpu=None):
+    def data(self, value, dtype=None, gpu=None) -> ArrayLike:
         dtype = dtype or self.float64
         if self.type == BackendType.TORCH:
             return torch.as_tensor(value, dtype=dtype, device=gpu)
         else:
             return np.array(value, dtype=dtype)
 
-    def array(self, obj, dtype=None, requires_grad=False, gpu=None):
+    def array(
+        self,
+        obj,
+        dtype=None,
+        requires_grad=False,
+        gpu=None,
+    ) -> ArrayLike:
         dtype = dtype or self.float64
         if self.type == BackendType.TORCH:
             return torch.as_tensor(obj, dtype=dtype, device=gpu).requires_grad_(
@@ -48,10 +72,17 @@ class Backend:
             )
         return self.xp.array(obj, dtype=dtype)
 
-    def zeros_like(self, arr):
+    def zeros(self, shape, dtype=None) -> ArrayLike:
+        """Create zero-initialized array."""
+        dtype = dtype or self.float64
+        if self.is_torch:
+            return torch.zeros(shape, dtype=dtype, device=self._device)
+        return np.zeros(shape, dtype=dtype)
+
+    def zeros_like(self, arr) -> ArrayLike:
         return self.xp.zeros_like(arr)
 
-    def empty(self, shape, dtype=None, device=None):
+    def empty(self, shape, dtype=None, device=None) -> ArrayLike:
         dtype = dtype or self.float64
         if self.type == BackendType.TORCH:
             return torch.empty(
@@ -62,11 +93,13 @@ class Backend:
         else:
             return np.empty(shape, dtype=dtype)
 
-    def eye(self, n, dtype=None):
+    def eye(self, n, dtype=None) -> ArrayLike:
         dtype = dtype or self.float64
         return self.xp.eye(n, dtype=dtype)
 
-    def full(self, shape, fill_value, dtype=None, gpu=None, requires_grad=False):
+    def full(
+        self, shape, fill_value, dtype=None, gpu=None, requires_grad=False
+    ) -> ArrayLike:
         dtype = dtype or self.float64
         if self.type == BackendType.TORCH:
             with torch.cuda.device(gpu):
@@ -85,7 +118,7 @@ class Backend:
             )
         return data
 
-    def stack(self, arr, axis=0):
+    def stack(self, arr, axis=0) -> ArrayLike:
         if self.type == BackendType.TORCH:
             device0 = arr[0].device
             arr = [t.to(device0) for t in arr]
@@ -139,6 +172,77 @@ class Backend:
             return obj.to(device)
         return obj
 
+
+# --------------------------------------------------
+# region Backend
+# --------------------------------------------------
+
+
+class BackendContext:
+    """Backend context manager, supports per-context Backend instantiation."""
+
+    _instance: Optional["BackendContext"] = None
+    _backends: Dict[BackendType, Dict[DeviceType, Backend]] = {}
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not hasattr(self, "_initialized"):
+            self._initialized = True
+            self._active_backend: Optional[Backend] = None
+            self._active_device: DeviceType = DeviceType.AUTO
+
+    @contextmanager
+    def use_backend(
+        self,
+        backend_type: BackendType,
+        device: DeviceType = DeviceType.AUTO,
+    ):
+        """A context manager that uses the specified backend and device."""
+        prev_backend = self._active_backend
+        prev_device = self._active_device
+
+        try:
+            if backend_type not in self._backends:
+                self._backends[backend_type] = {}
+
+            if device not in self._backends[backend_type]:
+                xp = np if backend_type == BackendType.NUMPY else torch
+                self._backends[backend_type][device] = Backend(
+                    xp, backend_type.name.lower()
+                )
+
+            self._active_backend = self._backends[backend_type][device]
+            self._active_device = device
+            yield self._active_backend
+        finally:
+            self._active_backend = prev_backend
+            self._active_device = prev_device
+
+    @property
+    def active_backend(self) -> Backend:
+        """Get the current active backend."""
+        if self._active_backend is None:
+            raise RuntimeError(
+                "No backend is active. Use 'use_backend' context manager."
+            )
+        return self._active_backend
+
+    @property
+    def active_device(self) -> DeviceType:
+        """Get the current active device."""
+        return self._active_device
+
+
+# Global backend context instance
+backend_context = BackendContext()
+
+# --------------------------------------------------
+# region Conveniences
+# --------------------------------------------------
 
 __numpy_back = Backend(np, "numpy")
 __torch_back = Backend(torch, "torch")

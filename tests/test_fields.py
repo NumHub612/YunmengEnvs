@@ -195,9 +195,9 @@ class TestGrid2DField:
         data = field.gather_to_host()
 
         # Check data
-        assert data.shape == (9, 1)
+        assert data.shape == (9,)
         for i in range(9):
-            assert data[i, 0] == float(i)
+            assert data[i] == float(i)
 
     def test_field_scatter_from_host(self, grid2d_shards: list[MeshShard]):
         """Test scattering partitioned field data from host on CPU"""
@@ -320,9 +320,9 @@ class TestMesh2DField:
         data = field.gather_to_host()
 
         # Check data
-        assert data.shape == (32, 1)
+        assert data.shape == (32,)
         for i in range(32):
-            assert data[i, 0] == float(i)
+            assert data[i] == float(i)
 
     def test_field_scatter_from_host(self, mesh2d_shards: list[MeshShard]):
         """Test scattering partitioned field data from host on CPU"""

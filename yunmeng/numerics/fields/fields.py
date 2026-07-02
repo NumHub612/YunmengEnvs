@@ -318,7 +318,7 @@ class Field:
         for shard in self._mesh_shards:
             sid = shard.shard_id
             n_data, n_core, _ = shard.get_sizes(self._meta.etype)
-            n_comp = self._meta.vtype.value
+            n_comp = self._meta.vtype.shape
 
             fill_shape = (n_data, *n_comp)
             init_val = self._get_init_val(init_val)
@@ -338,7 +338,7 @@ class Field:
     def _get_init_val(self, init_val) -> Variable:
         """Get initial value for this shard."""
         if init_val is None:
-            return Variable.zero(self._meta.vtype, self._meta.requires_grad).data
+            return Variable.zeros(self._meta.vtype, self._meta.requires_grad).data
         if isinstance(init_val, Variable):
             return init_val.data
         if isinstance(init_val, (float, np.ndarray, torch.Tensor)):
@@ -353,7 +353,7 @@ class Field:
         for shard in self._mesh_shards:
             sid = shard.shard_id
             halo_info = shard.get_halo_info(self._meta.etype)
-            n_comp = self._meta.vtype.value
+            n_comp = self._meta.vtype.shape
 
             # Send/recv buffers for each neighbor
             buffers = {}
@@ -927,7 +927,7 @@ class Field:
     def gather_to_host(self) -> np.ndarray:
         """Collect all partition data to the host global array."""
         global_size = self._meta.size
-        n_comp = self._meta.vtype.value
+        n_comp = self._meta.vtype.shape
         etype = self._meta.etype
         global_arr = np.empty((global_size, *n_comp), dtype=np.float64)
 
@@ -951,7 +951,7 @@ class Field:
 
             # Extract the local part and upload
             local_data = torch.from_numpy(data[indices]).to(shard.gpu)
-            shape = self._meta.vtype.value
+            shape = self._meta.vtype.shape
             shard.data[: shard.n_core] = local_data.view((-1, *shape))
 
         self._mark_dirty()
@@ -960,6 +960,8 @@ class Field:
         """Convert the field to a list of scalar fields."""
         if self._meta.vtype == VariableType.TENSOR:
             raise ValueError("Cannot scalarize a tensor field.")
+        if self._meta.vtype == VariableType.SCALAR:
+            return [self]
 
         data = self.gather_to_host()
         scalar_fields = []
