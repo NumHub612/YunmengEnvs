@@ -5,8 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Linear algebra class.
 """
 
-from yunmeng.numerics.mats.matrix import Matrix
-from yunmeng.numerics.mats.sparse import TorchMatrix, NumpyMatrix
+from yunmeng.numerics.mats.matrixes import Matrix, TorchMatrix, NumpyMatrix
 from yunmeng.numerics.fields.fields import Field, BackendType, get_backend
 import torch
 import scipy as sp

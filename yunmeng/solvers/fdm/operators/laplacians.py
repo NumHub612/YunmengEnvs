@@ -14,8 +14,7 @@ from yunmeng.solvers.interfaces import (
 from yunmeng.numerics.enums import BackendType
 from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.algos.topos import MeshTopo
-from yunmeng.numerics.mats.linalgs import LinearEqs, Matrix
-from yunmeng.numerics.mats.sparse import NumpyMatrix, TorchMatrix
+from yunmeng.numerics.mats import LinearEqs, Matrix, NumpyMatrix, TorchMatrix
 from yunmeng.numerics.fields import DataHub, Field, VariableType, Variable
 import numpy as np
 
