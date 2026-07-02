@@ -317,7 +317,6 @@ class TestLinearEqsSolve:
                 [float(i + 1), float(i + 2), float(i + 3)]
             )
 
-        print("0", sample_vector_rhs_field.shape)
         eqs = LinearEqs(sample_torch_matrix, sample_vector_rhs_field)
         solution = eqs.solve()
 

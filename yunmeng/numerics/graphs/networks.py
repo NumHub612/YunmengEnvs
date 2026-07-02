@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Network structures mesh.
 """
 
-from yunmeng.numerics.graph.network import Network, Mesh
+from yunmeng.numerics.graphs.network import Network, Mesh
 
 # -----------------------------------------------
 # region PipeNet
