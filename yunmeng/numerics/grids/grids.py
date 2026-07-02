@@ -6,7 +6,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 """
 
 from yunmeng.numerics.enums import MeshDimension
-from yunmeng.numerics.mesh import Coordinate, Node, Face, Cell, Grid
+from yunmeng.numerics.mesh import Coordinate, Node, Face, Cell
+from yunmeng.numerics.grids.grid import Grid
 from yunmeng.numerics.algos.topos import sort_anticlockwise, calculate_center
 import numpy as np
 

@@ -5,7 +5,11 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Network structures mesh.
 """
 
-from yunmeng.numerics.mesh import Network
+from yunmeng.numerics.graph.network import Network, Mesh
+
+# -----------------------------------------------
+# region PipeNet
+# -----------------------------------------------
 
 
 class RiverNet(Network):
@@ -16,6 +20,9 @@ class RiverNet(Network):
     pass
 
 
+# -----------------------------------------------
+# region PipeNet
+# -----------------------------------------------
 class PipeNet(Network):
     """
     Pipe network class.

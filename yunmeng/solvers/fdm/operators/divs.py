@@ -11,7 +11,7 @@ from yunmeng.solvers.interfaces import (
     OperatorType,
     BoundaryType,
 )
-from yunmeng.numerics.mesh import Grid2D, ElementType
+from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.algos.topos import MeshTopo
 from yunmeng.numerics.fields import DataHub, Field, Variable, VariableType
 
@@ -33,7 +33,7 @@ class Div01(IOperator):
         if len(fields) != 1:
             raise ValueError("FDM op div01 only supports one field.")
         self._var = fields[0]
-        self._mesh: Grid2D = None
+        self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._bcs = None
 
@@ -46,11 +46,11 @@ class Div01(IOperator):
 
     def prepare(
         self,
-        mesh: Grid2D,
+        mesh: Grid,
         bounds: dict[int, dict[str, IBoundaryCondition]] = None,
     ):
-        if not isinstance(mesh, Grid2D):
-            raise ValueError("FDM op grad02 only supports Grid2D.")
+        if not isinstance(mesh, Grid):
+            raise ValueError("FDM op grad02 only supports Grid.")
         self._mesh = mesh
         self._bcs = bounds
 

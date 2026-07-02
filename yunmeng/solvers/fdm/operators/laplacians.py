@@ -12,7 +12,7 @@ from yunmeng.solvers.interfaces import (
     BoundaryType,
 )
 from yunmeng.numerics.enums import BackendType
-from yunmeng.numerics.mesh import Grid2D, ElementType
+from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.algos.topos import MeshTopo
 from yunmeng.numerics.mats.linalgs import LinearEqs, Matrix
 from yunmeng.numerics.mats.sparse import NumpyMatrix, TorchMatrix
@@ -38,7 +38,7 @@ class Lap01(IOperator):
             raise ValueError("FDM op lap01 only supports one field.")
         self._var = fields[0]
 
-        self._mesh: Grid2D = None
+        self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._bcs = None
 
@@ -52,11 +52,11 @@ class Lap01(IOperator):
 
     def prepare(
         self,
-        mesh: Grid2D,
+        mesh: Grid,
         bounds: dict[int, dict[str, IBoundaryCondition]],
     ):
-        if not isinstance(mesh, Grid2D):
-            raise ValueError("FDM op lap01 only supports Grid2D.")
+        if not isinstance(mesh, Grid):
+            raise ValueError("FDM op lap01 only supports Grid.")
         if not mesh.uniform:
             # TODO: Support non-uniform grids
             raise ValueError("FDM op lap01 requires uniform grids.")
@@ -182,7 +182,7 @@ class Lap02(IOperator):
             raise ValueError("FDM op lap02 only supports one field.")
         self._var = fields[0]
 
-        self._mesh: Grid2D = None
+        self._mesh: Grid = None
         self._topo: MeshTopo = None
         self._bcs = None
 
@@ -194,10 +194,10 @@ class Lap02(IOperator):
         return [self._var]
 
     def prepare(
-        self, mesh: Grid2D, bounds: dict[int, dict[str, IBoundaryCondition]] = None
+        self, mesh: Grid, bounds: dict[int, dict[str, IBoundaryCondition]] = None
     ):
-        if not isinstance(mesh, Grid2D):
-            raise ValueError("FDM op lap02 only supports Grid2D.")
+        if not isinstance(mesh, Grid):
+            raise ValueError("FDM op lap02 only supports Grid.")
         if not mesh.uniform:
             # TODO: Support non-uniform grids
             raise ValueError("FDM op lap02 requires uniform grids.")

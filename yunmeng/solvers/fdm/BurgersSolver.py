@@ -6,7 +6,7 @@ Burgers' equation solver using the finite difference method.
 """
 
 from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
-from yunmeng.numerics.mesh import Grid2D, ElementType, MeshDimension
+from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
 from yunmeng.solvers.commons import (
     BaseSolver,
     SolverMeta,
@@ -49,9 +49,9 @@ class BurgersExplicitSolver(BaseSolver):
     def get_name(cls) -> str:
         return "BurgersFdm2D"
 
-    def __init__(self, id: str, mesh: Grid2D, operators: list[IOperator]):
+    def __init__(self, id: str, mesh: Grid, operators: list[IOperator]):
         super().__init__(id, mesh, operators)
-        assert isinstance(mesh, Grid2D), "BurgersFdm2D only supports Grid2D."
+        assert isinstance(mesh, Grid), "BurgersFdm2D only supports Grid."
 
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()

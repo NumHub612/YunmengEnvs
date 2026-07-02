@@ -4,10 +4,11 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 ElementSet class describes a collection of spatial elements.
 """
+
 from yunmeng.numerics.enums import GeomType, ElementType
 from yunmeng.solutions.standards import IElementSet
-from yunmeng.numerics.mesh.spatials import Network
-from yunmeng.numerics.mesh.meshes import (
+from yunmeng.numerics.graph import Network
+from yunmeng.numerics.mesh import (
     Mesh,
     Element,
     Node,

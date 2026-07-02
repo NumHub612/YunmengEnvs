@@ -4,15 +4,14 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh topology processing.
 """
+
 from yunmeng.numerics.enums import MeshDimension
-from yunmeng.numerics.mesh.elements import Element, Coordinate
-from yunmeng.numerics.mesh.spatials import Mesh
+from yunmeng.numerics.mesh import Mesh, Element, Coordinate
 
 from typing import List, Optional
 import collections
 import numpy as np
 import math
-
 
 # -----------------------------------------------
 # region topo methods

@@ -9,7 +9,7 @@ from yunmeng.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from yunmeng.numerics.mats.linalgs import LinearEqs
 from yunmeng.numerics.fields.fields import Field
 from yunmeng.numerics.fields.datahubs import DataHub
-from yunmeng.numerics.mesh.spatials import Mesh
+from yunmeng.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 import enum
 

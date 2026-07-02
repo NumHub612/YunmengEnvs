@@ -6,7 +6,7 @@ Navier-Stokes equations solver in fdm format on fixed 2d Grid.
 """
 
 from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
-from yunmeng.numerics.mesh import Grid2D, ElementType, MeshDimension
+from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
 from yunmeng.solvers.commons import (
     BaseSolver,
     SolverMeta,
@@ -68,9 +68,9 @@ class NavierStokesSolver(BaseSolver):
     def get_name(cls) -> str:
         return "NavierStokesFdm2D"
 
-    def __init__(self, id: str, mesh: Grid2D, operators: list[IOperator]):
+    def __init__(self, id: str, mesh: Grid, operators: list[IOperator]):
         super().__init__(id, mesh, operators)
-        assert isinstance(mesh, Grid2D), f"{self.get_name()} only supports Grid2D."
+        assert isinstance(mesh, Grid), f"{self.get_name()} only supports Grid."
 
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()

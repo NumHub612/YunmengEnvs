@@ -103,11 +103,11 @@ class TestBurgers2D:
         plot_mesh(
             grid_41x41,
             title="grid_41x41",
-            save_dir="tests/results/",
+            save_dir="tests/results/bg",
             show_edges=True,
         )
         plot_field(
-            U0, grid_41x41, title="U0", save_dir="tests/results/", show_edges=True
+            U0, grid_41x41, title="U0", save_dir="tests/results/bg", show_edges=True
         )
 
         # initial condition
@@ -118,7 +118,7 @@ class TestBurgers2D:
         bc_nodes = grid_41x41.get_topo_assistant().boundary_nodes
 
         # callbacks
-        cb = ImageRender("render", "tests/results/", frequency=0.05)
+        cb = ImageRender("render", "tests/results/bg", frequency=0.05)
 
         # operators
         def source_func(loc: Coordinate, u: Variable) -> float:
@@ -177,7 +177,7 @@ class TestNavierStokes2D:
         """Test 2d Navier-Stokes solver on driven cavity flow."""
         ll, ur = Coordinate(0, 0), Coordinate(2.0, 2.0)
         grid_41x41 = Grid2D.by_uniform(ll, ur, 41, 41)
-        plot_mesh_ids(grid_41x41, title="grid_41X41", save_dir="tests/results/")
+        plot_mesh_ids(grid_41x41, title="grid_41X41", save_dir="tests/results/ns")
 
         # Initial Conditions
         u_init_val = Variable.vector(0.0, 0.0, 0.0)
@@ -222,7 +222,7 @@ class TestNavierStokes2D:
         # callbacks
         cb = ImageRender(
             "render",
-            "tests/results/",
+            "tests/results/ns/",
             frequency=0.5,
             fields={
                 "u": {"style": "streamplot"},
@@ -261,7 +261,7 @@ class TestNavierStokes2D:
             u_end,
             grid_41x41,
             title="u_end",
-            save_dir="tests/results/",
+            save_dir="tests/results/ns",
             show_edges=True,
         )
 
@@ -270,6 +270,6 @@ class TestNavierStokes2D:
             p_end,
             grid_41x41,
             title="p_end",
-            save_dir="tests/results/",
+            save_dir="tests/results/ns",
             show_edges=True,
         )

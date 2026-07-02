@@ -4,9 +4,10 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Provides numerical algorithms for field interpolation.
 """
+
 from __future__ import annotations
 from yunmeng.numerics.fields.fields import Field
-from yunmeng.numerics.mesh.spatials import Mesh, ElementType
+from yunmeng.numerics.mesh import Mesh, ElementType
 
 
 class FieldInterp:

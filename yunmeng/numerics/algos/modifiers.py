@@ -4,7 +4,8 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh modifiers.
 """
-from yunmeng.numerics.mesh.spatials import Mesh, MeshModifier, MeshModifyMode
+
+from yunmeng.numerics.mesh import Mesh, MeshModifier, MeshModifyMode
 from yunmeng.numerics.algos.topos import extract_coordinates
 from yunmeng.numerics.enums import ElementType
 import numpy as np

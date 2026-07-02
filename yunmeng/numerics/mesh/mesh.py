@@ -4,46 +4,13 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Spatial domain classes and methods for the cfd.
 """
+
 from yunmeng.numerics.enums import MeshDimension, ElementType
 from yunmeng.numerics.mesh.elements import Node, Face, Cell
 
 import numpy as np
 from enum import Enum, auto
 from abc import abstractmethod
-
-
-# -----------------------------------------------
-# region Modifier
-# -----------------------------------------------
-
-
-class MeshModifyMode(Enum):
-    """Mesh update modes."""
-
-    GEOMETRY = auto()  # Geometry changes (Moving mesh, deformation)
-    TOPOLOGY = auto()  # Topology changes (AMR, remeshing)
-    HYBRID = auto()  # Both topology and geometry change
-
-
-class MeshModifier:
-    """Abstract class for mesh modification operations."""
-
-    @property
-    @abstractmethod
-    def mode(self) -> MeshModifyMode:
-        """The modification mode."""
-        pass
-
-    @abstractmethod
-    def validate(self, mesh: "Mesh", **kwargs) -> bool:
-        """Validate if the modification can be applied."""
-        pass
-
-    @abstractmethod
-    def modify(self, mesh: "Mesh", **kwargs):
-        """Apply the modification to the mesh."""
-        pass
-
 
 # -----------------------------------------------
 # region Mesh
@@ -196,7 +163,7 @@ class Mesh:
     # assistants
     # -----------------------------------------------
 
-    def modify(self, modifier: MeshModifier, **kwargs):
+    def modify(self, modifier: "MeshModifier", **kwargs):
         """Modify the mesh."""
         if modifier.validate(self, **kwargs):
             modifier.modify(self, **kwargs)
@@ -234,100 +201,33 @@ class Mesh:
 
 
 # -----------------------------------------------
-# region Grid
+# region Modifier
 # -----------------------------------------------
 
 
-class Grid(Mesh):
-    """Abstract class for orthogonal structured grids."""
+class MeshModifyMode(Enum):
+    """Mesh update modes."""
 
-    def __init__(self):
-        super().__init__()
-        self._orthogonal = True
-        self._uniform = False
-        self._nx = None
-        self._ny = None
-        self._nz = None
-        self._lx = None
-        self._ly = None
-        self._lz = None
+    GEOMETRY = auto()  # Geometry changes (Moving mesh, deformation)
+    TOPOLOGY = auto()  # Topology changes (AMR, remeshing)
+    HYBRID = auto()  # Both topology and geometry change
 
-    # -----------------------------------------------
-    # properties
-    # -----------------------------------------------
+
+class MeshModifier:
+    """Abstract class for mesh modification operations."""
 
     @property
-    def nx(self) -> int:
-        """Discretization size in the x-direction."""
-        return self._nx
+    @abstractmethod
+    def mode(self) -> MeshModifyMode:
+        """The modification mode."""
+        pass
 
-    @property
-    def ny(self) -> int:
-        """Discretization size in the y-direction."""
-        return self._ny
+    @abstractmethod
+    def validate(self, mesh: Mesh, **kwargs) -> bool:
+        """Validate if the modification can be applied."""
+        pass
 
-    @property
-    def nz(self) -> int:
-        """Discretization size in the z-direction."""
-        return self._nz
-
-    @property
-    def uniform(self) -> bool:
-        """Return if the grid is uniform."""
-        return self._uniform
-
-    @property
-    def lx(self) -> float:
-        """Length of the grid in the x-direction."""
-        return self._lx
-
-    @property
-    def ly(self) -> float:
-        """Length of the grid in the y-direction."""
-        return self._ly
-
-    @property
-    def lz(self) -> float:
-        """Length of the grid in the z-direction."""
-        return self._lz
-
-    # -----------------------------------------------
-    # methods
-    # -----------------------------------------------
-
-    def match_node(self, i: int, j: int, k: int) -> int:
-        """Match node with the local indices."""
-        raise NotImplementedError()
-
-    def match_cell(self, i: int, j: int, k: int) -> int:
-        """Match cell with the local indices."""
-        raise NotImplementedError()
-
-    def get_node_neighbours(self, id: int) -> list[int]:
-        """Get the neighbours node indices, sorted in:
-        [east, west, north, south, top, bottom]
-        """
-        raise NotImplementedError()
-
-    def get_cell_neighbours(self, id: int) -> list[int]:
-        """Get the neighbours cell indices, sorted in:
-        [east, west, north, south, top, bottom]
-        """
-        raise NotImplementedError()
-
-
-# -----------------------------------------------
-# region Network
-# -----------------------------------------------
-
-
-class Network:
-    """
-    Abstract network class for topological connectivity.
-    """
-
-    def to_mesh(self) -> Mesh:
-        """
-        Convert network to mesh.
-        """
-        raise NotImplementedError()
+    @abstractmethod
+    def modify(self, mesh: Mesh, **kwargs):
+        """Apply the modification to the mesh."""
+        pass

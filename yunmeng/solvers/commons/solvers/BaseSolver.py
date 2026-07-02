@@ -17,7 +17,8 @@ from yunmeng.solvers.interfaces import (
     SolverStatus,
     SolverType,
 )
-from yunmeng.numerics.mesh import Element, ElementType, Mesh, Grid
+from yunmeng.numerics.mesh import Element, ElementType, Mesh
+from yunmeng.numerics.grids import Grid
 from yunmeng.numerics.fields import Field
 from yunmeng.setting import logger
 
