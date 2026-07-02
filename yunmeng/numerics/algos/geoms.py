@@ -7,45 +7,18 @@ Auxiliary functions for mesh processing.
 
 from yunmeng.numerics.enums import MeshDimension
 from yunmeng.numerics.mesh import Face, Mesh, Element, Coordinate
-from yunmeng.numerics.fields.variables import Variable, Var
-from yunmeng.numerics.algos.topos import (
-    MeshTopo,
+from yunmeng.numerics.mesh import (
     sort_anticlockwise,
     calculate_center,
     extract_coordinates,
+    calculate_distance,
+    generate_projection,
 )
+from yunmeng.numerics.fields import Variable, Var
+from yunmeng.numerics.algos.topos import MeshTopo
 
 import numpy as np
 from typing import Dict, List, Optional
-
-# -----------------------------------------------
-# region geom methods
-# -----------------------------------------------
-
-
-def calculate_distance(
-    point1: Coordinate | Element, point2: Coordinate | Element
-) -> float:
-    """Calculate the distance between two coordinates."""
-    if isinstance(point1, Element):
-        point1 = point1.coordinate
-    if isinstance(point2, Element):
-        point2 = point2.coordinate
-    return np.linalg.norm(point1.to_numpy() - point2.to_numpy())
-
-
-def generate_projection(
-    coordinate: Coordinate,
-    face: Face,
-    normal: Variable,
-) -> Coordinate:
-    """Generate the projection on the given face."""
-    vec_np = (coordinate - face.coordinate).to_numpy()
-    proj_np = np.dot(vec_np, normal.to_numpy()) * normal.to_numpy()
-    proj_np = proj_np + face.coordinate.to_numpy()
-    proj_coord = Coordinate.from_numpy(proj_np)
-    return proj_coord
-
 
 # -----------------------------------------------
 # region MeshGeom

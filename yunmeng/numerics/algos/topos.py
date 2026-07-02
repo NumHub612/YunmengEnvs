@@ -6,80 +6,11 @@ Mesh topology processing.
 """
 
 from yunmeng.numerics.enums import MeshDimension
-from yunmeng.numerics.mesh import Mesh, Element, Coordinate
+from yunmeng.numerics.mesh import Mesh, sort_anticlockwise
 
 from typing import List, Optional
 import collections
 import numpy as np
-import math
-
-# -----------------------------------------------
-# region topo methods
-# -----------------------------------------------
-
-
-def extract_coordinates(elements: list[Element]) -> np.ndarray:
-    """Extract the coordinates of each element."""
-    coords_list = [e.coordinate.to_numpy() for e in elements]
-    return np.asarray(coords_list, dtype=np.float64)
-
-
-def calculate_center(points: list[Element]) -> Coordinate:
-    """Calculate the center of the given points."""
-    coords = extract_coordinates(points)
-    return Coordinate.from_numpy(np.mean(coords, axis=0))
-
-
-def check_projection_axis(points: list[Element]) -> str:
-    """Check the projection axis (x, y, z)."""
-    coords = extract_coordinates(points)
-    x_var = np.var(coords[:, 0])
-    y_var = np.var(coords[:, 1])
-    z_var = np.var(coords[:, 2])
-    vars = [x_var, y_var, z_var]
-    axis = np.argsort(vars)[0]  # smallest variance axis
-    axis = ["x", "y", "z"][axis]
-    return axis
-
-
-def sort_anticlockwise(
-    points: list[Element], indexes: Optional[List[int]] = None
-) -> tuple[list[Element], Optional[List[int]]]:
-    """Sort points in anticlockwise order."""
-    if indexes is None:
-        indexes = list(range(len(points)))
-    coord_map = {idx: p for idx, p in zip(indexes, points)}
-    coord_lst = [p.coordinate.to_numpy() for p in points]
-    center = np.mean(coord_lst, axis=0, dtype=np.float64)
-
-    axis = check_projection_axis(points)
-    if axis.lower() == "z":
-        sorted_points = sorted(
-            coord_map.items(),
-            key=lambda x: math.atan2(
-                x[1].coordinate.y - center[1], x[1].coordinate.x - center[0]
-            ),
-        )
-    elif axis.lower() == "y":
-        sorted_points = sorted(
-            coord_map.items(),
-            key=lambda x: math.atan2(
-                x[1].coordinate.z - center[2], x[1].coordinate.x - center[0]
-            ),
-        )
-    elif axis.lower() == "x":
-        sorted_points = sorted(
-            coord_map.items(),
-            key=lambda x: math.atan2(
-                x[1].coordinate.y - center[1], x[1].coordinate.z - center[2]
-            ),
-        )
-    else:
-        raise ValueError(f"Invalid projection axis: {axis}")
-
-    indexes, elements = zip(*sorted_points)
-    return list(elements), list(indexes)
-
 
 # -----------------------------------------------
 # region MeshTopo

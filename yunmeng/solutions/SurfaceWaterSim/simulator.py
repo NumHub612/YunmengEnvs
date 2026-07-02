@@ -7,11 +7,10 @@ Surface water model.
 
 from yunmeng.solutions.commons import models, datasets, links, metas
 from yunmeng.numerics.enums import ElementType, VariableType
-from yunmeng.numerics.grids.grids import Grid2D, Coordinate
-from yunmeng.numerics.algos.filters import MeshFilter
-from yunmeng.numerics.fields import VariableType, Field
-from yunmeng.numerics.fields.variables import Var
-from yunmeng.numerics.fields.series import Timeseries, Curve, Pattern
+from yunmeng.numerics.grids import Grid2D, Coordinate
+from yunmeng.numerics.algos import MeshFilter
+from yunmeng.numerics.fields import VariableType, Field, Var
+from yunmeng.numerics.fields import Timeseries, Curve, Pattern
 from yunmeng.solvers.interfaces import ISolver, IOperator
 from yunmeng.utils.LoadData import load_data
 from yunmeng.solvers import ym_solvers, ym_operators, SolverType

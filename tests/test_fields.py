@@ -10,9 +10,8 @@ import torch
 from yunmeng.setting import settings
 from yunmeng.numerics.grids import Grid2D
 from yunmeng.numerics.mesh import GenericMesh, Coordinate
-from yunmeng.numerics.fields import Field, HaloMode
+from yunmeng.numerics.fields import Field, HaloMode, MeshShard
 from yunmeng.numerics.enums import ElementType, VariableType
-from yunmeng.numerics.algos.parts import MeshShard
 
 # ============================================
 # region Fixtures

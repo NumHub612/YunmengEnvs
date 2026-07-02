@@ -12,7 +12,7 @@ from yunmeng.solvers.interfaces import (
     BoundaryType,
 )
 from yunmeng.numerics.grids import Grid, ElementType
-from yunmeng.numerics.algos.topos import MeshTopo
+from yunmeng.numerics.algos import MeshTopo
 from yunmeng.numerics.fields import DataHub, Field, VariableType
 from typing import Callable
 

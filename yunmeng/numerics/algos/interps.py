@@ -16,7 +16,7 @@ class FieldInterp:
     """
 
     @staticmethod
-    def cell_to_face(field: Field, mesh: "Mesh", method: str = "linear") -> Field:
+    def cell_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
         """
         Interpolates a field from cells to faces.
 
@@ -34,7 +34,7 @@ class FieldInterp:
 
         result = Field(
             part,
-            field.dtype,
+            field.vtype,
             ElementType.FACE,
             requires_grad=field._meta.requires_grad,
         )

@@ -16,12 +16,12 @@ import copy
 
 from yunmeng.numerics.mesh.meshes import Mesh, MeshDimension
 from yunmeng.numerics.fields import Field, VariableType
-from yunmeng.numerics.algos.topos import (
+from yunmeng.numerics.algos import (
     sort_anticlockwise,
     extract_coordinates,
     MeshTopo,
+    MeshGeom,
 )
-from yunmeng.numerics.algos.geoms import MeshGeom
 
 # ---------------------------------------------------
 # region matplotlib 2D

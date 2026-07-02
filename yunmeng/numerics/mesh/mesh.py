@@ -9,8 +9,6 @@ from yunmeng.numerics.enums import MeshDimension, ElementType
 from yunmeng.numerics.mesh.elements import Node, Face, Cell
 
 import numpy as np
-from enum import Enum, auto
-from abc import abstractmethod
 
 # -----------------------------------------------
 # region Mesh
@@ -163,8 +161,10 @@ class Mesh:
     # assistants
     # -----------------------------------------------
 
-    def modify(self, modifier: "MeshModifier", **kwargs):
+    def modify(self, modifier, **kwargs):
         """Modify the mesh."""
+        from yunmeng.numerics.algos import MeshModifyMode
+
         if modifier.validate(self, **kwargs):
             modifier.modify(self, **kwargs)
             self._version += 1
@@ -177,7 +177,7 @@ class Mesh:
 
     def get_topo_assistant(self):
         """Return the mesh topology assistant."""
-        from yunmeng.numerics.algos.topos import MeshTopo
+        from yunmeng.numerics.algos import MeshTopo
 
         if self._topo is None:
             self._topo = MeshTopo(self)
@@ -185,7 +185,7 @@ class Mesh:
 
     def get_geom_assistant(self):
         """Return the mesh geometry assistant."""
-        from yunmeng.numerics.algos.geoms import MeshGeom
+        from yunmeng.numerics.algos import MeshGeom
 
         if self._geom is None:
             self._geom = MeshGeom(self)
@@ -193,41 +193,8 @@ class Mesh:
 
     def get_part_assistant(self):
         """Return the mesh partition assistant."""
-        from yunmeng.numerics.algos.parts import MeshPart
+        from yunmeng.numerics.algos import MeshPart
 
         if self._part is None:
             self._part = MeshPart(self)
         return self._part
-
-
-# -----------------------------------------------
-# region Modifier
-# -----------------------------------------------
-
-
-class MeshModifyMode(Enum):
-    """Mesh update modes."""
-
-    GEOMETRY = auto()  # Geometry changes (Moving mesh, deformation)
-    TOPOLOGY = auto()  # Topology changes (AMR, remeshing)
-    HYBRID = auto()  # Both topology and geometry change
-
-
-class MeshModifier:
-    """Abstract class for mesh modification operations."""
-
-    @property
-    @abstractmethod
-    def mode(self) -> MeshModifyMode:
-        """The modification mode."""
-        pass
-
-    @abstractmethod
-    def validate(self, mesh: Mesh, **kwargs) -> bool:
-        """Validate if the modification can be applied."""
-        pass
-
-    @abstractmethod
-    def modify(self, mesh: Mesh, **kwargs):
-        """Apply the modification to the mesh."""
-        pass

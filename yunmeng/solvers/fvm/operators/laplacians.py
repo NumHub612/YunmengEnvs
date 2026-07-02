@@ -13,11 +13,8 @@ from yunmeng.solvers.interfaces import (
 )
 from yunmeng.numerics.mats.linalgs import LinearEqs
 from yunmeng.numerics.grids import Grid
-from yunmeng.numerics.algos.topos import MeshTopo
-from yunmeng.numerics.algos.geoms import MeshGeom
-from yunmeng.numerics.algos.parts import MeshPart
-from yunmeng.numerics.fields import Field, Variable
-from yunmeng.numerics.fields.datahubs import DataHub
+from yunmeng.numerics.algos import MeshTopo, MeshGeom, MeshPart
+from yunmeng.numerics.fields import Field, Variable, DataHub
 
 
 class Lap01(IOperator):

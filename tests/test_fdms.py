@@ -6,19 +6,19 @@ Unittests for the fdms solvers.
 import pytest
 import numpy as np
 
-from yunmeng.numerics.algos.modifiers import ElevationModifier
-from yunmeng.numerics.algos.parts import MeshShard
+from yunmeng.numerics.algos import ElevationModifier, MeshShard
 from yunmeng.numerics.grids import Grid2D, Coordinate
 from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.enums import VariableType, ElementType
+from yunmeng.render.plotter import plot_mesh_ids, plot_mesh, plot_field
+
 from yunmeng.solvers.commons.inits import *
 from yunmeng.solvers.commons.boundaries import *
 from yunmeng.solvers.commons.callbacks import ImageRender
+
 from yunmeng.solvers.fdm.BurgersSolver import *
 from yunmeng.solvers.fdm.NavierStokesSolver import *
 from yunmeng.solvers.fdm.operators import *
-from yunmeng.render.plotter.MeshPlotters import plot_mesh_ids, plot_mesh
-from yunmeng.render.plotter.FieldPlotters import plot_field
 
 # ============================================
 # region Fixtures
