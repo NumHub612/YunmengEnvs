@@ -7,7 +7,7 @@ Time step limiters for the solvers.
 
 from yunmeng.numerics.mesh import Mesh
 from yunmeng.numerics.grids import Grid
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.fields import Field
 from yunmeng.numerics.consts import G
 import numpy as np
 

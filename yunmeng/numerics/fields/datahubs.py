@@ -6,7 +6,7 @@ Datahubs for managing of the fields and its history.
 """
 
 from yunmeng.numerics.enums import ElementType
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.fields import Field
 from dataclasses import dataclass
 
 

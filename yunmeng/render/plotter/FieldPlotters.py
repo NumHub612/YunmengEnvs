@@ -4,8 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Plotters for visualizing the fluid fields.
 """
+
 from yunmeng.numerics.mesh.meshes import Mesh, MeshDimension
-from yunmeng.numerics.fields.fields import Field, VariableType
+from yunmeng.numerics.fields import Field, VariableType
 from yunmeng.render.plotter.PlotKits import (
     _extract_field_data,
     _extract_mesh_data,

@@ -8,7 +8,7 @@ Solution of the 2D source term equation using finite volume method.
 from yunmeng.solvers.interfaces import IOperator, OperatorType
 from yunmeng.numerics.mats.linalgs import LinearEqs
 from yunmeng.numerics.grids import Grid
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.fields import Field
 from yunmeng.numerics.fields.datahubs import DataHub
 
 

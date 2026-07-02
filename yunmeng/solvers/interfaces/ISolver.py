@@ -10,7 +10,7 @@ from yunmeng.solvers.interfaces.IInitCondition import IInitCondition
 from yunmeng.solvers.interfaces.ISolverCallback import ISolverCallback
 from yunmeng.solvers.interfaces.IEquation import IEquation
 from yunmeng.numerics.enums import ElementType, MeshDimension, VariableType
-from yunmeng.numerics.fields.fields import Field, FieldMeta
+from yunmeng.numerics.fields import Field, FieldMeta
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import enum

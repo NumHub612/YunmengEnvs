@@ -4,9 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Initialization by uniform value method.
 """
+
 from yunmeng.solvers.interfaces import IInitCondition
-from yunmeng.numerics.fields.fields import Field
-from yunmeng.numerics.fields.variables import Var
+from yunmeng.numerics.fields import Field, Var
 import numpy as np
 
 

@@ -4,11 +4,12 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interfaces for boundary conditions at faces of a mesh.
 """
+
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union, Any
 from enum import Enum, auto
 from dataclasses import dataclass
-from yunmeng.numerics.fields.variables import Variable
+from yunmeng.numerics.fields import Variable
 
 
 @dataclass

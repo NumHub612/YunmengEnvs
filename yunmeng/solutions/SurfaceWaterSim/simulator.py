@@ -9,7 +9,7 @@ from yunmeng.solutions.commons import models, datasets, links, metas
 from yunmeng.numerics.enums import ElementType, VariableType
 from yunmeng.numerics.grids.grids import Grid2D, Coordinate
 from yunmeng.numerics.algos.filters import MeshFilter
-from yunmeng.numerics.fields.fields import VariableType, Field
+from yunmeng.numerics.fields import VariableType, Field
 from yunmeng.numerics.fields.variables import Var
 from yunmeng.numerics.fields.series import Timeseries, Curve, Pattern
 from yunmeng.solvers.interfaces import ISolver, IOperator

@@ -12,8 +12,8 @@ For known problems, more efficient solver can be directly developed.
 """
 
 from yunmeng.numerics.enums import VariableType
-from yunmeng.numerics.mats.linalgs import LinearEqs
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.mats import LinearEqs
+from yunmeng.numerics.fields import Field
 from yunmeng.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

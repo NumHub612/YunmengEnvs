@@ -8,7 +8,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 from yunmeng.solvers.commons import BaseSolver, SolverMeta, SolverStatus, SolverType
 from yunmeng.solvers.commons import inits, boundaries
 from yunmeng.numerics.mats.linalgs import LinearEqs
-from yunmeng.numerics.fields.fields import Field, Variable
+from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.fields.datahubs import DataHub, Sample
 from yunmeng.numerics.mesh import Mesh
 from yunmeng.numerics.enums import VariableType, ElementType

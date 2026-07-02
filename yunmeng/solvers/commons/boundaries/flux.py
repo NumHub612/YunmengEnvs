@@ -4,8 +4,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 To provide the Neumann boundary condition.
 """
+
 from yunmeng.solvers.interfaces import IBoundaryCondition, BoundaryType, BoundaryValue
-from yunmeng.numerics.fields.variables import Variable, Var
+from yunmeng.numerics.fields import Variable, Var
 from yunmeng.setting import logger
 
 

@@ -6,7 +6,7 @@ Linear algebra class.
 """
 
 from yunmeng.numerics.mats.matrixes import Matrix, TorchMatrix, NumpyMatrix
-from yunmeng.numerics.fields.fields import Field, BackendType, get_backend
+from yunmeng.numerics.fields import Field, BackendType, get_backend
 import torch
 import scipy as sp
 import numpy as np

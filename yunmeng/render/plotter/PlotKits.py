@@ -15,7 +15,7 @@ import os
 import copy
 
 from yunmeng.numerics.mesh.meshes import Mesh, MeshDimension
-from yunmeng.numerics.fields.fields import Field, VariableType
+from yunmeng.numerics.fields import Field, VariableType
 from yunmeng.numerics.algos.topos import (
     sort_anticlockwise,
     extract_coordinates,

@@ -12,7 +12,7 @@ from yunmeng.solvers.interfaces import (
     BoundaryType,
 )
 from yunmeng.numerics.grids import Grid
-from yunmeng.numerics.fields.fields import Field, Variable
+from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.fields.datahubs import DataHub
 
 

@@ -4,8 +4,9 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Initialization by hot-starting field.
 """
+
 from yunmeng.solvers.interfaces import IInitCondition
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.fields import Field
 
 
 class HotstartInitialization(IInitCondition):

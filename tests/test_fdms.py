@@ -9,7 +9,7 @@ import numpy as np
 from yunmeng.numerics.algos.modifiers import ElevationModifier
 from yunmeng.numerics.algos.parts import MeshShard
 from yunmeng.numerics.grids import Grid2D, Coordinate
-from yunmeng.numerics.fields.fields import Field, Variable
+from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.enums import VariableType, ElementType
 from yunmeng.solvers.commons.inits import *
 from yunmeng.solvers.commons.boundaries import *
@@ -222,7 +222,7 @@ class TestNavierStokes2D:
         # callbacks
         cb = ImageRender(
             "render",
-            "tests/results/ns/",
+            "tests/results/ns",
             frequency=0.5,
             fields={
                 "u": {"style": "streamplot"},
