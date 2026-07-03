@@ -43,7 +43,7 @@ def H0(grid_41x41: Grid2D) -> Field:
     """Initial condition for the water depth field."""
     init_val = 1.0
     H0 = Field.from_size(
-        grid_41x41.node_count, VariableType.SCALAR, ElementType.NODE, init_val
+        grid_41x41.node_count, VariableType.scalar(), ElementType.NODE, init_val
     )
 
     # Gaussian perturbation
@@ -66,9 +66,9 @@ def H0(grid_41x41: Grid2D) -> Field:
 @pytest.fixture
 def U0(grid_41x41: Grid2D) -> Field:
     """Initial condition for the velocity field."""
-    init_val = Variable.vector(1.0, 1.0, 0.0)
+    init_val = Variable.vector(1.0, 1.0, dim=2)
     U0 = Field.from_size(
-        grid_41x41.node_count, VariableType.VECTOR, ElementType.NODE, init_val
+        grid_41x41.node_count, VariableType.vector(2), ElementType.NODE, init_val
     )
 
     nx, ny = grid_41x41.nx, grid_41x41.ny
@@ -84,7 +84,7 @@ def U0(grid_41x41: Grid2D) -> Field:
         for j in range(ny):
             idx = grid_41x41.match_node(i, j)
             if y_start <= j <= y_end and x_start <= i <= x_end:
-                U0[idx] = Variable.vector(2.0, 2.0, 0.0)
+                U0[idx] = Variable.vector(2.0, 2.0, dim=2)
 
     return U0
 
@@ -114,7 +114,7 @@ class TestBurgers2D:
         u_init = HotstartInitialization("U0", U0)
 
         # boundary condition
-        value_bc = ValueBoundary("bc", Var([1.0, 1.0, 0.0]))
+        value_bc = ValueBoundary("bc", Var([1.0, 1.0]))
         bc_nodes = grid_41x41.get_topo_assistant().boundary_nodes
 
         # callbacks
@@ -123,7 +123,7 @@ class TestBurgers2D:
         # operators
         def source_func(loc: Coordinate, u: Variable) -> float:
             # zero source
-            forcing = Variable.vector(0.0, 0.0, 0.0)
+            forcing = Variable.vector(0.0, 0.0, dim=2)
             return forcing
 
         operators = [
@@ -180,15 +180,15 @@ class TestNavierStokes2D:
         plot_mesh_ids(grid_41x41, title="grid_41X41", save_dir="tests/results/ns")
 
         # Initial Conditions
-        u_init_val = Variable.vector(0.0, 0.0, 0.0)
+        u_init_val = Variable.vector(0.0, 0.0, dim=2)
         u_field = Field.from_size(
-            grid_41x41.node_count, VariableType.VECTOR, ElementType.NODE, u_init_val
+            grid_41x41.node_count, VariableType.vector(2), ElementType.NODE, u_init_val
         )
         u_init = HotstartInitialization("U0", u_field)
 
         p_init_val = 0.0
         p_field = Field.from_size(
-            grid_41x41.node_count, VariableType.SCALAR, ElementType.NODE, p_init_val
+            grid_41x41.node_count, VariableType.scalar(), ElementType.NODE, p_init_val
         )
         p_init = HotstartInitialization("P0", p_field)
 
@@ -204,11 +204,11 @@ class TestNavierStokes2D:
                 ohter_nodes.append(nid)
 
         # Boundary Conditions
-        north_v_bc = ValueBoundary("v_bc1", [1.0, 0.0, 0.0])
-        other_v_bc = ValueBoundary("v_bc2", [0.0, 0.0, 0.0])
+        north_v_bc = ValueBoundary("v_bc1", [1.0, 0.0])
+        other_v_bc = ValueBoundary("v_bc2", [0.0, 0.0])
 
         north_p_bc = ValueBoundary("p_bc1", 0.0)
-        other_p_bc = FluxBoundary("p_bc2", [0.0, 0.0, 0.0])
+        other_p_bc = FluxBoundary("p_bc2", [0.0, 0.0])
 
         # cfd operators
         operators = [

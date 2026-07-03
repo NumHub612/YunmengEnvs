@@ -72,7 +72,7 @@ class Div01(IOperator):
 
     def _calculate_divergence(self, u_field: Field) -> Field:
         """直接基于速度场中心差分计算 div(u) = du/dx + dv/dy"""
-        div = Field(u_field.mesh_shards, VariableType.SCALAR, u_field.etype)
+        div = Field(u_field.mesh_shards, VariableType.scalar(), u_field.etype)
 
         u_bc = u_field.copy()
         for nid in self._topo.boundary_nodes:

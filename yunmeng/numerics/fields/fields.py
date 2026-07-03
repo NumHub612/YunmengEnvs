@@ -200,7 +200,7 @@ class FieldMeta:
     version: int = 0
     size: int = None
     etype: ElementType = ElementType.CELL
-    vtype: VariableType = VariableType.SCALAR
+    vtype: VariableType = VariableType.scalar()
     btype: BackendType = BackendType.NUMPY
     requires_grad: bool = False
     field: str = None
@@ -476,7 +476,7 @@ class Field:
     def from_array(
         data: DataArray,
         mesh_shards: list[MeshShard],
-        vtype: VariableType = VariableType.SCALAR,
+        vtype: VariableType = VariableType.scalar(),
         etype: ElementType = ElementType.CELL,
         requires_grad: bool = False,
     ) -> "Field":
@@ -485,7 +485,7 @@ class Field:
         assert data.shape[0] == mesh_size, "Data size != mesh size"
 
         # Canonicalize scalar field storage from legacy (N, 1) to (N,).
-        if vtype == VariableType.SCALAR and data.ndim == 2 and data.shape[-1] == 1:
+        if vtype.is_scalar and data.ndim == 2 and data.shape[-1] == 1:
             data = data.reshape(data.shape[0])
 
         field = Field(
@@ -520,7 +520,7 @@ class Field:
     @staticmethod
     def from_size(
         size: int,
-        vtype: VariableType = VariableType.SCALAR,
+        vtype: VariableType = VariableType.scalar(),
         etype: ElementType = ElementType.CELL,
         init_val: Variable = None,
         requires_grad: bool = False,
@@ -576,7 +576,7 @@ class Field:
                 gpu=self._shards[sid].gpu,
             )
             # Guard against legacy (1,) scalar values being assigned to scalar slots.
-            if self._meta.vtype == VariableType.SCALAR and hasattr(data, "shape") and data.shape == (1,):
+            if self._meta.vtype.is_scalar and hasattr(data, "shape") and data.shape == (1,):
                 data = data.reshape(())
             self._shards[sid].data[l] = data
 
@@ -644,36 +644,36 @@ class Field:
             vtype_b = other._meta.vtype
 
             # --- case 1: Scalar * Any (Broadcasting) ---
-            if vtype_a == VariableType.SCALAR:
+            if vtype_a.is_scalar:
                 shard_data = xp.multiply(a, b)
                 result_vtype = vtype_b
                 result_datas.append(shard_data)
 
             # --- case 2: Any * Scalar (Broadcasting) ---
-            elif vtype_b == VariableType.SCALAR:
+            elif vtype_b.is_scalar:
                 shard_data = xp.multiply(a, b)
                 result_vtype = vtype_a
                 result_datas.append(shard_data)
 
             # --- case 3: Vector * Vector (Dot Product) ---
-            elif vtype_a == VariableType.VECTOR and vtype_b == VariableType.VECTOR:
-                # dot product: (N, 3) -> (N,)
+            elif vtype_a.is_vector and vtype_b.is_vector:
+                # dot product: (N, dim) -> (N,)
                 shard_data = xp.einsum("ni,ni->n", a, b)
                 result_datas.append(shard_data)
-                result_vtype = VariableType.SCALAR
+                result_vtype = VariableType.scalar()
 
             # --- case 4: Vector * Tensor ---
-            # (N, 3) * (N, 3, 3) -> (N, 3)
-            elif vtype_a == VariableType.VECTOR and vtype_b == VariableType.TENSOR:
+            # (N, dim) * (N, dim, dim) -> (N, dim)
+            elif vtype_a.is_vector and vtype_b.is_tensor:
                 shard_data = xp.einsum("ni,nij->nj", a, b)
                 result_datas.append(shard_data)
-                result_vtype = VariableType.VECTOR
+                result_vtype = vtype_a
 
             # --- case 5: Tensor * Tensor (Element-wise) ---
-            elif vtype_a == VariableType.TENSOR and vtype_b == VariableType.TENSOR:
+            elif vtype_a.is_tensor and vtype_b.is_tensor:
                 shard_data = xp.multiply(a, b)
                 result_datas.append(shard_data)
-                result_vtype = VariableType.TENSOR
+                result_vtype = vtype_a
 
             else:
                 raise ValueError(
@@ -730,32 +730,32 @@ class Field:
             b = other._shards[i].data
             vtype_b = other._meta.vtype
 
-            # Tensor @ Tensor: [N, 3, 3] @ [N, 3, 3] -> [N, 3, 3]
-            if vtype_a == VariableType.TENSOR and vtype_b == VariableType.TENSOR:
-                # (N, 3, 3) @ (N, 3, 3) -> (N, 3, 3)
+            # Tensor @ Tensor: [N, dim, dim] @ [N, dim, dim] -> [N, dim, dim]
+            if vtype_a.is_tensor and vtype_b.is_tensor:
+                # (N, dim, dim) @ (N, dim, dim) -> (N, dim, dim)
                 shard_data = xp.matmul(a, b)
                 result_datas.append(shard_data)
-                result_vtype = VariableType.TENSOR
+                result_vtype = vtype_a
 
-            # Vector @ Tensor: [N, 3] @ [N, 3, 3] -> [N, 3]
-            elif vtype_a == VariableType.VECTOR and vtype_b == VariableType.TENSOR:
-                # need to expand vector to (N, 1, 3) for matmul:
-                # (N, 3) -> (N, 1, 3)
-                # (N, 1, 3) @ (N, 3, 3) -> (N, 1, 3) -> (N, 3)
-                a_exp = xp.expand_dims(a, axis=1)  # (N, 1, 3)
-                shard_data = xp.matmul(a_exp, b)  # (N, 1, 3)
-                shard_data = xp.squeeze(shard_data, axis=1)  # (N, 3)
+            # Vector @ Tensor: [N, dim] @ [N, dim, dim] -> [N, dim]
+            elif vtype_a.is_vector and vtype_b.is_tensor:
+                # need to expand vector to (N, 1, dim) for matmul:
+                # (N, dim) -> (N, 1, dim)
+                # (N, 1, dim) @ (N, dim, dim) -> (N, 1, dim) -> (N, dim)
+                a_exp = xp.expand_dims(a, axis=1)  # (N, 1, dim)
+                shard_data = xp.matmul(a_exp, b)  # (N, 1, dim)
+                shard_data = xp.squeeze(shard_data, axis=1)  # (N, dim)
                 result_datas.append(shard_data)
-                result_vtype = VariableType.VECTOR
+                result_vtype = vtype_a
 
-            # Tensor @ Vector: [N, 3, 3] @ [N, 3] -> [N, 3]
-            elif vtype_a == VariableType.TENSOR and vtype_b == VariableType.VECTOR:
-                # (N, 3, 3) @ (N, 3, 1) -> (N, 3, 1) -> (N, 3)
-                b_exp = xp.expand_dims(b, axis=-1)  # (N, 3, 1)
-                shard_data = xp.matmul(a, b_exp)  # (N, 3, 1)
-                shard_data = xp.squeeze(shard_data, axis=-1)  # (N, 3)
+            # Tensor @ Vector: [N, dim, dim] @ [N, dim] -> [N, dim]
+            elif vtype_a.is_tensor and vtype_b.is_vector:
+                # (N, dim, dim) @ (N, dim, 1) -> (N, dim, 1) -> (N, dim)
+                b_exp = xp.expand_dims(b, axis=-1)  # (N, dim, 1)
+                shard_data = xp.matmul(a, b_exp)  # (N, dim, 1)
+                shard_data = xp.squeeze(shard_data, axis=-1)  # (N, dim)
                 result_datas.append(shard_data)
-                result_vtype = VariableType.VECTOR
+                result_vtype = vtype_b
 
             else:
                 raise TypeError(f"Invalid matmul between {vtype_a} and {vtype_b}")
@@ -783,11 +783,11 @@ class Field:
             vtype_b = other._meta.vtype
 
             # Vector * Vector -> Tensor
-            if vtype_a == VariableType.VECTOR and vtype_b == VariableType.VECTOR:
-                # (N, 3) & (N, 3) -> (N, 3, 3)
+            if vtype_a.is_vector and vtype_b.is_vector:
+                # (N, dim) & (N, dim) -> (N, dim, dim)
                 shard_data = xp.einsum("ni,nj->nij", a, b)
                 result_datas.append(shard_data)
-                result_vtype = VariableType.TENSOR
+                result_vtype = VariableType.tensor(vtype_a.shape[0])
             else:
                 raise TypeError(
                     f"Invalid outer product between {vtype_a} and {vtype_b}"
@@ -964,9 +964,9 @@ class Field:
 
     def scalarize(self) -> list["Field"]:
         """Convert the field to a list of scalar fields."""
-        if self._meta.vtype == VariableType.TENSOR:
+        if self._meta.vtype.is_tensor:
             raise ValueError("Cannot scalarize a tensor field.")
-        if self._meta.vtype == VariableType.SCALAR:
+        if self._meta.vtype.is_scalar:
             return [self]
 
         data = self.gather_to_host()
@@ -975,7 +975,7 @@ class Field:
             field = Field.from_array(
                 data[:, i],
                 self._mesh_shards,
-                VariableType.SCALAR,
+                VariableType.scalar(),
                 self._meta.etype,
                 self._meta.requires_grad,
             )
@@ -996,17 +996,18 @@ class Field:
             fields.append(f3)
 
         for f in fields:
-            if f._meta.vtype != VariableType.SCALAR:
+            if not f._meta.vtype.is_scalar:
                 raise ValueError("Only scalar fields can be merged.")
         if not all(f._meta.size == fields[0]._meta.size for f in fields):
             raise ValueError("Field size mismatch.")
 
         data = [f.gather_to_host() for f in fields]
         merged_data = np.stack(data, axis=-1)
+        dim = merged_data.shape[-1]
         return Field.from_array(
             merged_data,
             mesh_shards,
-            VariableType.VECTOR,
+            VariableType.vector(dim),
             f1.meta.etype,
             f1.meta.requires_grad,
         )

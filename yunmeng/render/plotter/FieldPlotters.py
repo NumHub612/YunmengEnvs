@@ -115,7 +115,7 @@ def plot_field(
             label=label,
             **kwargs,
         )
-    elif style == "streamplot" and field.vtype == VariableType.VECTOR:
+    elif style == "streamplot" and field.vtype.is_vector:
         plot_mesh_streamplot(
             points,
             cells,

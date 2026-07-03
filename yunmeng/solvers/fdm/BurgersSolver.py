@@ -39,7 +39,7 @@ class BurgersExplicitSolver(BaseSolver):
         metas.default_bcs = {"u": boundaries.WallBoundary}
         metas.fields = {
             "u": FieldMeta(
-                vtype=VariableType.VECTOR,
+                vtype=VariableType.vector(2),
                 etype=ElementType.NODE,
             ),
         }
@@ -64,10 +64,10 @@ class BurgersExplicitSolver(BaseSolver):
         self._dy = None
 
         self._default_bcs = {"u": boundaries.WallBoundary("u")}
-        self._default_ics = {"u": inits.UniformInitialization("u", [0.0, 0, 0])}
+        self._default_ics = {"u": inits.UniformInitialization("u", [0.0, 0.0])}
 
         self._fields = {
-            "u": Field(self._part.shards, VariableType.VECTOR, ElementType.NODE)
+            "u": Field(self._part.shards, VariableType.vector(2), ElementType.NODE)
         }
         self._buffs: DataHub = None
 

@@ -341,6 +341,9 @@ def plot_mesh_streamplot(
     mesh = pv.UnstructuredGrid(cells, types, points)
 
     # Set values to the mesh
+    if mesh_type == 2:
+        vectors = np.column_stack((vectors, np.zeros(vectors.shape[0])))
+
     domain = domain.lower()
     if domain == "point":
         mesh.point_data[label] = vectors
@@ -529,12 +532,15 @@ def _extract_field_data(field: Field):
     """
     values = field.gather_to_host()
 
-    if field.vtype == VariableType.SCALAR:
+    if field.vtype.is_scalar:
         return values, {"x": values}
-    elif field.vtype == VariableType.VECTOR:
+    elif field.vtype.is_vector:
         us = values[:, 0]
         vs = values[:, 1]
-        ws = values[:, 2]
+        if field.vtype.ndim == 3:
+            ws = values[:, 2]
+        else:
+            ws = np.zeros_like(us)
         return values, {"x": us, "y": vs, "z": ws}
     else:
         raise ValueError(f"Unsupported field type: {field.vtype}")

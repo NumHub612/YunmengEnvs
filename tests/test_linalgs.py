@@ -61,7 +61,7 @@ def sample_rhs_field(simple_mesh_shard):
     # Create a scalar field with size 5
     return Field.from_size(
         size=5,
-        vtype=VariableType.SCALAR,
+        vtype=VariableType.scalar(),
         etype=ElementType.CELL,
         init_val=1.0,
     )
@@ -73,7 +73,7 @@ def sample_vector_rhs_field(simple_mesh_shard):
     # Create a vector field with size 5 and 3 components
     return Field.from_size(
         size=5,
-        vtype=VariableType.VECTOR,
+        vtype=VariableType.vector(3),
         etype=ElementType.CELL,
         init_val=1.0,
     )
@@ -200,7 +200,7 @@ class TestLinearEqsOperations:
         matrix = TorchMatrix.from_data(data)
         small_field = Field.from_size(
             size=3,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=1.0,
         )
@@ -267,7 +267,7 @@ class TestLinearEqsSolve:
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.SCALAR
+        assert solution.vtype.is_scalar
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_rhs_field.gather_to_host()
@@ -295,7 +295,7 @@ class TestLinearEqsSolve:
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.SCALAR
+        assert solution.vtype.is_scalar
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_rhs_field.gather_to_host()
@@ -323,7 +323,7 @@ class TestLinearEqsSolve:
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.VECTOR
+        assert solution.vtype.is_vector
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_vector_rhs_field.gather_to_host()
@@ -351,7 +351,7 @@ class TestLinearEqsSolve:
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.VECTOR
+        assert solution.vtype.is_vector
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_vector_rhs_field.gather_to_host()

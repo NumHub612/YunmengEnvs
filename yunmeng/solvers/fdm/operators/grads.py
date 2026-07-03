@@ -93,9 +93,9 @@ class Grad01(IOperator):
         self._apply_bc(new_field)
 
         # Calculate the gradient
-        if old_field.vtype == VariableType.SCALAR:
+        if old_field.vtype.is_scalar:
             grads = self._calculate_scalar_field(new_field)
-        elif old_field.vtype == VariableType.VECTOR:
+        elif old_field.vtype.is_vector:
             grads = self._calculate_vector_field(new_field)
         else:
             raise ValueError(f"FDM op {self.get_name()} not support tensor fields.")
@@ -117,7 +117,8 @@ class Grad01(IOperator):
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Calculate the gradient of the vector field."""
-        new_field = Field(field.mesh_shards, VariableType.TENSOR, field.etype)
+        dim = field.vtype.shape[0]
+        new_field = Field(field.mesh_shards, VariableType.tensor(dim), field.etype)
         kx = 1 / self._dx
         ky = 1 / self._dy
 
@@ -145,7 +146,7 @@ class Grad01(IOperator):
             vy = (un[1] - us[1]) * ky
 
             # Total gradient
-            grad = Variable.tensor([ux, uy, vx, vy])
+            grad = Variable.tensor([ux, uy, vx, vy], dim=dim)
             new_field[nid] = grad
 
         for nid in self._topo.boundary_nodes:
@@ -176,14 +177,15 @@ class Grad01(IOperator):
             uy = (un[0] - us[0]) * ky
             vx = (ue[1] - uw[1]) * kx
             vy = (un[1] - us[1]) * ky
-            grad = Variable.tensor([ux, uy, vx, vy])
+            grad = Variable.tensor([ux, uy, vx, vy], dim=dim)
             new_field[nid] = grad
 
         return new_field
 
     def _calculate_scalar_field(self, field: Field) -> Field:
         """Calculate the gradient of the scalar field."""
-        new_field = Field(field.mesh_shards, VariableType.VECTOR, field.etype)
+        dim = self._mesh.dimension.value
+        new_field = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
         kx = 1 / self._dx
         ky = 1 / self._dy
         for nid in self._topo.internal_nodes:
@@ -282,9 +284,9 @@ class Grad02(IOperator):
         self._apply_bc(new_field)
 
         # Calculate the gradient
-        if old_field.vtype == VariableType.SCALAR:
+        if old_field.vtype.is_scalar:
             grads = self._calculate_scalar_field(new_field)
-        elif old_field.vtype == VariableType.VECTOR:
+        elif old_field.vtype.is_vector:
             grads = self._calculate_vector_field(new_field)
         else:
             raise ValueError(f"FDM op {self.get_name()} not support tensor fields.")
@@ -301,7 +303,8 @@ class Grad02(IOperator):
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Calculate the gradient of the vector field."""
-        new_field = Field(field.mesh_shards, VariableType.TENSOR, field.etype)
+        dim = field.vtype.shape[0]
+        new_field = Field(field.mesh_shards, VariableType.tensor(dim), field.etype)
         kx = 1.0 / (2.0 * self._dx)
         ky = 1.0 / (2.0 * self._dy)
 
@@ -318,7 +321,7 @@ class Grad02(IOperator):
             vx = (ue[1] - uw[1]) * kx
             vy = (un[1] - us[1]) * ky
 
-            new_field[nid] = Variable.tensor([ux, uy, vx, vy])
+            new_field[nid] = Variable.tensor([ux, uy, vx, vy], dim=dim)
 
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
@@ -345,13 +348,14 @@ class Grad02(IOperator):
                     us = field[s] if s else field[n]
                     uy = 2.0 * (un[0] - us[0]) * ky
 
-                new_field[nid] = Variable.tensor([ux, uy, vx, vy])
+                new_field[nid] = Variable.tensor([ux, uy, vx, vy], dim=dim)
 
         return new_field
 
     def _calculate_scalar_field(self, field: Field) -> Field:
         """Calculate the gradient of the scalar field."""
-        new_field = Field(field.mesh_shards, VariableType.VECTOR, field.etype)
+        dim = self._mesh.dimension.value
+        new_field = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
         kx = 1.0 / (2.0 * self._dx)
         ky = 1.0 / (2.0 * self._dy)
 
@@ -363,7 +367,7 @@ class Grad02(IOperator):
             ux = (field[e] - field[w]) * kx
             uy = (field[n] - field[s]) * ky
 
-            new_field[nid] = Variable.vector(ux, uy)
+            new_field[nid] = Variable.vector(ux, uy, dim=dim)
 
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]

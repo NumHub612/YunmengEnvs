@@ -87,9 +87,9 @@ class Lap01(IOperator):
         self._apply_bc(new_field)
 
         # Run laplacian operator
-        if old_field.vtype == VariableType.SCALAR:
+        if old_field.vtype.is_scalar:
             new_field = self._calculate_scalar_field(new_field)
-        elif old_field.vtype == VariableType.VECTOR:
+        elif old_field.vtype.is_vector:
             new_field = self._calculate_vector_field(new_field)
         else:
             raise ValueError("FDM op lap01 not support tensor fields.")
@@ -105,7 +105,8 @@ class Lap01(IOperator):
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Calculate the vector field."""
-        new_field = Field(field.mesh_shards, VariableType.VECTOR, field.etype)
+        dim = field.vtype.shape[0]
+        new_field = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
@@ -143,7 +144,7 @@ class Lap01(IOperator):
 
     def _calculate_scalar_field(self, field: Field) -> Field:
         """Calculate the scalar field."""
-        new_field = Field(field.mesh_shards, VariableType.SCALAR, field.etype)
+        new_field = Field(field.mesh_shards, VariableType.scalar(), field.etype)
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
@@ -338,7 +339,7 @@ class Lap02(IOperator):
         matrix = self._create_matrix(field).from_data(values)
 
         # Build RHS field from array
-        rhs_field = Field(field.mesh_shards, VariableType.SCALAR, field.etype)
+        rhs_field = Field(field.mesh_shards, VariableType.scalar(), field.etype)
         for nid in range(node_count):
             rhs_field[nid] = Variable.scalar(rhs_arr[nid])
 
@@ -351,9 +352,9 @@ class Lap02(IOperator):
         qx, qy = 0.0, 0.0
         if isinstance(flux, Variable):
             data = flux.data
-            if flux.vtype == VariableType.SCALAR:
+            if flux.vtype.is_scalar:
                 qx = qy = float(data)
-            elif flux.vtype == VariableType.VECTOR:
+            elif flux.vtype.is_vector:
                 qx = float(data[0])
                 qy = float(data[1])
         elif isinstance(flux, (list, tuple, np.ndarray)):

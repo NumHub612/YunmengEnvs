@@ -54,11 +54,11 @@ class NavierStokesSolver(BaseSolver):
         }
         metas.fields = {
             "u": FieldMeta(
-                vtype=VariableType.VECTOR,
+                vtype=VariableType.vector(2),
                 etype=ElementType.NODE,
             ),
             "p": FieldMeta(
-                vtype=VariableType.SCALAR,
+                vtype=VariableType.scalar(),
                 etype=ElementType.NODE,
             ),
         }
@@ -84,7 +84,7 @@ class NavierStokesSolver(BaseSolver):
         self._dy = None
 
         self._default_ics = {
-            "u": inits.UniformInitialization("u", [0.0, 0.0, 0.0]),
+            "u": inits.UniformInitialization("u", [0.0, 0.0]),
             "p": inits.UniformInitialization("p", 0.0),
         }
         self._default_bcs = {
@@ -93,8 +93,8 @@ class NavierStokesSolver(BaseSolver):
         }
 
         self._fields = {
-            "u": Field(self._part.shards, VariableType.VECTOR, ElementType.NODE),
-            "p": Field(self._part.shards, VariableType.SCALAR, ElementType.NODE),
+            "u": Field(self._part.shards, VariableType.vector(2), ElementType.NODE),
+            "p": Field(self._part.shards, VariableType.scalar(), ElementType.NODE),
         }
         self._buffs: DataHub = None
 

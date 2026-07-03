@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Variables definition.
 """
 
-from yunmeng.numerics.enums import VariableType, VariableMeta
+from yunmeng.numerics.enums import VariableType
 from yunmeng.numerics.fields.backends import (
     Backend,
     backend_context,
@@ -36,8 +36,8 @@ class Variable:
         if not vtype.check_shape(data):
             raise ValueError(f"Shape {data.shape} doesn't match type {vtype.name}")
 
-        # Canonicalize scalar storage to 0-d so it matches VariableType.SCALAR.shape.
-        if vtype == VariableType.SCALAR and data.shape != ():
+        # Canonicalize scalar storage to 0-d to matches scalar VariableType.shape.
+        if vtype.is_scalar and data.shape != ():
             if data.shape == (1,):
                 data = data.reshape(())
             else:
@@ -53,42 +53,51 @@ class Variable:
     def scalar(x: float, backend: Backend = None) -> "Variable":
         back = backend or get_backend()
         data = back.array(x, dtype=back.float64)
-        return Variable(data, VariableType.SCALAR, back)
+        return Variable(data, VariableType.scalar(), back)
 
     @staticmethod
     def vector(
-        x: float, y: float, z: float = 0.0, backend: Backend = None
+        x: float, y: float, z: float = 0.0, backend: Backend = None, dim: int = 3
     ) -> "Variable":
+        """Create a vector variable.
+
+        Args:
+            x: x component
+            y: y component
+            z: z component (only used for 3D)
+            backend: computation backend
+            dim: dimension of the vector
+        """
         back = backend or get_backend()
-        data = back.array([x, y, z], dtype=back.float64)
-        return Variable(data, VariableType.VECTOR, back)
+        if dim == 2:
+            data = back.array([x, y], dtype=back.float64)
+        else:
+            data = back.array([x, y, z], dtype=back.float64)
+        return Variable(data, VariableType.vector(dim), back)
 
     @staticmethod
     def tensor(
-        components: Tuple[float, ...],
-        backend: Backend = None,
+        components: Tuple[float, ...], backend: Backend = None, dim: int = 3
     ) -> "Variable":
         """Create a tensor variable from flat components.
 
         Args:
-            components: 9 values for 3x3, or 4 values for 2x2 (padded to 3x3).
-            in order of (ux, ux, vx, vy),(ux, uy, uz, vx, vy, vz, wx, wy, wz)
+            components: dim*dim values for dim*dim tensor
+            backend: computation backend
+            dim: dimension of the tensor (2 or 3)
+        Note:
+            components are ordered as (ux, ux, vx, vy) for 2D tensor,
+            (ux, uy, uz, vx, vy, vz, wx, wy, wz) for 3D tensor.
         """
         back = backend or get_backend()
         data = back.array(components, dtype=back.float64)
-        if len(components) == 9:
-            data = data.reshape((3, 3))
-        elif len(components) == 4:
-            data = data.reshape((2, 2))
-            if back.is_numpy:
-                data = np.pad(data, ((0, 1), (0, 1)), mode="constant")
-            else:
-                data = torch.nn.functional.pad(
-                    data, (0, 1, 0, 1), mode="constant", value=0
-                )
-        else:
-            raise ValueError(f"Expected 4 or 9 components, got {len(components)}")
-        return Variable(data, VariableType.TENSOR, back)
+        expected_components = dim * dim
+        if len(components) != expected_components:
+            raise ValueError(
+                f"Expected {expected_components} components for {dim}D tensor, got {len(components)}"
+            )
+        data = data.reshape((dim, dim))
+        return Variable(data, VariableType.tensor(dim), back)
 
     @staticmethod
     def zeros(vtype: VariableType, backend: Backend = None) -> "Variable":
@@ -231,41 +240,41 @@ class Variable:
 
     def __mul__(self, other):
         if isinstance(other, Variable):
-            if self.vtype == VariableType.SCALAR:
+            if self.vtype.is_scalar:
                 # scalar multiplication
                 return Variable(
                     self._back.xp.multiply(self._data, other._data),
                     other._type,
                     self._back,
                 )
-            if self.vtype == VariableType.TENSOR and other.vtype == VariableType.VECTOR:
+            if self.vtype.is_tensor and other.vtype.is_vector:
                 # matrix-vector multiplication
                 return Variable(
                     self._back.xp.matmul(self._data, other._data),
-                    VariableType.VECTOR,
+                    other.vtype,
                     self._back,
                 )
-            if self.vtype == VariableType.TENSOR and other.vtype == VariableType.TENSOR:
+            if self.vtype.is_tensor and other.vtype.is_tensor:
                 # matrix-matrix multiplication
                 return Variable(
                     self._back.xp.matmul(self._data, other._data),
-                    VariableType.TENSOR,
+                    self.vtype,
                     self._back,
                 )
-            if self.vtype == VariableType.VECTOR and other.vtype == VariableType.TENSOR:
+            if self.vtype.is_vector and other.vtype.is_tensor:
                 # vector-matrix multiplication
                 return Variable(
                     self._back.xp.matmul(self._data, other._data),
-                    VariableType.VECTOR,
+                    self.vtype,
                     self._back,
                 )
             if self.vtype == other.vtype:
-                if self.vtype == VariableType.VECTOR:
+                if self.vtype.is_vector:
                     # dot product
                     return Variable.scalar(
                         self._back.xp.dot(self._data, other._data),
                     )
-                elif self.vtype == VariableType.SCALAR:
+                elif self.vtype.is_scalar:
                     # element-wise multiplication
                     return Variable(
                         self._back.xp.multiply(self._data, other._data),
