@@ -5,12 +5,12 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Matrix interface.
 """
 
+from yunmeng.numerics.fields import ArrayLike
+
 import torch
 import numpy as np
 from abc import abstractmethod
 from typing import Union, Tuple, List
-
-TensorLike = Union[torch.Tensor, np.ndarray]
 
 
 class Matrix:
@@ -24,8 +24,8 @@ class Matrix:
     @abstractmethod
     def from_data(
         cls,
-        values: TensorLike,
-        indices: TensorLike = None,
+        values: ArrayLike,
+        indices: ArrayLike = None,
         shape: Tuple[int, int] = None,
         device: torch.device = None,
     ) -> "Matrix":
@@ -37,9 +37,9 @@ class Matrix:
     def from_coo(
         cls,
         shape: Tuple[int, int],
-        values: TensorLike,
-        rows: TensorLike,
-        cols: TensorLike,
+        values: ArrayLike,
+        rows: ArrayLike,
+        cols: ArrayLike,
         device: torch.device = None,
     ) -> "Matrix":
         """Create from Coo-format."""
@@ -50,9 +50,9 @@ class Matrix:
     def from_csr(
         cls,
         shape: Tuple[int, int],
-        values: TensorLike,
-        ptrs: TensorLike,
-        idxs: TensorLike,
+        values: ArrayLike,
+        ptrs: ArrayLike,
+        idxs: ArrayLike,
         device: torch.device = None,
     ) -> "Matrix":
         """Create from CSR-format."""
@@ -108,7 +108,7 @@ class Matrix:
 
     @property
     @abstractmethod
-    def diags(self) -> List[TensorLike]:
+    def diags(self) -> List[ArrayLike]:
         """Diagonals of the matrix."""
         raise NotImplementedError()
 
@@ -126,7 +126,7 @@ class Matrix:
         """Move matrix to a specific device."""
         raise NotImplementedError()
 
-    def to_dense(self) -> TensorLike:
+    def to_dense(self) -> ArrayLike:
         """Convert to dense matrix."""
         raise NotImplementedError()
 
@@ -142,7 +142,7 @@ class Matrix:
         """Convert between sparse formats."""
         raise NotImplementedError()
 
-    def diagonal(self, offset: int = 0) -> TensorLike:
+    def diagonal(self, offset: int = 0) -> ArrayLike:
         """Extract a specific diagonal.
         Offset > 0 for upper, < 0 for lower.
         """
@@ -154,8 +154,8 @@ class Matrix:
 
     @abstractmethod
     def __matmul__(
-        self, other: Union["Matrix", TensorLike]
-    ) -> Union["Matrix", TensorLike]:
+        self, other: Union["Matrix", ArrayLike]
+    ) -> Union["Matrix", ArrayLike]:
         raise NotImplementedError()
 
     @abstractmethod
