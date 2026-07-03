@@ -105,62 +105,37 @@ class Lap01(IOperator):
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Calculate the vector field."""
-        dim = field.vtype.shape[0]
-        new_field = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
-        for nid in self._topo.internal_nodes:
-            # Neighbour nodes
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ue, uw, un, us, ui = field[[e, w, n, s, nid]]
+        nx, ny = self._mesh.nx, self._mesh.ny
+        dim = field._shards[0].data.shape[1]
+        u = field._shards[0].data.reshape(nx, ny, dim)
 
-            # Horizontal result
-            uh = (ue - 2 * ui + uw) * kx
+        lap = np.zeros_like(u)
+        lap[1:-1, 1:-1, :] = (
+            u[2:, 1:-1, :] - 2 * u[1:-1, 1:-1, :] + u[:-2, 1:-1, :]
+        ) * kx + (u[1:-1, 2:, :] - 2 * u[1:-1, 1:-1, :] + u[1:-1, :-2, :]) * ky
 
-            # Vertical result
-            uv = (un - 2 * ui + us) * ky
-
-            new_field[nid] = uh + uv
-
-        for nid in self._topo.boundary_nodes:
-            # Neighbour nodes
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ui = field[nid]
-
-            # Horizontal result
-            ue = field[e] if e is not None else ui
-            uw = field[w] if w is not None else ui
-            uh = (ue - 2 * ui + uw) * kx
-
-            # Vertical result
-            un = field[n] if n is not None else ui
-            us = field[s] if s is not None else ui
-            uv = (un - 2 * ui + us) * ky
-
-            new_field[nid] = uh + uv
-
+        new_field = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
+        new_field._shards[0].data = lap.reshape(-1, dim)
         return new_field
 
     def _calculate_scalar_field(self, field: Field) -> Field:
         """Calculate the scalar field."""
-        new_field = Field(field.mesh_shards, VariableType.scalar(), field.etype)
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
-        for nid in self._topo.internal_nodes:
-            # Neighbour nodes
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ue, uw, un, us, ui = field[[e, w, n, s, nid]]
+        nx, ny = self._mesh.nx, self._mesh.ny
+        u = field._shards[0].data.reshape(nx, ny)
 
-            # Horizontal result
-            uh = (ue - 2 * ui + uw) * kx
+        lap = np.zeros_like(u)
+        lap[1:-1, 1:-1] = (u[2:, 1:-1] - 2 * u[1:-1, 1:-1] + u[:-2, 1:-1]) * kx + (
+            u[1:-1, 2:] - 2 * u[1:-1, 1:-1] + u[1:-1, :-2]
+        ) * ky
 
-            # Vertical result
-            uv = (un - 2 * ui + us) * ky
-
-            new_field[nid] = uh + uv
-
+        new_field = Field(field.mesh_shards, VariableType.scalar(), field.etype)
+        new_field._shards[0].data = lap.reshape(-1)
         return new_field
 
 
