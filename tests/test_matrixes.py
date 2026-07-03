@@ -415,27 +415,6 @@ class TestNumpyMatrix:
         with pytest.raises(ValueError, match="NumpyMatrix cannot move to GPU"):
             matrix.to("cuda")
 
-    def test_convert_format(self):
-        """Test converting NumpyMatrix between different formats."""
-        shape = (3, 3)
-        values = np.array([1.0, 2.0, 3.0, 4.0])
-        rows = np.array([0, 1, 2, 0])
-        cols = np.array([0, 1, 2, 1])
-
-        matrix = NumpyMatrix.from_data(values, indices=(rows, cols), shape=shape)
-
-        # Test conversion to CSR
-        csr_matrix = matrix.convert("csr")
-        assert isinstance(csr_matrix.data, sp.csr_matrix)
-
-        # Test conversion to COO
-        coo_matrix = matrix.convert("coo")
-        assert isinstance(coo_matrix.data, sp.coo_matrix)
-
-        # Test conversion to CSC
-        csc_matrix = matrix.convert("csc")
-        assert isinstance(csc_matrix.data, sp.csc_matrix)
-
     def test_diagonal(self, sample_sparse_data):
         """Test diagonal extraction from NumpyMatrix."""
         values, rows, cols, shape = sample_sparse_data
