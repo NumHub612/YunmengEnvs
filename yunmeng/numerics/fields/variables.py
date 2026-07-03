@@ -181,7 +181,16 @@ class Variable:
         for inp in inputs:
             scalars.append(inp._data if isinstance(inp, Variable) else inp)
         out_raw = getattr(ufunc, method)(*scalars, **kwargs)
-        return Variable(out_raw, self._type, self._back)
+
+        if np.isscalar(out_raw) or (hasattr(out_raw, "ndim") and out_raw.ndim == 0):
+            return Variable.scalar(float(out_raw), self._back)
+        elif hasattr(out_raw, "shape"):
+            try:
+                vtype = VariableType.from_shape(out_raw.shape)
+                return Variable(out_raw, vtype, self._back)
+            except (ValueError, AttributeError):
+                return out_raw
+        return out_raw
 
     def __array_function__(self, func, types, args, kwargs):
         """To support numpy functions, such as np.sum, etc."""

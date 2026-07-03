@@ -131,7 +131,7 @@ class MeshPart:
         # Build shard with core info
         return MeshShard(
             shard_id=sid,
-            gpu=parse_gpu(gpus[sid] if gpus else None),
+            device=parse_gpu(gpus[sid] if gpus else None),
             cells=local_cells,  # Will append ghosts later
             faces=local_faces,  # Will append ghosts later
             nodes=local_nodes,  # Will append ghosts later

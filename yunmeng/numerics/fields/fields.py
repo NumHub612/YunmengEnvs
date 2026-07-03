@@ -7,7 +7,7 @@ Fields definition.
 
 from yunmeng.numerics.enums import ElementType, BackendType
 from yunmeng.numerics.fields.variables import Variable, VariableType
-from yunmeng.numerics.fields.backends import get_backend
+from yunmeng.numerics.fields.backends import get_backend, ArrayLike
 from yunmeng.setting import settings
 
 import numpy as np
@@ -50,7 +50,7 @@ class MeshShard:
     """Mesh shard for distributed computation."""
 
     shard_id: int
-    gpu: torch.device
+    device: torch.device
 
     # Local entities (global indices): [Core..., Ghost...]
     cells: np.ndarray
@@ -156,7 +156,7 @@ class MeshShard:
 
         return MeshShard(
             shard_id=0,
-            gpu=torch.device(device),
+            device=torch.device(device),
             cells=cells,
             faces=faces,
             nodes=nodes,
@@ -179,7 +179,7 @@ class MeshShard:
 # region Field Infrastruct
 # --------------------------------------------------
 
-DataArray = Union[np.ndarray, torch.Tensor]
+
 DataIndex = Union[int, slice, List[int], np.ndarray]
 DataItem = Union[float, np.ndarray, torch.Tensor, Variable]
 
@@ -211,8 +211,8 @@ class FieldShard:
     """Field shard for distributed computation."""
 
     shard_id: int
-    gpu: torch.device
-    data: DataArray  # [Core..., Ghost...]
+    device: torch.device
+    data: ArrayLike  # [Core..., Ghost...]
     n_core: int
 
     @property
@@ -221,25 +221,19 @@ class FieldShard:
         return self.data.shape[0] - self.n_core
 
     @property
-    def minmax(self) -> Tuple[Variable, Variable]:
+    def minmax(self) -> Tuple[float, float]:
         """Min/max values of this shard."""
         local_view = self.local_view()
         if isinstance(self.data, torch.Tensor):
-            return (
-                local_view.min().item(),
-                local_view.max().item(),
-            )
+            return (float(local_view.min()), float(local_view.max()))
         else:
-            return (
-                local_view.min(),
-                local_view.max(),
-            )
+            return (float(local_view.min()), float(local_view.max()))
 
-    def local_view(self) -> DataArray:
+    def local_view(self) -> ArrayLike:
         """Local data view"""
         return self.data[: self.n_core]
 
-    def ghost_view(self) -> DataArray:
+    def ghost_view(self) -> ArrayLike:
         """Ghost data view"""
         return self.data[self.n_core :]
 
@@ -248,7 +242,7 @@ class FieldShard:
         if self.data.grad is not None:
             self.data.grad.zero_()
 
-    def to_host(self) -> DataArray:
+    def to_host(self) -> ArrayLike:
         """Sync data to host."""
         if isinstance(self.data, torch.Tensor):
             return self.data.cpu()
@@ -315,21 +309,25 @@ class Field:
 
     def _init_shards(self, init_val, requires_grad=True):
         """Init field shards."""
+        canonical_init = self._get_init_val(init_val)
         for shard in self._mesh_shards:
             sid = shard.shard_id
             n_data, n_core, _ = shard.get_sizes(self._meta.etype)
             n_comp = self._meta.vtype.shape
 
             fill_shape = (n_data, *n_comp)
-            init_val = self._get_init_val(init_val)
             data = self._backend.full(
-                fill_shape, init_val, self._backend.float64, shard.gpu, requires_grad
+                fill_shape,
+                canonical_init,
+                self._backend.float64,
+                shard.device,
+                requires_grad,
             )
 
             self._shards.append(
                 FieldShard(
                     shard_id=sid,
-                    gpu=shard.gpu,
+                    device=shard.device,
                     data=data,
                     n_core=n_core,
                 )
@@ -372,10 +370,10 @@ class Field:
                 # Buffer
                 buffers[neighbor_id] = {
                     "send_buf": self._backend.empty(
-                        (n_send, *n_comp), device=shard.gpu
+                        (n_send, *n_comp), device=shard.device
                     ),
                     "recv_buf": self._backend.empty(
-                        (n_recv, *n_comp), device=shard.gpu
+                        (n_recv, *n_comp), device=shard.device
                     ),
                     "send_indices": [l_idx for l_idx, _ in send_list],
                     "recv_indices": recv_list,  # ghost
@@ -435,10 +433,9 @@ class Field:
         return self._meta.size
 
     @property
-    def minmax(self) -> Tuple[Variable, Variable]:
-        """Field min/max values."""
+    def minmax(self) -> Tuple[float, float]:
         ls, us = zip(*[sd.minmax for sd in self._shards])
-        return min(ls), max(us)
+        return (min(ls), max(us))
 
     def requires_grad(self, requires_grad: bool = True):
         if self._backend.type == BackendType.TORCH:
@@ -474,7 +471,7 @@ class Field:
 
     @staticmethod
     def from_array(
-        data: DataArray,
+        data: ArrayLike,
         mesh_shards: list[MeshShard],
         vtype: VariableType = VariableType.scalar(),
         etype: ElementType = ElementType.CELL,
@@ -555,7 +552,7 @@ class Field:
         self._mark_dirty()
         return self
 
-    def __getitem__(self, indices: DataIndex) -> DataArray:
+    def __getitem__(self, indices: DataIndex) -> ArrayLike:
         shard_indices = self._get_shard_indices(indices)
         values = [self._shards[sid].data[l] for sid, l in shard_indices]
         if len(values) == 1:
@@ -565,18 +562,22 @@ class Field:
 
     def __setitem__(self, indices: DataIndex, value):
         shard_indices = self._get_shard_indices(indices)
-        if isinstance(value, (float, Variable, DataArray)):
+        if isinstance(value, (float, Variable, ArrayLike)):
             value = [value]
         for (sid, l), val in zip(shard_indices, value):
             if isinstance(val, Variable):
                 val = val.data
-            data = self._backend.data(
+            data = self._backend.array(
                 val,
                 dtype=self._backend.float64,
-                gpu=self._shards[sid].gpu,
+                device=self._shards[sid].device,
             )
             # Guard against legacy (1,) scalar values being assigned to scalar slots.
-            if self._meta.vtype.is_scalar and hasattr(data, "shape") and data.shape == (1,):
+            if (
+                self._meta.vtype.is_scalar
+                and hasattr(data, "shape")
+                and data.shape == (1,)
+            ):
                 data = data.reshape(())
             self._shards[sid].data[l] = data
 
@@ -611,19 +612,24 @@ class Field:
     def _binary_op(self, other: "Field", op: Callable) -> "Field":
         """Unified binary operation, auto-align shards."""
         if isinstance(other, Field):
-            assert self._mesh_shards is other._mesh_shards, "Meshshards mismatch"
-            # align_shards
+            if self._mesh_shards is not other._mesh_shards:
+                raise ValueError("Meshshards mismatch")
+            if self._meta.vtype != other._meta.vtype:
+                raise TypeError(
+                    f"Binary op requires same vtype, got {self._meta.vtype} and {other._meta.vtype}"
+                )
             new_shards = []
             for sid, f1 in enumerate(self._shards):
                 f2 = other._shards[sid]
                 new_f = FieldShard(
                     shard_id=sid,
-                    gpu=f1.gpu,
+                    device=f1.device,
                     data=op(f1.data, f2.data),
                     n_core=f1.n_core,
                 )
                 new_shards.append(new_f)
             return Field.from_shard(new_shards, self._mesh_shards, self._meta)
+        return NotImplemented
 
     def __add__(self, other: "Field") -> "Field":
         return self._binary_op(other, lambda a, b: a + b)
@@ -688,7 +694,7 @@ class Field:
             new_shards.append(
                 FieldShard(
                     shard_id=sid,
-                    gpu=shard.gpu,
+                    device=shard.device,
                     data=shard_data_list[sid],
                     n_core=shard.n_core,
                 )
@@ -762,7 +768,10 @@ class Field:
 
         return self._build_field(result_datas, result_vtype)
 
-    __rmatmul__ = __matmul__
+    def __rmatmul__(self, other: "Field") -> "Field":
+        if isinstance(other, Field):
+            return other.__matmul__(self)
+        return NotImplemented
 
     def __xor__(self, other: "Field") -> "Field":
         """Execute outer product between two Fields: A ^ B
@@ -846,7 +855,7 @@ class Field:
                 send_idxs = buf["send_indices"]
                 if self._backend.type == BackendType.TORCH:
                     send_idxs = self._backend.array(
-                        send_idxs, dtype=torch.int64, gpu=shard.gpu
+                        send_idxs, dtype=torch.int64, device=shard.device
                     )
                     buf["send_buf"].copy_(shard.data[send_idxs])
                 else:
@@ -886,7 +895,7 @@ class Field:
                 # Unpack recv data to ghost positions
                 if self._backend.type == BackendType.TORCH:
                     recv_idxs = self._backend.array(
-                        recv_idxs, dtype=torch.int64, gpu=shard.gpu
+                        recv_idxs, dtype=torch.int64, device=shard.device
                     )
                 recv_data = buf["recv_buf"]
 
@@ -955,10 +964,11 @@ class Field:
             mesh_shard = self._mesh_shards[sid]
             indices = mesh_shard.get_entities(etype)[: shard.n_core]
 
-            # Extract the local part and upload
-            local_data = torch.from_numpy(data[indices]).to(shard.gpu)
+            local_data = self._backend.array(data[indices])
+            if self._backend.is_torch:
+                local_data = local_data.to(shard.device)
             shape = self._meta.vtype.shape
-            shard.data[: shard.n_core] = local_data.view((-1, *shape))
+            shard.data[: shard.n_core] = local_data.reshape((-1, *shape))
 
         self._mark_dirty()
 
