@@ -132,7 +132,7 @@ class BurgersExplicitSolver(BaseSolver):
         for callback in self._callbacks:
             callback.on_task_begin()
 
-    def inference(self) -> SolverStatus:
+    def forward(self) -> SolverStatus:
         start = time.perf_counter()
 
         # Compute time step
@@ -152,11 +152,11 @@ class BurgersExplicitSolver(BaseSolver):
         u_grad, u_diff, u_src = None, None, None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD:
-                u_grad = op.run(self._buffs, dt)
+                u_grad = op.forward(self._buffs, dt)
             elif op.get_type() == OperatorType.LAPLACIAN:
-                u_diff = op.run(self._buffs, dt)
+                u_diff = op.forward(self._buffs, dt)
             elif op.get_type() == OperatorType.SRC:
-                u_src = op.run(self._buffs, dt)
+                u_src = op.forward(self._buffs, dt)
         new_u = old_u - dt * u_grad @ old_u + dt * u_diff + dt * u_src
 
         # Update status

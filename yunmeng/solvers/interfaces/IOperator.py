@@ -75,7 +75,7 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def run(self, sources: Field | DataHub, dt: float) -> Field | LinearEqs:
+    def forward(self, sources: Field | DataHub, dt: float) -> Field | LinearEqs:
         """
         Run the operator on field.
 

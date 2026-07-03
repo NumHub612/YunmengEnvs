@@ -56,7 +56,7 @@ class Div01(IOperator):
         self._bcs = bounds
         self._var = fields[0]
 
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def forward(self, sources: DataHub) -> Field | LinearEqs:
         data = sources.field(self._var).data
         variable = data.name
         div_eqs = LinearEqs.zeros(self._part, rhs_type=data.dtype, etype=data.etype)

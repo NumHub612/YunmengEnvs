@@ -145,7 +145,7 @@ class TestBurgers2D:
         # run the simulation
         t, dt = 0.0, total_time / 10
         while not solver.status.finished:
-            status = solver.inference()
+            status = solver.forward()
             if status.current_time >= t or status.finished:
                 t += dt
                 print(
@@ -247,7 +247,7 @@ class TestNavierStokes2D:
         # run the simulation
         t, dt = 0.0, total_time / 10
         while not solver.status.finished:
-            status = solver.inference()
+            status = solver.forward()
             if status.current_time >= t or status.finished:
                 t += dt
                 print(

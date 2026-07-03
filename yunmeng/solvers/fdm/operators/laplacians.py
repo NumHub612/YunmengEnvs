@@ -73,7 +73,7 @@ class Lap01(IOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def run(self, sources: Field | DataHub, dt: float = None) -> Field:
+    def forward(self, sources: Field | DataHub, dt: float = None) -> Field:
         if isinstance(sources, Field):
             old_field = sources
         else:
@@ -208,7 +208,7 @@ class Lap02(IOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def run(self, sources: Field | DataHub, dt: float = None) -> LinearEqs:
+    def forward(self, sources: Field | DataHub, dt: float = None) -> LinearEqs:
         if isinstance(sources, Field):
             old_field = sources
         else:

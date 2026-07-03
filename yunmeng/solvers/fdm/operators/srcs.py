@@ -57,7 +57,7 @@ class Src01(IOperator):
         self._bcs = bounds
         self._topo = self._mesh.get_topo_assistant()
 
-    def run(self, sources: Field | DataHub, dt: float = None) -> Field:
+    def forward(self, sources: Field | DataHub, dt: float = None) -> Field:
         if isinstance(sources, Field):
             old_field = sources
         else:

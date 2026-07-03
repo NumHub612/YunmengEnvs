@@ -130,6 +130,12 @@ class BaseSolver(ISolver):
 
             self._bcs[eid][field] = bc
 
+    def save(self, path: str):
+        pass
+
+    def load(self, path: str):
+        pass
+
     def set_problems(self, equations: list[IEquation]):
         raise NotImplementedError()
 
@@ -139,5 +145,5 @@ class BaseSolver(ISolver):
     def assimilate(self):
         raise NotImplementedError()
 
-    def inference(self) -> SolverStatus:
+    def forward(self) -> SolverStatus:
         raise NotImplementedError()

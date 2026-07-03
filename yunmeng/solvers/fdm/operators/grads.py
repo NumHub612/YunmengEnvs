@@ -78,7 +78,7 @@ class Grad01(IOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def run(self, sources: Field | DataHub, dt: float = None) -> Field:
+    def forward(self, sources: Field | DataHub, dt: float = None) -> Field:
         """Calculate the gradient of the field."""
         if isinstance(sources, Field):
             old_field = sources
@@ -269,7 +269,7 @@ class Grad02(IOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def run(self, sources: Field | DataHub, dt: float = None) -> Field:
+    def forward(self, sources: Field | DataHub, dt: float = None) -> Field:
         """Calculate the gradient of the field."""
         if isinstance(sources, Field):
             old_field = sources

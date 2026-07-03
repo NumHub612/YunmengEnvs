@@ -168,7 +168,7 @@ class NavierStokesSolver(BaseSolver):
         for callback in self._callbacks:
             callback.on_task_begin()
 
-    def inference(self) -> SolverStatus:
+    def forward(self) -> SolverStatus:
         start = time.perf_counter()
 
         # Compute time step
@@ -233,9 +233,9 @@ class NavierStokesSolver(BaseSolver):
         u_grad, u_diff = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD and "u" in op.target_fields:
-                u_grad = op.run(u, dt)
+                u_grad = op.forward(u, dt)
             elif op.get_type() == OperatorType.LAPLACIAN and "u" in op.target_fields:
-                u_diff = op.run(u, dt)
+                u_diff = op.forward(u, dt)
 
         u_star = u - dt * u_grad @ u + dt * u_diff
         for nid in self._topo.boundary_nodes:
@@ -251,9 +251,9 @@ class NavierStokesSolver(BaseSolver):
         u_div, p_eqs = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.DIV:
-                u_div = op.run(self._buffs, dt)
+                u_div = op.forward(self._buffs, dt)
             elif op.get_type() == OperatorType.LAPLACIAN and "p" in op.target_fields:
-                p_eqs = op.run(self._buffs, dt)
+                p_eqs = op.forward(self._buffs, dt)
 
         # only apply divergence on internal nodes
         rhs = p_eqs.rhs.copy()
@@ -274,7 +274,7 @@ class NavierStokesSolver(BaseSolver):
         p_grad = None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD and "p" in op.target_fields:
-                p_grad = op.run(self._buffs, dt)
+                p_grad = op.forward(self._buffs, dt)
 
         new_u = u - (dt / 1.0) * p_grad
         self._fields["u"] = new_u

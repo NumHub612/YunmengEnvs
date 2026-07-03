@@ -156,8 +156,22 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def inference(self) -> SolverStatus:
+    def forward(self) -> SolverStatus:
         """
         Advance the solver to the next timestep.
+        """
+        pass
+
+    @abstractmethod
+    def save(self, path: str):
+        """
+        Save the solver state to a file.
+        """
+        pass
+
+    @abstractmethod
+    def load(self, path: str):
+        """
+        Load the solver state from file.
         """
         pass

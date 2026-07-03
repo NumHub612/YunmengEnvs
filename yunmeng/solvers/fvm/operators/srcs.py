@@ -48,7 +48,7 @@ class Src01(IOperator):
         self._part = self._mesh.get_part_assistant()
         self._var = fields[0]
 
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def forward(self, sources: DataHub) -> Field | LinearEqs:
         source = sources.field(self._var).data
         src_eqs = LinearEqs.zeros(self._part, rhs_type=source.dtype, etype=source.etype)
         return src_eqs

@@ -50,7 +50,7 @@ class Ddt01(IOperator):
         self._part = self._mesh.get_part_assistant()
         self._var = fields[0]
 
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def forward(self, sources: DataHub) -> Field | LinearEqs:
         sample = sources.field(self._var, 0)
         data = sample.data
         ddt_eqs = LinearEqs.zeros(self._part, rhs_type=data.dtype, etype=data.etype)
@@ -105,7 +105,7 @@ class Ddt02(IOperator):
 
         self._var = fields[0]
 
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def forward(self, sources: DataHub) -> Field | LinearEqs:
         pre_source = sources.field(self._var, 1)
         pre_data = pre_source.data
         cur_source = sources.field(self._var, 0)

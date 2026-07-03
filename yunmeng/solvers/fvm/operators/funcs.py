@@ -32,5 +32,5 @@ class CFL01(IOperator):
     def prepare(self, fields: list[str], mesh: Grid, bounds: dict):
         pass
 
-    def run(self, sources: DataHub) -> Variable:
+    def forward(self, sources: DataHub) -> Variable:
         pass
