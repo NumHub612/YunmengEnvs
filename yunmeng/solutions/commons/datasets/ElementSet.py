@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 ElementSet class describes a collection of spatial elements.
 """
 
-from yunmeng.numerics.enums import GeomType, ElementType
+from yunmeng.numerics.enums import GeomType, ElementType, MeshDimension
 from yunmeng.solutions.standards import IElementSet
 from yunmeng.numerics.mesh import (
     Mesh,
@@ -146,12 +146,12 @@ def check_mesh_element_geom(elements: list[Element], mesh: Mesh) -> GeomType:
     if isinstance(element, Node):
         return GeomType.Point
     elif isinstance(element, Face):
-        if mesh.dimension.value == "3d":
+        if mesh.dimension == MeshDimension.D3:
             return GeomType.Polygon
         else:
             return GeomType.Polyline
     elif isinstance(element, Cell):
-        if mesh.dimension.value == "3d":
+        if mesh.dimension == MeshDimension.D3:
             return GeomType.Polyhedron
         else:
             return GeomType.Polygon

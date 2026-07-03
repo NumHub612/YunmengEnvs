@@ -11,7 +11,7 @@ from yunmeng.numerics.mats.linalgs import LinearEqs
 from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.fields.datahubs import DataHub, Sample
 from yunmeng.numerics.mesh import Mesh
-from yunmeng.numerics.enums import VariableType, ElementType
+from yunmeng.numerics.enums import VariableType, ElementType, MeshDimension
 from yunmeng.setting import logger
 
 import time
@@ -30,7 +30,7 @@ class Burgers2D(BaseSolver):
         metas.type = SolverType.FVM
         metas.equation = "2d Burgers equation"
         metas.equation_expr = "ddt(rho*u)+div(rho*u*u)-div(k*grad(u))==src(Q(u))"
-        metas.dimension = "2d"
+        metas.dimension = MeshDimension.D2
         metas.default_ics = {"u": "uniform(0.0)"}
         metas.default_bcs = {"u": "neumann(0.0)"}
         metas.fields = {

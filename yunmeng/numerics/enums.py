@@ -119,10 +119,10 @@ class VariableType(Enum):
 class MeshDimension(Enum):
     """The mesh dimensions."""
 
-    D1 = "1d"
-    D2 = "2d"
-    D3 = "3d"
-    NONE = "none"
+    NONE = 0
+    D1 = 1
+    D2 = 2
+    D3 = 3
 
 
 class GeomType(Enum):

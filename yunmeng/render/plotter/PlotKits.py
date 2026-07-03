@@ -229,7 +229,7 @@ def plot_scatter(
 def plot_mesh_cloudmap(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
-    mesh_type: str,
+    mesh_type: int,
     scalars: np.ndarray,
     domain: str,
     title: str = "Cloudmap",
@@ -249,7 +249,7 @@ def plot_mesh_cloudmap(
     Args:
         points_coordinates: List of coordinates of points.
         cells: Polygons or polyhedrons of the mesh.
-        mesh_type: Type of the mesh, options: "2d", "3d".
+        mesh_type: Type of the mesh, e.g., 1, 2, 3.
         scalars: Scalar values.
         domain: Domain of the values, options: "point", "cell".
         title: Title of the plot.
@@ -264,7 +264,7 @@ def plot_mesh_cloudmap(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
+    mtype = vtk.VTK_POLYGON if mesh_type == 2 else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 
@@ -299,7 +299,7 @@ def plot_mesh_cloudmap(
 def plot_mesh_streamplot(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
-    mesh_type: str,
+    mesh_type: int,
     vectors: np.ndarray,
     domain: str,
     title: str = "Streamplot",
@@ -319,7 +319,7 @@ def plot_mesh_streamplot(
     Args:
         points_coordinates: List of coordinates of points.
         cells: Polygons or polyhedrons of the mesh.
-        mesh_type: Type of the mesh, options: "2d", "3d".
+        mesh_type: Type of the mesh, e.g., 1, 2, 3.
         vectors: Vector values.
         domain: Domain of the values, e.g. "point", "cell".
         title: Title of the plot.
@@ -334,7 +334,7 @@ def plot_mesh_streamplot(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
+    mtype = vtk.VTK_POLYGON if mesh_type == 2 else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 
@@ -403,7 +403,7 @@ def plot_mesh_scatters(
 def plot_mesh_geometry(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
-    mesh_type: str,
+    mesh_type: int,
     title: str = "Mesh",
     save_dir: str = None,
     *,
@@ -419,7 +419,7 @@ def plot_mesh_geometry(
     Args:
         points_coordinates: List of coordinates of points.
         cells: Polygons or polyhedrons of the mesh.
-        mesh_type: Type of the mesh, options: "2d", "3d".
+        mesh_type: Type of the mesh, e.g., 1, 2, 3.
         domain: Domain of the values, e.g. "point", "cell".
         title: Title of the plot.
         save_dir: Directory to save the plot.
@@ -429,7 +429,7 @@ def plot_mesh_geometry(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
+    mtype = vtk.VTK_POLYGON if mesh_type == 2 else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 
@@ -506,7 +506,7 @@ def _extract_mesh_data(mesh: Mesh):
     points_splited = {"x": points[:, 0], "y": points[:, 1], "z": points[:, 2]}
 
     cells = []
-    if mesh.dimension.value == "2d":
+    if mesh.dimension == MeshDimension.D2:
         for i, cell in enumerate(mesh.cells):
             node_ids = topo.cell_nodes[i]
             nodes = mesh.get_nodes(node_ids)

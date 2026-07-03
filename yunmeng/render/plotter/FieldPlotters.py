@@ -5,7 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Plotters for visualizing the fluid fields.
 """
 
-from yunmeng.numerics.mesh.meshes import Mesh, MeshDimension
+from yunmeng.numerics.mesh import Mesh, MeshDimension, ElementType
 from yunmeng.numerics.fields import Field, VariableType
 from yunmeng.render.plotter.PlotKits import (
     _extract_field_data,
@@ -59,7 +59,7 @@ def plot_field(
     """
     # extract the mesh data
     cells, points, points_splited = _extract_mesh_data(mesh)
-    mesh_domain = "point" if field.etype.value == "node" else "cell"
+    mesh_domain = "point" if field.etype == ElementType.NODE else "cell"
     mesh_type = mesh.dimension.value
 
     # extract the field data
@@ -119,7 +119,7 @@ def plot_field(
         plot_mesh_streamplot(
             points,
             cells,
-            mesh.dimension.value,
+            mesh_type,
             data,
             mesh_domain,
             save_dir=save_dir,
