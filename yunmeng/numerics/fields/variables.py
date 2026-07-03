@@ -36,6 +36,15 @@ class Variable:
         if not vtype.check_shape(data):
             raise ValueError(f"Shape {data.shape} doesn't match type {vtype.name}")
 
+        # Canonicalize scalar storage to 0-d so it matches VariableType.SCALAR.shape.
+        if vtype == VariableType.SCALAR and data.shape != ():
+            if data.shape == (1,):
+                data = data.reshape(())
+            else:
+                raise ValueError(
+                    f"Scalar Variable must have shape () or (1,), got {data.shape}"
+                )
+
         self._data = data
         self._type = vtype
         self._back = back or backend_context.active_backend
@@ -43,7 +52,7 @@ class Variable:
     @staticmethod
     def scalar(x: float, backend: Backend = None) -> "Variable":
         back = backend or get_backend()
-        data = back.array([x], dtype=back.float64)
+        data = back.array(x, dtype=back.float64)
         return Variable(data, VariableType.SCALAR, back)
 
     @staticmethod

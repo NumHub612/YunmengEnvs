@@ -724,8 +724,8 @@ class TestFieldMultiplications:
         # Check result type and values
         assert result_field.vtype == VariableType.SCALAR
         for shard in result_field._shards:
-            # Check shape: (N, 1) for scalar field
-            assert shard.data.shape[1] == 1
+            # Scalar fields are stored as (N,) consistent with VariableType.SCALAR.shape
+            assert shard.data.ndim == 1
             # Check value: Should be 32.0
             np.testing.assert_allclose(shard.data, 32.0, rtol=1e-5)
 

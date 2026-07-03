@@ -263,7 +263,9 @@ class Lap02(IOperator):
                 values[nid, nid] = 1.0
                 val = bc.evaluate().value
                 if isinstance(val, Variable):
-                    val = val.data if val.vtype == VariableType.SCALAR else val.data
+                    val = val.data
+                if hasattr(val, "item"):
+                    val = val.item()
                 rhs_arr[nid] = float(val)
 
             elif bc.get_type() == BoundaryType.FLUX:

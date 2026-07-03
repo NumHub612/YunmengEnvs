@@ -483,6 +483,11 @@ class Field:
         """Create a field from a global array."""
         mesh_size = sum([s.get_sizes(etype)[1] for s in mesh_shards])
         assert data.shape[0] == mesh_size, "Data size != mesh size"
+
+        # Canonicalize scalar field storage from legacy (N, 1) to (N,).
+        if vtype == VariableType.SCALAR and data.ndim == 2 and data.shape[-1] == 1:
+            data = data.reshape(data.shape[0])
+
         field = Field(
             mesh_shards,
             vtype,
@@ -570,6 +575,9 @@ class Field:
                 dtype=self._backend.float64,
                 gpu=self._shards[sid].gpu,
             )
+            # Guard against legacy (1,) scalar values being assigned to scalar slots.
+            if self._meta.vtype == VariableType.SCALAR and hasattr(data, "shape") and data.shape == (1,):
+                data = data.reshape(())
             self._shards[sid].data[l] = data
 
     def _get_shard_indices(self, indices: DataIndex):
@@ -649,10 +657,8 @@ class Field:
 
             # --- case 3: Vector * Vector (Dot Product) ---
             elif vtype_a == VariableType.VECTOR and vtype_b == VariableType.VECTOR:
-                # dot product: (N, 3) -> (N, 1)
+                # dot product: (N, 3) -> (N,)
                 shard_data = xp.einsum("ni,ni->n", a, b)
-                # make it (N, 1) for consistent storage
-                shard_data = shard_data[..., np.newaxis]
                 result_datas.append(shard_data)
                 result_vtype = VariableType.SCALAR
 
