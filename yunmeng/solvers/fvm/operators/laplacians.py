@@ -11,7 +11,7 @@ from yunmeng.solvers.interfaces import (
     OperatorType,
     BoundaryType,
 )
-from yunmeng.numerics.linalgs.linalgs import LinearEqs
+from yunmeng.numerics.linalgs import LinearEqs
 from yunmeng.numerics.grids import Grid
 from yunmeng.numerics.algos import MeshTopo, MeshGeom, MeshPart
 from yunmeng.numerics.fields import Field, Variable, DataHub
