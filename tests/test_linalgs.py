@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import scipy.sparse as sp
 
-from yunmeng.numerics.mats import LinearEqs, TorchMatrix, NumpyMatrix
+from yunmeng.numerics.linalgs import LinearEqs, TorchMatrix, NumpyMatrix
 from yunmeng.numerics.fields import Field, MeshShard
 from yunmeng.numerics.enums import VariableType, ElementType, BackendType
 

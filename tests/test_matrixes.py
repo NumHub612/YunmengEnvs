@@ -7,7 +7,7 @@ import pytest
 import torch
 import numpy as np
 import scipy.sparse as sp
-from yunmeng.numerics.mats import Matrix, TorchMatrix, NumpyMatrix
+from yunmeng.numerics.linalgs import Matrix, TorchMatrix, NumpyMatrix
 
 # ============================================
 # region Fixtures

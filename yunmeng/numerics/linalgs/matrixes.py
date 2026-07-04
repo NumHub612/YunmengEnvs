@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Sparse matrix implementations optimized for CFD solvers.
 """
 
-from yunmeng.numerics.mats.matrix import Matrix, ArrayLike
+from yunmeng.numerics.linalgs.matrix import Matrix, ArrayLike
 import scipy.sparse as sp
 import torch
 import numpy as np

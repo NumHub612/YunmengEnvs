@@ -7,7 +7,7 @@ Basic and simple equation class for user customized pde equations.
 
 from yunmeng.solvers.interfaces import IEquation, IOperator
 from yunmeng.numerics.fields import Variable, Field
-from yunmeng.numerics.mats import LinearEqs
+from yunmeng.numerics.linalgs import LinearEqs
 from yunmeng.utils.SympifyNumExpr import lambdify_numexpr
 
 import numpy as np

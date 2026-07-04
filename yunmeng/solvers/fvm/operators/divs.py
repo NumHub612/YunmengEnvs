@@ -11,7 +11,7 @@ from yunmeng.solvers.interfaces import (
     OperatorType,
     BoundaryType,
 )
-from yunmeng.numerics.mats.linalgs import LinearEqs
+from yunmeng.numerics.linalgs.linalgs import LinearEqs
 from yunmeng.numerics.grids import Grid
 from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.fields.datahubs import DataHub

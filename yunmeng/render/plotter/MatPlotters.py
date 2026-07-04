@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Matrix plotter for matrix visualization.
 """
 
-from yunmeng.numerics.mats.linalgs import Matrix, LinearEqs
+from yunmeng.numerics.linalgs.linalgs import Matrix, LinearEqs
 from yunmeng.render.plotter import PlotKits
 
 import numpy as np

@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Linear equations solver.
 """
 
-from yunmeng.numerics.mats.matrixes import Matrix, TorchMatrix, NumpyMatrix
+from yunmeng.numerics.linalgs.matrixes import Matrix, TorchMatrix, NumpyMatrix
 from yunmeng.numerics.fields import Field, FieldMeta, VariableType
 import torch
 import numpy as np
