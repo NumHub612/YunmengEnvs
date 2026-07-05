@@ -28,10 +28,28 @@ class OperatorType(enum.Enum):
     UNKNOWN = "unknown"
 
 
+class OperatorMode(enum.Enum):
+    """The operator mode."""
+
+    EXPLICIT = "explicit"
+    IMPLICIT = "implicit"
+    UNKNOWN = "unknown"
+
+
 class IOperator(ABC):
     """
     Interface for discretizing PDE term to computable form.
+
+    Lifecycle:
+        1. Construction: ``__init__(fields, **kwargs)``
+           and scheme-specific parameters (e.g. configures, limiter type).
+        2. Preparation: ``prepare(mesh, bounds)`` — precompute stencils,
+           neighbor indices, allocate scratch arrays. Called once before
+           the time-stepping loop.
+        3. Evaluation: ``forward(data_hub, **kwargs)``— called every step.
     """
+
+    # -- class-level metadata -----------------------
 
     @classmethod
     @abstractmethod
@@ -49,6 +67,16 @@ class IOperator(ABC):
         """
         pass
 
+    @classmethod
+    @abstractmethod
+    def get_mode(cls) -> OperatorMode:
+        """
+        The mode of the operator.
+        """
+        pass
+
+    # -- properties ---------------------------------
+
     @property
     def target_fields(self) -> list[str]:
         """
@@ -63,11 +91,14 @@ class IOperator(ABC):
         """
         return 1
 
+    # -- lifecycle ----------------------------------
+
     @abstractmethod
     def prepare(
         self,
         mesh: Mesh,
         bounds: dict[int, dict[str, IBoundaryCondition]],
+        **kwargs,
     ):
         """
         Prepare the operator.
@@ -75,7 +106,7 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def forward(self, sources: Field | DataHub, dt: float) -> Field | LinearEqs:
+    def forward(self, fields: DataHub, **kwargs) -> Field | LinearEqs:
         """
         Run the operator on field.
 

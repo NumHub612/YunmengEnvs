@@ -10,6 +10,7 @@ from yunmeng.solvers.interfaces import (
     IOperator,
     OperatorType,
     BoundaryType,
+    OperatorMode,
 )
 from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.algos import MeshTopo
@@ -26,6 +27,10 @@ class Div01(IOperator):
     @classmethod
     def get_type(cls) -> OperatorType:
         return OperatorType.DIV
+
+    @classmethod
+    def get_mode(cls):
+        return OperatorMode.EXPLICIT
 
     @classmethod
     def get_name(cls) -> str:

@@ -13,6 +13,7 @@ from yunmeng.solvers.interfaces import (
     IOperator,
     OperatorType,
     BoundaryType,
+    OperatorMode,
 )
 from yunmeng.numerics.enums import BackendType
 from yunmeng.numerics.grids import Grid, ElementType
@@ -31,6 +32,10 @@ class Lap01(IOperator):
     @classmethod
     def get_type(cls) -> OperatorType:
         return OperatorType.LAPLACIAN
+
+    @classmethod
+    def get_mode(cls):
+        return OperatorMode.EXPLICIT
 
     @classmethod
     def get_name(cls) -> str:
@@ -161,6 +166,10 @@ class Lap02(IOperator):
     @classmethod
     def get_type(cls) -> OperatorType:
         return OperatorType.LAPLACIAN
+
+    @classmethod
+    def get_mode(cls):
+        return OperatorMode.IMPLICIT
 
     @classmethod
     def get_name(cls) -> str:
