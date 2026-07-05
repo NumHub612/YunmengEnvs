@@ -15,11 +15,32 @@ from yunmeng.solvers.commons import (
     IOperator,
     OperatorType,
 )
-from yunmeng.solvers.interfaces import BoundaryType
+from yunmeng.solvers.interfaces import BoundaryType, SolverConfig
 from yunmeng.solvers.commons import inits, boundaries, supports
 from yunmeng.setting import logger
 
 import time
+from dataclasses import dataclass, field
+
+
+@dataclass
+class BurgersConfig(SolverConfig):
+    """Configuration for BurgersExplicitSolver."""
+
+    # Physical parameters
+    nu: float = 0.01  # Kinematic viscosity
+
+    # Numerical parameters
+    cfl: float = 0.5  # CFL number for adaptive time step
+    min_dt: float = 1e-6  # Minimum allowed time step
+    time_order: int = 1  # Time integration order (1=Euler, 2=RK2)
+
+    # IC / BC defaults (stored as dicts for serialization)
+    default_ic_value: list[float] = field(default_factory=lambda: [0.0, 0.0])
+
+    @classmethod
+    def get_solver_name(cls) -> str:
+        return "BurgersFdm2D"
 
 
 class BurgersExplicitSolver(BaseSolver):
@@ -44,6 +65,10 @@ class BurgersExplicitSolver(BaseSolver):
             ),
         }
         return metas
+
+    @classmethod
+    def get_config_class(cls):
+        return BurgersConfig
 
     @classmethod
     def get_name(cls) -> str:

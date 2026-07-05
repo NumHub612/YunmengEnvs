@@ -15,13 +15,36 @@ from yunmeng.solvers.commons import (
     IOperator,
     OperatorType,
 )
-from yunmeng.solvers.interfaces import BoundaryType
+from yunmeng.solvers.interfaces import BoundaryType, SolverConfig
 from yunmeng.solvers.commons import inits, boundaries, supports
 
 # from yunmeng.numerics.consts import RHO
 from yunmeng.setting import logger
 
 import time
+from dataclasses import dataclass, field
+
+
+@dataclass
+class NSConfig(SolverConfig):
+    """Configuration for NavierStokesSolver."""
+
+    # Physical parameters
+    nu: float = 0.01  # Kinematic viscosity
+    rho: float = 1.0  # Fluid density (was hard-coded)
+
+    # Numerical parameters
+    cfl: float = 0.5  # CFL number
+    min_dt: float = 1e-6  # Minimum allowed time step
+    projection_iters: int = 1  # Pressure projection iterations
+
+    # IC / BC defaults
+    default_u_ic: list[float] = field(default_factory=lambda: [0.0, 0.0])
+    default_p_ic: float = 0.0
+
+    @classmethod
+    def get_solver_name(cls) -> str:
+        return "NavierStokesFdm2D"
 
 
 class NavierStokesSolver(BaseSolver):
@@ -63,6 +86,10 @@ class NavierStokesSolver(BaseSolver):
             ),
         }
         return metas
+
+    @classmethod
+    def get_config_class(cls):
+        return NSConfig
 
     @classmethod
     def get_name(cls) -> str:

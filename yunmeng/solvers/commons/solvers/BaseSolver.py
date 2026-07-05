@@ -10,12 +10,13 @@ from yunmeng.solvers.interfaces import (
     IOperator,
     ISolver,
     ISolverCallback,
-    IInitCondition,
+    IInitialCondition,
     IBoundaryCondition,
     OperatorType,
     SolverMeta,
     SolverStatus,
     SolverType,
+    SolverConfig,
 )
 from yunmeng.numerics.mesh import Element, ElementType, Mesh
 from yunmeng.numerics.grids import Grid
@@ -29,6 +30,24 @@ from typing import Union
 class BaseSolver(ISolver):
     """
     Basic solver.
+
+    Example::
+
+        solver = Solver("demo", mesh, ops, config)
+
+        # Assembly
+        solver.add_ic("u", my_ic)
+        solver.add_bc("u", my_bc, [0,1], ElementType.NODE)
+        cb = VtkWriter("out/")
+        solver.add_callback(cb)
+
+        # Initialize
+        solver.initialize(end_time=1.0)
+
+        # Runtime
+        while not solver.status.finished:
+            status = solver.forward()      # CFL adaptive
+            # or: solver.forward(dt=0.001) # fixed dt
     """
 
     def __init__(self, id: str, mesh: Mesh, operators: list[IOperator] = None):
@@ -52,8 +71,8 @@ class BaseSolver(ISolver):
         self._operators: list[IOperator] = operators
 
         # TODO: Use uniform ConditionContainer managing the conditions.
-        self._default_ics: IInitCondition = None
-        self._ics: dict[str, IInitCondition] = defaultdict(dict)
+        self._default_ics: IInitialCondition = None
+        self._ics: dict[str, IInitialCondition] = defaultdict(dict)
 
         self._default_bcs: IBoundaryCondition = None
         self._bcs: dict[int, dict[str, IBoundaryCondition]] = defaultdict(dict)
@@ -65,6 +84,10 @@ class BaseSolver(ISolver):
     @property
     def status(self) -> SolverStatus:
         return self._status
+
+    @property
+    def config(self) -> SolverConfig:
+        pass
 
     def get_solution(self, field: str) -> Field:
         if field not in self._fields:
@@ -80,8 +103,8 @@ class BaseSolver(ISolver):
         cb.setup(self, self._mesh)
         self._callbacks.append(cb)
 
-    def add_ic(self, field: str, ic: IInitCondition):
-        if not isinstance(ic, IInitCondition):
+    def add_ic(self, field: str, ic: IInitialCondition):
+        if not isinstance(ic, IInitialCondition):
             raise ValueError(f"Invalid initial condition: {ic}")
 
         if field not in self.get_meta().fields:
@@ -130,6 +153,20 @@ class BaseSolver(ISolver):
 
             self._bcs[eid][field] = bc
 
+    def clear_bcs(self, field: str = None):
+        if field is None:
+            self._bcs.clear()
+        else:
+            for eid in self._bcs:
+                if field in self._bcs[eid]:
+                    del self._bcs[eid][field]
+
+    def remove_callback(self, cb_id: str):
+        for cb in self._callbacks:
+            if cb.id == cb_id:
+                self._callbacks.remove(cb)
+                break
+
     def save(self, path: str):
         pass
 
@@ -143,7 +180,4 @@ class BaseSolver(ISolver):
         raise NotImplementedError()
 
     def assimilate(self):
-        raise NotImplementedError()
-
-    def forward(self) -> SolverStatus:
         raise NotImplementedError()
