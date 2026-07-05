@@ -9,7 +9,7 @@ from yunmeng.numerics.fields import Field
 from abc import ABC, abstractmethod
 
 
-class IInitCondition(ABC):
+class IInitialCondition(ABC):
     """
     Interface class for initializing the field.
     """

@@ -5,11 +5,11 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Initialization by hot-starting field.
 """
 
-from yunmeng.solvers.interfaces import IInitCondition
+from yunmeng.solvers.interfaces import IInitialCondition
 from yunmeng.numerics.fields import Field
 
 
-class HotstartInitialization(IInitCondition):
+class HotstartInitialization(IInitialCondition):
     """
     Hotstart initialization condition.
     """

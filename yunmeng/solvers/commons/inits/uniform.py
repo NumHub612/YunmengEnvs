@@ -5,12 +5,12 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Initialization by uniform value method.
 """
 
-from yunmeng.solvers.interfaces import IInitCondition
+from yunmeng.solvers.interfaces import IInitialCondition
 from yunmeng.numerics.fields import Field, Var
 import numpy as np
 
 
-class UniformInitialization(IInitCondition):
+class UniformInitialization(IInitialCondition):
     """
     Uniform initialization condition.
     """

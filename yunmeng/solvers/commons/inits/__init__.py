@@ -1,11 +1,10 @@
 from yunmeng.solvers.commons.inits.uniform import *
 from yunmeng.solvers.commons.inits.hotstart import *
 
-
 # register all the init methods
 init_methods = {}
 for name, obj in list(locals().items()):
-    if isinstance(obj, type) and issubclass(obj, IInitCondition):
+    if isinstance(obj, type) and issubclass(obj, IInitialCondition):
         if name == "IInitCondition":
             continue
         if name in init_methods:
