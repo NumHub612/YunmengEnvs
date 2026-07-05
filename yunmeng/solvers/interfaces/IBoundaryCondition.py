@@ -16,14 +16,9 @@ from yunmeng.numerics.fields import Variable
 class BoundaryValue:
     """Boundary condition value container."""
 
-    # Prescribed value (water level, velocity, temperature, etc.)
-    value: Optional[Variable] = None
-
-    # Prescribed flux (discharge, mass flux, momentum flux, etc.)
-    flux: Optional[Variable] = None
-
-    # Type-specific extra data (coefficients, etc.)
-    extra: Optional[Dict[str, Any]] = None
+    value: Optional[Variable] = None  # Prescribed value
+    flux: Optional[Variable] = None  # Prescribed flux
+    extra: Optional[Dict[str, Any]] = None  # Type-specific extra data
 
 
 class BoundaryType(Enum):
@@ -69,15 +64,22 @@ class IBoundaryCondition(ABC):
         """
         pass
 
-    @abstractmethod
-    def update(self):
-        """
-        Updates the boundary value.
-        """
-        pass
+    # @abstractmethod
+    # def add_elements(self, eids: list[int]):
+    #     """
+    #     Adds elements to the boundary condition.
+    #     """
+    #     pass
+
+    # @abstractmethod
+    # def remove_elements(self, eids: list[int]):
+    #     """
+    #     Removes elements from the boundary condition.
+    #     """
+    #     pass
 
     @abstractmethod
-    def evaluate(self) -> BoundaryValue:
+    def evaluate(self, **kwargs) -> BoundaryValue:
         """
         Gets current boundary condition.
         """
