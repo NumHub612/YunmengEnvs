@@ -247,12 +247,9 @@ class NavierStokesSolver(BaseSolver):
 
     def _apply_boundary_conditions(self):
         """Apply boundary conditions to the fields."""
-        for nid in self._topo.boundary_nodes:
-            for var in self._fields.keys():
-                bc = self._bcs[nid][var]
-                if bc.get_type() == BoundaryType.VALUE:
-                    value = bc.evaluate().value
-                    self._fields[var][nid] = value
+        for target_field, bcs in self._bcs.items():
+            for bc in bcs:
+                bc.apply(self._fields[target_field])
 
     def _solve_momentum(self, dt: float, new_t: float):
         """Solve the momentum equation to get tentative velocity."""
@@ -265,10 +262,8 @@ class NavierStokesSolver(BaseSolver):
                 u_diff = op.forward(u, dt)
 
         u_star = u - dt * u_grad @ u + dt * u_diff
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid]["u"]
-            if bc.get_type() == BoundaryType.VALUE:
-                u_star[nid] = bc.evaluate().value
+        for bc in self._bcs["u"]:
+            bc.apply(u_star)
 
         self._fields["u"] = u_star
         self._buffs.push_field("u", Sample(new_t, u_star))

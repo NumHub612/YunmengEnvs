@@ -93,7 +93,7 @@ class Lap01(IOperator):
         return lap_eqs
 
     def _handle_boundary(self, fid: int, bc: IBoundaryCondition):
-        items = bc.evaluate()
+        items = bc.apply()
         if bc.get_type() == BoundaryType.FIXED:
             return self._boundary_1st(fid, items)
         elif bc.get_type() == BoundaryType.NATURAL:

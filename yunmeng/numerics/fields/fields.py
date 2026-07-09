@@ -197,13 +197,13 @@ class HaloMode(Enum):
 class FieldMeta:
     """Field metadata."""
 
+    name: str = None
     version: int = 0
     size: int = None
     etype: ElementType = ElementType.CELL
     vtype: VariableType = VariableType.scalar()
     btype: BackendType = BackendType.NUMPY
     requires_grad: bool = False
-    field: str = None
 
 
 @dataclass
@@ -263,6 +263,7 @@ class Field:
         mesh_shards: list[MeshShard],
         vtype: VariableType,
         etype: ElementType,
+        name: str = None,
         init_val: DataItem = None,
         requires_grad: bool = False,
     ):
@@ -270,6 +271,7 @@ class Field:
         self._backend = get_backend()
         self._mesh_shards = mesh_shards
         self._meta = FieldMeta(
+            name=name,
             version=0,
             size=self._get_total_size(mesh_shards, etype),
             etype=etype,
@@ -451,7 +453,10 @@ class Field:
     def from_shard(
         shards: list[FieldShard], mesh_shards: list[MeshShard], meta: FieldMeta
     ) -> "Field":
-        """Create a field from pre-initialized shards."""
+        """Create a field from pre-initialized shards.
+
+        TODO: refactor.
+        """
         total_size = sum([shard.n_core for shard in shards])
         assert total_size == meta.size, "Shard size != field size"
 
@@ -552,6 +557,9 @@ class Field:
         # Mark all shards as dirty for halo sync
         self._mark_dirty()
         return self
+
+    def reset_name(self, name: str):
+        self._meta.name = name
 
     # --------------------------------------------------
     # region Properties

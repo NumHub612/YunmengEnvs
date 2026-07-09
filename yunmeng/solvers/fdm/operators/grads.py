@@ -138,7 +138,7 @@ class Grad01(IOperator):
         """Apply boundary conditions to the field."""
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
-            value = bc.evaluate().value
+            value = bc.apply().value
             field[nid] = value
 
     # ------------------------------------------------------------------
@@ -360,7 +360,7 @@ class Grad02(IOperator):
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
             if bc.get_type() == BoundaryType.VALUE:
-                value = bc.evaluate().value
+                value = bc.apply().value
                 field[nid] = value
 
     def _calculate_vector_field(self, field: Field) -> Field:
@@ -395,7 +395,7 @@ class Grad02(IOperator):
             bc = self._bcs[nid][self._var]
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
             if bc.get_type() == BoundaryType.FLUX:
-                flux = bc.evaluate().flux
+                flux = bc.apply().flux
                 new_field[nid] = flux
             else:
                 # Guard against None neighbors on domain boundaries
@@ -446,7 +446,7 @@ class Grad02(IOperator):
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
             if bc.get_type() == BoundaryType.FLUX:
-                value = bc.evaluate().flux
+                value = bc.apply().flux
                 new_field[nid] = value
 
         new_field._shards[0].data = grad.reshape(-1, dim)

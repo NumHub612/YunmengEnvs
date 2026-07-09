@@ -40,7 +40,7 @@ class BurgersConfig(SolverConfig):
 
     @classmethod
     def get_solver_name(cls) -> str:
-        return "BurgersFdm2D"
+        return BurgersExplicitSolver.get_name()
 
 
 class BurgersExplicitSolver(BaseSolver):
@@ -204,11 +204,9 @@ class BurgersExplicitSolver(BaseSolver):
 
     def _apply_boundary_conditions(self):
         """Apply boundary conditions to the velocity field."""
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid]["u"]
-            if bc.get_type() == BoundaryType.VALUE:
-                value = bc.evaluate().value
-                self._fields["u"][nid] = value
+        for target_field, bcs in self._bcs.items():
+            for bc in bcs:
+                bc.apply(self._fields[target_field])
 
     def _update_status(self, time_cost: float, dt: float):
         self._status.current_time += dt

@@ -83,5 +83,5 @@ class Src01(IOperator):
         """Apply boundary conditions to the field."""
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
-            value = bc.evaluate().value
+            value = bc.apply().value
             field[nid] = value

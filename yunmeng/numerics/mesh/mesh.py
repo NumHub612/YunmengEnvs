@@ -9,6 +9,8 @@ from yunmeng.numerics.enums import MeshDimension, ElementType
 from yunmeng.numerics.mesh.elements import Node, Face, Cell
 
 import numpy as np
+from dataclasses import dataclass
+from typing import Optional, Callable
 
 # -----------------------------------------------
 # region Mesh
@@ -161,20 +163,6 @@ class Mesh:
     # assistants
     # -----------------------------------------------
 
-    def modify(self, modifier, **kwargs):
-        """Modify the mesh."""
-        from yunmeng.numerics.algos import MeshModifyMode
-
-        if modifier.validate(self, **kwargs):
-            modifier.modify(self, **kwargs)
-            self._version += 1
-            self._geom = None
-            if modifier.mode != MeshModifyMode.GEOMETRY:
-                self._topo = None
-                self._part = None
-        else:
-            raise ValueError("Invalid modifier.")
-
     def get_topo_assistant(self):
         """Return the mesh topology assistant."""
         from yunmeng.numerics.algos import MeshTopo
@@ -198,3 +186,43 @@ class Mesh:
         if self._part is None:
             self._part = MeshPart(self)
         return self._part
+
+    def modify(self, modifier, **kwargs):
+        """Modify the mesh."""
+        from yunmeng.numerics.algos import MeshModifyMode
+
+        if modifier.validate(self, **kwargs):
+            modifier.modify(self, **kwargs)
+            self._version += 1
+            self._geom = None
+            if modifier.mode != MeshModifyMode.GEOMETRY:
+                self._topo = None
+                self._part = None
+        else:
+            raise ValueError("Invalid modifier.")
+
+
+# -----------------------------------------------
+# region Region
+# -----------------------------------------------
+
+
+@dataclass
+class Region:
+    """
+    A region of the mesh.
+
+    priority: indices > tags > predicate > type。
+    """
+
+    name: str
+    type: ElementType = ElementType.NONE
+    indices: Optional[list[int]] = None
+    tags: Optional[list[str]] = None
+    predicate: Optional[Callable[[np.ndarray], np.ndarray]] = None
+
+    def select(self, elements: np.ndarray) -> np.ndarray:
+        """Return the mask of the region."""
+        if self.predicate is not None:
+            return self.predicate(elements)
+        raise ValueError(f"Region {self.name} have no predicate method.")

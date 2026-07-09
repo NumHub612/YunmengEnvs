@@ -109,7 +109,7 @@ class Lap01(IOperator):
         """Apply boundary conditions to the field."""
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid][self._var]
-            value = bc.evaluate().value
+            value = bc.apply().value
             field[nid] = value
 
     def _calculate_vector_field(self, field: Field) -> Field:
@@ -252,7 +252,7 @@ class Lap02(IOperator):
                 # Dirichlet: enforce p = value at boundary
                 values[nid, :] = 0.0
                 values[nid, nid] = 1.0
-                val = bc.evaluate().value
+                val = bc.apply().value
                 if isinstance(val, Variable):
                     val = val.data
                 if hasattr(val, "item"):
@@ -261,7 +261,7 @@ class Lap02(IOperator):
 
             elif bc.get_type() == BoundaryType.FLUX:
                 # Neumann: ghost node reflection (2nd-order)
-                flux = bc.evaluate().flux
+                flux = bc.apply().flux
                 qx, qy = self._extract_flux_components(flux)
 
                 # Clear the row

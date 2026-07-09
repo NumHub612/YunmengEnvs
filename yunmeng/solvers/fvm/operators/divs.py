@@ -90,7 +90,7 @@ class Div01(IOperator):
         return div_eqs
 
     def _handle_boundary(self, fid: int, bc: IBoundaryCondition, field: Field):
-        items = bc.evaluate()
+        items = bc.apply()
         if bc.get_type() == BoundaryType.FIXED:
             return self._boundary_1st(fid, items, field)
         elif bc.get_type() == BoundaryType.NATURAL:

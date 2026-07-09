@@ -7,6 +7,7 @@ Common handy tools for topology and geometry.
 
 from yunmeng.numerics.fields import Variable
 from yunmeng.numerics.mesh.elements import Element, Face, Coordinate
+from yunmeng.numerics.mesh.mesh import Region, Mesh, ElementType
 
 from typing import List
 import numpy as np
@@ -78,6 +79,25 @@ def sort_anticlockwise(
 
     indexes, elements = zip(*sorted_points)
     return list(elements), list(indexes)
+
+
+def get_element_ids(mesh: Mesh, region: Region) -> np.ndarray:
+    """Get the ids of elements in the region."""
+    if region.indices is not None:
+        resolved_ids = np.array(region.indices)
+    elif region.tags is not None:
+        ids, etype = mesh.get_group(region.name)
+        resolved_ids = np.array(ids)
+    elif region.predicate is not None:
+        elements = mesh.get_elements(region.type)
+        mask = region.select(elements)
+        resolved_ids = np.where(mask)[0]
+    elif region.type is not None:
+        element_nb = mesh.get_element_count(region.type)
+        resolved_ids = np.arange(element_nb)
+    else:
+        raise ValueError("Invalid region definition.")
+    return resolved_ids
 
 
 # -----------------------------------------------

@@ -108,7 +108,7 @@ class Div01(IOperator):
         for nid in self._topo.boundary_nodes:
             bc = self._bcs[nid]["u"]
             if bc.get_type() == BoundaryType.VALUE:
-                u_bc[nid] = bc.evaluate().value
+                u_bc[nid] = bc.apply().value
 
         for nid in self._topo.boundary_nodes:
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)

@@ -9,7 +9,9 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union, Any
 from enum import Enum, auto
 from dataclasses import dataclass
-from yunmeng.numerics.fields import Variable
+
+from yunmeng.numerics.mesh import Region, Mesh
+from yunmeng.numerics.fields import Variable, FieldMeta, Field
 
 
 @dataclass
@@ -58,29 +60,59 @@ class IBoundaryCondition(ABC):
 
     @property
     @abstractmethod
+    def target_field(self) -> str:
+        """
+        The target field.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def region(self) -> Region:
+        """
+        The boundary region.
+        """
+        pass
+
+    @property
+    @abstractmethod
     def id(self) -> str:
         """
         The instance name.
         """
         pass
 
-    # @abstractmethod
-    # def add_elements(self, eids: list[int]):
-    #     """
-    #     Adds elements to the boundary condition.
-    #     """
-    #     pass
-
-    # @abstractmethod
-    # def remove_elements(self, eids: list[int]):
-    #     """
-    #     Removes elements from the boundary condition.
-    #     """
-    #     pass
+    @abstractmethod
+    def attach(self, mesh: Mesh):
+        """
+        Attaches the mesh.
+        """
+        pass
 
     @abstractmethod
-    def evaluate(self, **kwargs) -> BoundaryValue:
+    def validate(self, **kwargs):
         """
-        Gets current boundary condition.
+        Validates.
+        """
+        pass
+
+    @abstractmethod
+    def get(self, **kwargs) -> BoundaryValue:
+        """
+        Gets current boundary conditions.
+        """
+        pass
+
+    @abstractmethod
+    def apply(self, field: Field, **kwargs):
+        """
+        Applys boundary condition.
+        """
+        pass
+
+    @abstractmethod
+    def reset(self) -> None:
+        """
+        Resets the boundary condition.
         """
         pass
