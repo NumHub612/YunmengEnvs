@@ -7,7 +7,7 @@ To provide the Neumann boundary condition.
 
 from yunmeng.solvers.commons.solvers import BaseBoundary, BoundaryType, BoundaryValue
 from yunmeng.numerics.mesh import Region
-from yunmeng.numerics.fields import Field, Var
+from yunmeng.numerics.fields import Field, Variable, VariableType, Var
 from yunmeng.setting import logger
 
 
@@ -29,7 +29,7 @@ class FluxBoundary(BaseBoundary):
         id: str,
         target_field: str,
         region: Region,
-        flux: float | list[float],
+        flux: Variable | float | list[float],
     ):
         """
         Args:
@@ -39,12 +39,17 @@ class FluxBoundary(BaseBoundary):
             flux: Prescribed boundary flux.
         """
         super().__init__(id, target_field, region)
-        self._bc = BoundaryValue(flux=Var(flux))
+        dim = 2
+        if isinstance(flux, Variable):
+            dim = flux.ndim
+        elif isinstance(flux, list):
+            dim = max(min(3, len(flux)), 2)
+        self._bc = BoundaryValue(flux=Var(flux, vtype=VariableType.vector(dim)))
 
     def apply(self, field: Field):
         if field.meta.name != self._target_field:
             logger.warning(
-                f"Field {field.meta.name} does not match target field {self._target_field}"
+                f"Field {field.meta.name} not match target field {self._target_field}."
             )
 
         if field.meta.vtype != self._bc.value.vtype:

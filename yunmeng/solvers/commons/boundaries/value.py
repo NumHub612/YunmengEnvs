@@ -7,7 +7,7 @@ To provide the Dirichlet boundary condition.
 
 from yunmeng.solvers.commons.solvers import BaseBoundary, BoundaryType, BoundaryValue
 from yunmeng.numerics.mesh import Region
-from yunmeng.numerics.fields import Field, Var
+from yunmeng.numerics.fields import Field, Variable, Var
 from yunmeng.setting import logger
 
 
@@ -29,7 +29,7 @@ class ValueBoundary(BaseBoundary):
         id: str,
         target_field: str,
         region: Region,
-        value: float | list[float],
+        value: Variable | float | list[float],
     ):
         """
         Args:

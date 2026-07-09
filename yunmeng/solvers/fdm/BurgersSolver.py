@@ -7,6 +7,7 @@ Burgers' equation solver using the finite difference method.
 
 from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
 from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
+from yunmeng.numerics.mesh import get_element_ids
 from yunmeng.solvers.commons import (
     BaseSolver,
     SolverMeta,
@@ -27,16 +28,12 @@ from dataclasses import dataclass, field
 class BurgersConfig(SolverConfig):
     """Configuration for BurgersExplicitSolver."""
 
-    # Physical parameters
+    time_order: int = 1  # Time integration order
+    time_step: float = 0.001  # Initial time step
+    end_time: float = 0.0  # End time
+    min_dt: float = 1e-6  # Minimum time step
+    cfl: float = 0.5  # CFL number
     nu: float = 0.01  # Kinematic viscosity
-
-    # Numerical parameters
-    cfl: float = 0.5  # CFL number for adaptive time step
-    min_dt: float = 1e-6  # Minimum allowed time step
-    time_order: int = 1  # Time integration order (1=Euler, 2=RK2)
-
-    # IC / BC defaults (stored as dicts for serialization)
-    default_ic_value: list[float] = field(default_factory=lambda: [0.0, 0.0])
 
     @classmethod
     def get_solver_name(cls) -> str:
@@ -56,10 +53,11 @@ class BurgersExplicitSolver(BaseSolver):
         metas.equation = "2d Burgers' equation"
         metas.equation_expr = "ddt(u) + grad(u)@u = lap(u, nu) + src(Q)"
         metas.dimension = MeshDimension.D2
-        metas.default_ics = {"u": inits.UniformInitialization}
-        metas.default_bcs = {"u": boundaries.WallBoundary}
+        metas.default_ics = {"u": inits.UniformInitializer}
+        metas.default_bcs = {"u": None}
         metas.fields = {
             "u": FieldMeta(
+                name="u",
                 vtype=VariableType.vector(2),
                 etype=ElementType.NODE,
             ),
@@ -74,72 +72,53 @@ class BurgersExplicitSolver(BaseSolver):
     def get_name(cls) -> str:
         return "BurgersFdm2D"
 
-    def __init__(self, id: str, mesh: Grid, operators: list[IOperator]):
-        super().__init__(id, mesh, operators)
+    def __init__(self, id: str, mesh: Grid, operators: list[IOperator], configs: dict):
+        super().__init__(id, mesh, operators, BurgersConfig.from_dict(configs))
         assert isinstance(mesh, Grid), "BurgersFdm2D only supports Grid."
 
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
         self._part = mesh.get_part_assistant()
 
-        self._time_step = 0.001
-        self._nu = 0.01
-        self._cfl = 0.5
         self._dx = None
         self._dy = None
 
-        self._default_bcs = {"u": boundaries.WallBoundary("u")}
-        self._default_ics = {"u": inits.UniformInitialization("u", [0.0, 0.0])}
-
         self._fields = {
-            "u": Field(self._part.shards, VariableType.vector(2), ElementType.NODE)
+            "u": Field(
+                self._part.shards, VariableType.vector(2), ElementType.NODE, name="u"
+            )
         }
         self._buffs: DataHub = None
 
-    def initialize(
-        self,
-        total_time: float,
-        time_step: float,
-        cfl: float = 0.5,
-    ):
-        """
-        Initialize the solver.
-
-        Args:
-            total_time: The total time of the simulation.
-            time_step: The time step for the simulation.
-            cfl: The CFL number for time step calculation.
-        """
-
+    def initialize(self):
         # Check initial conditions
         if "u" not in self._ics:
-            self._ics["u"] = self._default_ics["u"]
-            logger.warning(
-                f"Solver {self._id} has no initial condition for u, using default ic."
-            )
+            raise ValueError("No initial condition for u.")
 
         self._ics["u"].apply(self._fields["u"])
 
         # Check boundary conditions
-        for node in self._topo.boundary_nodes:
-            if node not in self._bcs or "u" not in self._bcs[node]:
-                self._bcs[node]["u"] = self._default_bcs["u"]
-                logger.warning(
-                    f"Solver {self._id} has no boundary condition for u at node {node}, "
-                    f"using default bc."
-                )
+        existed_ids = []
+        for bc in self._bcs["u"]:
+            existed_ids.extend(get_element_ids(self._mesh, bc.region))
+        if len(existed_ids) != self._topo.boundary_nodes.size:
+            boundary_nodes = self._topo.boundary_nodes
+            missed_ids = set(boundary_nodes) - set(existed_ids)
+            raise ValueError(
+                f"Boundary condition for u is not complete. Missed node ids: {missed_ids}."
+            )
 
         # Init status
         self._status = SolverStatus()
-        self._status.time_step = time_step
-        self._status.end_time = total_time
+        self._status.time_step = self._config.time_step
+        self._status.end_time = self._config.end_time
         self._status.finished = False
         self._status.current_time = 0.0
         self._status.total_time = 0.0
 
         # Init configs
-        self._time_step = time_step
-        self._cfl = cfl
+        self._time_step = self._config.time_step
+        self._cfl = self._config.cfl
         self._dx = self._mesh.lx / self._mesh.nx
         self._dy = self._mesh.ly / self._mesh.ny
 
@@ -164,7 +143,6 @@ class BurgersExplicitSolver(BaseSolver):
         dt = supports.cfl_timestep(
             self._mesh, self._fields["u"], self._cfl, min_dt=1e-3
         )
-        # dt = self._time_step
         rest_time = self._status.end_time - self._status.current_time
         dt = min(dt, self._time_step, rest_time)
 

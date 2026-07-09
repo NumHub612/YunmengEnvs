@@ -64,17 +64,10 @@ class Lap01(IOperator):
     def prepare(
         self,
         mesh: Grid,
-        bounds: dict[int, dict[str, IBoundaryCondition]],
+        bounds: dict[str, list[IBoundaryCondition]],
     ):
-        if not isinstance(mesh, Grid):
-            raise ValueError("FDM op lap01 only supports Grid.")
-        if not mesh.uniform:
-            raise ValueError("FDM op lap01 requires uniform grids.")
-
-        for bc in bounds.values():
-            for fname, v in bc.items():
-                if fname == self._var and v.get_type() != BoundaryType.VALUE:
-                    raise ValueError("FDM op lap01 requires value BC.")
+        if not isinstance(mesh, Grid) or not mesh.uniform:
+            raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
         self._mesh = mesh
         self._bcs = bounds
@@ -107,10 +100,9 @@ class Lap01(IOperator):
 
     def _apply_bc(self, field: Field):
         """Apply boundary conditions to the field."""
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
-            value = bc.apply().value
-            field[nid] = value
+        for bc in self._bcs[self._var]:
+            if bc.get_type() == BoundaryType.VALUE:
+                bc.apply(field)
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Vectorized vector field laplacian (5-point stencil)."""

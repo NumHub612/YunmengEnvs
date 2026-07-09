@@ -8,6 +8,7 @@ import numpy as np
 
 from yunmeng.numerics.algos import ElevationModifier, MeshShard
 from yunmeng.numerics.grids import Grid2D, Coordinate
+from yunmeng.numerics.mesh import Region
 from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.enums import VariableType, ElementType
 from yunmeng.render.plotter import plot_mesh_ids, plot_mesh, plot_field
@@ -111,11 +112,12 @@ class TestBurgers2D:
         )
 
         # initial condition
-        u_init = HotstartInitialization("U0", U0)
+        u_init = HotstartInitializer("U0", "u", U0)
 
         # boundary condition
-        value_bc = ValueBoundary("bc", Var([1.0, 1.0]))
         bc_nodes = grid_41x41.get_topo_assistant().boundary_nodes
+        bc_region = Region(name="bc", type=ElementType.NODE, indices=bc_nodes)
+        u_bc = ValueBoundary("bc", "u", bc_region, Var([1.0, 1.0]))
 
         # callbacks
         cb = ImageRender("render", "tests/results/bg", frequency=0.05)
@@ -132,15 +134,22 @@ class TestBurgers2D:
             Src01(["u"], tau=1.0, source_func=source_func),
         ]
 
+        # config
+        total_time = 1.0
+        configs = {
+            "time_step": 0.002,
+            "cfl": 0.5,
+            "end_time": 1.0,
+        }
+
         # solver
-        solver = BurgersExplicitSolver("solver", grid_41x41, operators)
+        solver = BurgersExplicitSolver("solver", grid_41x41, operators, configs)
         solver.add_ic("u", u_init)
-        solver.add_bc("u", value_bc, bc_nodes, ElementType.NODE)
+        solver.add_bc("u", u_bc)
         solver.add_callback(cb)
 
         # initialize
-        total_time = 1.0
-        solver.initialize(total_time, time_step=0.002, cfl=0.5)
+        solver.initialize()
 
         # run the simulation
         t, dt = 0.0, total_time / 10
@@ -184,13 +193,13 @@ class TestNavierStokes2D:
         u_field = Field.from_size(
             grid_41x41.node_count, VariableType.vector(2), ElementType.NODE, u_init_val
         )
-        u_init = HotstartInitialization("U0", u_field)
+        u_init = HotstartInitializer("U0", u_field)
 
         p_init_val = 0.0
         p_field = Field.from_size(
             grid_41x41.node_count, VariableType.scalar(), ElementType.NODE, p_init_val
         )
-        p_init = HotstartInitialization("P0", p_field)
+        p_init = HotstartInitializer("P0", p_field)
 
         # Boundary
         topo = grid_41x41.get_topo_assistant()

@@ -220,38 +220,21 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def add_callback(self, cb: ISolverCallback):
-        """
-        Add a callback to be called in solver.
-        """
-        pass
-
-    @abstractmethod
-    def remove_callback(self, cb_id: str):
-        """
-        Remove a callback.
-        """
-        pass
-
-    @abstractmethod
-    def add_ic(
-        self,
-        field: str,
-        ic: IInitialCondition,
-        etype: ElementType,
-    ):
+    def add_ic(self, ic: IInitialCondition):
         """
         Add an initial condition.
         """
         pass
 
     @abstractmethod
-    def add_bc(
-        self,
-        field: str,
-        bc: IBoundaryCondition,
-        etype: ElementType,
-    ):
+    def clear_ics(self, field: str = None):
+        """
+        Clear initial conditions.
+        """
+        pass
+
+    @abstractmethod
+    def add_bc(self, bc: IBoundaryCondition):
         """
         Add a boundary condition.
         """
@@ -261,6 +244,20 @@ class ISolver(ABC):
     def clear_bcs(self, field: str):
         """
         Clear boundary conditions.
+        """
+        pass
+
+    @abstractmethod
+    def add_callback(self, cb: ISolverCallback):
+        """
+        Add a solver callback.
+        """
+        pass
+
+    @abstractmethod
+    def remove_callback(self, cb_id: str):
+        """
+        Remove a solver callback.
         """
         pass
 
@@ -283,21 +280,28 @@ class ISolver(ABC):
     @abstractmethod
     def forward(self, **kwargs) -> SolverStatus:
         """
-        Advance this solver to a next time step.
+        Advance solver to next timestep.
+        """
+        pass
+
+    @abstractmethod
+    def reset(self, **kwargs):
+        """
+        Reset solver to spcified state.
         """
         pass
 
     @abstractmethod
     def save(self, path: str):
         """
-        Save the solver state to a file.
+        Save solver snapshot to a file.
         """
         pass
 
     @classmethod
     @abstractmethod
-    def load(self, path: str):
+    def load(self, path: str) -> "ISolver":
         """
-        Load the solver state from file.
+        Load this solver from the file.
         """
         pass

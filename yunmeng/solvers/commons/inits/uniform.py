@@ -19,7 +19,9 @@ class UniformInitializer(BaseInitializer):
     def get_name(cls) -> str:
         return "uniform"
 
-    def __init__(self, id: str, target_field: str, value: float | list[float]):
+    def __init__(
+        self, id: str, target_field: str, value: Variable | float | list[float]
+    ):
         super().__init__(id, target_field)
         self._value = Var(value)
 
