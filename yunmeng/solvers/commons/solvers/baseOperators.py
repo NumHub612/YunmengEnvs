@@ -12,7 +12,7 @@ from yunmeng.solvers.interfaces import (
     BoundaryType,
 )
 from yunmeng.numerics.mesh import Mesh
-from yunmeng.numerics.fields import Field
+from yunmeng.numerics.fields import Field, DataProduct, Sample2, ElementType, DataHub2
 from yunmeng.numerics.algos import MeshTopo, MeshGeom
 
 
@@ -20,6 +20,10 @@ class BaseOperator(IOperator):
     """
     Base operators for solvers.
     """
+
+    @classmethod
+    def produces(cls, field_name: str, etype: ElementType) -> list[DataProduct]:
+        return [DataProduct(cls.get_type().value, field_name, etype)]
 
     def __init__(self, target_fields: list[str]):
         self._targets = target_fields
@@ -53,6 +57,34 @@ class BaseOperator(IOperator):
         for bc in self._bcs[bfield]:
             if btype is None or bc.get_type() == btype:
                 bc.apply(field)
+
+    def _publish(
+        self,
+        datahub: DataHub2,
+        field_name: str,
+        etype: ElementType,
+        sample: Sample2,
+        otype: str | None = None,
+        depends: list[DataProduct] = None,
+    ):
+        """Store a computed product into DataHub cache."""
+        ot = otype if otype is not None else self.__class__.get_type().value
+        product = DataProduct.for_producer(
+            self.__class__.get_name(), field_name, etype, ot
+        )
+        datahub.put_computed(product, sample, depends=depends)
+
+    def _query(
+        self,
+        datahub: DataHub2,
+        field_name: str,
+        etype: ElementType,
+        otype: str,
+        namespace: str = "*",
+    ) -> Sample2:
+        """Query DataHub cache for a reusable product."""
+        product = DataProduct.for_query(field_name, etype, otype, namespace)
+        return datahub.get_computed(product)
 
 
 class BaseExplicitOperator(BaseOperator):

@@ -7,8 +7,8 @@ Interface for pde numerical operators.
 
 from yunmeng.solvers.interfaces.IBoundaryCondition import IBoundaryCondition
 from yunmeng.numerics.linalgs import LinearEqs
-from yunmeng.numerics.fields import Field, DataHub
-from yunmeng.numerics.mesh import Mesh
+from yunmeng.numerics.fields import Field, DataHub2, DataProduct, Sample2
+from yunmeng.numerics.mesh import Mesh, ElementType
 from abc import ABC, abstractmethod
 import enum
 
@@ -49,6 +49,8 @@ class IOperator(ABC):
         3. Evaluation: ``forward(data_hub, **kwargs)``— called every step.
     """
 
+    # -- class metadata -----------------------------
+
     @classmethod
     @abstractmethod
     def get_name(cls) -> str:
@@ -72,6 +74,24 @@ class IOperator(ABC):
         The mode of the operator.
         """
         pass
+
+    # -- class -----------------------------
+
+    @classmethod
+    def produces(cls, field_name: str, etype: ElementType) -> list[DataProduct]:
+        """
+        Declares DataProducts this operator can produce for.
+        """
+        return []
+
+    @classmethod
+    def consumes(cls, field_name: str, etype: ElementType) -> list[DataProduct]:
+        """
+        Declares DataProducts this operator want to consume.
+        """
+        return []
+
+    # -- fields -------------------------------------
 
     @property
     def target_fields(self) -> list[str]:
@@ -100,7 +120,7 @@ class IOperator(ABC):
         pass
 
     @abstractmethod
-    def forward(self, fields: DataHub, **kwargs) -> Field | LinearEqs:
+    def forward(self, datahub: DataHub2, **kwargs) -> Field | LinearEqs:
         """
         Runs the operator on field.
 

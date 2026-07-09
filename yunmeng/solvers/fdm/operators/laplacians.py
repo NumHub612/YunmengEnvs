@@ -10,23 +10,27 @@ instead of creating new Field objects each call.
 
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
-    IOperator,
     OperatorType,
     BoundaryType,
     OperatorMode,
 )
+from yunmeng.solvers.commons.solvers import BaseExplicitOperator, BaseImplicitOperator
 from yunmeng.numerics.enums import BackendType
 from yunmeng.numerics.grids import Grid, ElementType
-from yunmeng.numerics.algos import MeshTopo
 from yunmeng.numerics.linalgs import LinearEqs, Matrix, NumpyMatrix, TorchMatrix
-from yunmeng.numerics.fields import DataHub, Field, VariableType, Variable
+from yunmeng.numerics.fields import (
+    DataHub2,
+    Sample2,
+    Field,
+    Variable,
+    VariableType,
+)
 import numpy as np
 
 
-class Lap01(IOperator):
+class Lap01(BaseExplicitOperator):
     """
     Center explicit scheme for laplacian operator.
-
     """
 
     @classmethod
@@ -34,22 +38,12 @@ class Lap01(IOperator):
         return OperatorType.LAPLACIAN
 
     @classmethod
-    def get_mode(cls):
-        return OperatorMode.EXPLICIT
-
-    @classmethod
     def get_name(cls) -> str:
         return "lap01"
 
     def __init__(self, fields: list[str], diffusivity: float = 1.0):
-        if len(fields) != 1:
-            raise ValueError("FDM op lap01 only supports one field.")
+        super().__init__(fields)
         self._var = fields[0]
-
-        self._mesh: Grid = None
-        self._topo: MeshTopo = None
-        self._bcs = None
-
         self._nu = diffusivity
         self._dx = None
         self._dy = None
@@ -57,52 +51,42 @@ class Lap01(IOperator):
         # Pre-allocated output field
         self._out_field: Field = None
 
-    @property
-    def target_fields(self) -> list[str]:
-        return [self._var]
-
     def prepare(
         self,
         mesh: Grid,
         bounds: dict[str, list[IBoundaryCondition]],
     ):
+        super().prepare(mesh, bounds)
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._mesh = mesh
-        self._bcs = bounds
-
-        self._topo = self._mesh.get_topo_assistant()
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def forward(self, sources: Field | DataHub, dt: float = None) -> Field:
-        if isinstance(sources, Field):
-            old_field = sources
-        else:
-            old_field = sources.field(self._var, loc=ElementType.NODE).data
-        if len(old_field.mesh_shards) != 1:
-            raise ValueError("FDM op lap01 only supports cpu.")
-
-        # Apply boundary conditions
+    def forward(self, datahub: DataHub2, time: float) -> Field:
+        sample = datahub.latest(self._var, ElementType.NODE)
+        if sample is None:
+            raise ValueError(f"Lap01: no data for '{self._var}'@NODE.")
+        old_field = sample.data
         new_field = old_field.copy()
-        self._apply_bc(new_field)
+        self._apply_bc_directly(new_field, self._var)
 
-        # Run laplacian operator
         if old_field.vtype.is_scalar:
-            new_field = self._calculate_scalar_field(new_field)
+            result = self._calculate_scalar_field(new_field)
         elif old_field.vtype.is_vector:
-            new_field = self._calculate_vector_field(new_field)
+            result = self._calculate_vector_field(new_field)
         else:
             raise ValueError("FDM op lap01 not support tensor fields.")
 
-        return new_field
-
-    def _apply_bc(self, field: Field):
-        """Apply boundary conditions to the field."""
-        for bc in self._bcs[self._var]:
-            if bc.get_type() == BoundaryType.VALUE:
-                bc.apply(field)
+        # publish to cache
+        self._publish(
+            datahub,
+            self._var,
+            ElementType.NODE,
+            Sample2(time, result),
+            self.get_type().value,
+        )
+        return result
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Vectorized vector field laplacian (5-point stencil)."""
@@ -150,7 +134,7 @@ class Lap01(IOperator):
         return self._out_field
 
 
-class Lap02(IOperator):
+class Lap02(BaseImplicitOperator):
     """
     Center implicit scheme for laplacian operator on isotropic field.
     """
@@ -160,53 +144,35 @@ class Lap02(IOperator):
         return OperatorType.LAPLACIAN
 
     @classmethod
-    def get_mode(cls):
-        return OperatorMode.IMPLICIT
-
-    @classmethod
     def get_name(cls) -> str:
         return "lap02"
 
-    def __init__(self, fields: list[str]):
-        if len(fields) != 1:
-            raise ValueError("FDM op lap02 only supports one field.")
-        self._var = fields[0]
+    def __init__(self, target_fields: list[str]):
+        super().__init__(target_fields)
 
-        self._mesh: Grid = None
-        self._topo: MeshTopo = None
-        self._bcs = None
-
+        self._var = target_fields[0]
         self._dx = None
         self._dy = None
-
-    @property
-    def target_fields(self) -> list[str]:
-        return [self._var]
 
     def prepare(
         self,
         mesh: Grid,
         bounds: dict[str, list[IBoundaryCondition]] = None,
     ):
+        super().prepare(mesh, bounds)
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._bcs = bounds
-        self._mesh = mesh
-        self._topo = self._mesh.get_topo_assistant()
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def forward(self, sources: Field | DataHub, dt: float = None) -> LinearEqs:
-        if isinstance(sources, Field):
-            old_field = sources
-        else:
-            old_field = sources.field(self._var, loc=ElementType.NODE).data
-        if len(old_field.mesh_shards) != 1:
-            raise ValueError("FDM op lap02 only supports cpu.")
+    def forward(self, datahub: DataHub2, time: float = None) -> LinearEqs:
+        sample = datahub.latest(self._var, ElementType.NODE)
+        if sample is None:
+            raise ValueError(f"Lap02: no data for '{self._var}'@NODE.")
 
-        eqs = self._generate_linear_eqs(old_field)
-        return eqs
+        old_field = sample.data
+        return self._generate_linear_eqs(old_field)
 
     def _create_matrix(self, field: Field) -> Matrix:
         """Create the matrix."""

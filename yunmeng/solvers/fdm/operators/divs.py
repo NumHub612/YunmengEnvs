@@ -12,14 +12,21 @@ from yunmeng.solvers.interfaces import (
     BoundaryType,
     OperatorMode,
 )
+from yunmeng.solvers.commons.solvers import BaseExplicitOperator, BaseImplicitOperator
 from yunmeng.numerics.grids import Grid, ElementType
-from yunmeng.numerics.algos import MeshTopo
-from yunmeng.numerics.fields import DataHub, Field, Variable, VariableType
+from yunmeng.numerics.fields import (
+    DataHub2,
+    DataProduct,
+    Sample2,
+    Field,
+    Variable,
+    VariableType,
+)
 
 import numpy as np
 
 
-class Div01(IOperator):
+class Div01(BaseExplicitOperator):
     """
     Divergence operator based on central difference.
     """
@@ -29,56 +36,98 @@ class Div01(IOperator):
         return OperatorType.DIV
 
     @classmethod
-    def get_mode(cls):
-        return OperatorMode.EXPLICIT
-
-    @classmethod
     def get_name(cls) -> str:
         return "div01"
 
-    def __init__(self, fields: list[str]):
-        if len(fields) != 1:
-            raise ValueError("FDM op div01 only supports one field.")
-        self._var = fields[0]
-        self._mesh: Grid = None
-        self._topo: MeshTopo = None
-        self._bcs = None
+    @classmethod
+    def consumes(cls, field_name: str, etype: ElementType) -> list[DataProduct]:
+        """Declare: div operater can reuse a pre-computed gradient."""
+        return [
+            DataProduct(
+                OperatorType.GRAD.value,
+                field_name,
+                etype,
+                namespace="*",
+            )
+        ]
 
+    def __init__(self, target_fields: list[str]):
+        super().__init__(target_fields)
+        self._var = target_fields[0]
         self._dx = None
         self._dy = None
-
-    @property
-    def target_fields(self) -> list[str]:
-        return [self._var]
 
     def prepare(
         self,
         mesh: Grid,
         bounds: dict[str, list[IBoundaryCondition]] = None,
     ):
+        super().prepare(mesh, bounds)
         if not isinstance(mesh, Grid):
             raise ValueError("FDM op div01 only supports Grid.")
-        self._mesh = mesh
-        self._bcs = bounds
 
-        self._topo = self._mesh.get_topo_assistant()
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def forward(self, sources: Field | DataHub, dt: float = None) -> Field:
-        """Calculate the divergence of the field."""
-        if isinstance(sources, Field):
-            old_field = sources
-        else:
-            old_field = sources.field(self._var, loc=ElementType.NODE).data
-        if len(old_field.mesh_shards) != 1:
-            raise ValueError(f"FDM op {self.get_name()} only supports cpu.")
+    def forward(self, datahub: DataHub2, time: float) -> Field:
+        """Calculate the divergence of the field.
 
-        return self._calculate_divergence(old_field)
+        If a grad operator has already published grad(u) to the cache,
+        div compute divergence as trace(grad_u) instead of
+        re-doing finite differences.
+        """
+        # 1) Try to reuse cached gradient
+        cached_grad = self._query(datahub, self._var, ElementType.NODE, "grad")
+        if cached_grad is not None:
+            return self._div_from_gradient(cached_grad.data)
+
+        # 2) Fallback: extract field and compute from scratch
+        sample = datahub.latest(self._var, ElementType.NODE)
+        if sample is None:
+            raise ValueError(f"Div01: no data for '{self._var}'@NODE.")
+        old_field = sample.data
+        div = self._calculate_divergence(old_field)
+
+        # Publish to cache
+        self._publish(
+            datahub,
+            self._var,
+            ElementType.NODE,
+            Sample2(time, div),
+            self.get_type().value,
+        )
+        return div
+
+    def _div_from_gradient(self, grad_field: Field) -> Field:
+        """Compute divergence as trace of the gradient tensor: div(u) = dudx + dvdy.
+
+        grad_field layout (for 2D vector): (N, 2, 2) where
+          grad[..., 0, 0] = dudx,  grad[..., 0, 1] = dudy
+          grad[..., 1, 0] = dvdx,  grad[..., 1, 1] = dvdy
+        """
+        div = Field(grad_field.mesh_shards, VariableType.scalar(), grad_field.etype)
+        g = grad_field._shards[0].data  # (N, 2, 2) or (N,)
+
+        if g.ndim == 3 and g.shape[1:] == (2, 2):
+            # Vector field gradient: trace = dudx + dvdy
+            div._shards[0].data = g[:, 0, 0] + g[:, 1, 1]
+        elif g.ndim == 2 and g.shape[1] == 2:
+            # Scalar field gradient: divergence not defined directly,
+            # but for consistency treat as the sum (rare case)
+            div._shards[0].data = g[:, 0] + g[:, 1]
+        else:
+            raise ValueError(
+                f"Div01: unexpected gradient shape {g.shape}, cannot compute trace"
+            )
+        return div
 
     def _calculate_divergence(self, u_field: Field) -> Field:
         """Vectorized divergence div(u) = du/dx + dv/dy."""
-        div = Field(u_field.mesh_shards, VariableType.scalar(), u_field.etype)
+        div = Field(
+            u_field.mesh_shards,
+            VariableType.scalar(),
+            u_field.etype,
+        )
 
         nx, ny = self._mesh.nx, self._mesh.ny
         # (N, 2) -> (nx, ny, 2)

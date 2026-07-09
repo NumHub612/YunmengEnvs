@@ -18,9 +18,9 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from copy import deepcopy
 
-# --------------------------------------------------
+# ---------------------------------------------------
 # region Mesh Partition
-# --------------------------------------------------
+# ---------------------------------------------------
 
 
 @dataclass(slots=True)
@@ -176,9 +176,9 @@ class MeshShard:
         )
 
 
-# --------------------------------------------------
+# ---------------------------------------------------
 # region Field Infrastruct
-# --------------------------------------------------
+# ---------------------------------------------------
 
 DataIndex = Union[int, slice, List[int], np.ndarray]
 DataItem = Union[float, np.ndarray, torch.Tensor, Variable]
@@ -250,9 +250,9 @@ class FieldShard:
             return self.data
 
 
-# --------------------------------------------------
+# ---------------------------------------------------
 # region Field
-# --------------------------------------------------
+# ---------------------------------------------------
 
 
 class Field:
@@ -1208,6 +1208,10 @@ class Field:
                 return data.detach().cpu().numpy()
             return np.asarray(data)
         return self.gather_to_host()
+
+    def to_tensor(self, **kwargs) -> torch.Tensor:
+        """Convert field to a PyTorch tensor."""
+        return torch.tensor(self.gather_to_host())
 
     def scalarize(self) -> list["Field"]:
         """Convert the field to a list of scalar fields."""

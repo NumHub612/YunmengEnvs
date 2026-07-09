@@ -5,7 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Navier-Stokes equations solver in fdm format on fixed 2d Grid.
 """
 
-from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
+from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub2, Sample2
 from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
 from yunmeng.solvers.commons import (
     BaseSolver,
@@ -103,7 +103,7 @@ class NavierStokesSolver(BaseSolver):
                 self._part.shards, VariableType.scalar(), ElementType.NODE, name="p"
             ),
         }
-        self._buffs: DataHub = None
+        self._buffs: DataHub2 = None
 
     def initialize(self):
         # Check initial conditions
@@ -139,6 +139,7 @@ class NavierStokesSolver(BaseSolver):
         # Init configs
         self._time_step = self._config.time_step
         self._cfl = self._config.cfl
+        self._rho = self._config.rho
         self._dx = self._mesh.lx / self._mesh.nx
         self._dy = self._mesh.ly / self._mesh.ny
 
@@ -148,10 +149,10 @@ class NavierStokesSolver(BaseSolver):
 
         # Init buffers
         time_order = 2
-        self._buffs = DataHub(["u", "p"], time_order)
+        self._buffs = DataHub2(["u", "p"], time_order)
         for _ in range(time_order):
-            self._buffs.push_field("u", Sample(0.0, self._fields["u"]))
-            self._buffs.push_field("p", Sample(0.0, self._fields["p"]))
+            self._buffs.push("u", Sample2(0.0, self._fields["u"]), ElementType.NODE)
+            self._buffs.push("p", Sample2(0.0, self._fields["p"]), ElementType.NODE)
 
         # Call callbacks
         for callback in self._callbacks:
@@ -161,7 +162,8 @@ class NavierStokesSolver(BaseSolver):
         start = time.perf_counter()
 
         # Compute time step
-        rest_time = self._status.end_time - self._status.current_time
+        curr_time = self._status.current_time
+        rest_time = self._status.end_time - curr_time
         if rest_time <= 1e-6:
             self._status.finished = True
             for callback in self._callbacks:
@@ -169,7 +171,7 @@ class NavierStokesSolver(BaseSolver):
             return self._status
 
         dt = min(self._time_step, rest_time)
-        new_t = self._status.current_time + dt
+        new_t = curr_time + dt
 
         # Call callbacks
         for callback in self._callbacks:
@@ -217,38 +219,39 @@ class NavierStokesSolver(BaseSolver):
         u_grad, u_diff = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD and "u" in op.target_fields:
-                u_grad = op.forward(u, dt)
+                u_grad = op(self._buffs, new_t)
             elif op.get_type() == OperatorType.LAPLACIAN and "u" in op.target_fields:
-                u_diff = op.forward(u, dt)
+                u_diff = op(self._buffs, new_t)
 
-        u_star = u - dt * u_grad @ u + dt * u_diff
+        u_conv = u_grad @ u
+        u_star = u - dt * u_conv + dt * u_diff
         for bc in self._bcs["u"]:
             bc.apply(u_star)
 
         self._fields["u"] = u_star
-        self._buffs.push_field("u", Sample(new_t, u_star))
+        self._buffs.push("u", Sample2(new_t, u_star), ElementType.NODE)
 
     def _solve_pressure(self, dt: float, new_t: float):
         """Solve the poisson equation to get pressure."""
         u_div, p_eqs = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.DIV:
-                u_div = op.forward(self._buffs, dt)
+                u_div = op(self._buffs, new_t)
             elif op.get_type() == OperatorType.LAPLACIAN and "p" in op.target_fields:
-                p_eqs = op.forward(self._buffs, dt)
+                p_eqs = op(self._buffs, new_t)
 
         # only apply divergence on internal nodes
         rhs = p_eqs.rhs.copy()
         for nid in self._topo.internal_nodes:
             div_val = u_div[nid]
-            rhs[nid] = (1.0 / dt) * div_val
+            rhs[nid] = (self._rho / dt) * div_val
 
         p_eqs.reset_rhs(rhs)
         new_p = p_eqs.solve()
         self._fields["p"] = new_p
 
         # update pressure field
-        self._buffs.push_field("p", Sample(new_t, new_p))
+        self._buffs.push("p", Sample2(new_t, new_p), ElementType.NODE)
 
     def _correct_velocity(self, dt: float, new_t: float):
         """Correct the velocity field by pressure for continuty."""
@@ -256,14 +259,13 @@ class NavierStokesSolver(BaseSolver):
         p_grad = None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD and "p" in op.target_fields:
-                p_grad = op.forward(self._buffs, dt)
+                p_grad = op(self._buffs, new_t)
 
-        new_u = u - (dt / 1.0) * p_grad
+        new_u = u - (dt / self._rho) * p_grad
         self._fields["u"] = new_u
 
         # update velocity
-        self._buffs.push_field("u", Sample(new_t, new_u))
-        self._buffs.push_grad("p", Sample(new_t, p_grad))
+        self._buffs.push("u", Sample2(new_t, new_u), ElementType.NODE)
 
     def _update_status(self, time_cost: float, dt: float):
         self._status.current_time += dt

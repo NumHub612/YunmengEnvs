@@ -5,7 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Burgers' equation solver using the finite difference method.
 """
 
-from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
+from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub2, Sample2
 from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
 from yunmeng.solvers.commons import (
     BaseSolver,
@@ -87,7 +87,7 @@ class BurgersExplicitSolver(BaseSolver):
                 self._part.shards, VariableType.vector(2), ElementType.NODE, name="u"
             )
         }
-        self._buffs: DataHub = None
+        self._buffs: DataHub2 = None
 
     def initialize(self):
         # Check initial conditions
@@ -128,9 +128,9 @@ class BurgersExplicitSolver(BaseSolver):
 
         # Init buffers
         time_order = 2
-        self._buffs = DataHub(["u"], time_order)
+        self._buffs = DataHub2(["u"], time_order)
         for _ in range(time_order):
-            self._buffs.push_field("u", Sample(0.0, self._fields["u"]))
+            self._buffs.push("u", Sample2(0.0, self._fields["u"]), ElementType.NODE)
 
         # Call callbacks
         for callback in self._callbacks:
@@ -140,10 +140,11 @@ class BurgersExplicitSolver(BaseSolver):
         start = time.perf_counter()
 
         # Compute time step
+        curr_time = self._status.current_time
         dt = supports.cfl_timestep(
             self._mesh, self._fields["u"], self._cfl, min_dt=1e-3
         )
-        rest_time = self._status.end_time - self._status.current_time
+        rest_time = self._status.end_time - curr_time
         dt = min(dt, self._time_step, rest_time)
 
         # Call callbacks
@@ -155,12 +156,14 @@ class BurgersExplicitSolver(BaseSolver):
         u_grad, u_diff, u_src = None, None, None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD:
-                u_grad = op.forward(self._buffs, dt)
+                u_grad = op(self._buffs, curr_time)
             elif op.get_type() == OperatorType.LAPLACIAN:
-                u_diff = op.forward(self._buffs, dt)
+                u_diff = op(self._buffs, curr_time)
             elif op.get_type() == OperatorType.SRC:
-                u_src = op.forward(self._buffs, dt)
-        new_u = old_u - dt * u_grad @ old_u + dt * u_diff + dt * u_src
+                u_src = op(self._buffs, curr_time)
+
+        u_conv = u_grad @ old_u
+        new_u = old_u - dt * u_conv + dt * u_diff + dt * u_src
 
         # Update status
         time_cost = time.perf_counter() - start
@@ -168,7 +171,9 @@ class BurgersExplicitSolver(BaseSolver):
 
         self._fields["u"] = new_u
         self._apply_boundary_conditions()
-        self._buffs.push_field("u", Sample(self._status.current_time, new_u))
+        self._buffs.push(
+            "u", Sample2(self._status.current_time, new_u), ElementType.NODE
+        )
 
         # Call callbacks
         for callback in self._callbacks:

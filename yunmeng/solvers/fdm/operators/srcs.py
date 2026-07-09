@@ -9,16 +9,22 @@ from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
     OperatorType,
-    BoundaryType,
-    OperatorMode,
 )
+from yunmeng.solvers.commons.solvers import BaseExplicitOperator, BaseImplicitOperator
 from yunmeng.numerics.grids import Grid, ElementType
-from yunmeng.numerics.algos import MeshTopo
-from yunmeng.numerics.fields import DataHub, Field, VariableType
+from yunmeng.numerics.fields import (
+    DataHub2,
+    DataProduct,
+    Sample2,
+    Field,
+    Variable,
+    VariableType,
+)
+
 from typing import Callable
 
 
-class Src01(IOperator):
+class Src01(BaseExplicitOperator):
     """Explicit source term operator on structured grids."""
 
     @classmethod
@@ -26,45 +32,30 @@ class Src01(IOperator):
         return OperatorType.SRC
 
     @classmethod
-    def get_mode(cls):
-        return OperatorMode.EXPLICIT
-
-    @classmethod
     def get_name(cls) -> str:
         return "src01"
 
-    def __init__(self, fields: list[str], tau: float, source_func: Callable):
-        if len(fields) != 1:
-            raise ValueError("FDM op src01 only supports one field.")
+    def __init__(self, target_fields: list[str], tau: float, source_func: Callable):
+        super().__init__(target_fields)
 
-        self._mesh: Grid = None
-        self._topo: MeshTopo = None
-        self._bcs = None
-        self._var = fields[0]
+        self._var = target_fields[0]
         self._tau = tau
         self._source_func = source_func
-
-    @property
-    def target_fields(self) -> list[str]:
-        return [self._var]
 
     def prepare(
         self,
         mesh: Grid,
         bounds: dict[str, list[IBoundaryCondition]],
     ):
+        super().prepare(mesh, bounds)
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._mesh = mesh
-        self._bcs = bounds
-        self._topo = self._mesh.get_topo_assistant()
-
-    def forward(self, sources: Field | DataHub, dt: float = None) -> Field:
-        if isinstance(sources, Field):
-            old_field = sources
-        else:
-            old_field = sources.field(self._var, loc=ElementType.NODE).data
+    def forward(self, datahub: DataHub2, time: float) -> Field:
+        sample = datahub.latest(self._var, ElementType.NODE)
+        if sample is None:
+            raise ValueError(f"Src01: no data for '{self._var}'@NODE in data_hub")
+        old_field = sample.data
         new_field = Field(old_field.mesh_shards, old_field.vtype, old_field.etype)
 
         if len(old_field.mesh_shards) != 1:
@@ -75,10 +66,12 @@ class Src01(IOperator):
             source_val = self._tau * self._source_func(coor, old_field[nid])
             new_field[nid] = source_val
 
+        # publish to cache
+        self._publish(
+            datahub,
+            self._var,
+            ElementType.NODE,
+            Sample2(time, new_field),
+            self.get_type().value,
+        )
         return new_field
-
-    def _apply_bc(self, field: Field):
-        """Apply boundary conditions to the field."""
-        for bc in self._bcs[self._var]:
-            if bc.get_type() == BoundaryType.VALUE:
-                bc.apply(field)
