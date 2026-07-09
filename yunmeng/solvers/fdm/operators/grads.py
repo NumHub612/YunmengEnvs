@@ -311,12 +311,10 @@ class Grad02(IOperator):
     def prepare(
         self,
         mesh: Grid,
-        bounds: dict[int, dict[str, IBoundaryCondition]],
+        bounds: dict[str, list[IBoundaryCondition]],
     ):
-        if not isinstance(mesh, Grid):
-            raise ValueError(f"FDM op {self.get_name()} only supports Grid.")
-        if not mesh.uniform:
-            raise ValueError(f"FDM op {self.get_name()} requires uniform grids.")
+        if not isinstance(mesh, Grid) or not mesh.uniform:
+            raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
         self._mesh = mesh
         self._bcs = bounds
@@ -350,11 +348,9 @@ class Grad02(IOperator):
 
     def _apply_bc(self, field: Field):
         """Apply boundary conditions to the field."""
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
+        for bc in self._bcs[self._var]:
             if bc.get_type() == BoundaryType.VALUE:
-                value = bc.apply().value
-                field[nid] = value
+                bc.apply(field)
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Vectorized gradient for vector field (central difference)."""
@@ -385,11 +381,17 @@ class Grad02(IOperator):
 
         # Boundary nodes
         for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            if bc.get_type() == BoundaryType.FLUX:
-                flux = bc.apply().flux
-                new_field[nid] = flux
+
+            is_bc = False
+            for bc in self._bcs[self._var]:
+                if bc.region.includes(nid) and bc.get_type() == BoundaryType.FLUX:
+                    flux = bc.get().flux
+                    new_field[nid] = flux
+                    is_bc = True
+                    break
+            if is_bc:
+                continue
             else:
                 # Guard against None neighbors on domain boundaries
                 if e is not None and w is not None:
@@ -436,11 +438,9 @@ class Grad02(IOperator):
         grad[1:-1, 1:-1, 1] = uy
 
         # Boundary nodes
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
+        for bc in self._bcs[self._var]:
             if bc.get_type() == BoundaryType.FLUX:
-                value = bc.apply().flux
-                new_field[nid] = value
+                bc.apply(new_field)
 
         new_field._shards[0].data = grad.reshape(-1, dim)
         return new_field

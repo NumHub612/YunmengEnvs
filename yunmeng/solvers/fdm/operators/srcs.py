@@ -51,12 +51,10 @@ class Src01(IOperator):
     def prepare(
         self,
         mesh: Grid,
-        bounds: dict[int, dict[str, IBoundaryCondition]],
+        bounds: dict[str, list[IBoundaryCondition]],
     ):
-        if not isinstance(mesh, Grid):
-            raise ValueError("FDM op src01 only supports Grid.")
-        if not mesh.uniform:
-            raise ValueError("FDM op src01 requires uniform grids.")
+        if not isinstance(mesh, Grid) or not mesh.uniform:
+            raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
         self._mesh = mesh
         self._bcs = bounds
@@ -81,7 +79,6 @@ class Src01(IOperator):
 
     def _apply_bc(self, field: Field):
         """Apply boundary conditions to the field."""
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
-            value = bc.apply().value
-            field[nid] = value
+        for bc in self._bcs[self._var]:
+            if bc.get_type() == BoundaryType.VALUE:
+                bc.apply(field)

@@ -29,6 +29,10 @@ class BaseInitializer(IInitialCondition):
     def target_field(self) -> str:
         return self._target_field
 
+    @target_field.setter
+    def target_field(self, value: str):
+        self._target_field = value
+
     @property
     def id(self) -> str:
         return self._id

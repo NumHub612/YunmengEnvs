@@ -54,7 +54,7 @@ class Div01(IOperator):
     def prepare(
         self,
         mesh: Grid,
-        bounds: dict[int, dict[str, IBoundaryCondition]] = None,
+        bounds: dict[str, list[IBoundaryCondition]] = None,
     ):
         if not isinstance(mesh, Grid):
             raise ValueError("FDM op div01 only supports Grid.")
@@ -105,10 +105,9 @@ class Div01(IOperator):
 
         # --- Boundary nodes: apply BC then compute ---
         u_bc = u_field.copy()
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid]["u"]
+        for bc in self._bcs[self._var]:
             if bc.get_type() == BoundaryType.VALUE:
-                u_bc[nid] = bc.apply().value
+                bc.apply(u_bc)
 
         for nid in self._topo.boundary_nodes:
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)

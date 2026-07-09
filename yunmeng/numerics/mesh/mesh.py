@@ -259,6 +259,9 @@ class Region:
             self._element_ids = resolved_ids
         return resolved_ids
 
-    def include(self, elemnet: Element) -> bool:
+    def include(self, elemnet_id: int, etype: ElementType) -> bool:
         """Check if the element is in the region."""
-        return elemnet.id in self.get_element_ids()
+        if etype != self.type:
+            return False
+
+        return elemnet_id in self.get_element_ids()

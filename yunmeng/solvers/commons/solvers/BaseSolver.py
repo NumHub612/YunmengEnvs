@@ -18,7 +18,7 @@ from yunmeng.solvers.interfaces import (
     SolverType,
     SolverConfig,
 )
-from yunmeng.numerics.mesh import Element, ElementType, Mesh, get_element_ids
+from yunmeng.numerics.mesh import Element, ElementType, Mesh
 from yunmeng.numerics.grids import Grid
 from yunmeng.numerics.fields import Field
 from yunmeng.setting import logger
@@ -105,9 +105,12 @@ class BaseSolver(ISolver):
         if not isinstance(ic, IInitialCondition):
             raise ValueError(f"Invalid initial condition: {ic}.")
 
-        field = ic.target_field
-        if field is None:
-            raise ValueError(f"IC {ic.id} has no target_field.")
+        if ic.target_field and ic.target_field != field:
+            raise ValueError(
+                f"IC {ic.id} has different target field: {ic.target_field}."
+            )
+        else:
+            ic.target_field = field
 
         meta = self.get_meta()
         if meta.fields is not None and field not in meta.fields:
@@ -134,11 +137,17 @@ class BaseSolver(ISolver):
         if not isinstance(bc, IBoundaryCondition):
             raise ValueError(f"Invalid boundary condition: {bc}.")
 
-        bc.target_field = field
-        bc.attach(self._mesh)
-        bc.validate()
+        if bc.target_field and bc.target_field != field:
+            raise ValueError(
+                f"BC {bc.id} has different target field: {bc.target_field}."
+            )
+        else:
+            bc.target_field = field
 
-        new_added_ids = get_element_ids(self._mesh, bc.region)
+        new_added_ids = bc.region.get_element_ids()
+        if len(new_added_ids) == 0:
+            raise ValueError(f"BC {bc.id} has no elements.")
+
         existed_ids = []
         for bc_ in self._bcs[field]:
             if bc_.region.type != bc.region.type:
@@ -146,7 +155,7 @@ class BaseSolver(ISolver):
                     f"BC {bc.id} has different region type with existing BCs: "
                     f"{bc.region.type} != {bc_.region.type}."
                 )
-            existed_ids.extend(get_element_ids(self._mesh, bc_.region))
+            existed_ids.extend(bc_.region.get_element_ids())
         if len(set(new_added_ids) & set(existed_ids)) > 0:
             raise ValueError(
                 f"BC {bc.id} has elements that already have BCs: "

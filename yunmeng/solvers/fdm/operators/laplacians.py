@@ -184,12 +184,12 @@ class Lap02(IOperator):
         return [self._var]
 
     def prepare(
-        self, mesh: Grid, bounds: dict[int, dict[str, IBoundaryCondition]] = None
+        self,
+        mesh: Grid,
+        bounds: dict[str, list[IBoundaryCondition]] = None,
     ):
-        if not isinstance(mesh, Grid):
-            raise ValueError("FDM op lap02 only supports Grid.")
-        if not mesh.uniform:
-            raise ValueError("FDM op lap02 requires uniform grids.")
+        if not isinstance(mesh, Grid) or not mesh.uniform:
+            raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
         self._bcs = bounds
         self._mesh = mesh
@@ -237,59 +237,62 @@ class Lap02(IOperator):
 
         # Boundary nodes
         for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
+            bcs = self._bcs[self._var]
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
 
-            if bc.get_type() == BoundaryType.VALUE:
-                # Dirichlet: enforce p = value at boundary
-                values[nid, :] = 0.0
-                values[nid, nid] = 1.0
-                val = bc.apply().value
-                if isinstance(val, Variable):
-                    val = val.data
-                if hasattr(val, "item"):
-                    val = val.item()
-                rhs_arr[nid] = float(val)
+            for bc in bcs:
+                if not bc.region.include(nid, ElementType.NODE):
+                    continue
 
-            elif bc.get_type() == BoundaryType.FLUX:
-                # Neumann: ghost node reflection (2nd-order)
-                flux = bc.apply().flux
-                qx, qy = self._extract_flux_components(flux)
+                if bc.get_type() == BoundaryType.VALUE:
+                    # Dirichlet: enforce p = value at boundary
+                    values[nid, :] = 0.0
+                    values[nid, nid] = 1.0
+                    val = bc.get().value
+                    if isinstance(val, Variable):
+                        val = val.data
+                    if hasattr(val, "item"):
+                        val = val.item()
+                    rhs_arr[nid] = float(val)
+                elif bc.get_type() == BoundaryType.FLUX:
+                    # Neumann: ghost node reflection (2nd-order)
+                    flux = bc.get().flux
+                    qx, qy = self._extract_flux_components(flux)
 
-                # Clear the row
-                values[nid, :] = 0.0
+                    # Clear the row
+                    values[nid, :] = 0.0
 
-                diag_coeff = 0.0
+                    diag_coeff = 0.0
 
-                # Horizontal direction
-                if w is None and e is not None:
-                    diag_coeff += -2 * kx
-                    values[nid, e] = 2 * kx
-                    rhs_arr[nid] += -2 * qx / self._dx
-                elif e is None and w is not None:
-                    diag_coeff += -2 * kx
-                    values[nid, w] = 2 * kx
-                    rhs_arr[nid] += 2 * qx / self._dx
-                elif e is not None and w is not None:
-                    diag_coeff += -2 * kx
-                    values[nid, e] = kx
-                    values[nid, w] = kx
+                    # Horizontal direction
+                    if w is None and e is not None:
+                        diag_coeff += -2 * kx
+                        values[nid, e] = 2 * kx
+                        rhs_arr[nid] += -2 * qx / self._dx
+                    elif e is None and w is not None:
+                        diag_coeff += -2 * kx
+                        values[nid, w] = 2 * kx
+                        rhs_arr[nid] += 2 * qx / self._dx
+                    elif e is not None and w is not None:
+                        diag_coeff += -2 * kx
+                        values[nid, e] = kx
+                        values[nid, w] = kx
 
-                # Vertical direction
-                if s is None and n is not None:
-                    diag_coeff += -2 * ky
-                    values[nid, n] = 2 * ky
-                    rhs_arr[nid] += -2 * qy / self._dy
-                elif n is None and s is not None:
-                    diag_coeff += -2 * ky
-                    values[nid, s] = 2 * ky
-                    rhs_arr[nid] += 2 * qy / self._dy
-                elif n is not None and s is not None:
-                    diag_coeff += -2 * ky
-                    values[nid, n] = ky
-                    values[nid, s] = ky
+                    # Vertical direction
+                    if s is None and n is not None:
+                        diag_coeff += -2 * ky
+                        values[nid, n] = 2 * ky
+                        rhs_arr[nid] += -2 * qy / self._dy
+                    elif n is None and s is not None:
+                        diag_coeff += -2 * ky
+                        values[nid, s] = 2 * ky
+                        rhs_arr[nid] += 2 * qy / self._dy
+                    elif n is not None and s is not None:
+                        diag_coeff += -2 * ky
+                        values[nid, n] = ky
+                        values[nid, s] = ky
 
-                values[nid, nid] = diag_coeff
+                    values[nid, nid] = diag_coeff
 
         # Assemble linear system
         matrix = self._create_matrix(field).from_data(values)

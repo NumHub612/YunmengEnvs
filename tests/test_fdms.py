@@ -116,7 +116,9 @@ class TestBurgers2D:
 
         # boundary condition
         bc_nodes = grid_41x41.get_topo_assistant().boundary_nodes
-        bc_region = Region(name="bc", type=ElementType.NODE, indices=bc_nodes)
+        bc_region = Region(
+            name="bc", mesh=grid_41x41, type=ElementType.NODE, indices=bc_nodes
+        )
         u_bc = ValueBoundary("bc", "u", bc_region, Var([1.0, 1.0]))
 
         # callbacks
@@ -193,13 +195,13 @@ class TestNavierStokes2D:
         u_field = Field.from_size(
             grid_41x41.node_count, VariableType.vector(2), ElementType.NODE, u_init_val
         )
-        u_init = HotstartInitializer("U0", u_field)
+        u_init = HotstartInitializer("U0", "", u_field)
 
         p_init_val = 0.0
         p_field = Field.from_size(
             grid_41x41.node_count, VariableType.scalar(), ElementType.NODE, p_init_val
         )
-        p_init = HotstartInitializer("P0", p_field)
+        p_init = HotstartInitializer("P0", "", p_field)
 
         # Boundary
         topo = grid_41x41.get_topo_assistant()
@@ -213,11 +215,17 @@ class TestNavierStokes2D:
                 ohter_nodes.append(nid)
 
         # Boundary Conditions
-        north_v_bc = ValueBoundary("v_bc1", [1.0, 0.0])
-        other_v_bc = ValueBoundary("v_bc2", [0.0, 0.0])
+        north_region = Region(
+            name="north", mesh=grid_41x41, type=ElementType.NODE, indices=north_nodes
+        )
+        other_region = Region(
+            name="other", mesh=grid_41x41, type=ElementType.NODE, indices=ohter_nodes
+        )
+        north_v_bc = ValueBoundary("v_bc1", "u", north_region, [1.0, 0.0])
+        other_v_bc = ValueBoundary("v_bc2", "u", other_region, [0.0, 0.0])
 
-        north_p_bc = ValueBoundary("p_bc1", 0.0)
-        other_p_bc = FluxBoundary("p_bc2", [0.0, 0.0])
+        north_p_bc = ValueBoundary("p_bc1", "p", north_region, 0.0)
+        other_p_bc = FluxBoundary("p_bc2", "p", other_region, [0.0, 0.0])
 
         # cfd operators
         operators = [
@@ -240,18 +248,24 @@ class TestNavierStokes2D:
         )
 
         # solver
-        solver = NavierStokesSolver("solver", grid_41x41, operators)
+        total_time = 5.0
+        configs = {
+            "time_step": 0.002,
+            "cfl": 0.5,
+            "end_time": 5.0,
+        }
+
+        solver = NavierStokesSolver("solver", grid_41x41, operators, configs)
         solver.add_ic("u", u_init)
         solver.add_ic("p", p_init)
-        solver.add_bc("u", north_v_bc, north_nodes, ElementType.NODE)
-        solver.add_bc("u", other_v_bc, ohter_nodes, ElementType.NODE)
-        solver.add_bc("p", north_p_bc, north_nodes, ElementType.NODE)
-        solver.add_bc("p", other_p_bc, ohter_nodes, ElementType.NODE)
+        solver.add_bc("u", north_v_bc)
+        solver.add_bc("u", other_v_bc)
+        solver.add_bc("p", north_p_bc)
+        solver.add_bc("p", other_p_bc)
         solver.add_callback(cb)
 
         # initialize
-        total_time = 5.0
-        solver.initialize(total_time, time_step=0.01, cfl=0.5)
+        solver.initialize()
 
         # run the simulation
         t, dt = 0.0, total_time / 10

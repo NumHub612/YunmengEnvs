@@ -43,7 +43,7 @@ class ValueBoundary(BaseBoundary):
 
     def apply(self, field: Field):
         if field.meta.name != self._target_field:
-            logger.warning(
+            logger.debug(
                 f"Field {field.meta.name} does not match target field {self._target_field}"
             )
 

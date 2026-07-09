@@ -7,7 +7,6 @@ Burgers' equation solver using the finite difference method.
 
 from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
 from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
-from yunmeng.numerics.mesh import get_element_ids
 from yunmeng.solvers.commons import (
     BaseSolver,
     SolverMeta,
@@ -16,12 +15,12 @@ from yunmeng.solvers.commons import (
     IOperator,
     OperatorType,
 )
-from yunmeng.solvers.interfaces import BoundaryType, SolverConfig
-from yunmeng.solvers.commons import inits, boundaries, supports
+from yunmeng.solvers.interfaces import SolverConfig, BoundaryType
+from yunmeng.solvers.commons import supports
 from yunmeng.setting import logger
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -53,7 +52,7 @@ class BurgersExplicitSolver(BaseSolver):
         metas.equation = "2d Burgers' equation"
         metas.equation_expr = "ddt(u) + grad(u)@u = lap(u, nu) + src(Q)"
         metas.dimension = MeshDimension.D2
-        metas.default_ics = {"u": inits.UniformInitializer}
+        metas.default_ics = {"u": None}
         metas.default_bcs = {"u": None}
         metas.fields = {
             "u": FieldMeta(
@@ -93,19 +92,20 @@ class BurgersExplicitSolver(BaseSolver):
     def initialize(self):
         # Check initial conditions
         if "u" not in self._ics:
-            raise ValueError("No initial condition for u.")
+            raise ValueError(f"Solver {self._id} has no initial condition for u.")
 
         self._ics["u"].apply(self._fields["u"])
 
         # Check boundary conditions
         existed_ids = []
         for bc in self._bcs["u"]:
-            existed_ids.extend(get_element_ids(self._mesh, bc.region))
+            existed_ids.extend(bc.region.get_element_ids())
         if len(existed_ids) != self._topo.boundary_nodes.size:
             boundary_nodes = self._topo.boundary_nodes
             missed_ids = set(boundary_nodes) - set(existed_ids)
             raise ValueError(
-                f"Boundary condition for u is not complete. Missed node ids: {missed_ids}."
+                f"Solver {self._id} boundary condition for u is not complete. "
+                f"Missed node ids: {missed_ids}."
             )
 
         # Init status
@@ -184,7 +184,8 @@ class BurgersExplicitSolver(BaseSolver):
         """Apply boundary conditions to the velocity field."""
         for target_field, bcs in self._bcs.items():
             for bc in bcs:
-                bc.apply(self._fields[target_field])
+                if bc.get_type() == BoundaryType.VALUE:
+                    bc.apply(self._fields[target_field])
 
     def _update_status(self, time_cost: float, dt: float):
         self._status.current_time += dt
