@@ -5,8 +5,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Interfaces for initializing the solver fields.
 """
 
-from yunmeng.numerics.fields import Field
 from abc import ABC, abstractmethod
+from yunmeng.numerics.fields import Field, Variable
 
 
 class IInitialCondition(ABC):
@@ -24,6 +24,14 @@ class IInitialCondition(ABC):
 
     @property
     @abstractmethod
+    def target_field(self) -> str:
+        """
+        The target field.
+        """
+        pass
+
+    @property
+    @abstractmethod
     def id(self) -> str:
         """
         The instance id.
@@ -31,8 +39,15 @@ class IInitialCondition(ABC):
         pass
 
     @abstractmethod
-    def apply(self, target_field: Field):
+    def get(self, **kwargs) -> Variable:
         """
-        Initializes the target field in-place.
+        Get the initial value.
+        """
+        pass
+
+    @abstractmethod
+    def apply(self, field: Field):
+        """
+        Initializes the target field.
         """
         pass

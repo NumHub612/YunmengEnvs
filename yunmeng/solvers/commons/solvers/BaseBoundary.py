@@ -5,13 +5,6 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Baseic boundary condition class.
 """
 
-# -*- encoding: utf-8 -*-
-"""
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
-
-To provide the Dirichlet boundary condition.
-"""
-
 from yunmeng.solvers.interfaces import IBoundaryCondition, BoundaryType, BoundaryValue
 from yunmeng.numerics.mesh import Mesh, Region, get_element_ids
 

@@ -53,4 +53,5 @@ class ValueBoundary(BaseBoundary):
                 f"but BC {self._id} has variable type {self._bc.value.vtype}."
             )
 
+        # TODO：check the gpu/cpu senario data exchange.
         field[self._resolved_ids] = self._bc.value.data
