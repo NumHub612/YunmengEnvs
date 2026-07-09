@@ -223,6 +223,9 @@ class BaseSolver(ISolver):
         logger.info(f"Solver {solver.id} loaded from {path}.")
         return solver
 
+    def __call__(self, **kwargs):
+        return self.forward(**kwargs)
+
     def set_problems(self, equations: list[IEquation]):
         pass
 

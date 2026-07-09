@@ -86,10 +86,8 @@ class SolverConfig(ABC):
         Build a config instance from a plain dictionary.
         Unknown keys are silently ignored.
         """
-        if not isinstance(d, dict):
-            raise TypeError(f"Expected dict, got {type(d).__name__}")
-        valid = {f.name for f in dc_fields(cls)}
-        filtered = {k: v for k, v in d.items() if k in valid}
+        keys = {f.name for f in dc_fields(cls)}
+        filtered = {k: v for k, v in d.items() if k in keys}
         return cls(**filtered)
 
     def to_dict(self) -> dict[str, Any]:
@@ -97,7 +95,6 @@ class SolverConfig(ABC):
         result = {}
         for f in dc_fields(self):
             val = getattr(self, f.name)
-            # Handle numpy scalars
             if isinstance(val, np.generic):
                 val = val.item()
             result[f.name] = val
@@ -107,31 +104,7 @@ class SolverConfig(ABC):
     @abstractmethod
     def get_solver_name(cls) -> str:
         """The solver class name this config belongs to."""
-        pass
-
-
-# --------------------------------------------------
-# region Runtime Config
-# --------------------------------------------------
-
-
-@dataclass
-class RuntimeParams:
-    """
-    Parameters passed to `solver.forward()` each time step.
-    """
-
-    dt: Optional[float] = None
-    """Desired time step."""
-
-    end_time: float = float("inf")
-    """Physical time at which to stop."""
-
-    max_steps: Optional[int] = None
-    """Max number of steps."""
-
-    extras: dict[str, Any] = field(default_factory=dict)
-    """Solver-specific overrides. e.g. {'cfl': 0.3} ."""
+        raise NotImplementedError()
 
 
 # --------------------------------------------------

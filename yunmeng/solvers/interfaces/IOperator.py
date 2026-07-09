@@ -49,8 +49,6 @@ class IOperator(ABC):
         3. Evaluation: ``forward(data_hub, **kwargs)``— called every step.
     """
 
-    # -- class-level metadata -----------------------
-
     @classmethod
     @abstractmethod
     def get_name(cls) -> str:
@@ -75,8 +73,6 @@ class IOperator(ABC):
         """
         pass
 
-    # -- properties ---------------------------------
-
     @property
     def target_fields(self) -> list[str]:
         """
@@ -91,24 +87,22 @@ class IOperator(ABC):
         """
         return 1
 
-    # -- lifecycle ----------------------------------
-
     @abstractmethod
     def prepare(
         self,
         mesh: Mesh,
-        bounds: dict[int, dict[str, IBoundaryCondition]],
+        boundaries: dict[str, list[IBoundaryCondition]],
         **kwargs,
     ):
         """
-        Prepare the operator.
+        Prepares the operator.
         """
         pass
 
     @abstractmethod
     def forward(self, fields: DataHub, **kwargs) -> Field | LinearEqs:
         """
-        Run the operator on field.
+        Runs the operator on field.
 
         For explicit operators, it returns a `Field`  generated newly.
         For implicit operators, it returns a `LinearEqs` to be solved.
