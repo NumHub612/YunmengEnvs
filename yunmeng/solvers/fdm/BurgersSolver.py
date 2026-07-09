@@ -5,7 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Burgers' equation solver using the finite difference method.
 """
 
-from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub2, Sample2
+from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
 from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
 from yunmeng.solvers.commons import (
     BaseSolver,
@@ -87,7 +87,7 @@ class BurgersExplicitSolver(BaseSolver):
                 self._part.shards, VariableType.vector(2), ElementType.NODE, name="u"
             )
         }
-        self._buffs: DataHub2 = None
+        self._buffs: DataHub = None
 
     def initialize(self):
         # Check initial conditions
@@ -128,9 +128,9 @@ class BurgersExplicitSolver(BaseSolver):
 
         # Init buffers
         time_order = 2
-        self._buffs = DataHub2(["u"], time_order)
+        self._buffs = DataHub(["u"], time_order)
         for _ in range(time_order):
-            self._buffs.push("u", Sample2(0.0, self._fields["u"]), ElementType.NODE)
+            self._buffs.push("u", Sample(0.0, self._fields["u"]), ElementType.NODE)
 
         # Call callbacks
         for callback in self._callbacks:
@@ -172,7 +172,7 @@ class BurgersExplicitSolver(BaseSolver):
         self._fields["u"] = new_u
         self._apply_boundary_conditions()
         self._buffs.push(
-            "u", Sample2(self._status.current_time, new_u), ElementType.NODE
+            "u", Sample(self._status.current_time, new_u), ElementType.NODE
         )
 
         # Call callbacks

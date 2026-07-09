@@ -5,7 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Navier-Stokes equations solver in fdm format on fixed 2d Grid.
 """
 
-from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub2, Sample2
+from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
 from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
 from yunmeng.solvers.commons import (
     BaseSolver,
@@ -103,7 +103,7 @@ class NavierStokesSolver(BaseSolver):
                 self._part.shards, VariableType.scalar(), ElementType.NODE, name="p"
             ),
         }
-        self._buffs: DataHub2 = None
+        self._buffs: DataHub = None
 
     def initialize(self):
         # Check initial conditions
@@ -149,10 +149,10 @@ class NavierStokesSolver(BaseSolver):
 
         # Init buffers
         time_order = 2
-        self._buffs = DataHub2(["u", "p"], time_order)
+        self._buffs = DataHub(["u", "p"], time_order)
         for _ in range(time_order):
-            self._buffs.push("u", Sample2(0.0, self._fields["u"]), ElementType.NODE)
-            self._buffs.push("p", Sample2(0.0, self._fields["p"]), ElementType.NODE)
+            self._buffs.push("u", Sample(0.0, self._fields["u"]), ElementType.NODE)
+            self._buffs.push("p", Sample(0.0, self._fields["p"]), ElementType.NODE)
 
         # Call callbacks
         for callback in self._callbacks:
@@ -229,7 +229,7 @@ class NavierStokesSolver(BaseSolver):
             bc.apply(u_star)
 
         self._fields["u"] = u_star
-        self._buffs.push("u", Sample2(new_t, u_star), ElementType.NODE)
+        self._buffs.push("u", Sample(new_t, u_star), ElementType.NODE)
 
     def _solve_pressure(self, dt: float, new_t: float):
         """Solve the poisson equation to get pressure."""
@@ -251,7 +251,7 @@ class NavierStokesSolver(BaseSolver):
         self._fields["p"] = new_p
 
         # update pressure field
-        self._buffs.push("p", Sample2(new_t, new_p), ElementType.NODE)
+        self._buffs.push("p", Sample(new_t, new_p), ElementType.NODE)
 
     def _correct_velocity(self, dt: float, new_t: float):
         """Correct the velocity field by pressure for continuty."""
@@ -265,7 +265,7 @@ class NavierStokesSolver(BaseSolver):
         self._fields["u"] = new_u
 
         # update velocity
-        self._buffs.push("u", Sample2(new_t, new_u), ElementType.NODE)
+        self._buffs.push("u", Sample(new_t, new_u), ElementType.NODE)
 
     def _update_status(self, time_cost: float, dt: float):
         self._status.current_time += dt

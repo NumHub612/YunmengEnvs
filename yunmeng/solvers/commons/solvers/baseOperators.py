@@ -12,7 +12,7 @@ from yunmeng.solvers.interfaces import (
     BoundaryType,
 )
 from yunmeng.numerics.mesh import Mesh
-from yunmeng.numerics.fields import Field, DataProduct, Sample2, ElementType, DataHub2
+from yunmeng.numerics.fields import Field, DataProduct, Sample, ElementType, DataHub
 from yunmeng.numerics.algos import MeshTopo, MeshGeom
 
 
@@ -60,10 +60,10 @@ class BaseOperator(IOperator):
 
     def _publish(
         self,
-        datahub: DataHub2,
+        datahub: DataHub,
         field_name: str,
         etype: ElementType,
-        sample: Sample2,
+        sample: Sample,
         otype: str | None = None,
         depends: list[DataProduct] = None,
     ):
@@ -76,12 +76,12 @@ class BaseOperator(IOperator):
 
     def _query(
         self,
-        datahub: DataHub2,
+        datahub: DataHub,
         field_name: str,
         etype: ElementType,
         otype: str,
         namespace: str = "*",
-    ) -> Sample2:
+    ) -> Sample:
         """Query DataHub cache for a reusable product."""
         product = DataProduct.for_query(field_name, etype, otype, namespace)
         return datahub.get_computed(product)

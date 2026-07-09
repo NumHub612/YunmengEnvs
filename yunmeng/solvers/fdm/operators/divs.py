@@ -15,9 +15,9 @@ from yunmeng.solvers.interfaces import (
 from yunmeng.solvers.commons.solvers import BaseExplicitOperator, BaseImplicitOperator
 from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.fields import (
-    DataHub2,
+    DataHub,
     DataProduct,
-    Sample2,
+    Sample,
     Field,
     Variable,
     VariableType,
@@ -69,7 +69,7 @@ class Div01(BaseExplicitOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def forward(self, datahub: DataHub2, time: float) -> Field:
+    def forward(self, datahub: DataHub, time: float) -> Field:
         """Calculate the divergence of the field.
 
         If a grad operator has already published grad(u) to the cache,
@@ -93,7 +93,7 @@ class Div01(BaseExplicitOperator):
             datahub,
             self._var,
             ElementType.NODE,
-            Sample2(time, div),
+            Sample(time, div),
             self.get_type().value,
         )
         return div

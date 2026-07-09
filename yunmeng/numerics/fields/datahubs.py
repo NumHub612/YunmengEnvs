@@ -21,15 +21,15 @@ from yunmeng.numerics.fields import Field
 
 
 @dataclass(slots=True)
-class Sample2:
+class Sample:
     """A time-stamped field snapshot. Mutable — can be updated in-place."""
 
     timestamp: float
     data: Field
 
-    def detach(self) -> Sample2:
+    def detach(self) -> Sample:
         """Return new Sample with data detached from computation graph."""
-        return Sample2(self.timestamp, self.data.detach())
+        return Sample(self.timestamp, self.data.detach())
 
     def to_tensor(self) -> torch.Tensor:
         """Extract tensor from underlying Field data."""
@@ -106,7 +106,7 @@ class ComputedEntry:
     """
 
     product: DataProduct
-    sample: Sample2
+    sample: Sample
     versions: dict[str, int] = field(default_factory=dict)
     depends: list[DataProduct] = field(default_factory=list)
 
@@ -142,9 +142,9 @@ class TensorHistory:
         self._shape_hint = shape_hint
         self._version = 0
 
-        # Store Sample2 references (not stacked tensors)
+        # Store Sample references (not stacked tensors)
         # [newest, t-1, t-2, ...]
-        self._history: list[Optional[Sample2]] = [None] * levels
+        self._history: list[Optional[Sample]] = [None] * levels
 
     @property
     def name(self) -> str:
@@ -162,15 +162,15 @@ class TensorHistory:
     def device(self) -> Optional[torch.device]:
         return self._tensors.device if self._tensors is not None else None
 
-    def push(self, sample: Sample2) -> None:
+    def push(self, sample: Sample) -> None:
         """Push new sample — shifts history, drops oldest.
 
-        Only the Sample2 *reference* is moved (O(levels)), no Field copy.
+        Only the Sample *reference* is moved (O(levels)), no Field copy.
         If the Field's underlying data is a torch.Tensor with requires_grad,
         the computation graph connection is preserved.
         """
-        if not isinstance(sample, Sample2):
-            raise TypeError(f"Expected Sample2, got {type(sample)}")
+        if not isinstance(sample, Sample):
+            raise TypeError(f"Expected Sample, got {type(sample)}")
 
         # Shift: [newest, t-1, t-2] -> [new_sample, newest, t-1]
         for i in range(self._max_levels - 1, 0, -1):
@@ -178,17 +178,17 @@ class TensorHistory:
         self._history[0] = sample
         self._version += 1
 
-    def latest(self) -> Optional[Sample2]:
+    def latest(self) -> Optional[Sample]:
         """Get the most recent sample (level=0)."""
         return self._history[0]
 
-    def at(self, level: int = 0) -> Optional[Sample2]:
+    def at(self, level: int = 0) -> Optional[Sample]:
         """Get sample at time level (0=current, 1=previous, ...)."""
         if level < 0 or level >= self._max_levels:
             raise IndexError(f"Level {level} out of range [0, {self._max_levels})")
         return self._history[level]
 
-    def at_time(self, t: float) -> Optional[Sample2]:
+    def at_time(self, t: float) -> Optional[Sample]:
         """Find sample closest to given physical time."""
         best, best_dt = None, float("inf")
         for s in self._history:
@@ -244,7 +244,7 @@ class TensorHistory:
 # ---------------------------------------------------------------------------
 
 
-class DataHub2:
+class DataHub:
     """Central data management for a solver.
 
     Three subsystems:
@@ -278,16 +278,16 @@ class DataHub2:
 
     # -- time history management --------------------
 
-    def push(self, name: str, sample: Sample2, etype: ElementType) -> None:
+    def push(self, name: str, sample: Sample, etype: ElementType) -> None:
         """Push a field snapshot into time history.
 
         Args:
             name: field name
-            sample: the Sample2 to store
+            sample: the Sample to store
             etype: element type where the field lives
         """
-        if not isinstance(sample, Sample2):
-            raise TypeError(f"Expected Sample2, got {type(sample)}")
+        if not isinstance(sample, Sample):
+            raise TypeError(f"Expected Sample, got {type(sample)}")
 
         key = self._key(name, etype)
         if key not in self._history:
@@ -304,7 +304,7 @@ class DataHub2:
         name: str,
         etype: ElementType,
         level: int = 0,
-    ) -> Optional[Sample2]:
+    ) -> Optional[Sample]:
         """Get field at given time level and location."""
         key = self._key(name, etype)
         hist = self._history.get(key)
@@ -312,7 +312,7 @@ class DataHub2:
             return None
         return hist.at(level)
 
-    def latest(self, name: str, etype: ElementType) -> Optional[Sample2]:
+    def latest(self, name: str, etype: ElementType) -> Optional[Sample]:
         """Get the most recent sample of a field."""
         return self.field(name, etype, level=0)
 
@@ -328,7 +328,7 @@ class DataHub2:
 
     # -- cache management  --------------------------
 
-    def get_computed(self, product: DataProduct) -> Optional[Sample2]:
+    def get_computed(self, product: DataProduct) -> Optional[Sample]:
         """Query cache for a previously computed product.
 
         Wildcard query: if ``product.namespace == "*"``, matches ANY
@@ -365,7 +365,7 @@ class DataHub2:
     def put_computed(
         self,
         product: DataProduct,
-        sample: Sample2,
+        sample: Sample,
         depends: Optional[list[DataProduct]] = None,
     ) -> None:
         """Store a computed product in cache for reuse."""
@@ -469,127 +469,3 @@ class DataHub2:
         n_hist = sum(1 for h in self._history.values() if len(h) > 0)
         n_cache = len(self._cache)
         return f"DataHub(fields={self._fields}, history={n_hist}, cached={n_cache})"
-
-
-# -----------------------------------------------
-# region Datahub v1
-# -----------------------------------------------
-
-
-@dataclass(slots=True, frozen=True, order=False)
-class Sample:
-    """A sample of the field."""
-
-    timestamp: float
-    data: Field
-
-
-class DataHub:
-    """Datahub for managing the fields and its history."""
-
-    def __init__(self, fields: list[str], levels: int):
-        """Initialize with the given fields and levels."""
-        self._buffs: dict[str, RingBuffer] = {}
-        self._grads: dict[str, RingBuffer] = {}
-        for f in list(set(fields)):
-            for loc in ElementType:
-                _name = self._inner_name(f, loc)
-                self._buffs[_name] = RingBuffer(levels)
-                self._grads[_name] = RingBuffer(levels)
-        self._size = levels
-        self._raws = fields
-
-    def _inner_name(self, name: str, loc: ElementType):
-        return f"{name}_{loc.name}"
-
-    def field(
-        self, name: str, level: int = 0, loc: ElementType = ElementType.CELL
-    ) -> Sample:
-        """Fetch the specified field at the given level.
-
-        NOTE: level=0 present the latest data,
-        level=1 present the previous data,
-        and so on.
-        """
-        _name = self._inner_name(name, loc)
-        return self._buffs[_name][level]
-
-    def grad(
-        self, name: str, level: int = 0, loc: ElementType = ElementType.CELL
-    ) -> Sample:
-        """Fetch the specified field's gradient at the given level.
-
-        NOTE: level=0 present the latest gradient,
-        level=1 present the previous gradient,
-        and so on.
-        """
-        _name = self._inner_name(name, loc)
-        return self._grads[_name][level]
-
-    def has(
-        self, name: str, loc: ElementType, level: int = 0, grad: bool = False
-    ) -> bool:
-        """Check if the datahub has the target field."""
-        if name not in self._raws:
-            return False
-        if level >= self._size or level < 0:
-            return False
-
-        _name = self._inner_name(name, loc)
-        if grad:
-            return self._grads[_name][level] is not None
-        else:
-            return self._buffs[_name][level] is not None
-
-    def clear(self):
-        """Clear the datahub data."""
-        for buff in self._buffs.values():
-            buff.clear()
-        for grad in self._grads.values():
-            grad.clear()
-
-    def push_field(self, name: str, sample: Sample):
-        """Push origin field."""
-        _name = self._inner_name(name, sample.data.meta.etype)
-        self._buffs[_name].push(sample)
-
-    def push_grad(self, name: str, sample: Sample):
-        """Push gradient."""
-        _name = self._inner_name(name, sample.data.meta.etype)
-        self._grads[_name].push(sample)
-
-    def push(self, name: str, field: Sample, grad: Sample):
-        """Push both field and gradient."""
-        self.push_field(name, field)
-        self.push_grad(name, grad)
-
-
-class RingBuffer:
-    """Class RingBuffer for managing the history of field."""
-
-    def __init__(self, size: int = 1):
-        """Initialize the ring buffer."""
-        if size < 1:
-            raise ValueError("Size must be greater than 0.")
-        self._i = 0
-        self._size = size
-        self._data = [None] * size
-
-    def push(self, obj: Sample):
-        if not isinstance(obj, Sample):
-            raise TypeError(f"Invalid buffer {type(obj)}.")
-        self._data[self._i] = obj
-        self._i = (self._i + 1) % self._size
-
-    def __getitem__(self, level: int):
-        if level >= self._size or level < 0:
-            raise IndexError(f"Level {level} out of range.")
-        i = (self._i - 1 - level) % self._size
-        return self._data[i]
-
-    def __len__(self):
-        return self._size
-
-    def clear(self):
-        self._data = [None] * self._size
-        self._i = 0

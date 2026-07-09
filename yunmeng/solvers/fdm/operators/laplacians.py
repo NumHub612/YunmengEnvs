@@ -19,8 +19,8 @@ from yunmeng.numerics.enums import BackendType
 from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.linalgs import LinearEqs, Matrix, NumpyMatrix, TorchMatrix
 from yunmeng.numerics.fields import (
-    DataHub2,
-    Sample2,
+    DataHub,
+    Sample,
     Field,
     Variable,
     VariableType,
@@ -63,7 +63,7 @@ class Lap01(BaseExplicitOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def forward(self, datahub: DataHub2, time: float) -> Field:
+    def forward(self, datahub: DataHub, time: float) -> Field:
         sample = datahub.latest(self._var, ElementType.NODE)
         if sample is None:
             raise ValueError(f"Lap01: no data for '{self._var}'@NODE.")
@@ -83,7 +83,7 @@ class Lap01(BaseExplicitOperator):
             datahub,
             self._var,
             ElementType.NODE,
-            Sample2(time, result),
+            Sample(time, result),
             self.get_type().value,
         )
         return result
@@ -166,7 +166,7 @@ class Lap02(BaseImplicitOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def forward(self, datahub: DataHub2, time: float = None) -> LinearEqs:
+    def forward(self, datahub: DataHub, time: float = None) -> LinearEqs:
         sample = datahub.latest(self._var, ElementType.NODE)
         if sample is None:
             raise ValueError(f"Lap02: no data for '{self._var}'@NODE.")

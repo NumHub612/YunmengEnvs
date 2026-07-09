@@ -16,9 +16,9 @@ from yunmeng.solvers.commons.solvers import BaseExplicitOperator, BaseImplicitOp
 from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.algos import MeshTopo
 from yunmeng.numerics.fields import (
-    DataHub2,
+    DataHub,
     DataProduct,
-    Sample2,
+    Sample,
     Field,
     Variable,
     VariableType,
@@ -97,7 +97,7 @@ class Grad01(BaseExplicitOperator):
         self._idx_n = np.array(n_arr, dtype=np.int64)
         self._idx_s = np.array(s_arr, dtype=np.int64)
 
-    def forward(self, data_hub: DataHub2, time: float) -> Field:
+    def forward(self, data_hub: DataHub, time: float) -> Field:
         """Calculate the gradient of the field."""
         # Extract field from DataHub
         sample = data_hub.latest(self._var, ElementType.NODE)
@@ -122,7 +122,7 @@ class Grad01(BaseExplicitOperator):
             data_hub,
             self._var,
             ElementType.NODE,
-            Sample2(time, grads),
+            Sample(time, grads),
             self.get_type().value,
         )
 
@@ -294,8 +294,7 @@ class Grad02(BaseExplicitOperator):
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def forward(self, datahub: DataHub2, time: float) -> Field:
-        """V2 forward — receives DataHub2."""
+    def forward(self, datahub: DataHub, time: float) -> Field:
         sample = datahub.latest(self._var, ElementType.NODE)
         if sample is None:
             raise ValueError(f"Grad02: no data for '{self._var}'@NODE.")
@@ -315,7 +314,7 @@ class Grad02(BaseExplicitOperator):
             datahub,
             self._var,
             ElementType.NODE,
-            Sample2(time, grads),
+            Sample(time, grads),
             self.get_type().value,
         )
         return grads

@@ -13,9 +13,9 @@ from yunmeng.solvers.interfaces import (
 from yunmeng.solvers.commons.solvers import BaseExplicitOperator, BaseImplicitOperator
 from yunmeng.numerics.grids import Grid, ElementType
 from yunmeng.numerics.fields import (
-    DataHub2,
+    DataHub,
     DataProduct,
-    Sample2,
+    Sample,
     Field,
     Variable,
     VariableType,
@@ -51,7 +51,7 @@ class Src01(BaseExplicitOperator):
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-    def forward(self, datahub: DataHub2, time: float) -> Field:
+    def forward(self, datahub: DataHub, time: float) -> Field:
         sample = datahub.latest(self._var, ElementType.NODE)
         if sample is None:
             raise ValueError(f"Src01: no data for '{self._var}'@NODE in data_hub")
@@ -71,7 +71,7 @@ class Src01(BaseExplicitOperator):
             datahub,
             self._var,
             ElementType.NODE,
-            Sample2(time, new_field),
+            Sample(time, new_field),
             self.get_type().value,
         )
         return new_field
