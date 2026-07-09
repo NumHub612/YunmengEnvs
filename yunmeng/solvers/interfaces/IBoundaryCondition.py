@@ -83,20 +83,6 @@ class IBoundaryCondition(ABC):
         pass
 
     @abstractmethod
-    def attach(self, mesh: Mesh):
-        """
-        Attaches the mesh.
-        """
-        pass
-
-    @abstractmethod
-    def validate(self, **kwargs):
-        """
-        Validates.
-        """
-        pass
-
-    @abstractmethod
     def get(self, **kwargs) -> BoundaryValue:
         """
         Gets current boundary conditions.
@@ -107,12 +93,5 @@ class IBoundaryCondition(ABC):
     def apply(self, field: Field, **kwargs):
         """
         Applys boundary condition.
-        """
-        pass
-
-    @abstractmethod
-    def reset(self) -> None:
-        """
-        Resets the boundary condition.
         """
         pass

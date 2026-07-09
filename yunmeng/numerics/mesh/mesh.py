@@ -6,7 +6,7 @@ Spatial domain classes and methods for the cfd.
 """
 
 from yunmeng.numerics.enums import MeshDimension, ElementType
-from yunmeng.numerics.mesh.elements import Node, Face, Cell
+from yunmeng.numerics.mesh.elements import Node, Face, Cell, Element
 
 import numpy as np
 from dataclasses import dataclass
@@ -216,13 +216,49 @@ class Region:
     """
 
     name: str
+    mesh: Mesh
     type: ElementType = ElementType.NONE
     indices: Optional[list[int]] = None
     tags: Optional[list[str]] = None
     predicate: Optional[Callable[[np.ndarray], np.ndarray]] = None
+
+    _element_ids = None
+    _version = None
 
     def select(self, elements: np.ndarray) -> np.ndarray:
         """Return the mask of the region."""
         if self.predicate is not None:
             return self.predicate(elements)
         raise ValueError(f"Region {self.name} have no predicate method.")
+
+    def get_element_ids(self) -> np.ndarray:
+        """Get the ids of elements in the region."""
+        if self._version == self.mesh.version and self._element_ids is not None:
+            return self._element_ids
+        if self._version != self.mesh.version:
+            self._version = self.mesh.version
+            self._element_ids = None
+
+        mesh = self.mesh
+        if self.indices is not None:
+            resolved_ids = np.array(self.indices)
+        elif self.tags is not None:
+            ids, etype = mesh.get_group(self.name)
+            resolved_ids = np.array(ids)
+        elif self.predicate is not None:
+            elements = mesh.get_elements(self.type)
+            mask = self.select(elements)
+            resolved_ids = np.where(mask)[0]
+        elif self.type is not None:
+            element_nb = mesh.get_element_count(self.type)
+            resolved_ids = np.arange(element_nb)
+        else:
+            raise ValueError("Invalid region definition.")
+
+        if self._element_ids is None:
+            self._element_ids = resolved_ids
+        return resolved_ids
+
+    def include(self, elemnet: Element) -> bool:
+        """Check if the element is in the region."""
+        return elemnet.id in self.get_element_ids()

@@ -52,7 +52,7 @@ class FluxBoundary(BaseBoundary):
                 f"Field {field.meta.name} not match target field {self._target_field}."
             )
 
-        if field.meta.vtype != self._bc.value.vtype:
+        if field.meta.vtype != self._bc.flux.vtype:
             raise ValueError(
                 f"Field {field.meta.name} has variable type {field.meta.vtype}, "
                 f"but BC {self._id} has variable type {self._bc.flux.vtype}."
