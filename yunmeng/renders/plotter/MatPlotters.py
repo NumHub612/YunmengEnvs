@@ -6,7 +6,7 @@ Matrix plotter for matrix visualization.
 """
 
 from yunmeng.numerics.linalgs import Matrix, LinearEqs
-from yunmeng.render.plotter import PlotKits
+from yunmeng.renders.plotter import PlotKits
 
 import numpy as np
 import matplotlib.pyplot as plt
