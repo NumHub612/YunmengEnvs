@@ -1,0 +1,180 @@
+# -*- encoding: utf-8 -*-
+"""
+Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+
+Coupling protocol interfaces — PULL (one-way) and LOOP (iterative two-way).
+
+The Scheduler uses these interfaces to manage how data flows between
+LinkableComponents:
+
+  PULL mode (default):
+      Scheduler calls trigger.update() which pulls data from upstream
+      outputs through linked inputs.  Data flows one direction only.
+
+  LOOP mode (for bidirectional feedback):
+      Scheduler delegates to an IIterativeCoupler which repeatedly
+      updates two connected components until their exchanged variables
+      converge (fixed-point iteration with optional relaxation).
+"""
+
+from __future__ import annotations
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+import numpy as np
+
+from IComponent import ILinkableComponent
+
+# ---------------------------------------------------
+# region CouplingMode
+# ---------------------------------------------------
+
+
+class CouplingMode(Enum):
+    """How two components are coupled."""
+
+    PULL = "pull"
+    """One-way data pull (OpenMI-style).  Downstream component reads
+    from upstream output when it updates."""
+
+    LOOP = "loop"
+    """Iterative two-way coupling. Both components exchange data and
+    iterate within a single time step until convergence."""
+
+    PUSH = "push"
+    """One-way data push (rarely used in practice)."""
+
+
+# ---------------------------------------------------
+# region CouplingConfig
+# ---------------------------------------------------
+
+
+@dataclass
+class CouplingConfig:
+    """Configuration for a coupling link."""
+
+    mode: CouplingMode = CouplingMode.PULL
+
+    # -- LOOP-only parameters -----------------------
+
+    max_iterations: int = 100
+    """Maximum iterations per time step."""
+
+    tolerance: float = 1e-6
+    """Convergence tolerance (max absolute difference)."""
+
+    relaxation: float = 1.0
+    """Relaxation factor ω (0 < ω ≤ 1)."""
+
+    convergence_vars: list[str] = []
+    """Exchanged variables need convergence check.  
+    If empty, all linked variables are checked."""
+
+    divergence_action: str = "rollback"
+    """Action when max_iterations is reached without convergence:
+    "rollback" — restore pre-iteration state and mark FAILED 
+    "continue" — accept the best approximation and emit a warning
+    "freeze"   — keep the last converged state from previous step
+    """
+
+
+# ---------------------------------------------------
+# region IterationResult
+# ---------------------------------------------------
+
+
+@dataclass
+class IterationResult:
+    """Outcome of one LOOP iteration cycle."""
+
+    converged: bool
+    """Whether the iteration converged within tolerance."""
+
+    iterations: int
+    """Number of iterations actually performed."""
+
+    residual: float
+    """Final residual value (max abs diff)."""
+
+    residual_history: list[float] = field(default_factory=list)
+    """Per-iteration residual sequence."""
+
+    message: str = ""
+    """Human-readable status message."""
+
+
+# ---------------------------------------------------
+# region ICouplingStrategy
+# ---------------------------------------------------
+
+
+class ICouplingStrategy(ABC):
+    """Abstract strategy for executing a coupling between two or more
+    components.  The Scheduler selects the appropriate strategy based
+    on the CouplingMode declared in the link configuration."""
+
+    @property
+    @abstractmethod
+    def mode(self) -> CouplingMode:
+        pass
+
+    @abstractmethod
+    def execute(
+        self,
+        source: ILinkableComponent,
+        target: ILinkableComponent,
+        config: CouplingConfig,
+    ) -> IterationResult:
+        """Executes coupling cycle for this current time step.
+
+        For PULL this is a trivial data transfer.
+        For LOOP this performs the full fixed-point iteration.
+        """
+        pass
+
+
+# ---------------------------------------------------
+# region IIterativeCoupler
+# ---------------------------------------------------
+
+
+class IIterativeCoupler(ICouplingStrategy):
+    """Bidirectional iterative coupler using fixed-point iteration.
+
+    Concrete subclasses implement the domain-specific logic for
+    extracting exchanged variables from one component and applying
+    them as boundary conditions / source terms to the other.
+    """
+
+    @abstractmethod
+    def iterate(
+        self,
+        comp_a: ILinkableComponent,
+        comp_b: ILinkableComponent,
+        config: CouplingConfig,
+    ) -> IterationResult:
+        """Run one fixed-point iteration cycle:
+
+        1. Snapshot initial states of both components.
+        2. For k = 1 .. max_iterations:
+             a. Update comp_a (using comp_b's latest output as BC).
+             b. Extract exchange variables from comp_a → comp_b.
+             c. Update comp_b (using comp_a's latest output as source).
+             d. Extract exchange variables from comp_b → comp_a.
+             e. Check convergence; break if residual < tolerance.
+             f. Apply relaxation if ω < 1.
+        3. If not converged: apply divergence_action.
+        """
+        pass
+
+    @abstractmethod
+    def converge(
+        self,
+        previous: dict[str, np.ndarray],
+        current: dict[str, np.ndarray],
+        config: CouplingConfig,
+    ) -> tuple[bool, float]:
+        """Return (converged, residual) where residual is the maximum
+        absolute difference across all convergence variables."""
+        pass

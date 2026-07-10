@@ -75,17 +75,17 @@ class IOperator(ABC):
         """
         pass
 
-    # -- class -----------------------------
+    # -- class products -----------------------------
 
     @classmethod
-    def produces(cls, field_name: str, etype: ElementType) -> list[DataProduct]:
+    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
         """
         Declares DataProducts this operator can produce for.
         """
         return []
 
     @classmethod
-    def consumes(cls, field_name: str, etype: ElementType) -> list[DataProduct]:
+    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
         """
         Declares DataProducts this operator want to consume.
         """
@@ -124,7 +124,7 @@ class IOperator(ABC):
         """
         Runs the operator on field.
 
-        For explicit operators, it returns a `Field`  generated newly.
-        For implicit operators, it returns a `LinearEqs` to be solved.
+        For an explicit operator, it returns a `Field`  generated newly.
+        For an implicit operator, it returns a `LinearEqs` to be solved.
         """
         pass
