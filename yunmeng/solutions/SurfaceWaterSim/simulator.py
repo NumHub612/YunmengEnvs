@@ -5,14 +5,14 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Surface water model.
 """
 
-from yunmeng.solutions.commons import models, datasets, links, metas
+from yunmeng.solutions.commons import models, datasets, metas
 from yunmeng.numerics.enums import ElementType, VariableType
 from yunmeng.numerics.grids import Grid2D, Coordinate
 from yunmeng.numerics.algos import MeshFilter
 from yunmeng.numerics.fields import VariableType, Field, Var
 from yunmeng.numerics.fields import Timeseries, Curve, Pattern
 from yunmeng.solvers.interfaces import ISolver, IOperator
-from yunmeng.utils.LoadData import load_data
+from yunmeng.solutions.commons.ios.LoadData import load_data
 from yunmeng.solvers import ym_solvers, ym_operators, SolverType
 from yunmeng.solvers.commons import boundary_conditions, init_methods, callback_handlers
 from yunmeng.setting import logger
@@ -308,7 +308,7 @@ class SurfaceWaterSimulator(models.BaseModel):
 
         self.set_status(models.LinkableComponentStatus.UPDATED, "prepared")
 
-    def update(self, required_outputs: list[links.IOutput] = None):
+    def update(self, required_outputs: list[models.IOutput] = None):
         self.set_status(models.LinkableComponentStatus.WAITING, "waiting")
 
         self.set_status(models.LinkableComponentStatus.UPDATING, "updating")
@@ -343,7 +343,7 @@ class SurfaceWaterSimulator(models.BaseModel):
         self.set_status(models.LinkableComponentStatus.FINISHED, "finished")
 
 
-class SurfaceWaterModelInput(links.BaseInput):
+class SurfaceWaterModelInput(models.BaseInput):
     def set_time(self, timestamp: float):
         time = metas.ITime(timestamp)
         self._timeset = datasets.TimeSet(None, [time])
@@ -352,7 +352,7 @@ class SurfaceWaterModelInput(links.BaseInput):
         self.notify_changed("surface water model input time reseted")
 
 
-class SurfaceWaterModelOutput(links.BaseOutput):
+class SurfaceWaterModelOutput(models.BaseOutput):
     def add_data(self, timestamp: float, value: Any):
         time = metas.ITime(timestamp)
         self._timeset.add_time(time)
