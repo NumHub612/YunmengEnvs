@@ -4,9 +4,10 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Provides numerical algorithms for field interpolation.
 """
+
 from __future__ import annotations
-from yunmeng.numerics.fields.fields import Field
-from yunmeng.numerics.mesh.spatials import Mesh, ElementType
+from yunmeng.numerics.fields import Field
+from yunmeng.numerics.mesh import Mesh, ElementType
 
 
 class FieldInterp:
@@ -15,7 +16,7 @@ class FieldInterp:
     """
 
     @staticmethod
-    def cell_to_face(field: Field, mesh: "Mesh", method: str = "linear") -> Field:
+    def cell_to_face(field: Field, mesh: Mesh, method: str = "linear") -> Field:
         """
         Interpolates a field from cells to faces.
 
@@ -33,7 +34,7 @@ class FieldInterp:
 
         result = Field(
             part,
-            field.dtype,
+            field.vtype,
             ElementType.FACE,
             requires_grad=field._meta.requires_grad,
         )

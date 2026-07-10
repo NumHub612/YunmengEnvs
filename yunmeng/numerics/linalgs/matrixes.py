@@ -2,15 +2,10 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Sparse matrixs.
+Sparse matrix implementations optimized for CFD solvers.
 """
 
-# -*- encoding: utf-8 -*-
-"""
-PyTorch Implementation of the Matrix Interface.
-Optimized for GPU-accelerated CFD solvers and AutoDiff.
-"""
-from yunmeng.numerics.mats.matrix import Matrix, TensorLike
+from yunmeng.numerics.linalgs.matrix import Matrix, ArrayLike
 import scipy.sparse as sp
 import torch
 import numpy as np
@@ -29,6 +24,7 @@ class TorchMatrix(Matrix):
 
     def __init__(self, tensor: torch.Tensor):
         self._data = tensor
+        self._nnz_cache = None  # Lazy cache
 
     # -----------------------------------------------
     # Factory Methods
@@ -37,8 +33,8 @@ class TorchMatrix(Matrix):
     @classmethod
     def from_data(
         cls,
-        values: TensorLike,
-        indices: TensorLike = None,
+        values: ArrayLike,
+        indices: ArrayLike = None,
         shape: Tuple[int, int] = None,
         device: torch.device = None,
     ) -> "TorchMatrix":
@@ -86,9 +82,9 @@ class TorchMatrix(Matrix):
     def from_coo(
         cls,
         shape: Tuple[int, int],
-        values: TensorLike,
-        rows: TensorLike,
-        cols: TensorLike,
+        values: ArrayLike,
+        rows: ArrayLike,
+        cols: ArrayLike,
         device: torch.device = None,
     ) -> "TorchMatrix":
         return cls.from_data(values, indices=(rows, cols), shape=shape, device=device)
@@ -97,9 +93,9 @@ class TorchMatrix(Matrix):
     def from_csr(
         cls,
         shape: Tuple[int, int],
-        values: TensorLike,
-        ptrs: TensorLike,
-        idxs: TensorLike,
+        values: ArrayLike,
+        ptrs: ArrayLike,
+        idxs: ArrayLike,
         device: torch.device = None,
     ) -> "TorchMatrix":
         values = torch.as_tensor(values)
@@ -122,7 +118,6 @@ class TorchMatrix(Matrix):
         shape: Tuple[int, int],
         device: torch.device = None,
     ) -> "TorchMatrix":
-        # Creating an empty COO tensor
         device = device or torch.device("cpu")
         indices = torch.empty((2, 0), dtype=torch.long, device=device)
         values = torch.empty(0, dtype=torch.float64, device=device)
@@ -137,7 +132,6 @@ class TorchMatrix(Matrix):
         size: int,
         device: torch.device = None,
     ) -> "TorchMatrix":
-        # Create diagonal indices
         device = device or torch.device("cpu")
         idx = torch.arange(size, device=device)
         indices = torch.stack([idx, idx], dim=0)
@@ -161,12 +155,14 @@ class TorchMatrix(Matrix):
 
     @property
     def nnz(self) -> int:
-        if self._data.is_sparse:
-            # Coalesce the tensor before getting values
-            coalesced = self._data.coalesce()
-            return coalesced.values().shape[0]
-        else:
-            return torch.count_nonzero(self._data).item()
+        """Number of non-zero elements (cached)."""
+        if self._nnz_cache is None:
+            if self._data.is_sparse:
+                coalesced = self._data.coalesce()
+                self._nnz_cache = coalesced.values().shape[0]
+            else:
+                self._nnz_cache = torch.count_nonzero(self._data).item()
+        return self._nnz_cache
 
     @property
     def device(self) -> torch.device:
@@ -175,22 +171,13 @@ class TorchMatrix(Matrix):
     @property
     def T(self) -> "TorchMatrix":
         transposed = self._data.transpose(0, 1)
-        # Coalesce the transposed tensor if it's sparse
         if transposed.is_sparse:
             transposed = transposed.coalesce()
         return TorchMatrix(transposed)
 
     @property
     def diags(self) -> List[torch.Tensor]:
-        if self._data.is_sparse:
-            coo = self._data.coalesce()
-            rows = coo.indices()[0]
-            cols = coo.indices()[1]
-            vals = coo.values()
-            mask = rows == cols
-            return [vals[mask]]
-        else:
-            return [torch.diag(self._data)]
+        return [self.diagonal(0)]
 
     # -----------------------------------------------
     # Utils
@@ -267,9 +254,7 @@ class TorchMatrix(Matrix):
         elif isinstance(other, torch.Tensor):
             # Matrix-Vector (Sparse @ Dense) -> Dense
             if other.dim() == 1:
-                other = other.unsqueeze(-1)  # to column vector
-                res = self._data @ other
-                return res.squeeze(-1)
+                return self._data @ other
             elif other.dim() == 2:
                 return self._data @ other
             else:
@@ -280,12 +265,14 @@ class TorchMatrix(Matrix):
     def __add__(self, other: "TorchMatrix") -> "TorchMatrix":
         if not isinstance(other, TorchMatrix):
             raise TypeError("Addition requires TorchMatrix")
-        return TorchMatrix(self._data + other._data)
+        result = self._data + other._data
+        return TorchMatrix(result)
 
     def __sub__(self, other: "TorchMatrix") -> "TorchMatrix":
         if not isinstance(other, TorchMatrix):
             raise TypeError("Subtraction requires TorchMatrix")
-        return TorchMatrix(self._data - other._data)
+        result = self._data - other._data
+        return TorchMatrix(result)
 
     def __mul__(self, scalar: float) -> "TorchMatrix":
         return TorchMatrix(self._data * scalar)
@@ -301,13 +288,21 @@ class TorchMatrix(Matrix):
 
 class NumpyMatrix(Matrix):
     """
-    NumpyMatrix class optimized for CFD applications.
+    NumpyMatrix optimized for CFD applications.
     """
 
     def __init__(self, sparse_matrix: sp.spmatrix):
         if not sp.issparse(sparse_matrix):
             raise TypeError("Input must be a scipy sparse matrix")
         self._data = sparse_matrix
+        # Flag: data may need conversion to CSR for efficient matmul/solve
+        self._needs_csr = sparse_matrix.format != "csr"
+
+    def _ensure_csr(self):
+        """Convert to CSR format if needed."""
+        if self._needs_csr:
+            self._data = self._data.tocsr()
+            self._needs_csr = False
 
     # -----------------------------------------------
     # Factory Methods
@@ -325,10 +320,10 @@ class NumpyMatrix(Matrix):
             raise ValueError("Only supports CPU ('cpu' or None).")
 
         if indices is None:
-            # Dense matrix
+            # Dense matrix -> convert to CSR
             mat = sp.csr_matrix(values)
         else:
-            # Sparse matrix (COO style)
+            # Sparse matrix (COO style) -> directly to CSR
             row_idx, col_idx = indices
             if shape is None:
                 rows = int(np.max(row_idx)) + 1
@@ -346,8 +341,8 @@ class NumpyMatrix(Matrix):
     ) -> "NumpyMatrix":
         if device is not None and device != "cpu":
             raise ValueError("NumpyMatrix only supports CPU.")
-        # Create an empty sparse matrix
-        mat = sp.csr_matrix(shape, dtype=np.float64)
+        # DOK for efficient element-wise construction
+        mat = sp.dok_matrix(shape, dtype=np.float64)
         return cls(mat)
 
     @classmethod
@@ -363,6 +358,7 @@ class NumpyMatrix(Matrix):
 
     @property
     def data(self) -> sp.spmatrix:
+        self._ensure_csr()
         return self._data
 
     @property
@@ -387,28 +383,32 @@ class NumpyMatrix(Matrix):
         return [self._data.diagonal(k=0)]
 
     # -----------------------------------------------
-    # Operators
+    # Element-wise assignment (DOK format)
     # -----------------------------------------------
 
     def __getitem__(self, index: tuple):
         return self._data[index]
 
     def __setitem__(self, index: tuple, value: float):
+        """Optimized element-wise assignment using DOK format."""
         self._data[index] = value
+        # Mark CSR conversion needed
+        self._needs_csr = True
+
+    # -----------------------------------------------
+    # Operators
+    # -----------------------------------------------
 
     def __matmul__(
-        self, other: Union["NumpyMatrix", torch.Tensor]
-    ) -> Union["NumpyMatrix", torch.Tensor]:
+        self, other: Union["NumpyMatrix", np.ndarray]
+    ) -> Union["NumpyMatrix", np.ndarray]:
         if isinstance(other, NumpyMatrix):
+            self._ensure_csr()
+            other._ensure_csr()
             return NumpyMatrix(self._data @ other._data)
         elif isinstance(other, np.ndarray):
-            # Sparse matrix-vector multiplication
-            if other.ndim == 1:
-                return self._data @ other
-            elif other.ndim == 2:
-                return self._data @ other
-            else:
-                raise ValueError("Vector must be 1D or 2D numpy array")
+            self._ensure_csr()
+            return self._data @ other
         else:
             raise TypeError(f"Unsupported type for matmul: {type(other)}")
 
@@ -444,6 +444,7 @@ class NumpyMatrix(Matrix):
         return self
 
     def to_torch(self, device: torch.device = None) -> "TorchMatrix":
+        self._ensure_csr()
         self_coo = self._data.tocoo()
         rows = torch.from_numpy(self_coo.row)
         cols = torch.from_numpy(self_coo.col)

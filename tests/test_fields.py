@@ -8,12 +8,10 @@ import numpy as np
 import torch
 
 from yunmeng.setting import settings
-from yunmeng.numerics.mesh.grids import Grid2D
-from yunmeng.numerics.mesh.meshes import GenericMesh
-from yunmeng.numerics.mesh.elements import Coordinate
-from yunmeng.numerics.fields.fields import Field, HaloMode
+from yunmeng.numerics.grids import Grid2D
+from yunmeng.numerics.mesh import GenericMesh, Coordinate
+from yunmeng.numerics.fields import Field, HaloMode, MeshShard
 from yunmeng.numerics.enums import ElementType, VariableType
-from yunmeng.numerics.algos.parts import MeshShard
 
 # ============================================
 # region Fixtures
@@ -109,7 +107,7 @@ class TestGrid2DField:
         """Test scalar field initialization on CPU with partitioning"""
         field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=1.0,
             requires_grad=False,
@@ -117,7 +115,7 @@ class TestGrid2DField:
 
         # Check field properties
         assert field.size == sum([s.n_core_cells for s in grid2d_shards])
-        assert field.vtype == VariableType.SCALAR
+        assert field.vtype == VariableType.scalar()
         assert field.etype == ElementType.CELL
 
         # Check initial values
@@ -128,7 +126,7 @@ class TestGrid2DField:
         """Test field indexing and assignment on CPU with partitioning"""
         field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -146,14 +144,14 @@ class TestGrid2DField:
         """Test field arithmetic operations on CPU with partitioning"""
         field1 = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=2.0,
             requires_grad=False,
         )
         field2 = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=3.0,
             requires_grad=False,
@@ -183,7 +181,7 @@ class TestGrid2DField:
         """Test gathering partitioned field data to host on CPU"""
         field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -197,15 +195,15 @@ class TestGrid2DField:
         data = field.gather_to_host()
 
         # Check data
-        assert data.shape == (9, 1)
+        assert data.shape == (9,)
         for i in range(9):
-            assert data[i, 0] == float(i)
+            assert data[i] == float(i)
 
     def test_field_scatter_from_host(self, grid2d_shards: list[MeshShard]):
         """Test scattering partitioned field data from host on CPU"""
         field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -234,7 +232,7 @@ class TestMesh2DField:
         """Test scalar field initialization on CPU with partitioning"""
         field = Field(
             mesh_shards=mesh2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -242,7 +240,7 @@ class TestMesh2DField:
 
         # Check field properties
         assert field.size == sum([s.n_core_cells for s in mesh2d_shards])
-        assert field.vtype == VariableType.SCALAR
+        assert field.vtype.is_scalar
         assert field.etype == ElementType.CELL
 
         # Check initial values
@@ -253,7 +251,7 @@ class TestMesh2DField:
         """Test field indexing and assignment on CPU with partitioning"""
         field = Field(
             mesh_shards=mesh2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -271,14 +269,14 @@ class TestMesh2DField:
         """Test field arithmetic operations on CPU with partitioning"""
         field1 = Field(
             mesh_shards=mesh2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=2.0,
             requires_grad=False,
         )
         field2 = Field(
             mesh_shards=mesh2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=3.0,
             requires_grad=False,
@@ -308,7 +306,7 @@ class TestMesh2DField:
         """Test gathering partitioned field data to host on CPU"""
         field = Field(
             mesh_shards=mesh2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -322,15 +320,15 @@ class TestMesh2DField:
         data = field.gather_to_host()
 
         # Check data
-        assert data.shape == (32, 1)
+        assert data.shape == (32,)
         for i in range(32):
-            assert data[i, 0] == float(i)
+            assert data[i] == float(i)
 
     def test_field_scatter_from_host(self, mesh2d_shards: list[MeshShard]):
         """Test scattering partitioned field data from host on CPU"""
         field = Field(
             mesh_shards=mesh2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -368,7 +366,7 @@ class TestMultiGPUField:
 
         field = Field(
             mesh_shards=mesh_part.shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -376,7 +374,7 @@ class TestMultiGPUField:
 
         # Check field properties
         assert field.size == mesh_part.get_size(ElementType.CELL)
-        assert field.vtype == VariableType.SCALAR
+        assert field.vtype.is_scalar
         assert field.etype == ElementType.CELL
 
         # Check initial values
@@ -395,7 +393,7 @@ class TestMultiGPUField:
 
         field = Field(
             mesh_shards=mesh_part.shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -421,7 +419,7 @@ class TestMultiGPUField:
 
         field = Field(
             mesh_shards=mesh_part.shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -447,7 +445,7 @@ class TestMultiGPUField:
 
         field = Field(
             mesh_shards=mesh_part.shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -455,7 +453,7 @@ class TestMultiGPUField:
 
         # Check field properties
         assert field.size == mesh_part.get_size(ElementType.CELL)
-        assert field.vtype == VariableType.SCALAR
+        assert field.vtype.is_scalar
         assert field.etype == ElementType.CELL
 
         # Check initial values
@@ -470,7 +468,7 @@ class TestMultiGPUField:
 
         field = Field(
             mesh_shards=mesh_part.shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -492,7 +490,7 @@ class TestMultiGPUField:
 
         field = Field(
             mesh_shards=mesh_part.shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -525,7 +523,7 @@ class TestFieldOperations:
         """Verify apply modifies data in-place correctly"""
         field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=2.0,
             requires_grad=False,
@@ -556,7 +554,7 @@ class TestFieldOperations:
         # Case 1: requires_grad=False should raise
         field_no_grad = Field(
             mesh_shards=grid2d_shards,  # Use default shards
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=1.0,
             requires_grad=False,
@@ -568,7 +566,7 @@ class TestFieldOperations:
         try:
             field_grad = Field(
                 mesh_shards=grid2d_shards,
-                vtype=VariableType.SCALAR,
+                vtype=VariableType.scalar(),
                 etype=ElementType.CELL,
                 init_val=1.0,
                 requires_grad=True,
@@ -618,7 +616,7 @@ class TestFieldOperations:
         """
         field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -663,7 +661,7 @@ class TestFieldOperations:
         """
         field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=1.0,
             requires_grad=False,
@@ -701,14 +699,14 @@ class TestFieldMultiplications:
         # Field2: All vectors are (4, 5, 6)
         field1 = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.VECTOR,
+            vtype=VariableType.vector(3),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
         )
         field2 = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.VECTOR,
+            vtype=VariableType.vector(3),
             etype=ElementType.CELL,
             init_val=0.0,
             requires_grad=False,
@@ -724,10 +722,10 @@ class TestFieldMultiplications:
         result_field = field1 * field2  # Should be 1*4 + 2*5 + 3*6 = 32
 
         # Check result type and values
-        assert result_field.vtype == VariableType.SCALAR
+        assert result_field.vtype.is_scalar
         for shard in result_field._shards:
-            # Check shape: (N, 1) for scalar field
-            assert shard.data.shape[1] == 1
+            # Scalar fields are stored as (N,) consistent with VariableType.SCALAR.shape
+            assert shard.data.ndim == 1
             # Check value: Should be 32.0
             np.testing.assert_allclose(shard.data, 32.0, rtol=1e-5)
 
@@ -736,14 +734,14 @@ class TestFieldMultiplications:
         # Create a vector field (1, 0, 0)
         vector_field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.VECTOR,
+            vtype=VariableType.vector(3),
             etype=ElementType.CELL,
             init_val=0.0,
         )
         # Create a 3x3 Identity tensor field
         tensor_field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.TENSOR,
+            vtype=VariableType.tensor(3),
             etype=ElementType.CELL,
             init_val=0.0,
         )
@@ -762,7 +760,7 @@ class TestFieldMultiplications:
         result_field = vector_field @ tensor_field
 
         # Assertions
-        assert result_field.vtype == VariableType.VECTOR
+        assert result_field.vtype.is_vector
         for shard in result_field._shards:
             # Check shape
             assert shard.data.shape[1] == 3
@@ -777,13 +775,13 @@ class TestFieldMultiplications:
         # B = (2, 0, 0)
         field_a = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.VECTOR,
+            vtype=VariableType.vector(3),
             etype=ElementType.CELL,
             init_val=0.0,
         )
         field_b = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.VECTOR,
+            vtype=VariableType.vector(3),
             etype=ElementType.CELL,
             init_val=0.0,
         )
@@ -799,7 +797,7 @@ class TestFieldMultiplications:
         result_field = field_a ^ field_b
 
         # Assertions
-        assert result_field.vtype == VariableType.TENSOR
+        assert result_field.vtype.is_tensor
         expected_tensor = np.zeros((3, 3))
         expected_tensor[0, 0] = 2.0  # 1 * 2
 
@@ -814,7 +812,7 @@ class TestFieldMultiplications:
         # Create a tensor field (Identity)
         tensor_field = Field(
             mesh_shards=grid2d_shards,
-            vtype=VariableType.TENSOR,
+            vtype=VariableType.tensor(3),
             etype=ElementType.CELL,
             init_val=0.0,
         )

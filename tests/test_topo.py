@@ -5,9 +5,8 @@ Unit tests for MeshTopo
 
 import pytest
 import numpy as np
-from yunmeng.numerics.mesh.grids import Grid2D, Grid
-from yunmeng.numerics.mesh.meshes import GenericMesh, Mesh
-from yunmeng.numerics.mesh.elements import Coordinate
+from yunmeng.numerics.grids import Grid2D, Grid
+from yunmeng.numerics.mesh import GenericMesh, Mesh, Coordinate
 
 # ============================================
 # region Fixtures

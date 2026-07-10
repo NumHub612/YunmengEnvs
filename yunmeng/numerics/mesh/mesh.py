@@ -4,46 +4,13 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Spatial domain classes and methods for the cfd.
 """
+
 from yunmeng.numerics.enums import MeshDimension, ElementType
-from yunmeng.numerics.mesh.elements import Node, Face, Cell
+from yunmeng.numerics.mesh.elements import Node, Face, Cell, Element
 
 import numpy as np
-from enum import Enum, auto
-from abc import abstractmethod
-
-
-# -----------------------------------------------
-# region Modifier
-# -----------------------------------------------
-
-
-class MeshModifyMode(Enum):
-    """Mesh update modes."""
-
-    GEOMETRY = auto()  # Geometry changes (Moving mesh, deformation)
-    TOPOLOGY = auto()  # Topology changes (AMR, remeshing)
-    HYBRID = auto()  # Both topology and geometry change
-
-
-class MeshModifier:
-    """Abstract class for mesh modification operations."""
-
-    @property
-    @abstractmethod
-    def mode(self) -> MeshModifyMode:
-        """The modification mode."""
-        pass
-
-    @abstractmethod
-    def validate(self, mesh: "Mesh", **kwargs) -> bool:
-        """Validate if the modification can be applied."""
-        pass
-
-    @abstractmethod
-    def modify(self, mesh: "Mesh", **kwargs):
-        """Apply the modification to the mesh."""
-        pass
-
+from dataclasses import dataclass
+from typing import Optional, Callable
 
 # -----------------------------------------------
 # region Mesh
@@ -196,8 +163,34 @@ class Mesh:
     # assistants
     # -----------------------------------------------
 
-    def modify(self, modifier: MeshModifier, **kwargs):
+    def get_topo_assistant(self):
+        """Return the mesh topology assistant."""
+        from yunmeng.numerics.algos import MeshTopo
+
+        if self._topo is None:
+            self._topo = MeshTopo(self)
+        return self._topo
+
+    def get_geom_assistant(self):
+        """Return the mesh geometry assistant."""
+        from yunmeng.numerics.algos import MeshGeom
+
+        if self._geom is None:
+            self._geom = MeshGeom(self)
+        return self._geom
+
+    def get_part_assistant(self):
+        """Return the mesh partition assistant."""
+        from yunmeng.numerics.algos import MeshPart
+
+        if self._part is None:
+            self._part = MeshPart(self)
+        return self._part
+
+    def modify(self, modifier, **kwargs):
         """Modify the mesh."""
+        from yunmeng.numerics.algos import MeshModifyMode
+
         if modifier.validate(self, **kwargs):
             modifier.modify(self, **kwargs)
             self._version += 1
@@ -208,126 +201,67 @@ class Mesh:
         else:
             raise ValueError("Invalid modifier.")
 
-    def get_topo_assistant(self):
-        """Return the mesh topology assistant."""
-        from yunmeng.numerics.algos.topos import MeshTopo
-
-        if self._topo is None:
-            self._topo = MeshTopo(self)
-        return self._topo
-
-    def get_geom_assistant(self):
-        """Return the mesh geometry assistant."""
-        from yunmeng.numerics.algos.geoms import MeshGeom
-
-        if self._geom is None:
-            self._geom = MeshGeom(self)
-        return self._geom
-
-    def get_part_assistant(self):
-        """Return the mesh partition assistant."""
-        from yunmeng.numerics.algos.parts import MeshPart
-
-        if self._part is None:
-            self._part = MeshPart(self)
-        return self._part
-
 
 # -----------------------------------------------
-# region Grid
+# region Region
 # -----------------------------------------------
 
 
-class Grid(Mesh):
-    """Abstract class for orthogonal structured grids."""
-
-    def __init__(self):
-        super().__init__()
-        self._orthogonal = True
-        self._uniform = False
-        self._nx = None
-        self._ny = None
-        self._nz = None
-        self._lx = None
-        self._ly = None
-        self._lz = None
-
-    # -----------------------------------------------
-    # properties
-    # -----------------------------------------------
-
-    @property
-    def nx(self) -> int:
-        """Discretization size in the x-direction."""
-        return self._nx
-
-    @property
-    def ny(self) -> int:
-        """Discretization size in the y-direction."""
-        return self._ny
-
-    @property
-    def nz(self) -> int:
-        """Discretization size in the z-direction."""
-        return self._nz
-
-    @property
-    def uniform(self) -> bool:
-        """Return if the grid is uniform."""
-        return self._uniform
-
-    @property
-    def lx(self) -> float:
-        """Length of the grid in the x-direction."""
-        return self._lx
-
-    @property
-    def ly(self) -> float:
-        """Length of the grid in the y-direction."""
-        return self._ly
-
-    @property
-    def lz(self) -> float:
-        """Length of the grid in the z-direction."""
-        return self._lz
-
-    # -----------------------------------------------
-    # methods
-    # -----------------------------------------------
-
-    def match_node(self, i: int, j: int, k: int) -> int:
-        """Match node with the local indices."""
-        raise NotImplementedError()
-
-    def match_cell(self, i: int, j: int, k: int) -> int:
-        """Match cell with the local indices."""
-        raise NotImplementedError()
-
-    def get_node_neighbours(self, id: int) -> list[int]:
-        """Get the neighbours node indices, sorted in:
-        [east, west, north, south, top, bottom]
-        """
-        raise NotImplementedError()
-
-    def get_cell_neighbours(self, id: int) -> list[int]:
-        """Get the neighbours cell indices, sorted in:
-        [east, west, north, south, top, bottom]
-        """
-        raise NotImplementedError()
-
-
-# -----------------------------------------------
-# region Network
-# -----------------------------------------------
-
-
-class Network:
+@dataclass
+class Region:
     """
-    Abstract network class for topological connectivity.
+    A region of the mesh.
+
+    priority: indices > tags > predicate > type。
     """
 
-    def to_mesh(self) -> Mesh:
-        """
-        Convert network to mesh.
-        """
-        raise NotImplementedError()
+    name: str
+    mesh: Mesh
+    type: ElementType = ElementType.NONE
+    indices: Optional[list[int]] = None
+    tags: Optional[list[str]] = None
+    predicate: Optional[Callable[[np.ndarray], np.ndarray]] = None
+
+    _element_ids = None
+    _version = None
+
+    def select(self, elements: np.ndarray) -> np.ndarray:
+        """Return the mask of the region."""
+        if self.predicate is not None:
+            return self.predicate(elements)
+        raise ValueError(f"Region {self.name} have no predicate method.")
+
+    def get_element_ids(self) -> np.ndarray:
+        """Get the ids of elements in the region."""
+        if self._version == self.mesh.version and self._element_ids is not None:
+            return self._element_ids
+        if self._version != self.mesh.version:
+            self._version = self.mesh.version
+            self._element_ids = None
+
+        mesh = self.mesh
+        if self.indices is not None:
+            resolved_ids = np.array(self.indices)
+        elif self.tags is not None:
+            ids, etype = mesh.get_group(self.name)
+            resolved_ids = np.array(ids)
+        elif self.predicate is not None:
+            elements = mesh.get_elements(self.type)
+            mask = self.select(elements)
+            resolved_ids = np.where(mask)[0]
+        elif self.type is not None:
+            element_nb = mesh.get_element_count(self.type)
+            resolved_ids = np.arange(element_nb)
+        else:
+            raise ValueError("Invalid region definition.")
+
+        if self._element_ids is None:
+            self._element_ids = resolved_ids
+        return resolved_ids
+
+    def include(self, elemnet_id: int, etype: ElementType) -> bool:
+        """Check if the element is in the region."""
+        if etype != self.type:
+            return False
+
+        return elemnet_id in self.get_element_ids()

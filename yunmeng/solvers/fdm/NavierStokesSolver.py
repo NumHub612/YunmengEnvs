@@ -6,7 +6,7 @@ Navier-Stokes equations solver in fdm format on fixed 2d Grid.
 """
 
 from yunmeng.numerics.fields import Field, VariableType, FieldMeta, DataHub, Sample
-from yunmeng.numerics.mesh import Grid2D, ElementType, MeshDimension
+from yunmeng.numerics.grids import Grid, ElementType, MeshDimension
 from yunmeng.solvers.commons import (
     BaseSolver,
     SolverMeta,
@@ -15,13 +15,29 @@ from yunmeng.solvers.commons import (
     IOperator,
     OperatorType,
 )
-from yunmeng.solvers.interfaces import BoundaryType
-from yunmeng.solvers.commons import inits, boundaries, supports
-
-# from yunmeng.numerics.consts import RHO
+from yunmeng.solvers.interfaces import SolverConfig, BoundaryType
 from yunmeng.setting import logger
 
 import time
+from dataclasses import dataclass
+
+
+@dataclass
+class NSConfig(SolverConfig):
+    """Configuration for NavierStokesSolver."""
+
+    nu: float = 0.01  # Kinematic viscosity
+    rho: float = 1.0  # Fluid density (was hard-coded)
+
+    time_order: int = 1  # Time integration order
+    time_step: float = 0.001  # Initial time step
+    end_time: float = 0.0  # End time
+    cfl: float = 0.5  # CFL number
+    min_dt: float = 1e-6  # Minimum allowed time step
+
+    @classmethod
+    def get_solver_name(cls) -> str:
+        return NavierStokesSolver.get_name()
 
 
 class NavierStokesSolver(BaseSolver):
@@ -44,112 +60,86 @@ class NavierStokesSolver(BaseSolver):
         metas.equation = "2d Navier-Stokes equation"
         metas.equation_expr = "ddt(u) + grad(u)@u = lap(u; nu) - grad(p; 1/RHO)"
         metas.dimension = MeshDimension.D2
-        metas.default_ics = {
-            "u": inits.UniformInitialization,
-            "p": inits.UniformInitialization,
-        }
-        metas.default_bcs = {
-            "u": boundaries.WallBoundary,
-            "p": boundaries.WallBoundary,
-        }
+        metas.default_ics = {"u": None, "p": None}
+        metas.default_bcs = {"u": None, "p": None}
         metas.fields = {
             "u": FieldMeta(
-                vtype=VariableType.VECTOR,
+                name="u",
+                vtype=VariableType.vector(2),
                 etype=ElementType.NODE,
             ),
             "p": FieldMeta(
-                vtype=VariableType.SCALAR,
+                name="p",
+                vtype=VariableType.scalar(),
                 etype=ElementType.NODE,
             ),
         }
         return metas
 
     @classmethod
+    def get_config_class(cls):
+        return NSConfig
+
+    @classmethod
     def get_name(cls) -> str:
         return "NavierStokesFdm2D"
 
-    def __init__(self, id: str, mesh: Grid2D, operators: list[IOperator]):
-        super().__init__(id, mesh, operators)
-        assert isinstance(mesh, Grid2D), f"{self.get_name()} only supports Grid2D."
+    def __init__(self, id: str, mesh: Grid, operators: list[IOperator], configs: dict):
+        super().__init__(id, mesh, operators, NSConfig.from_dict(configs))
+        assert isinstance(mesh, Grid), f"{self.get_name()} only supports Grid."
 
         self._geom = mesh.get_geom_assistant()
         self._topo = mesh.get_topo_assistant()
         self._part = mesh.get_part_assistant()
 
-        self._time_step = 0.001
-        self._cfl = 0.5
-        self._nu = 0.01
-        self._cfl = 0.5
         self._dx = None
         self._dy = None
 
-        self._default_ics = {
-            "u": inits.UniformInitialization("u", [0.0, 0.0, 0.0]),
-            "p": inits.UniformInitialization("p", 0.0),
-        }
-        self._default_bcs = {
-            "u": boundaries.WallBoundary("u"),
-            "p": boundaries.WallBoundary("p"),
-        }
-
         self._fields = {
-            "u": Field(self._part.shards, VariableType.VECTOR, ElementType.NODE),
-            "p": Field(self._part.shards, VariableType.SCALAR, ElementType.NODE),
+            "u": Field(
+                self._part.shards, VariableType.vector(2), ElementType.NODE, name="u"
+            ),
+            "p": Field(
+                self._part.shards, VariableType.scalar(), ElementType.NODE, name="p"
+            ),
         }
         self._buffs: DataHub = None
 
-    def initialize(
-        self,
-        total_time: float,
-        time_step: float,
-        cfl: float = 0.5,
-    ):
-        """
-        Initialize the solver.
-
-        Args:
-            total_time: The total time of the simulation.
-            time_step: The time step for the simulation.
-            cfl: The CFL number for time step calculation.
-        """
-
+    def initialize(self):
         # Check initial conditions
         if "u" not in self._ics:
-            self._ics["u"] = self._default_ics["u"]
-            logger.warning(
-                f"Solver {self._id} has no initial condition for u, using default ic."
-            )
+            raise ValueError(f"Solver {self._id} has no initial condition for u.")
         if "p" not in self._ics:
-            self._ics["p"] = self._default_ics["p"]
-            logger.warning(
-                f"Solver {self._id} has no initial condition for p, using default ic."
-            )
+            raise ValueError(f"Solver {self._id} has no initial condition for p.")
 
         for field in self._fields.keys():
             self._ics[field].apply(self._fields[field])
 
         # Check boundary conditions
-        for node in self._topo.boundary_nodes:
-            for field in self._fields.keys():
-                if node not in self._bcs or field not in self._bcs[node]:
-                    self._bcs[node][field] = self._default_bcs[field]
-                    logger.warning(
-                        f"Solver {self._id} has no boundary condition for {field} "
-                        f"at node {node}, using default bc."
-                    )
+        existed_ids = []
+        for bc in self._bcs["u"]:
+            existed_ids.extend(bc.region.get_element_ids())
+        if len(existed_ids) != self._topo.boundary_nodes.size:
+            boundary_nodes = self._topo.boundary_nodes
+            missed_ids = set(boundary_nodes) - set(existed_ids)
+            raise ValueError(
+                f"Solver {self._id} boundary condition for u is not complete. "
+                f"Missed node ids: {missed_ids}."
+            )
 
         # Init status
         self._status = SolverStatus()
-        self._status.time_step = time_step
-        self._status.end_time = total_time
+        self._status.time_step = self._config.time_step
+        self._status.end_time = self._config.end_time
         self._status.finished = False
         self._status.current_time = 0.0
         self._status.total_time = 0.0
         self._status.steps = 0
 
         # Init configs
-        self._time_step = time_step
-        self._cfl = cfl
+        self._time_step = self._config.time_step
+        self._cfl = self._config.cfl
+        self._rho = self._config.rho
         self._dx = self._mesh.lx / self._mesh.nx
         self._dy = self._mesh.ly / self._mesh.ny
 
@@ -161,21 +151,19 @@ class NavierStokesSolver(BaseSolver):
         time_order = 2
         self._buffs = DataHub(["u", "p"], time_order)
         for _ in range(time_order):
-            self._buffs.push_field("u", Sample(0.0, self._fields["u"]))
-            self._buffs.push_field("p", Sample(0.0, self._fields["p"]))
+            self._buffs.push("u", Sample(0.0, self._fields["u"]), ElementType.NODE)
+            self._buffs.push("p", Sample(0.0, self._fields["p"]), ElementType.NODE)
 
         # Call callbacks
         for callback in self._callbacks:
             callback.on_task_begin()
 
-    def inference(self) -> SolverStatus:
+    def forward(self) -> SolverStatus:
         start = time.perf_counter()
 
         # Compute time step
-        # dt = supports.cfl_timestep(
-        #     self._mesh, self._fields["u"], self._cfl, min_dt=1e-3
-        # )
-        rest_time = self._status.end_time - self._status.current_time
+        curr_time = self._status.current_time
+        rest_time = self._status.end_time - curr_time
         if rest_time <= 1e-6:
             self._status.finished = True
             for callback in self._callbacks:
@@ -183,7 +171,7 @@ class NavierStokesSolver(BaseSolver):
             return self._status
 
         dt = min(self._time_step, rest_time)
-        new_t = self._status.current_time + dt
+        new_t = curr_time + dt
 
         # Call callbacks
         for callback in self._callbacks:
@@ -220,12 +208,10 @@ class NavierStokesSolver(BaseSolver):
 
     def _apply_boundary_conditions(self):
         """Apply boundary conditions to the fields."""
-        for nid in self._topo.boundary_nodes:
-            for var in self._fields.keys():
-                bc = self._bcs[nid][var]
+        for target_field, bcs in self._bcs.items():
+            for bc in bcs:
                 if bc.get_type() == BoundaryType.VALUE:
-                    value = bc.evaluate().value
-                    self._fields[var][nid] = value
+                    bc.apply(self._fields[target_field])
 
     def _solve_momentum(self, dt: float, new_t: float):
         """Solve the momentum equation to get tentative velocity."""
@@ -233,40 +219,39 @@ class NavierStokesSolver(BaseSolver):
         u_grad, u_diff = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD and "u" in op.target_fields:
-                u_grad = op.run(u, dt)
+                u_grad = op(self._buffs, new_t)
             elif op.get_type() == OperatorType.LAPLACIAN and "u" in op.target_fields:
-                u_diff = op.run(u, dt)
+                u_diff = op(self._buffs, new_t)
 
-        u_star = u - dt * u_grad @ u + dt * u_diff
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid]["u"]
-            if bc.get_type() == BoundaryType.VALUE:
-                u_star[nid] = bc.evaluate().value
+        u_conv = u_grad @ u
+        u_star = u - dt * u_conv + dt * u_diff
+        for bc in self._bcs["u"]:
+            bc.apply(u_star)
 
         self._fields["u"] = u_star
-        self._buffs.push_field("u", Sample(new_t, u_star))
+        self._buffs.push("u", Sample(new_t, u_star), ElementType.NODE)
 
     def _solve_pressure(self, dt: float, new_t: float):
         """Solve the poisson equation to get pressure."""
         u_div, p_eqs = None, None
         for op in self._operators:
             if op.get_type() == OperatorType.DIV:
-                u_div = op.run(self._buffs, dt)
+                u_div = op(self._buffs, new_t)
             elif op.get_type() == OperatorType.LAPLACIAN and "p" in op.target_fields:
-                p_eqs = op.run(self._buffs, dt)
+                p_eqs = op(self._buffs, new_t)
 
         # only apply divergence on internal nodes
         rhs = p_eqs.rhs.copy()
         for nid in self._topo.internal_nodes:
             div_val = u_div[nid]
-            rhs[nid] = (1.0 / dt) * div_val
+            rhs[nid] = (self._rho / dt) * div_val
 
         p_eqs.reset_rhs(rhs)
         new_p = p_eqs.solve()
         self._fields["p"] = new_p
 
         # update pressure field
-        self._buffs.push_field("p", Sample(new_t, new_p))
+        self._buffs.push("p", Sample(new_t, new_p), ElementType.NODE)
 
     def _correct_velocity(self, dt: float, new_t: float):
         """Correct the velocity field by pressure for continuty."""
@@ -274,14 +259,13 @@ class NavierStokesSolver(BaseSolver):
         p_grad = None
         for op in self._operators:
             if op.get_type() == OperatorType.GRAD and "p" in op.target_fields:
-                p_grad = op.run(self._buffs, dt)
+                p_grad = op(self._buffs, new_t)
 
-        new_u = u - (dt / 1.0) * p_grad
+        new_u = u - (dt / self._rho) * p_grad
         self._fields["u"] = new_u
 
         # update velocity
-        self._buffs.push_field("u", Sample(new_t, new_u))
-        self._buffs.push_grad("p", Sample(new_t, p_grad))
+        self._buffs.push("u", Sample(new_t, new_u), ElementType.NODE)
 
     def _update_status(self, time_cost: float, dt: float):
         self._status.current_time += dt

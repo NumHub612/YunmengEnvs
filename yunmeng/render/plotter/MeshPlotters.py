@@ -11,7 +11,7 @@ import os
 from matplotlib.lines import Line2D
 from shapely.geometry import Polygon
 
-from yunmeng.numerics.mesh.spatials import MeshDimension, Mesh
+from yunmeng.numerics.mesh import MeshDimension, Mesh
 from yunmeng.render.plotter.PlotKits import _extract_mesh_data, plot_mesh_geometry
 
 

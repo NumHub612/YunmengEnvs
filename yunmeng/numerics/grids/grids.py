@@ -4,12 +4,12 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 1d/2d/3d structured grids.
 """
-from yunmeng.numerics.enums import MeshDimension
-from yunmeng.numerics.mesh.elements import Coordinate, Node, Face, Cell
-from yunmeng.numerics.mesh.spatials import Grid
-from yunmeng.numerics.algos.topos import sort_anticlockwise, calculate_center
-import numpy as np
 
+from yunmeng.numerics.enums import MeshDimension
+from yunmeng.numerics.mesh import Coordinate, Node, Face, Cell
+from yunmeng.numerics.mesh import sort_anticlockwise, calculate_center
+from yunmeng.numerics.grids.grid import Grid
+import numpy as np
 
 # -----------------------------------------------
 # region Grid2D
@@ -68,55 +68,21 @@ class Grid2D(Grid):
             np.diff(y_positions), self._dy
         )
 
+        # --- Precomputed neighbor index arrays ---
+        self._node_neigh_e: np.ndarray = None
+        self._node_neigh_w: np.ndarray = None
+        self._node_neigh_n: np.ndarray = None
+        self._node_neigh_s: np.ndarray = None
+
         # Generate mesh
         self._generate()
 
-    @staticmethod
-    def by_uniform(
-        lower_left: Coordinate, upper_right: Coordinate, num_x: int, num_y: int
-    ) -> "Grid2D":
-        """
-        Create a uniform 2D grid.
+        # Build neighbor index arrays
+        self._build_node_neighbour_indices()
 
-        Args:
-            lower_left: The lower left corner of the grid
-            upper_right: The upper right corner
-            num_x: Number of nodes in the x-axis
-            num_y: Number of nodes in the y-axis
-        """
-        x_positions = np.linspace(lower_left.x, upper_right.x, num_x)
-        y_positions = np.linspace(lower_left.y, upper_right.y, num_y)
-        return Grid2D(x_positions, y_positions)
-
-    @staticmethod
-    def by_custom(
-        lower_left: Coordinate, upper_right: Coordinate, xs: list, ys: list
-    ) -> "Grid2D":
-        """
-        Create a 2D grid with custom node positions.
-
-        Args:
-            lower_left: The lower left corner of the grid
-            upper_right: The upper right corner
-            xs: List of x positions
-            ys: List of y positions
-        """
-        lx = upper_right.x - lower_left.x
-        ly = upper_right.y - lower_left.y
-
-        # Normalize and scale x positions
-        x_positions = np.array(xs)
-        x_positions = (x_positions - x_positions[0]) / (
-            x_positions[-1] - x_positions[0]
-        ) * lx + lower_left.x
-
-        # Normalize and scale y positions
-        y_positions = np.array(ys)
-        y_positions = (y_positions - y_positions[0]) / (
-            y_positions[-1] - y_positions[0]
-        ) * ly + lower_left.y
-
-        return Grid2D(x_positions, y_positions)
+    # -----------------------------------------------
+    # region Constructors
+    # -----------------------------------------------
 
     def _generate(self):
         """Generate the grid."""
@@ -206,6 +172,145 @@ class Grid2D(Grid):
 
         self._cells = np.array(cells)
 
+    @staticmethod
+    def by_uniform(
+        lower_left: Coordinate, upper_right: Coordinate, num_x: int, num_y: int
+    ) -> "Grid2D":
+        """
+        Create a uniform 2D grid.
+
+        Args:
+            lower_left: The lower left corner of the grid
+            upper_right: The upper right corner
+            num_x: Number of nodes in the x-axis
+            num_y: Number of nodes in the y-axis
+        """
+        x_positions = np.linspace(lower_left.x, upper_right.x, num_x)
+        y_positions = np.linspace(lower_left.y, upper_right.y, num_y)
+        return Grid2D(x_positions, y_positions)
+
+    @staticmethod
+    def by_custom(
+        lower_left: Coordinate, upper_right: Coordinate, xs: list, ys: list
+    ) -> "Grid2D":
+        """
+        Create a 2D grid with custom node positions.
+
+        Args:
+            lower_left: The lower left corner of the grid
+            upper_right: The upper right corner
+            xs: List of x positions
+            ys: List of y positions
+        """
+        lx = upper_right.x - lower_left.x
+        ly = upper_right.y - lower_left.y
+
+        # Normalize and scale x positions
+        x_positions = np.array(xs)
+        x_positions = (x_positions - x_positions[0]) / (
+            x_positions[-1] - x_positions[0]
+        ) * lx + lower_left.x
+
+        # Normalize and scale y positions
+        y_positions = np.array(ys)
+        y_positions = (y_positions - y_positions[0]) / (
+            y_positions[-1] - y_positions[0]
+        ) * ly + lower_left.y
+
+        return Grid2D(x_positions, y_positions)
+
+    # -----------------------------------------------
+    # region Adjacency
+    # -----------------------------------------------
+
+    def _build_node_neighbour_indices(self):
+        """Precompute neighbor global indices for ALL nodes."""
+        n_nodes = self.node_count
+        self._node_neigh_e = np.empty(n_nodes, dtype=np.int64)
+        self._node_neigh_w = np.empty(n_nodes, dtype=np.int64)
+        self._node_neigh_n = np.empty(n_nodes, dtype=np.int64)
+        self._node_neigh_s = np.empty(n_nodes, dtype=np.int64)
+
+        # Fill with -1 (indicating None/out of bounds)
+        self._node_neigh_e.fill(-1)
+        self._node_neigh_w.fill(-1)
+        self._node_neigh_n.fill(-1)
+        self._node_neigh_s.fill(-1)
+
+        # Structured grid formula: nid = i * ny + j
+        # East:  (i+1, j) -> nid + ny
+        # West:  (i-1, j) -> nid - ny
+        # North: (i, j+1) -> nid + 1
+        # South: (i, j-1) -> nid - 1
+        ny = self._ny
+        for i in range(self._nx):
+            for j in range(self._ny):
+                nid = i * ny + j
+                if i + 1 < self._nx:
+                    self._node_neigh_e[nid] = (i + 1) * ny + j
+                if i > 0:
+                    self._node_neigh_w[nid] = (i - 1) * ny + j
+                if j + 1 < self._ny:
+                    self._node_neigh_n[nid] = i * ny + (j + 1)
+                if j > 0:
+                    self._node_neigh_s[nid] = i * ny + (j - 1)
+
+    def _neigh_arr_to_val(self, arr: np.ndarray, nid: int):
+        """Convert array lookup to int or None."""
+        v = arr[nid]
+        return int(v) if v >= 0 else None
+
+    def get_node_neighbours(self, index: int) -> list:
+        """Get the neighbours node indices."""
+        if self._node_neigh_e is None:
+            # Fallback: on-demand calc (should not happen)
+            i = index // self._ny
+            j = index % self._ny
+            north = self.match_node(i, j + 1)
+            south = self.match_node(i, j - 1)
+            west = self.match_node(i - 1, j)
+            east = self.match_node(i + 1, j)
+            return [east, west, north, south, None, None]
+
+        return [
+            self._neigh_arr_to_val(self._node_neigh_e, index),
+            self._neigh_arr_to_val(self._node_neigh_w, index),
+            self._neigh_arr_to_val(self._node_neigh_n, index),
+            self._neigh_arr_to_val(self._node_neigh_s, index),
+            None,
+            None,
+        ]
+
+    def get_node_neighbours_batch(
+        self, indices: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Bulk neighbour query for vectorized operators.
+
+        Returns east, west, north, south arrays (all shape same as indices).
+        Invalid neighbors are marked with -1.
+        """
+        return (
+            self._node_neigh_e[indices],
+            self._node_neigh_w[indices],
+            self._node_neigh_n[indices],
+            self._node_neigh_s[indices],
+        )
+
+    def get_node_neighbours_all(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Return the full precomputed neighbor index arrays."""
+        return (
+            self._node_neigh_e,
+            self._node_neigh_w,
+            self._node_neigh_n,
+            self._node_neigh_s,
+        )
+
+    # -----------------------------------------------
+    # region Indexing
+    # -----------------------------------------------
+
     def match_node(self, i: int, j: int, k: int = None) -> int:
         if i < 0 or i >= self._nx or j < 0 or j >= self._ny:
             return None
@@ -220,16 +325,6 @@ class Grid2D(Grid):
         cid = i * (self._ny - 1) + j
         return cid if 0 <= cid < self.cell_count else None
 
-    def get_node_neighbours(self, index: int) -> list:
-        i = index // self._ny
-        j = index % self._ny
-
-        north = self.match_node(i, j + 1)
-        south = self.match_node(i, j - 1)
-        west = self.match_node(i - 1, j)
-        east = self.match_node(i + 1, j)
-        return [east, west, north, south, None, None]
-
     def get_cell_neighbours(self, index: int) -> list:
         i = index // (self._ny - 1)
         j = index % (self._ny - 1)
@@ -239,8 +334,3 @@ class Grid2D(Grid):
         west = self.match_cell(i - 1, j)
         east = self.match_cell(i + 1, j)
         return [east, west, north, south, None, None]
-
-
-# -----------------------------------------------
-# region --- Grid3D ---
-# -----------------------------------------------

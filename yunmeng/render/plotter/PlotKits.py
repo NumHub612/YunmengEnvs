@@ -15,13 +15,13 @@ import os
 import copy
 
 from yunmeng.numerics.mesh.meshes import Mesh, MeshDimension
-from yunmeng.numerics.fields.fields import Field, VariableType
-from yunmeng.numerics.algos.topos import (
+from yunmeng.numerics.fields import Field, VariableType
+from yunmeng.numerics.algos import (
     sort_anticlockwise,
     extract_coordinates,
     MeshTopo,
+    MeshGeom,
 )
-from yunmeng.numerics.algos.geoms import MeshGeom
 
 # ---------------------------------------------------
 # region matplotlib 2D
@@ -229,7 +229,7 @@ def plot_scatter(
 def plot_mesh_cloudmap(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
-    mesh_type: str,
+    mesh_type: int,
     scalars: np.ndarray,
     domain: str,
     title: str = "Cloudmap",
@@ -249,7 +249,7 @@ def plot_mesh_cloudmap(
     Args:
         points_coordinates: List of coordinates of points.
         cells: Polygons or polyhedrons of the mesh.
-        mesh_type: Type of the mesh, options: "2d", "3d".
+        mesh_type: Type of the mesh, e.g., 1, 2, 3.
         scalars: Scalar values.
         domain: Domain of the values, options: "point", "cell".
         title: Title of the plot.
@@ -264,7 +264,7 @@ def plot_mesh_cloudmap(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
+    mtype = vtk.VTK_POLYGON if mesh_type == 2 else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 
@@ -299,7 +299,7 @@ def plot_mesh_cloudmap(
 def plot_mesh_streamplot(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
-    mesh_type: str,
+    mesh_type: int,
     vectors: np.ndarray,
     domain: str,
     title: str = "Streamplot",
@@ -319,7 +319,7 @@ def plot_mesh_streamplot(
     Args:
         points_coordinates: List of coordinates of points.
         cells: Polygons or polyhedrons of the mesh.
-        mesh_type: Type of the mesh, options: "2d", "3d".
+        mesh_type: Type of the mesh, e.g., 1, 2, 3.
         vectors: Vector values.
         domain: Domain of the values, e.g. "point", "cell".
         title: Title of the plot.
@@ -334,13 +334,16 @@ def plot_mesh_streamplot(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
+    mtype = vtk.VTK_POLYGON if mesh_type == 2 else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 
     mesh = pv.UnstructuredGrid(cells, types, points)
 
     # Set values to the mesh
+    if mesh_type == 2:
+        vectors = np.column_stack((vectors, np.zeros(vectors.shape[0])))
+
     domain = domain.lower()
     if domain == "point":
         mesh.point_data[label] = vectors
@@ -403,7 +406,7 @@ def plot_mesh_scatters(
 def plot_mesh_geometry(
     points_coordinates: np.ndarray,
     cells: np.ndarray,
-    mesh_type: str,
+    mesh_type: int,
     title: str = "Mesh",
     save_dir: str = None,
     *,
@@ -419,7 +422,7 @@ def plot_mesh_geometry(
     Args:
         points_coordinates: List of coordinates of points.
         cells: Polygons or polyhedrons of the mesh.
-        mesh_type: Type of the mesh, options: "2d", "3d".
+        mesh_type: Type of the mesh, e.g., 1, 2, 3.
         domain: Domain of the values, e.g. "point", "cell".
         title: Title of the plot.
         save_dir: Directory to save the plot.
@@ -429,7 +432,7 @@ def plot_mesh_geometry(
     """
     # Create a pyvista mesh object
     points = points_coordinates.astype(np.float32)
-    mtype = vtk.VTK_POLYGON if mesh_type.lower() == "2d" else vtk.VTK_HEXAHEDRON
+    mtype = vtk.VTK_POLYGON if mesh_type == 2 else vtk.VTK_HEXAHEDRON
     types = np.array([mtype] * len(cells))
     cells = np.concatenate(cells)
 
@@ -506,7 +509,7 @@ def _extract_mesh_data(mesh: Mesh):
     points_splited = {"x": points[:, 0], "y": points[:, 1], "z": points[:, 2]}
 
     cells = []
-    if mesh.dimension.value == "2d":
+    if mesh.dimension == MeshDimension.D2:
         for i, cell in enumerate(mesh.cells):
             node_ids = topo.cell_nodes[i]
             nodes = mesh.get_nodes(node_ids)
@@ -529,12 +532,15 @@ def _extract_field_data(field: Field):
     """
     values = field.gather_to_host()
 
-    if field.vtype == VariableType.SCALAR:
+    if field.vtype.is_scalar:
         return values, {"x": values}
-    elif field.vtype == VariableType.VECTOR:
+    elif field.vtype.is_vector:
         us = values[:, 0]
         vs = values[:, 1]
-        ws = values[:, 2]
+        if field.vtype.ndim == 3:
+            ws = values[:, 2]
+        else:
+            ws = np.zeros_like(us)
         return values, {"x": us, "y": vs, "z": ws}
     else:
         raise ValueError(f"Unsupported field type: {field.vtype}")

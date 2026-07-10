@@ -4,25 +4,23 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interfaces for boundary conditions at faces of a mesh.
 """
+
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union, Any
 from enum import Enum, auto
 from dataclasses import dataclass
-from yunmeng.numerics.fields.variables import Variable
+
+from yunmeng.numerics.mesh import Region, Mesh
+from yunmeng.numerics.fields import Variable, FieldMeta, Field
 
 
 @dataclass
 class BoundaryValue:
     """Boundary condition value container."""
 
-    # Prescribed value (water level, velocity, temperature, etc.)
-    value: Optional[Variable] = None
-
-    # Prescribed flux (discharge, mass flux, momentum flux, etc.)
-    flux: Optional[Variable] = None
-
-    # Type-specific extra data (coefficients, etc.)
-    extra: Optional[Dict[str, Any]] = None
+    value: Optional[Variable] = None  # Prescribed value
+    flux: Optional[Variable] = None  # Prescribed flux
+    extra: Optional[Dict[str, Any]] = None  # Type-specific extra data
 
 
 class BoundaryType(Enum):
@@ -62,6 +60,22 @@ class IBoundaryCondition(ABC):
 
     @property
     @abstractmethod
+    def target_field(self) -> str:
+        """
+        The target field.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def region(self) -> Region:
+        """
+        The boundary region.
+        """
+        pass
+
+    @property
+    @abstractmethod
     def id(self) -> str:
         """
         The instance name.
@@ -69,15 +83,15 @@ class IBoundaryCondition(ABC):
         pass
 
     @abstractmethod
-    def update(self):
+    def get(self, **kwargs) -> BoundaryValue:
         """
-        Updates the boundary value.
+        Gets current boundary conditions.
         """
         pass
 
     @abstractmethod
-    def evaluate(self) -> BoundaryValue:
+    def apply(self, field: Field, **kwargs):
         """
-        Gets current boundary condition.
+        Applys boundary condition.
         """
         pass

@@ -2,9 +2,10 @@
 """
 Tests for Grid2D class.
 """
+
 import numpy as np
-from yunmeng.numerics.mesh.grids import Grid2D
-from yunmeng.numerics.mesh.elements import Coordinate
+from yunmeng.numerics.grids import Grid2D
+from yunmeng.numerics.mesh import Coordinate
 from yunmeng.numerics.enums import MeshDimension
 
 

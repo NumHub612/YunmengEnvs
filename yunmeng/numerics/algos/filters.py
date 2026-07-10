@@ -4,9 +4,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh and field filtering methods.
 """
+
 from __future__ import annotations
-from yunmeng.numerics.mesh.elements import Face, Cell, Node
-from yunmeng.numerics.mesh.spatials import Mesh
+from yunmeng.numerics.mesh import Mesh
 from shapely.geometry import box, Polygon
 
 

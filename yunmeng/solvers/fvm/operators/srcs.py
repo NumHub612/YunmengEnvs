@@ -4,11 +4,11 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Solution of the 2D source term equation using finite volume method.
 """
+
 from yunmeng.solvers.interfaces import IOperator, OperatorType
-from yunmeng.numerics.mats.linalgs import LinearEqs
-from yunmeng.numerics.mesh.grids import Grid
-from yunmeng.numerics.fields.fields import Field
-from yunmeng.numerics.fields.datahubs import DataHub
+from yunmeng.numerics.linalgs import LinearEqs
+from yunmeng.numerics.grids import Grid
+from yunmeng.numerics.fields import Field, DataHub
 
 
 import numpy as np
@@ -47,7 +47,7 @@ class Src01(IOperator):
         self._part = self._mesh.get_part_assistant()
         self._var = fields[0]
 
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def forward(self, sources: DataHub) -> Field | LinearEqs:
         source = sources.field(self._var).data
         src_eqs = LinearEqs.zeros(self._part, rhs_type=source.dtype, etype=source.etype)
         return src_eqs
