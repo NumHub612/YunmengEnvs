@@ -4,6 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 To provide linking network analysis and management functionalities.
 """
+
 from yunmeng.solutions.standards import (
     ILinkableComponent,
     IOutput,
@@ -11,7 +12,7 @@ from yunmeng.solutions.standards import (
     LinkableComponentStatus,
 )
 from yunmeng.solutions.commons.links import LoopController, AdapterFactory
-from yunmeng.wirings.parser import Orchestrator
+from yunmeng.workflow.parser import Orchestrator
 
 from typing import Union, Tuple, Callable
 from enum import Enum
