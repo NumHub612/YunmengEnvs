@@ -4,8 +4,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Base model for all linkable components.
 """
+
 from yunmeng.solutions.standards import (
-    ILinkableComponent,
+    ILinkableModel,
     IArgument,
     IInput,
     IOutput,
@@ -19,7 +20,7 @@ from yunmeng.solutions.commons.enums import EnvRunMode
 from typing import Any
 
 
-class BaseModel(ILinkableComponent, IManageState):
+class BaseModel(ILinkableModel, IManageState):
     """Base model for all linkable components.
 
     In a typical pull-driven scenario, the component A `update` method would

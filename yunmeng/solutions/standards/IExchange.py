@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 import numpy as np
 
-from IData import IElementSet, IQuantity, ITimeSpan, IValueSet
+from IData import IElementSet, Quantity, TimeSpan, IValueSet
 
 # ---------------------------------------------------
 # region IExchangeItem
@@ -34,7 +34,7 @@ class IExchangeItem(ABC):
 
     @property
     @abstractmethod
-    def quantity(self) -> IQuantity:
+    def quantity(self) -> Quantity:
         """Quantity definition (What)."""
         pass
 
@@ -46,7 +46,7 @@ class IExchangeItem(ABC):
 
     @property
     @abstractmethod
-    def time_span(self) -> ITimeSpan:
+    def time_span(self) -> TimeSpan:
         """Temporal definition (When)."""
         pass
 

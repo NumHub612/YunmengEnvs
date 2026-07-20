@@ -4,8 +4,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Output items.
 """
+
 from yunmeng.solutions.standards import (
-    ILinkableComponent,
+    ILinkableModel,
     IBaseExchangeItem,
     IOutput,
     IAdaptedOutput,
@@ -39,7 +40,7 @@ class BaseOutput(IOutput):
     def __init__(
         self,
         id: str,
-        component: ILinkableComponent,
+        component: ILinkableModel,
         value_definition: IValueDefinition,
         elementset: IElementSet,
         timeset: ITimeSet = None,
@@ -96,7 +97,7 @@ class BaseOutput(IOutput):
         return self._adapters
 
     @property
-    def component(self) -> ILinkableComponent:
+    def component(self) -> ILinkableModel:
         return self._component
 
     @property

@@ -18,13 +18,15 @@ from dataclasses import dataclass
 from typing import Any, Optional
 import numpy as np
 
+from yunmeng.solutions.commons.enums import GeometryType
+
 # ---------------------------------------------------
 # region ITimeSpan
 # ---------------------------------------------------
 
 
 @dataclass
-class ITimeSpan:
+class TimeSpan:
     """Time span attached to an exchange item.
 
     For a scalar time-series output this describes the full horizon;
@@ -63,23 +65,6 @@ class ITimeSpan:
 
 
 # ---------------------------------------------------
-# region GeoReference
-# ---------------------------------------------------
-
-
-@dataclass
-class GeoReference:
-    """Lightweight geographic coordinate reference."""
-
-    crs: str = ""
-    """Coordinate reference system as OGC WKT."""
-
-    origin_x: float = 0.0
-    origin_y: float = 0.0
-    origin_z: float = 0.0
-
-
-# ---------------------------------------------------
 # region IElementSet
 # ---------------------------------------------------
 
@@ -88,7 +73,7 @@ class IElementSet(ABC):
     """Spatial element set describing WHERE data lives.
 
     Supports three usage patterns:
-      1. Scalar   : element_count == 1, no spatial info(bulk value).
+      1. Id-based : element_count == 1, no spatial info(bulk value).
       2. Points   : ordered list of discrete point locations.
       3. Mesh     : structured or unstructured grid.
     """
@@ -101,11 +86,8 @@ class IElementSet(ABC):
 
     @property
     @abstractmethod
-    def element_type(self) -> str:
-        """Element geometry type.
-
-        One of: scalar, point, polyline, polygon, polyhedron.
-        """
+    def gtype(self) -> GeometryType:
+        """Element geometry type."""
         pass
 
     @abstractmethod
@@ -118,11 +100,6 @@ class IElementSet(ABC):
         """Return element centroid, shape (3,)."""
         pass
 
-    @property
-    def geo_reference(self) -> GeoReference:
-        """Geographic CRS info."""
-        return GeoReference()
-
 
 # ---------------------------------------------------
 # region IQuantity
@@ -130,8 +107,8 @@ class IElementSet(ABC):
 
 
 @dataclass
-class IQuantity:
-    """Physical quantity metadata: name, unit, data type."""
+class Quantity:
+    """Physical quantity metadata."""
 
     name: str = ""
     """Variable name, e.g. "discharge", "water_depth"."""
@@ -148,13 +125,15 @@ class IQuantity:
     missing_value: Any = np.nan
     """Value used to represent missing / invalid data."""
 
-    def convert_factor_to(self, target_unit: str) -> float:
-        """Return the multiplicative factor to convert
-        from *self.unit* to *target_unit*.
-        """
-        if self.unit == target_unit:
-            return 1.0
-        raise NotImplementedError()
+    si_factor: float = 1.0
+    """Multiplicative factor to convert to SI unit."""
+
+    si_offset: float = 0.0
+    """Additive factor to convert to SI unit."""
+
+    def to_si(self, value: float) -> float:
+        """Convert value to SI unit."""
+        return self.si_factor * value + self.si_offset
 
 
 # ---------------------------------------------------
@@ -172,8 +151,8 @@ class IValueSet(ABC):
 
     @property
     @abstractmethod
-    def quantity(self) -> IQuantity:
-        """Physical quantity definition (What)."""
+    def quantity(self) -> Quantity:
+        """Physical quantity definition."""
         pass
 
     @property

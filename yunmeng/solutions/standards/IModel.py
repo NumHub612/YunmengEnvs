@@ -2,11 +2,11 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Core interfaces for the Solution layer — component lifecycle and topology.
+Core interfaces for the Solution layer — model lifecycle and topology.
 
 Design principles:
   - Components are coarse-grained: a basin model, a hydrodynamic model,
-    a water-quality module, etc. Each component may contain internal
+    a water-quality module, etc. Each model may contain internal
     topology (sub-basins, grid cells, river reaches) that is opaque
     to the coupling framework.
   - Scheduler drives the simulation by calling update() on trigger
@@ -21,37 +21,38 @@ from enum import Enum
 from typing import Any
 from dataclasses import dataclass, field, fields as dc_fields
 
-from IExchange import IInput, IOutput
+from yunmeng.solutions.standards.IExchange import IInput, IOutput
+from yunmeng.solutions.commons.enums import GeometryType
 
 # ---------------------------------------------------
-# region ComponentStatus
+# region ModelStatus
 # ---------------------------------------------------
 
 
-class ComponentStatus(Enum):
-    """Lifecycle states for a linkable component."""
+class ModelStatus(Enum):
+    """Lifecycle states for a linkable model."""
 
     CREATED = "created"
-    """Component instance has been constructed but not initialized."""
+    """Model instance has been constructed but not initialized."""
 
     READY = "ready"
-    """Initialization and preparation have succeeded;the component 
+    """Initialization and preparation have succeeded;the model 
     can participate in update cycles."""
 
     RUNNING = "running"
-    """Component is actively computing (inside update())."""
+    """Model is actively computing (inside update())."""
 
     DONE = "done"
-    """Component has completed its time horizon; further update() 
+    """Model has completed its time horizon; further update() 
     calls are no-ops."""
 
     FAILED = "failed"
-    """Irrecoverable errors occurred, and the component should be 
+    """Irrecoverable errors occurred, and the model should be 
     finalized and re-instantiated."""
 
 
 # ---------------------------------------------------
-# region ComponentMeta
+# region ModelMeta
 # ---------------------------------------------------
 
 
@@ -63,8 +64,8 @@ class ExchangeMeta:
     description: str = ""
     quantity: str = ""  # e.g. "discharge", "water_level"
     unit: str = ""  # SI unit string, e.g. "m3/s"
-    etype: str = "id"  # id / cell / face / node
-    temporal: str = "instant"  # instant / cumulative / average
+    gtype: GeometryType = GeometryType.NONE
+    temporal: str = "instant"  # instant, cumulative, ...
     dtype: str = "float64"
     required: bool = True
 
@@ -82,8 +83,8 @@ class ParamMeta:
 
 
 @dataclass
-class ComponentMeta:
-    """Basic component meta."""
+class ModelMeta:
+    """Basic model meta."""
 
     name: str = ""
     description: str = ""
@@ -98,12 +99,12 @@ class ComponentMeta:
 
 
 # ---------------------------------------------------
-# region ILinkableComponent
+# region ILinkableModel
 # ---------------------------------------------------
 
 
-class ILinkableComponent(ABC):
-    """Coarse-grained model component that can be linked with others.
+class ILinkableModel(ABC):
+    """Coarse-grained model model that can be linked with others.
 
     Lifecycle (driven by Scheduler):
         CREATED  → initialize() → READY
@@ -118,8 +119,8 @@ class ILinkableComponent(ABC):
 
     @classmethod
     @abstractmethod
-    def get_meta(cls) -> ComponentMeta:
-        """Return metadata describing this component."""
+    def get_meta(cls) -> ModelMeta:
+        """Return metadata describing this model."""
         pass
 
     # -- instance properties ------------------------
@@ -132,7 +133,7 @@ class ILinkableComponent(ABC):
 
     @property
     @abstractmethod
-    def status(self) -> ComponentStatus:
+    def status(self) -> ModelStatus:
         """Current lifecycle state."""
         pass
 
@@ -169,8 +170,8 @@ class ILinkableComponent(ABC):
         pass
 
     @abstractmethod
-    def update(self) -> ComponentStatus:
-        """Advance the component by one logical time step.
+    def update(self) -> ModelStatus:
+        """Advance the model by one logical time step.
 
         In PULL mode the Scheduler has already pushed data from upstream
         providers into input buffers before calling update().
@@ -184,6 +185,6 @@ class ILinkableComponent(ABC):
     def finish(self):
         """Release resources, flush outputs, close files.
 
-        After finish(), the component returns to CREATED and may be
+        After finish(), the model returns to CREATED and may be
         re-initialized for a new run."""
         pass

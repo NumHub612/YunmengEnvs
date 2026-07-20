@@ -4,7 +4,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 ValueSet used to store values of a specific variable.
 """
-from yunmeng.solutions.standards import IValueSet, IValueDefinition, IQuantity
+
+from yunmeng.solutions.standards import IValueSet, IValueDefinition, Quantity
 import numpy as np
 from typing import Any
 from copy import deepcopy
@@ -87,7 +88,7 @@ class ValueSet(IValueSet):
     def __len__(self) -> int:
         return self._values.shape[0]
 
-    def __getitem__(self, indices: tuple[int]) -> IQuantity | np.ndarray:
+    def __getitem__(self, indices: tuple[int]) -> Quantity | np.ndarray:
         if len(indices) == 1:
             # get values for a time
             values = self._values[indices[0], :]

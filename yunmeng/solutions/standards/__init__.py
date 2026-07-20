@@ -1,4 +1,4 @@
-from yunmeng.solutions.standards.IComponent import *
+from yunmeng.solutions.standards.IModel import *
 from yunmeng.solutions.standards.ICoupling import *
 from yunmeng.solutions.standards.IData import *
 from yunmeng.solutions.standards.IExchange import *

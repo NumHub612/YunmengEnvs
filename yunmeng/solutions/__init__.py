@@ -1,4 +1,4 @@
-from yunmeng.solutions.standards import ILinkableComponent
+from yunmeng.solutions.standards import ILinkableModel
 from yunmeng.solutions.commons import BaseModel
 
 import importlib
@@ -17,8 +17,8 @@ for _, module_name, _ in pkgutil.iter_modules([str(Path(__file__).parent)]):
     module = importlib.import_module(f".{module_name}", __package__)
     for name, obj in inspect.getmembers(module, inspect.isclass):
         if (
-            issubclass(obj, ILinkableComponent)
-            and obj is not ILinkableComponent
+            issubclass(obj, ILinkableModel)
+            and obj is not ILinkableModel
             and obj is not BaseModel
         ):
             if name in ym_models:
@@ -31,6 +31,6 @@ __all__ = [
     name
     for name, obj in globals().items()
     if inspect.isclass(obj)
-    and issubclass(obj, ILinkableComponent)
-    and obj is not ILinkableComponent
+    and issubclass(obj, ILinkableModel)
+    and obj is not ILinkableModel
 ]

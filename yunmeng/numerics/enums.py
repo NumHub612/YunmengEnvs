@@ -144,16 +144,6 @@ class MeshDimension(Enum):
     D3 = 3
 
 
-class GeomType(Enum):
-    """The geometry types."""
-
-    IdBased = 0
-    Point = 1
-    Polyline = 2
-    Polygon = 3
-    Polyhedron = 4
-
-
 class ElementType(Enum):
     """Element types in CFD."""
 

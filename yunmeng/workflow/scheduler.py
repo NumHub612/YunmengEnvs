@@ -6,7 +6,7 @@ To provide linking network analysis and management functionalities.
 """
 
 from yunmeng.solutions.standards import (
-    ILinkableComponent,
+    ILinkableModel,
     IOutput,
     IInput,
     LinkableComponentStatus,
@@ -39,16 +39,16 @@ class Scheduler:
     """The scheduler is responsible for managing the initializing、coupling
     and scheduling of the linking components."""
 
-    def __init__(self, regietered_components: dict[str, ILinkableComponent]):
+    def __init__(self, regietered_components: dict[str, ILinkableModel]):
         self._registered_components = regietered_components
         self._status = SchedulerStatus.CREATED
         self._breakpoints: set[float] = set()
         self._paused = False
 
         self._system_config = None
-        self._models: dict[str, ILinkableComponent] = {}
+        self._models: dict[str, ILinkableModel] = {}
         self._topo: nx.DiGraph = nx.DiGraph()
-        self._trigger: ILinkableComponent = None
+        self._trigger: ILinkableModel = None
 
         self._start_time = dt.datetime.now()
         self._timeout = None
@@ -57,7 +57,7 @@ class Scheduler:
         self._verbose = True
 
     @property
-    def components(self) -> list[ILinkableComponent]:
+    def components(self) -> list[ILinkableModel]:
         """All registered components"""
         return list(self._models.values())
 

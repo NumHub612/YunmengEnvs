@@ -4,8 +4,9 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Input items.
 """
+
 from yunmeng.solutions.standards import (
-    ILinkableComponent,
+    ILinkableModel,
     IOutput,
     IInput,
     ISpatialDefinition,
@@ -36,7 +37,7 @@ class BaseInput(IInput):
     def __init__(
         self,
         id: str,
-        component: ILinkableComponent,
+        component: ILinkableModel,
         value_definition: IValueDefinition,
         elementset: IElementSet,
         timeset: ITimeSet = None,
@@ -89,7 +90,7 @@ class BaseInput(IInput):
             self._provider.add_consumer(self)
 
     @property
-    def component(self) -> ILinkableComponent:
+    def component(self) -> ILinkableModel:
         return self._component
 
     @property

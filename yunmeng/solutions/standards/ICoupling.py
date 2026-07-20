@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
 
-from IComponent import ILinkableComponent
+from yunmeng.solutions.standards.IModel import ILinkableModel
 
 # ---------------------------------------------------
 # region CouplingMode
@@ -34,7 +34,7 @@ class CouplingMode(Enum):
     """How two components are coupled."""
 
     PULL = "pull"
-    """One-way data pull (OpenMI-style).  Downstream component reads
+    """One-way data pull (OpenMI-style).  Downstream Model reads
     from upstream output when it updates."""
 
     LOOP = "loop"
@@ -105,7 +105,7 @@ class IterationResult:
 
 
 # ---------------------------------------------------
-# region ICouplingStrategy
+# region CouplingStrategy
 # ---------------------------------------------------
 
 
@@ -122,8 +122,8 @@ class ICouplingStrategy(ABC):
     @abstractmethod
     def execute(
         self,
-        source: ILinkableComponent,
-        target: ILinkableComponent,
+        source: ILinkableModel,
+        target: ILinkableModel,
         config: CouplingConfig,
     ) -> IterationResult:
         """Executes coupling cycle for this current time step.
@@ -135,7 +135,7 @@ class ICouplingStrategy(ABC):
 
 
 # ---------------------------------------------------
-# region IIterativeCoupler
+# region IterativeCoupler
 # ---------------------------------------------------
 
 
@@ -143,15 +143,15 @@ class IIterativeCoupler(ICouplingStrategy):
     """Bidirectional iterative coupler using fixed-point iteration.
 
     Concrete subclasses implement the domain-specific logic for
-    extracting exchanged variables from one component and applying
+    extracting exchanged variables from one Model and applying
     them as boundary conditions / source terms to the other.
     """
 
     @abstractmethod
     def iterate(
         self,
-        comp_a: ILinkableComponent,
-        comp_b: ILinkableComponent,
+        comp_a: ILinkableModel,
+        comp_b: ILinkableModel,
         config: CouplingConfig,
     ) -> IterationResult:
         """Run one fixed-point iteration cycle:
