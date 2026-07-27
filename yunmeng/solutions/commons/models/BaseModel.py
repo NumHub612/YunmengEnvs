@@ -1,108 +1,101 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Base model for all linkable components.
+Lightweight base implementation of ``ILinkableModel``.
 """
+
+from __future__ import annotations
+from typing import Any
 
 from yunmeng.solutions.standards import (
     ILinkableModel,
-    IArgument,
     IInput,
     IOutput,
-    IIdentifiable,
-    IManageState,
-    LinkableComponentStatus,
-    LinkableComponentStatusChangeEventArgs,
+    ModelStatus,
+    ModelMeta,
 )
-from yunmeng.solutions.commons import events
-from yunmeng.solutions.commons.enums import EnvRunMode
-from typing import Any
 
 
-class BaseModel(ILinkableModel, IManageState):
-    """Base model for all linkable components.
+class BaseModel(ILinkableModel):
+    """Concrete-ish base class for a linkable model.
 
-    In a typical pull-driven scenario, the component A `update` method would
-    call the `values` property of its input items, which in turn calls
-    the `get_values` method of the bound output item. This method then calls
-    the `update` method of the owner, component B, to update the data,
-    and after retrieving the data, it propagates back along this calls chain.
-
-    While in Loop-driven scenario, there is a bidirectional data requirement
-    between coupled components, and data exchange would occur back and forth
-    multiple times within the same step (external loop or iterative loop)
-    until the next time step is reached or the convergence is achieved.
+    Subclasses override ``_do_initialize``, ``_do_validate``, ``_do_prepare``,
+    ``_do_update`` and ``_do_finish``.
     """
 
-    def __init__(self, id: str):
-        self._id = id
-        self._arguments: list[IArgument] = []
+    def __init__(self, model_id: str, meta: ModelMeta = None):
+        self._id = model_id
+        self._meta = meta or ModelMeta(name=model_id)
+        self._status = ModelStatus.CREATED
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []
 
-        self._run_mode = EnvRunMode.DEVELOP
-        self._cascading = False
-        self._status = LinkableComponentStatus.CREATED
-        self._event_manager = events.EventManager()
+    @classmethod
+    def get_meta(cls) -> ModelMeta:
+        return ModelMeta(name=cls.__name__)
 
     @property
-    def status(self) -> LinkableComponentStatus:
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def status(self) -> ModelStatus:
         return self._status
-
-    @property
-    def arguments(self) -> list[IArgument]:
-        return self._arguments
-
-    @property
-    def outputs(self) -> list[IOutput]:
-        return self._outputs
 
     @property
     def inputs(self) -> list[IInput]:
         return self._inputs
 
     @property
-    def CascadingUpdate(self) -> bool:
-        return self._cascading
+    def outputs(self) -> list[IOutput]:
+        return self._outputs
 
-    @CascadingUpdate.setter
-    def CascadingUpdate(self, cascading: bool):
-        self._cascading = cascading
+    @property
+    def meta(self) -> ModelMeta:
+        return self._meta
+
+    def _set_status(self, status: ModelStatus):
+        self._status = status
+
+    def add_input(self, item: IInput):
+        self._inputs.append(item)
+
+    def add_output(self, item: IOutput):
+        self._outputs.append(item)
+        if hasattr(item, "_component"):
+            item._component = self
 
     def initialize(self):
-        raise NotImplementedError()
+        self._set_status(ModelStatus.READY)
 
     def validate(self) -> list[str]:
-        raise NotImplementedError()
+        return []
 
     def prepare(self):
-        raise NotImplementedError()
+        pass
 
-    def update(self, required_outputs: list[IOutput]):
-        raise NotImplementedError()
+    def update(self, required_outputs: list[IOutput] = None) -> ModelStatus:
+        if self._status in (ModelStatus.DONE, ModelStatus.FAILED):
+            return self._status
+        self._set_status(ModelStatus.RUNNING)
+        self._do_update(required_outputs)
+        if self._status == ModelStatus.RUNNING:
+            self._set_status(ModelStatus.READY)
+        return self._status
+
+    def _do_update(self, required_outputs: list[IOutput] = None):
+        """Override in subclasses."""
+        pass
 
     def finish(self):
-        raise NotImplementedError()
+        self._set_status(ModelStatus.CREATED)
 
-    def set_status(self, status: LinkableComponentStatus, message: str):
-        event_args = LinkableComponentStatusChangeEventArgs(
-            self, message, self._status, status
-        )
-        self._status = status
-        self._event_manager.invoke(event_args)
+    def mark_done(self):
+        self._set_status(ModelStatus.DONE)
 
-    def load_state(self, path: str) -> IIdentifiable:
-        raise NotImplementedError()
+    def mark_failed(self):
+        self._set_status(ModelStatus.FAILED)
 
-    def keep_current_state(self) -> IIdentifiable:
-        raise NotImplementedError()
-
-    def restore_state(self, state_id: IIdentifiable):
-        raise NotImplementedError()
-
-    def clear_state(self, state_id: IIdentifiable):
-        raise NotImplementedError()
-
-    def save_state(self, state_id: IIdentifiable, path: str):
-        raise NotImplementedError()
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._id}, {self._status.value})"

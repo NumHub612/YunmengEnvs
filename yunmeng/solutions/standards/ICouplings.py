@@ -19,6 +19,7 @@ LinkableComponents:
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from typing import Any, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
@@ -31,7 +32,7 @@ from yunmeng.solutions.standards.IModel import ILinkableModel
 
 
 class CouplingMode(Enum):
-    """How two components are coupled."""
+    """How two or more components are coupled."""
 
     PULL = "pull"
     """One-way data pull (OpenMI-style).  Downstream Model reads
@@ -43,6 +44,23 @@ class CouplingMode(Enum):
 
     PUSH = "push"
     """One-way data push (rarely used in practice)."""
+
+    AGENT = "agent"
+    """Agent-driven control coupling. An ``IAgentModel`` observes one or
+    more components and injects actions back into the system as boundary
+    conditions or source terms."""
+
+    SURROGATE = "surrogate"
+    """Surrogate coupling. A fast AI model replaces or accelerates an
+    expensive physics model while keeping the same exchange ports."""
+
+    NESTED = "nested"
+    """Nested coupling. A parent model spawns one or more child models
+    that run with their own time step and feed results back to the parent."""
+
+    HYBRID = "hybrid"
+    """Hybrid coupling. Combines physics and AI models in a single step,
+    for example a neural-network corrector applied after a PDE solver."""
 
 
 # ---------------------------------------------------
@@ -67,7 +85,7 @@ class CouplingConfig:
     relaxation: float = 1.0
     """Relaxation factor ω (0 < ω ≤ 1)."""
 
-    convergence_vars: list[str] = []
+    convergence_vars: list[str] = field(default_factory=list)
     """Exchanged variables need convergence check.  
     If empty, all linked variables are checked."""
 
@@ -177,4 +195,122 @@ class IIterativeCoupler(ICouplingStrategy):
     ) -> tuple[bool, float]:
         """Return (converged, residual) where residual is the maximum
         absolute difference across all convergence variables."""
+        pass
+
+
+# ---------------------------------------------------
+# region Specialized coupling strategies
+# ---------------------------------------------------
+
+
+class IAgentCouplingStrategy(ICouplingStrategy):
+    """Coupling strategy driven by an ``IAgentModel``.
+
+    The agent observes one or more components, selects an action, and the
+    action is applied as an input to a downstream target component.
+    """
+
+    @abstractmethod
+    def observe(
+        self,
+        agent: ILinkableModel,
+        sources: list[ILinkableModel],
+        config: CouplingConfig,
+    ) -> dict[str, Any]:
+        """Collect observations from all source components."""
+        pass
+
+    @abstractmethod
+    def apply_action(
+        self,
+        agent: ILinkableModel,
+        target: ILinkableModel,
+        action: Any,
+        config: CouplingConfig,
+    ):
+        """Write the action values into the target's input ports."""
+        pass
+
+
+class ISurrogateCouplingStrategy(ICouplingStrategy):
+    """Strategy for surrogate coupling.
+
+    Decides when to call the expensive physics model vs. the fast
+    surrogate, and synchronizes their states.
+    """
+
+    @abstractmethod
+    def should_use_surrogate(
+        self,
+        source: ILinkableModel,
+        target: ILinkableModel,
+        config: CouplingConfig,
+    ) -> bool:
+        """Return True if the surrogate should be used for this step."""
+        pass
+
+    @abstractmethod
+    def synchronize(
+        self,
+        source: ILinkableModel,
+        target: ILinkableModel,
+        config: CouplingConfig,
+    ):
+        """Synchronize the surrogate with the ground-truth model."""
+        pass
+
+
+class INestedCouplingStrategy(ICouplingStrategy):
+    """Strategy for nested / multi-scale coupling.
+
+    Manages a parent model and one or more child models that run at
+    different time resolutions and feed results back to the parent.
+    """
+
+    @abstractmethod
+    def run_children(
+        self,
+        parent: ILinkableModel,
+        children: list[ILinkableModel],
+        config: CouplingConfig,
+    ) -> IterationResult:
+        """Advance child models over the parent's current step."""
+        pass
+
+    @abstractmethod
+    def aggregate(
+        self,
+        parent: ILinkableModel,
+        children: list[ILinkableModel],
+        config: CouplingConfig,
+    ):
+        """Aggregate child outputs into parent inputs."""
+        pass
+
+
+class IHybridCouplingStrategy(ICouplingStrategy):
+    """Strategy for hybrid AI + physics coupling.
+
+    Runs the physics model first, then applies an AI correction to the
+    exchanged variables (or vice versa).
+    """
+
+    @abstractmethod
+    def physics_step(
+        self,
+        source: ILinkableModel,
+        target: ILinkableModel,
+        config: CouplingConfig,
+    ):
+        """Execute the physics-model part of the hybrid step."""
+        pass
+
+    @abstractmethod
+    def ai_correction(
+        self,
+        source: ILinkableModel,
+        target: ILinkableModel,
+        config: CouplingConfig,
+    ):
+        """Apply the AI correction to the exchanged variables."""
         pass

@@ -2,19 +2,15 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Exchange item interfaces — IExchangeItem, IInput, IOutput, IExchangeAdapter.
-
-An exchange item describes WHAT data flows (IQuantity), WHERE it lives
-(IElementSet), WHEN it is valid (ITimeSpan), and holds the actual numeric
-payload (IValueSet).
+Lightweight exchange item interfaces.
 """
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 import numpy as np
 
-from IData import IElementSet, Quantity, TimeSpan, IValueSet
+from yunmeng.solutions.standards.IData import IElementSet, IValueSet, Quantity, TimeSpan
 
 # ---------------------------------------------------
 # region IExchangeItem
@@ -22,38 +18,31 @@ from IData import IElementSet, Quantity, TimeSpan, IValueSet
 
 
 class IExchangeItem(ABC):
-    """Base descriptor for a data item that can be exchanged between
-    components.Carries the full metadata needed for spatial/temporal
-    interpolation, unit conversion, and type checking."""
+    """A named data port with a quantity, spatial footprint and values."""
 
     @property
     @abstractmethod
     def id(self) -> str:
-        """Unique identifier."""
         pass
 
     @property
     @abstractmethod
     def quantity(self) -> Quantity:
-        """Quantity definition (What)."""
         pass
 
     @property
     @abstractmethod
     def element_set(self) -> IElementSet:
-        """Spatial definition (Where)."""
         pass
 
     @property
     @abstractmethod
     def time_span(self) -> TimeSpan:
-        """Temporal definition (When)."""
         pass
 
     @property
     @abstractmethod
     def values(self) -> IValueSet:
-        """Data payload."""
         pass
 
 
@@ -63,13 +52,11 @@ class IExchangeItem(ABC):
 
 
 class IInput(IExchangeItem):
-    """Input port of a kinkable component. Receives data from at most
-    one provider (IOutput) via PULL or LOOP coupling."""
+    """Input port that receives data from one provider output."""
 
     @property
     @abstractmethod
     def provider(self) -> Optional[IOutput]:
-        """The upstream output that feeds this input."""
         pass
 
     @provider.setter
@@ -80,16 +67,11 @@ class IInput(IExchangeItem):
     @property
     @abstractmethod
     def is_connected(self) -> bool:
-        """Whether a provider has been assigned."""
         pass
 
     @abstractmethod
     def pull(self) -> np.ndarray:
-        """Fetch the latest value from the provider.
-
-        Called by the Scheduler (PULL mode)or by the IterativeCoupler
-        (LOOP mode) to move data across the link.
-        """
+        """Fetch the latest value from the provider."""
         pass
 
 
@@ -99,44 +81,44 @@ class IInput(IExchangeItem):
 
 
 class IOutput(IExchangeItem):
-    """Output port of linkable component. May be consumed by multiple
-    downstream inputs and optionally transformed by IExchangeAdapters."""
+    """Output port that can feed multiple downstream inputs."""
 
     @property
     @abstractmethod
     def consumers(self) -> list[IInput]:
-        """All downstream inputs connected to this output."""
-        pass
-
-    @abstractmethod
-    def remove_consumer(self, consumer: IInput):
-        """Remove a consumer."""
         pass
 
     @abstractmethod
     def add_consumer(self, consumer: IInput):
-        """Register a consumer."""
+        pass
+
+    @abstractmethod
+    def remove_consumer(self, consumer: IInput):
         pass
 
     @abstractmethod
     def get_values(self, requester: Optional[IInput] = None) -> np.ndarray:
-        """Return the current data payload.
+        """Return current data payload, optionally adapted for requester."""
+        pass
 
-        If adapters are registered and *requester* is provided, the
-        adapters may transform the data to match the requester's
-        spatial/temporal/unit requirements.
-        """
+    @property
+    @abstractmethod
+    def component(self) -> Any:
+        """Model/component that owns this output port."""
+        pass
+
+    @property
+    @abstractmethod
+    def version(self) -> int:
+        """Monotonic version of the cached data (increments on meaningful updates)."""
         pass
 
     @abstractmethod
     def add_adapter(self, adapter: IExchangeAdapter):
-        """Attach data-transform adapter (e.g. spatial interpolator,
-        unit converter, temporal averager)."""
         pass
 
     @abstractmethod
     def remove_adapter(self, adapter_id: str):
-        """Detach an adapter by its id."""
         pass
 
 
@@ -146,16 +128,7 @@ class IOutput(IExchangeItem):
 
 
 class IExchangeAdapter(ABC):
-    """Transform data flowing from a source exchange item to meet the
-    requirements of a target exchange item.
-
-    An adapter sits on an IOutput and transforms data before reaching
-    downstream consumers.  Typical uses:
-      - Spatial interpolation   : source grid → target grid / points
-      - Temporal interpolation  : source step → target step
-      - Unit conversion         : m3/s → mm/h, etc.
-      - Aggregation             : per-cell → basin-average
-    """
+    """Transform data from one output layout to another (spatial, temporal, unit)."""
 
     @property
     @abstractmethod
@@ -163,15 +136,10 @@ class IExchangeAdapter(ABC):
         pass
 
     @abstractmethod
-    def adapt(
-        self, data: np.ndarray, source: IExchangeItem, target: IExchangeItem
-    ) -> np.ndarray:
-        """Transform *data* from *source* layout to *target* layout."""
+    def adapt(self, data: np.ndarray, source: IOutput, target: IInput) -> np.ndarray:
         pass
 
     @classmethod
     @abstractmethod
-    def can_adapt(cls, source: IExchangeItem, target: IExchangeItem) -> bool:
-        """Return whether this adapter is capable of transforming
-        from *source* to *target*."""
+    def can_adapt(cls, source: IOutput, target: IInput) -> bool:
         pass

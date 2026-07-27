@@ -1,267 +1,127 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Output items.
+Lightweight output port implementation.
 """
 
-from yunmeng.solutions.standards import (
-    ILinkableModel,
-    IBaseExchangeItem,
-    IOutput,
-    IAdaptedOutput,
-    IInput,
-    ISpatialDefinition,
-    IElementSet,
-    ITimeSet,
-    ITime,
-    IValueDefinition,
-    IValueSet,
-    ExchangeItemChangeEventArgs,
-)
-from yunmeng.solutions.commons import events, datasets
-from yunmeng.setting import logger
-
-from typing import Optional
+from __future__ import annotations
+from typing import Any, Optional
 import numpy as np
+
+from yunmeng.solutions.standards import (
+    IOutput,
+    IInput,
+    IElementSet,
+    IValueSet,
+    IExchangeAdapter,
+    Quantity,
+    TimeSpan,
+)
+
+
+class SimpleValueSet(IValueSet):
+    """Minimal value set wrapping a numpy array."""
+
+    def __init__(self, quantity: Quantity, values: np.ndarray):
+        self._quantity = quantity
+        self._values = np.asarray(values)
+
+    @property
+    def quantity(self) -> Quantity:
+        return self._quantity
+
+    @property
+    def values(self) -> np.ndarray:
+        return self._values
+
+    def set_values(self, values: np.ndarray):
+        self._values = np.asarray(values)
 
 
 class BaseOutput(IOutput):
-    """Base output item for all outputs.
-
-    When the output `get_values` method is invoked, it'll call the `update`
-    method of the owning component B to generate data and
-    obtain the data required.
-
-    The output item and the component are tightly coupled, which means the
-    former depends on the specific implementation of the latter.
-    """
+    """Simple output port backed by a numpy array."""
 
     def __init__(
         self,
-        id: str,
-        component: ILinkableModel,
-        value_definition: IValueDefinition,
-        elementset: IElementSet,
-        timeset: ITimeSet = None,
-        caption: str = "",
-        description: str = "",
+        item_id: str,
+        quantity: Quantity,
+        element_set: IElementSet,
+        time_span: TimeSpan = None,
+        producer: callable = None,
     ):
-        super().__init__(caption, description, id)
-        self._component = component
-        self._value_definition = value_definition
-        self._elementset = elementset
-        self._timeset = timeset
-        if self._timeset is None:
-            self._timeset = datasets.TimeSet(None, [datasets.ITime])
-        self._valueset: IValueSet = datasets.ValueSet(
-            value_definition,
-            (self._timeset.size, elementset.element_count),
-        )
-
+        self._id = item_id
+        self._quantity = quantity
+        self._element_set = element_set
+        self._time_span = time_span or TimeSpan()
+        self._producer = producer
         self._consumers: list[IInput] = []
-        self._adapters: list[IAdaptedOutput] = []
-        self._in_get_values: bool = False
-        self._event_manager = events.EventManager()
-
-    def __del__(self):
-        if not self._consumers:
-            for consumer in self._consumers:
-                consumer.provider = None
-        if not self._adapters:
-            for adapter in self._adapters:
-                adapter.adaptee = None
+        self._adapters: list[IExchangeAdapter] = []
+        self._cache: Optional[np.ndarray] = None
+        self._component: Any = None
+        self._generation: int = 0
 
     @property
-    def spatial_definition(self) -> Optional[ISpatialDefinition]:
-        return self._elementset
-
-    @property
-    def time_set(self) -> Optional[ITimeSet]:
-        return self._timeset
-
-    @property
-    def value_definition(self) -> IValueDefinition:
-        return self._value_definition
-
-    @property
-    def values(self) -> IValueSet:
-        return self._valueset
-
-    @property
-    def consumers(self) -> Optional[list[IInput]]:
-        return self._consumers
-
-    @property
-    def adapters(self) -> Optional[list[IOutput]]:
-        return self._adapters
-
-    @property
-    def component(self) -> ILinkableModel:
+    def component(self) -> Any:
         return self._component
 
     @property
-    def event_manager(self) -> events.EventManager:
-        return self._event_manager
+    def version(self) -> int:
+        return self._generation
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def quantity(self) -> Quantity:
+        return self._quantity
+
+    @property
+    def element_set(self) -> IElementSet:
+        return self._element_set
+
+    @property
+    def time_span(self) -> TimeSpan:
+        return self._time_span
+
+    @property
+    def values(self) -> IValueSet:
+        return SimpleValueSet(self._quantity, self._cache)
+
+    @property
+    def consumers(self) -> list[IInput]:
+        return self._consumers
 
     def add_consumer(self, consumer: IInput):
-        # TODO: add check for consumer's spatial definition
         if consumer not in self._consumers:
             self._consumers.append(consumer)
-
-            self.notify_changed("Consumer added.")
-
-    def add_adapter(self, adapter: IAdaptedOutput):
-        if adapter not in self._adapters:
-            self._adapters.append(adapter)
-            adapter.adaptee = self
-
-            self.notify_changed("Adapter added.")
 
     def remove_consumer(self, consumer: IInput):
         if consumer in self._consumers:
             self._consumers.remove(consumer)
 
-            self.notify_changed("Consumer removed.")
+    def add_adapter(self, adapter: IExchangeAdapter):
+        if adapter not in self._adapters:
+            self._adapters.append(adapter)
 
-    def remove_adapter(self, adapter: IAdaptedOutput):
-        if adapter in self._adapters:
-            self._adapters.remove(adapter)
-            adapter.adaptee = None
+    def remove_adapter(self, adapter_id: str):
+        self._adapters = [a for a in self._adapters if a.id != adapter_id]
 
-            self.notify_changed("Adapter removed.")
+    def set_cache(self, values: np.ndarray):
+        self._cache = np.asarray(values)
+        self._generation += 1
 
-    def get_values(self, querier: IBaseExchangeItem) -> IValueSet:
-        # NOTE: This is a simplified pull-based implementation.
-        # The implementation class may override this method for more complex logic.
+    def get_values(self, requester: Optional[IInput] = None) -> np.ndarray:
+        if self._producer is not None and self._cache is None:
+            self.set_cache(self._producer())
+        if self._cache is None:
+            raise ValueError(f"Output {self._id} has no data.")
+        data = self._cache
+        for adapter in self._adapters:
+            if adapter.can_adapt(self, requester):
+                data = adapter.adapt(data, self, requester)
+        return data
 
-        # Prevent re-entrance deadlock
-        if self._in_get_values:
-            return self._guess_extrapolate(querier)
-
-        self._in_get_values = True
-        try:
-            # retrieve the value for only one moment at a time
-            req_time = querier.time_set.times[0].timestamp
-            cur_time = self._current_time()
-
-            # 1. time: future → push component until that time
-            if req_time > cur_time:
-                while self._current_time() < req_time:
-                    self._component.update([self])
-                cur_time = self._current_time()
-
-            # 2. time: past → check cache / interpolate
-            outputs = self._get_cache(querier)
-            if outputs is None:
-                outputs = self._interpolate(querier)
-
-            # shrink according to consumer's request
-            self._shrink(querier)
-
-            return outputs
-
-        finally:
-            self._in_get_values = False
-
-    def _current_time(self):
-        """Gets the current time in Modified Julian Day (MJD)."""
-        if self._timeset is None or len(self._timeset.times) == 0:
-            return 0.0
-        return self._timeset.times[-1].timestamp
-
-    def _get_cache(self, querier: IBaseExchangeItem) -> IValueSet:
-        """Gets cached value set for given time, if any."""
-        cached = None
-
-        # match exact time
-        req_time = querier.time_set.times[0].timestamp
-        tolerance = 1e-6  # tolerance for time matching
-        for i, t in enumerate(self._timeset.times):
-            if abs(t.timestamp - req_time) <= tolerance:
-                cached = np.array(self._valueset[i, :])
-                break
-        if cached is None:
-            return None
-
-        # match spatial definition
-        element_indices = []
-        for i in range(querier.spatial_definition.element_count):
-            iid = self._elementset.get_element_id(i)
-            idx = self._elementset.get_element_index(iid)
-            if idx is not None:
-                element_indices.append(idx)
-        if len(element_indices) == 0:
-            return None
-        cached = cached[element_indices].reshape(1, -1)
-
-        # return valueset
-        return datasets.ValueSet(
-            self._value_definition,
-            (1, len(element_indices)),
-            cached,
-        )
-
-    def _guess_extrapolate(self, query: IBaseExchangeItem) -> IValueSet:
-        """When re-entrance deadlock occurs, extrapolate values."""
-        if not self._valueset or self._valueset.shape[0] == 0:
-            # no data yet, return missing
-            n_elem = query.spatial_definition.element_count
-            return datasets.ValueSet(
-                self._value_definition,
-                (1, n_elem),
-            )
-
-        # directly return last value, the implementation class
-        # may override this method.
-        return self._valueset[-1]
-
-    def _interpolate(self, querier: IBaseExchangeItem) -> IValueSet:
-        """Interpolates values for the querier."""
-        req_time = querier.time_set.times[0].timestamp
-        times = self._timeset.times
-        for i in range(1, len(times)):
-            time_l = times[i - 1].timestamp
-            time_r = times[i].timestamp
-            # valueset interpolation
-            if time_l <= req_time <= time_r:
-                ratio = (req_time - time_l) / (time_r - time_l)
-                val_l, val_r = self._valueset[i - 1 : i + 1]
-                results = [None] * val_l.shape[1]
-                for j in range(val_l.shape[1]):
-                    v1, v2 = val_l[j], val_r[j]
-                    results[j] = v1 * (1 - ratio) + v2 * ratio
-                return datasets.ValueSet(
-                    self._value_definition,
-                    (1, len(results)),
-                    results,
-                )
-        return None
-
-    def _shrink(self, querier: IBaseExchangeItem):
-        """Shrinks the datas according to consumer's request."""
-        # search the earliest time index
-        req_time = querier.time_set.times[0].timestamp
-        for consumer in self._consumers:
-            t = consumer.time_set.times[0].timestamp
-            if t < req_time:
-                req_time = t
-
-        remove_indices = []
-        for i, t in enumerate(self._timeset.times):
-            if t.timestamp < req_time:
-                remove_indices.append(i)
-
-        # shrink data
-        if remove_indices:
-            for idx in reversed(remove_indices):
-                self._timeset.remove_time(idx)
-                self._valueset.remove_values([idx])
-
-        self.notify_changed("Data shrunk.")
-
-    def notify_changed(self, message: str):
-        """Notifies all consumers that the output item has changed."""
-        logger.debug(f"Output item {self.id} has changed: {message}")
-        event_args = ExchangeItemChangeEventArgs(self, message)
-        self._event_manager.invoke(event_args)
+    def __repr__(self) -> str:
+        return f"BaseOutput({self._id}, consumers={len(self._consumers)})"

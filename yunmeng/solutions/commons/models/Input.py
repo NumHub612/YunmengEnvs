@@ -1,116 +1,85 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Input items.
+Lightweight input port implementation.
 """
 
-from yunmeng.solutions.standards import (
-    ILinkableModel,
-    IOutput,
-    IInput,
-    ISpatialDefinition,
-    IElementSet,
-    ITimeSet,
-    IValueDefinition,
-    IValueSet,
-    ExchangeItemChangeEventArgs,
-)
-from yunmeng.solutions.commons import datasets
-from yunmeng.solutions.commons import events
-from yunmeng.setting import logger
-
+from __future__ import annotations
 from typing import Optional
+import numpy as np
+
+from yunmeng.solutions.standards import (
+    IInput,
+    IOutput,
+    IElementSet,
+    IValueSet,
+    Quantity,
+    TimeSpan,
+)
 
 
 class BaseInput(IInput):
-    """Base input item for all inputs.
-
-    While component A updating, it'll call its inputs `values` property
-    to obtain the required data. Therefore it's also responsible for
-    updating the input's `timeset`.
-
-    The input and the component are tightly coupled, which means the
-    former depends on the specific implementation of the latter.
-    """
+    """Simple input port backed by a numpy array."""
 
     def __init__(
         self,
-        id: str,
-        component: ILinkableModel,
-        value_definition: IValueDefinition,
-        elementset: IElementSet,
-        timeset: ITimeSet = None,
-        caption: str = "",
-        description: str = "",
-        provider: IOutput = None,
+        item_id: str,
+        quantity: Quantity,
+        element_set: IElementSet,
+        time_span: TimeSpan = None,
     ):
-        super().__init__(caption, description, id)
-        self._component = component
-        self._value_definition = value_definition
-        self._elementset = elementset
-
-        self._timeset = timeset
-        if self._timeset is None:
-            self._timeset = datasets.TimeSet(None, [datasets.ITime])
-
-        self._provider = provider
-        self._valuset = datasets.ValueSet(
-            value_definition, (self._timeset.size, elementset.element_count)
-        )
-        self._satisfied = False
-        self._event_manager = events.EventManager()
-
-    def __del__(self):
-        if self._provider is not None:
-            self._provider.remove_consumer(self)
+        self._id = item_id
+        self._quantity = quantity
+        self._element_set = element_set
+        self._time_span = time_span or TimeSpan()
+        self._provider: Optional[IOutput] = None
+        self._values: Optional[np.ndarray] = None
 
     @property
-    def spatial_definition(self) -> Optional[ISpatialDefinition]:
-        return self._elementset
+    def id(self) -> str:
+        return self._id
 
     @property
-    def time_set(self) -> Optional[ITimeSet]:
-        return self._timeset
+    def quantity(self) -> Quantity:
+        return self._quantity
 
     @property
-    def value_definition(self) -> IValueDefinition:
-        return self._value_definition
+    def element_set(self) -> IElementSet:
+        return self._element_set
+
+    @property
+    def time_span(self) -> TimeSpan:
+        return self._time_span
+
+    @property
+    def values(self) -> IValueSet:
+        return None  # placeholder for strict interface
 
     @property
     def provider(self) -> Optional[IOutput]:
         return self._provider
 
     @provider.setter
-    def provider(self, provider: IOutput):
+    def provider(self, output: IOutput):
         if self._provider is not None:
             self._provider.remove_consumer(self)
-        self._provider = provider
-        if self._provider is not None:
-            self._provider.add_consumer(self)
+        self._provider = output
+        if output is not None:
+            output.add_consumer(self)
 
     @property
-    def component(self) -> ILinkableModel:
-        return self._component
+    def is_connected(self) -> bool:
+        return self._provider is not None
 
-    @property
-    def event_manager(self) -> events.EventManager:
-        return self._event_manager
-
-    @property
-    def values(self) -> IValueSet:
+    def pull(self) -> np.ndarray:
         if self._provider is None:
-            raise ValueError("Input has no provider.")
+            raise ValueError(f"Input {self._id} has no provider.")
+        self._values = self._provider.get_values(self)
+        return self._values
 
-        if self._valuset is None or not self._satisfied:
-            self._valuset = self._provider.get_values(self)
-            # TODO: do validation here.
-            self._satisfied = True
-            self.notify_changed("Values updated.")
-        return self._valuset
+    def set_values(self, values: np.ndarray):
+        self._values = values
 
-    def notify_changed(self, message: str):
-        """Broadcasts a change event."""
-        logger.debug(f"Input '{self.id}' changed: {message}")
-        event_args = ExchangeItemChangeEventArgs(self, message)
-        self._event_manager.invoke(event_args)
+    def __repr__(self) -> str:
+        return f"BaseInput({self._id}, connected={self.is_connected})"

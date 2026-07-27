@@ -5,8 +5,8 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 ElementSet class describes a collection of spatial elements.
 """
 
-from yunmeng.numerics.enums import GeomType, ElementType, MeshDimension
-from yunmeng.solutions.standards import IElementSet
+from yunmeng.numerics.enums import ElementType, MeshDimension
+from yunmeng.solutions.standards import IElementSet, GeometryType
 from yunmeng.numerics.mesh import (
     Mesh,
     Element,
@@ -61,7 +61,7 @@ class ElementSet(IElementSet):
         return objs
 
     @property
-    def element_geom_type(self) -> GeomType:
+    def element_geom_type(self) -> GeometryType:
         return self._geom_type
 
     @property
@@ -71,14 +71,14 @@ class ElementSet(IElementSet):
     def get_element_index(self, element_id: str | int) -> int:
         for i, element in enumerate(self._elements):
             eid = element_id
-            if self._geom_type != GeomType.IdBased:
+            if self._geom_type != GeometryType.IDBASED:
                 eid = element.id
             if eid == int(element_id):
                 return i
         raise None
 
     def get_element_id(self, element_index: int) -> str | int:
-        if self._geom_type == GeomType.IdBased:
+        if self._geom_type == GeometryType.IDBASED:
             return self._elements[element_index]
         return self._elements[element_index].id
 
@@ -137,23 +137,23 @@ class ElementSet(IElementSet):
         return False
 
 
-def check_mesh_element_geom(elements: list[Element], mesh: Mesh) -> GeomType:
+def check_mesh_element_geom(elements: list[Element], mesh: Mesh) -> GeometryType:
     """Check the geometry type of an mesh element."""
     if mesh is None:
-        return GeomType.IdBased
+        return GeometryType.IDBASED
 
     element = elements[0]
     if isinstance(element, Node):
-        return GeomType.Point
+        return GeometryType.POINT
     elif isinstance(element, Face):
         if mesh.dimension == MeshDimension.D3:
-            return GeomType.Polygon
+            return GeometryType.POLYGON
         else:
-            return GeomType.Polyline
+            return GeometryType.POLYLINE
     elif isinstance(element, Cell):
         if mesh.dimension == MeshDimension.D3:
-            return GeomType.Polyhedron
+            return GeometryType.CUBE
         else:
-            return GeomType.Polygon
+            return GeometryType.POLYGON
     else:
         raise TypeError("Unsupported element type.")

@@ -1,79 +1,41 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Adapters and factories for different types of links.
+Lightweight adapter registry for exchange items.
 """
+
+from __future__ import annotations
+from typing import Optional
+
 from yunmeng.solutions.standards import (
-    IAdaptedOutputFactory,
-    IAdaptedOutput,
-    IOutput,
+    IExchangeAdapter,
     IInput,
-    IArgument,
-    IValueSet,
+    IOutput,
 )
 
 
-class AdapterFactory(IAdaptedOutputFactory):
-    """Factory class for creating instances of the `IAdaptedOutput` item."""
+class AdapterFactory:
+    """Finds and creates exchange adapters for a given source/target pair."""
 
-    def __init__(
-        self,
-        id: str,
-        adapters: list[IAdaptedOutput] = None,
-        caption: str = "",
-        description: str = "",
-    ):
-        super().__init__(caption, description, id)
-        self._adapters = adapters or []
+    def __init__(self, adapters: list[IExchangeAdapter] = None):
+        self._adapters = list(adapters or [])
 
-    def get_available_adapter_ids(
-        self, adaptee: IOutput, target: IInput
-    ) -> list[IAdaptedOutputFactory]:
-        pass
+    def register(self, adapter: IExchangeAdapter):
+        self._adapters.append(adapter)
 
-    def create_adapter(
-        self,
-        adapter_id: IAdaptedOutputFactory,
-        adaptee: IOutput,
-        target: IInput,
-    ) -> IAdaptedOutput | None:
-        pass
+    def find_adapter(self, source: IOutput, target: IInput) -> Optional[IExchangeAdapter]:
+        for adapter in self._adapters:
+            if adapter.can_adapt(source, target):
+                return adapter
+        return None
 
+    def create_chain(self, source: IOutput, target: IInput) -> list[IExchangeAdapter]:
+        chain = []
+        for adapter in self._adapters:
+            if adapter.can_adapt(source, target):
+                chain.append(adapter)
+        return chain
 
-class OutputAdapter(IAdaptedOutput):
-    """Adapter class for the `IOutput` item."""
-
-    def __init__(
-        self,
-        id: str,
-        adaptee: IOutput,
-        caption: str = "",
-        description: str = "",
-    ):
-        super().__init__(caption, description, id)
-        self._adaptee = adaptee
-        self._arguments = []
-        self._consumers = []
-        self._adapters = []
-
-    @property
-    def arguments(self) -> list[IArgument]:
-        return self._arguments
-
-    @property
-    def adaptee(self) -> IOutput:
-        return self._adaptee
-
-    @adaptee.setter
-    def adaptee(self, adaptee: IOutput):
-        self._adaptee = adaptee
-
-    def get_values(self, querier: IInput) -> IValueSet:
-        pass
-
-    def initialize(self):
-        pass
-
-    def refresh(self):
-        pass
+    def __repr__(self) -> str:
+        return f"AdapterFactory(adapters={len(self._adapters)})"

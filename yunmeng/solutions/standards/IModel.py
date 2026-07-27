@@ -22,7 +22,7 @@ from typing import Any
 from dataclasses import dataclass, field, fields as dc_fields
 
 from yunmeng.solutions.standards.IExchange import IInput, IOutput
-from yunmeng.solutions.commons.enums import GeometryType
+from yunmeng.solutions.standards.ITopology import GeometryType
 
 # ---------------------------------------------------
 # region ModelStatus
@@ -64,7 +64,7 @@ class ExchangeMeta:
     description: str = ""
     quantity: str = ""  # e.g. "discharge", "water_level"
     unit: str = ""  # SI unit string, e.g. "m3/s"
-    gtype: GeometryType = GeometryType.NONE
+    gtype: GeometryType = GeometryType.IDBASED
     temporal: str = "instant"  # instant, cumulative, ...
     dtype: str = "float64"
     required: bool = True

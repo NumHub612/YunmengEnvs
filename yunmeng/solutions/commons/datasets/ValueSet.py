@@ -5,7 +5,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 ValueSet used to store values of a specific variable.
 """
 
-from yunmeng.solutions.standards import IValueSet, IValueDefinition, Quantity
+from yunmeng.solutions.standards import IValueSet, Quantity
 import numpy as np
 from typing import Any
 from copy import deepcopy
@@ -16,7 +16,7 @@ class ValueSet(IValueSet):
 
     def __init__(
         self,
-        value_definition: IValueDefinition,
+        value_definition: Quantity,
         shape: tuple[int],
         values: np.ndarray = None,
     ):
@@ -30,11 +30,11 @@ class ValueSet(IValueSet):
         else:
             self._values = np.full(
                 shape,
-                value_definition.missing_data_value,
+                value_definition.missing_value,
             )
 
     @property
-    def value_definition(self) -> IValueDefinition:
+    def value_definition(self) -> Quantity:
         return self._value_definition
 
     @property
@@ -63,7 +63,7 @@ class ValueSet(IValueSet):
             # remove values for an element
             self._values = np.delete(self._values, indices[1], axis=1)
         else:
-            self._values[tuple(indices)] = self._value_definition.missing_data_value
+            self._values[tuple(indices)] = self._value_definition.missing_value
 
     def get_values_for_element(self, element_index: int) -> np.ndarray:
         values = self._values[:, element_index]
@@ -88,7 +88,7 @@ class ValueSet(IValueSet):
     def __len__(self) -> int:
         return self._values.shape[0]
 
-    def __getitem__(self, indices: tuple[int]) -> Quantity | np.ndarray:
+    def __getitem__(self, indices: tuple[int]) -> np.ndarray:
         if len(indices) == 1:
             # get values for a time
             values = self._values[indices[0], :]

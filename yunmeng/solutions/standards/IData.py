@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 import numpy as np
 
-from yunmeng.solutions.commons.enums import GeometryType
+from yunmeng.solutions.standards.ITopology import GeometryType
 
 # ---------------------------------------------------
 # region ITimeSpan

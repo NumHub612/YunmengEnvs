@@ -8,23 +8,6 @@ Enumerations for the common use in YunmengEnvs.
 from enum import Enum, auto
 
 # ---------------------------------------------------
-# region Geometry type
-# ---------------------------------------------------
-
-
-class GeometryType(Enum):
-    """
-    Enum for geometry type.
-    """
-
-    NONE = "none"
-    POINT = "point"
-    POLYLINE = "polyline"
-    POLYGON = "polygon"
-    CUBE = "cube"
-
-
-# ---------------------------------------------------
 # region Running mode
 # ---------------------------------------------------
 

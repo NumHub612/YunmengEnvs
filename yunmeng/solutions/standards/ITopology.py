@@ -22,9 +22,27 @@ Design principles:
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
+from enum import Enum
 import numpy as np
 
 from yunmeng.solutions.standards.IModel import ExchangeMeta
+
+# ---------------------------------------------------
+# region Geometry type
+# ---------------------------------------------------
+
+
+class GeometryType(Enum):
+    """
+    Enum for geometry type.
+    """
+
+    IDBASED = "idbased"
+    POINT = "point"
+    POLYLINE = "polyline"
+    POLYGON = "polygon"
+    CUBE = "cube"
+
 
 # ---------------------------------------------------
 # region IInternalTopology
