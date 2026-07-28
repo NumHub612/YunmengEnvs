@@ -110,6 +110,7 @@ class IOutput(IExchangeItem):
 
     @abstractmethod
     def add_adapter(self, adapter: IExchangeAdapter):
+        """Add an adapter to the output port."""
         pass
 
     @abstractmethod
@@ -146,6 +147,7 @@ class IExchangeAdapter(ABC):
         source: IOutput,
         target: IInput,
     ) -> np.ndarray:
+        """Transform data from one output to another."""
         pass
 
     @classmethod
@@ -155,4 +157,5 @@ class IExchangeAdapter(ABC):
         source: IOutput,
         target: IInput,
     ) -> bool:
+        """Check if the given ports can be adapted."""
         pass

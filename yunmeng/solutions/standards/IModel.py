@@ -22,7 +22,6 @@ from typing import Any
 from dataclasses import dataclass, field, fields as dc_fields
 
 from yunmeng.solutions.standards.IExchange import IInput, IOutput
-from yunmeng.solutions.standards.ITopology import GeometryType
 
 # ---------------------------------------------------
 # region ModelStatus
