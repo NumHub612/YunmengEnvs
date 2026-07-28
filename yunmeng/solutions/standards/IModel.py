@@ -64,7 +64,7 @@ class ExchangeMeta:
     description: str = ""
     quantity: str = ""  # e.g. "discharge", "water_level"
     unit: str = ""  # SI unit string, e.g. "m3/s"
-    gtype: GeometryType = GeometryType.IDBASED
+    gtype: str = "point"  # GeometryType, e.g. "point", "line"
     temporal: str = "instant"  # instant, cumulative, ...
     dtype: str = "float64"
     required: bool = True
@@ -149,6 +149,38 @@ class ILinkableModel(ABC):
         """Output exchange ports."""
         pass
 
+    # -- assemble -----------------------------------
+
+    @abstractmethod
+    def add_output(self, output: IOutput):
+        """Add an output port."""
+        pass
+
+    @abstractmethod
+    def remove_output(self, output: IOutput):
+        """Remove an output port."""
+        pass
+
+    @abstractmethod
+    def clear_outputs(self):
+        """Remove all output ports."""
+        pass
+
+    @abstractmethod
+    def add_input(self, input: IInput):
+        """Add an input port."""
+        pass
+
+    @abstractmethod
+    def remove_input(self, input: IInput):
+        """Remove an input port."""
+        pass
+
+    @abstractmethod
+    def clear_inputs(self):
+        """Remove all input ports."""
+        pass
+
     # -- lifecycle ----------------------------------
 
     @abstractmethod
@@ -175,7 +207,6 @@ class ILinkableModel(ABC):
 
         In PULL mode the Scheduler has already pushed data from upstream
         providers into input buffers before calling update().
-
         In LOOP mode the IterativeCoupler manages the exchange and
         convergence; update() performs a single inner solve.
         """
@@ -185,6 +216,6 @@ class ILinkableModel(ABC):
     def finish(self):
         """Release resources, flush outputs, close files.
 
-        After finish(), the model returns to CREATED and may be
+        After called finish(), the model returns to CREATED and may be
         re-initialized for a new run."""
         pass

@@ -88,29 +88,24 @@ class IOutput(IExchangeItem):
     def consumers(self) -> list[IInput]:
         pass
 
+    @property
+    @abstractmethod
+    def component(self) -> Any:
+        """Model that owns this output port."""
+        pass
+
+    @property
+    @abstractmethod
+    def version(self) -> int:
+        """Version of the cached data."""
+        pass
+
     @abstractmethod
     def add_consumer(self, consumer: IInput):
         pass
 
     @abstractmethod
     def remove_consumer(self, consumer: IInput):
-        pass
-
-    @abstractmethod
-    def get_values(self, requester: Optional[IInput] = None) -> np.ndarray:
-        """Return current data payload, optionally adapted for requester."""
-        pass
-
-    @property
-    @abstractmethod
-    def component(self) -> Any:
-        """Model/component that owns this output port."""
-        pass
-
-    @property
-    @abstractmethod
-    def version(self) -> int:
-        """Monotonic version of the cached data (increments on meaningful updates)."""
         pass
 
     @abstractmethod
@@ -121,14 +116,23 @@ class IOutput(IExchangeItem):
     def remove_adapter(self, adapter_id: str):
         pass
 
+    @abstractmethod
+    def get_values(
+        self,
+        requester: Optional[IInput] = None,
+    ) -> np.ndarray:
+        """Return current data payload."""
+        pass
+
 
 # ---------------------------------------------------
-# region IExchangeAdapter
+# region IAdapter
 # ---------------------------------------------------
 
 
 class IExchangeAdapter(ABC):
-    """Transform data from one output layout to another (spatial, temporal, unit)."""
+    """Transform data from one output layout to another
+    (spatial, temporal, unit)."""
 
     @property
     @abstractmethod
@@ -136,10 +140,19 @@ class IExchangeAdapter(ABC):
         pass
 
     @abstractmethod
-    def adapt(self, data: np.ndarray, source: IOutput, target: IInput) -> np.ndarray:
+    def adapt(
+        self,
+        data: np.ndarray,
+        source: IOutput,
+        target: IInput,
+    ) -> np.ndarray:
         pass
 
     @classmethod
     @abstractmethod
-    def can_adapt(cls, source: IOutput, target: IInput) -> bool:
+    def can_adapt(
+        cls,
+        source: IOutput,
+        target: IInput,
+    ) -> bool:
         pass

@@ -35,32 +35,33 @@ class CouplingMode(Enum):
     """How two or more components are coupled."""
 
     PULL = "pull"
-    """One-way data pull (OpenMI-style).  Downstream Model reads
+    """One-way data pull (OpenMI-style). Downstream Model reads
     from upstream output when it updates."""
 
     LOOP = "loop"
-    """Iterative two-way coupling. Both components exchange data and
-    iterate within a single time step until convergence."""
+    """Iterative two-way coupling. Both components exchange data 
+    and iterate within a single time step until convergence."""
 
     PUSH = "push"
     """One-way data push (rarely used in practice)."""
 
     AGENT = "agent"
-    """Agent-driven control coupling. An ``IAgentModel`` observes one or
-    more components and injects actions back into the system as boundary
-    conditions or source terms."""
+    """Agent-driven control coupling. An `IAgentModel` observes 
+    components and injects actions back into the system."""
 
     SURROGATE = "surrogate"
-    """Surrogate coupling. A fast AI model replaces or accelerates an
-    expensive physics model while keeping the same exchange ports."""
+    """Surrogate coupling. A AI model replaces or accelerates 
+    an expensive physics model while keeping the same ports."""
 
     NESTED = "nested"
-    """Nested coupling. A parent model spawns one or more child models
-    that run with their own time step and feed results back to the parent."""
+    """Nested coupling. A parent model spawns one or more child 
+    models that run with their own time step and feed results 
+    back to the parent."""
 
     HYBRID = "hybrid"
-    """Hybrid coupling. Combines physics and AI models in a single step,
-    for example a neural-network corrector applied after a PDE solver."""
+    """Hybrid coupling. Combines physics and AI models in a 
+    single step, for example a neural-network corrector applied 
+    after a PDE solver."""
 
 
 # ---------------------------------------------------
@@ -70,7 +71,13 @@ class CouplingMode(Enum):
 
 @dataclass
 class CouplingConfig:
-    """Configuration for a coupling link."""
+    """Configuration for a coupling link.
+
+    Action when max_iterations is reached without convergence:
+    rollback — restore pre-iteration state and mark FAILED
+    continue — accept the best approximation and emit a warning
+    freeze   — keep the last converged state from previous step
+    """
 
     mode: CouplingMode = CouplingMode.PULL
 
@@ -80,21 +87,16 @@ class CouplingConfig:
     """Maximum iterations per time step."""
 
     tolerance: float = 1e-6
-    """Convergence tolerance (max absolute difference)."""
+    """Convergence absolute tolerance."""
 
     relaxation: float = 1.0
     """Relaxation factor ω (0 < ω ≤ 1)."""
 
-    convergence_vars: list[str] = field(default_factory=list)
+    convergence_vars: list[str] = []
     """Exchanged variables need convergence check.  
     If empty, all linked variables are checked."""
 
     divergence_action: str = "rollback"
-    """Action when max_iterations is reached without convergence:
-    "rollback" — restore pre-iteration state and mark FAILED 
-    "continue" — accept the best approximation and emit a warning
-    "freeze"   — keep the last converged state from previous step
-    """
 
 
 # ---------------------------------------------------
@@ -107,19 +109,19 @@ class IterationResult:
     """Outcome of one LOOP iteration cycle."""
 
     converged: bool
-    """Whether the iteration converged within tolerance."""
+    """Whether the iteration converged."""
 
     iterations: int
-    """Number of iterations actually performed."""
+    """Number of iterations performed."""
 
     residual: float
     """Final residual value (max abs diff)."""
 
-    residual_history: list[float] = field(default_factory=list)
+    residual_history: list[float] = []
     """Per-iteration residual sequence."""
 
     message: str = ""
-    """Human-readable status message."""
+    """Any human-readable status message."""
 
 
 # ---------------------------------------------------
@@ -129,8 +131,7 @@ class IterationResult:
 
 class ICouplingStrategy(ABC):
     """Abstract strategy for executing a coupling between two or more
-    components.  The Scheduler selects the appropriate strategy based
-    on the CouplingMode declared in the link configuration."""
+    components."""
 
     @property
     @abstractmethod
@@ -199,15 +200,15 @@ class IIterativeCoupler(ICouplingStrategy):
 
 
 # ---------------------------------------------------
-# region Specialized coupling strategies
+# region Specials
 # ---------------------------------------------------
 
 
-class IAgentCouplingStrategy(ICouplingStrategy):
-    """Coupling strategy driven by an ``IAgentModel``.
+class IAgentCoupler(ICouplingStrategy):
+    """Coupling strategy driven by an `IAgentModel`.
 
-    The agent observes one or more components, selects an action, and the
-    action is applied as an input to a downstream target component.
+    The agent observes one or more components, selects an action, and
+    applied as an input to a downstream target model.
     """
 
     @abstractmethod
@@ -217,7 +218,7 @@ class IAgentCouplingStrategy(ICouplingStrategy):
         sources: list[ILinkableModel],
         config: CouplingConfig,
     ) -> dict[str, Any]:
-        """Collect observations from all source components."""
+        """Collect observations from all source model."""
         pass
 
     @abstractmethod
@@ -228,14 +229,14 @@ class IAgentCouplingStrategy(ICouplingStrategy):
         action: Any,
         config: CouplingConfig,
     ):
-        """Write the action values into the target's input ports."""
+        """Apply the action into the target's inputs."""
         pass
 
 
-class ISurrogateCouplingStrategy(ICouplingStrategy):
+class ISurrogateCoupler(ICouplingStrategy):
     """Strategy for surrogate coupling.
 
-    Decides when to call the expensive physics model vs. the fast
+    Decides when to call the expensive physics model vs the fast
     surrogate, and synchronizes their states.
     """
 
@@ -246,7 +247,7 @@ class ISurrogateCouplingStrategy(ICouplingStrategy):
         target: ILinkableModel,
         config: CouplingConfig,
     ) -> bool:
-        """Return True if the surrogate should be used for this step."""
+        """Return True if the surrogate should be used."""
         pass
 
     @abstractmethod
@@ -260,7 +261,7 @@ class ISurrogateCouplingStrategy(ICouplingStrategy):
         pass
 
 
-class INestedCouplingStrategy(ICouplingStrategy):
+class INestedCoupler(ICouplingStrategy):
     """Strategy for nested / multi-scale coupling.
 
     Manages a parent model and one or more child models that run at
@@ -288,11 +289,11 @@ class INestedCouplingStrategy(ICouplingStrategy):
         pass
 
 
-class IHybridCouplingStrategy(ICouplingStrategy):
+class IHybridCoupler(ICouplingStrategy):
     """Strategy for hybrid AI + physics coupling.
 
-    Runs the physics model first, then applies an AI correction to the
-    exchanged variables (or vice versa).
+    Runs the physics model first, then applies an AI correction to
+    the exchanged variables (or vice versa).
     """
 
     @abstractmethod

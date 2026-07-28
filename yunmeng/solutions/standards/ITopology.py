@@ -175,19 +175,7 @@ class ISpatialIndex(ABC):
 
     @abstractmethod
     def interpolate_to_point(
-        self,
-        field_values: dict[str, np.ndarray],
-        x: float,
-        y: float,
-        z: float = 0.0,
+        self, values: dict[str, np.ndarray], x: float, y: float, z: float = 0.0
     ) -> dict[str, float]:
-        """Interpolate field values to an arbitrary point.
-
-        Args:
-            field_values: {field_name: array of length element_count}
-            x, y, z: target coordinates
-
-        Returns:
-            {field_name: interpolated_value}
-        """
+        """Interpolate field values to an arbitrary point."""
         pass
