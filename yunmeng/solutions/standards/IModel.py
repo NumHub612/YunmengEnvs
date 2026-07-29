@@ -22,6 +22,7 @@ from typing import Any
 from dataclasses import dataclass, field, fields as dc_fields
 
 from yunmeng.solutions.standards.IExchange import IInput, IOutput
+from yunmeng.solutions.standards.IData import IElementSet, Quantity
 
 # ---------------------------------------------------
 # region ModelStatus
@@ -39,7 +40,7 @@ class ModelStatus(Enum):
     can participate in update cycles."""
 
     RUNNING = "running"
-    """Model is actively computing (inside update())."""
+    """Model is actively computing."""
 
     DONE = "done"
     """Model has completed its time horizon; further update() 
@@ -98,6 +99,48 @@ class ModelMeta:
 
 
 # ---------------------------------------------------
+# region ICallback
+# ---------------------------------------------------
+
+
+class CallbackEvent:
+    """Standard lifecycle event names."""
+
+    # model-level events
+    BEFORE_INITIALIZE = "before_initialize"
+    AFTER_INITIALIZE = "after_initialize"
+    ON_PREPARE = "on_prepare"
+    BEFORE_UPDATE = "before_update"
+    AFTER_UPDATE = "after_update"
+    ON_FINISH = "on_finish"
+    ON_ERROR = "on_error"
+
+    # scheduler-level events
+    STEP_BEGIN = "step_begin"
+    STEP_END = "step_end"
+
+
+class ICallback(ABC):
+    """Plugin invoked at model lifecycle points."""
+
+    @abstractmethod
+    def on_event(
+        self,
+        event: str,
+        model: ILinkableModel,
+        context: dict,
+    ):
+        """Handle one lifecycle event.
+
+        Args:
+            event: one of :class:`CallbackEvent`.
+            model: the model firing the event.
+            context: free-form payload.
+        """
+        pass
+
+
+# ---------------------------------------------------
 # region ILinkableModel
 # ---------------------------------------------------
 
@@ -138,6 +181,12 @@ class ILinkableModel(ABC):
 
     @property
     @abstractmethod
+    def callbacks(self) -> list[ICallback]:
+        """Registered callback functions."""
+        pass
+
+    @property
+    @abstractmethod
     def inputs(self) -> list[IInput]:
         """Input exchange ports."""
         pass
@@ -151,34 +200,54 @@ class ILinkableModel(ABC):
     # -- assemble -----------------------------------
 
     @abstractmethod
-    def add_output(self, output: IOutput):
-        """Add an output port."""
+    def remove_callback(self, cb: ICallback):
+        """Remove a callback."""
         pass
 
     @abstractmethod
-    def remove_output(self, output: IOutput):
-        """Remove an output port."""
+    def add_callback(self, cb: ICallback):
+        """Add a callback function."""
         pass
 
     @abstractmethod
-    def clear_outputs(self):
-        """Remove all output ports."""
+    def get_output(self, port_id: str) -> IOutput:
+        """Look up an output port by id."""
         pass
 
     @abstractmethod
-    def add_input(self, input: IInput):
-        """Add an input port."""
+    def get_input(self, port_id: str) -> IInput:
+        """Look up an input port by id."""
         pass
 
     @abstractmethod
-    def remove_input(self, input: IInput):
-        """Remove an input port."""
+    def create_input(
+        self,
+        quantity: Quantity,
+        elements: IElementSet = None,
+        port_id: str = None,
+    ) -> IInput:
+        """Create and register an input."""
         pass
 
     @abstractmethod
-    def clear_inputs(self):
-        """Remove all input ports."""
+    def create_output(
+        self,
+        quantity: Quantity,
+        elements: IElementSet = None,
+        port_id: str = None,
+    ) -> IOutput:
+        """Create and register an output."""
         pass
+
+    @abstractmethod
+    def remove_port(self, port_id: str) -> bool:
+        """Remove a port,  disconnecting from the coupling graph first
+        (providers detached, consumers dropped)."""
+        pass
+
+    def get_port(self, port_id: str):
+        """Look up any port by id."""
+        return self.get_input(port_id) or self.get_output(port_id)
 
     # -- lifecycle ----------------------------------
 

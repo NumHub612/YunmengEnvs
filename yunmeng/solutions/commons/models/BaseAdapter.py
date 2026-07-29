@@ -1,0 +1,183 @@
+# -*- encoding: utf-8 -*-
+"""
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+
+Base implementation of `IAdapterOutput`: adapters as output decorators.
+
+An adapter is an output port: it wraps an upstream Output, pulls from
+it, transforms the values, and serves the result to its own consumers.
+"""
+
+from __future__ import annotations
+import numpy as np
+
+from yunmeng.solutions.standards import (
+    IAdapterOutput,
+    IOutput,
+    IInput,
+    Quantity,
+    IElementSet,
+    TimeSpan,
+)
+
+
+class BaseAdapter(IAdapterOutput):
+    """Base class for adapters implemented as IOutput decorators."""
+
+    def __init__(
+        self,
+        adapter_id: str,
+        adaptee: IOutput = None,
+        quantity: Quantity = None,
+        elements: IElementSet = None,
+        cache: bool = True,
+    ):
+        self._id = adapter_id
+        self._upstream = adaptee
+        self._quantity = quantity
+        self._element_set = elements
+        self._adapter: IAdapterOutput = None
+        self._consumer: IInput = None
+        self._cache_enabled = cache
+        self._cache: np.ndarray = None
+        self._cache_version: int = -1
+
+    # -- IOutput properties -------------------------
+
+    @property
+    def consumers(self) -> list[IInput]:
+        return [self._consumer] if self._consumer else []
+
+    @property
+    def adapters(self) -> list[IAdapterOutput]:
+        return [self._adapter] if self._adapter else []
+
+    @property
+    def model(self):
+        """The model owning the ultimate source."""
+        return getattr(self._upstream, "model", None)
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def quantity(self) -> Quantity:
+        if self._quantity is not None:
+            return self._quantity
+        if self._upstream is None:
+            raise ValueError(f"Adapter '{self._id}' has no quantity.")
+        return self._upstream.quantity
+
+    @property
+    def element_set(self) -> IElementSet:
+        if self._element_set is not None:
+            return self._element_set
+        if self._upstream is None:
+            raise ValueError(f"Adapter '{self._id}' has no element.")
+        return self._upstream.element_set
+
+    @property
+    def time_span(self) -> TimeSpan:
+        return self._upstream.time_span
+
+    @property
+    def version(self) -> int:
+        return self._upstream.version
+
+    @property
+    def values(self):
+        return self.get_values()
+
+    # -- IAdapter properties ------------------------
+
+    @property
+    def adaptee(self) -> IOutput:
+        return self._upstream
+
+    @adaptee.setter
+    def adaptee(self, adaptee: IOutput):
+        if self._upstream is not None:
+            self._upstream.remove_adapter(self)
+        self._upstream = adaptee
+
+    # -- IOutput properties -------------------------
+
+    def add_adapter(self, adapter: IAdapterOutput):
+        if self._adapter is not self._adapter:
+            self.remove_adapter(self._adapter)
+        adapter.adaptee = self
+        self._adapter = adapter
+
+    def remove_adapter(self, adapter: IAdapterOutput):
+        if adapter is self._adapter:
+            adapter.adaptee = None
+            self._adapter = None
+
+    def clear_adapters(self):
+        if self._adapter is not None:
+            self.remove_adapter(self._adapter)
+
+    def add_consumer(self, consumer: IInput):
+        if consumer is not self._consumer:
+            self.remove_consumer(self._consumer)
+        consumer.provider = self
+        self._consumer = consumer
+
+    def remove_consumer(self, consumer: IInput):
+        if consumer is self._consumer:
+            consumer.provider = None
+            self._consumer = None
+
+    def clear_consumers(self):
+        if self._consumer is not None:
+            self.remove_consumer(self._consumer)
+
+    def add_values(self, values: np.ndarray):
+        self._cache = np.asarray(values, dtype=float)
+        self._cache_version = self._upstream.version if self._upstream else -1
+        if self._adapter is not None:
+            self._adapter.refresh()
+
+    def get_values(self, requester: IInput = None) -> np.ndarray:
+        if self._upstream is None:
+            raise ValueError(f"Adapter '{self._id}' has no upstream.")
+        v = self._upstream.version
+        if self._cache_enabled and self._cache and self._cache_version == v:
+            return self._cache
+
+        data = self._upstream.get_values(self)
+        out = np.asarray(self.adapt(data), dtype=float)
+        if self._cache_enabled:
+            self._cache = out
+            self._cache_version = v
+        return out
+
+    # -- IAdapter methods ---------------------------
+
+    def then(self, next_adapter: IAdapterOutput) -> IAdapterOutput:
+        """Fluent chaining: wire ``self -> next_adapter`` and return
+        *next_adapter*, so calls associate left-to-right::
+
+            a.then(b).then(c)   # source -> a -> b -> c, returns c
+        """
+        next_adapter.adaptee = self
+        return next_adapter
+
+    def adapt(self, data: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+
+def chain(source: IOutput, *stages: IAdapterOutput) -> IAdapterOutput:
+    """Compose `source -> stages[0] -> ... -> stages[-1]` and return
+    the chain head (the stage to connect to the target input).
+
+    Stages that already have an upstream keep it; the rest are wired
+    left to right.
+    """
+    prev = source
+    for stage in stages:
+        if stage.adaptee is None:
+            stage.adaptee = prev
+        prev = stage
+    return prev

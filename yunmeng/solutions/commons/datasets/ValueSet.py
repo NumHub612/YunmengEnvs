@@ -10,6 +10,34 @@ import numpy as np
 from typing import Any
 from copy import deepcopy
 
+# ---------------------------------------------------
+# region SimpleValueSet
+# ---------------------------------------------------
+
+
+class SimpleValueSet(IValueSet):
+    """Minimal value set wrapping a numpy array."""
+
+    def __init__(self, quantity: Quantity, values: np.ndarray):
+        self._quantity = quantity
+        self._values = np.asarray(values)
+
+    @property
+    def quantity(self) -> Quantity:
+        return self._quantity
+
+    @property
+    def values(self) -> np.ndarray:
+        return self._values
+
+    def set_values(self, values: np.ndarray):
+        self._values = np.asarray(values)
+
+
+# ---------------------------------------------------
+# region ValueSet
+# ---------------------------------------------------
+
 
 class ValueSet(IValueSet):
     """ValueSet class supporting float values only."""

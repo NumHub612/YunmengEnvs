@@ -52,11 +52,11 @@ class IExchangeItem(ABC):
 
 
 class IInput(IExchangeItem):
-    """Input port that receives data from one provider output."""
+    """Input port that receives data from one provider."""
 
     @property
     @abstractmethod
-    def provider(self) -> Optional[IOutput]:
+    def provider(self) -> IOutput:
         pass
 
     @provider.setter
@@ -81,48 +81,73 @@ class IInput(IExchangeItem):
 
 
 class IOutput(IExchangeItem):
-    """Output port that can feed multiple downstream inputs."""
+    """Output port that can feed multiple downstreams."""
 
     @property
     @abstractmethod
-    def consumers(self) -> list[IInput]:
+    def adapters(self) -> list[IAdapterOutput]:
+        """All downstream adapters."""
         pass
 
     @property
     @abstractmethod
-    def component(self) -> Any:
-        """Model that owns this output port."""
+    def consumers(self) -> list[IInput]:
+        """All downstream consumers."""
+        pass
+
+    @property
+    @abstractmethod
+    def model(self) -> Any:
+        """Model owning this output."""
         pass
 
     @property
     @abstractmethod
     def version(self) -> int:
-        """Version of the cached data."""
+        """Version of cached data."""
+        pass
+
+    @abstractmethod
+    def add_adapter(self, adapter: IAdapterOutput):
+        """Add a downstream adapter."""
+        pass
+
+    @abstractmethod
+    def remove_adapter(
+        self,
+        adapter_id: str,
+    ):
+        pass
+
+    @abstractmethod
+    def clear_adapters(self):
         pass
 
     @abstractmethod
     def add_consumer(self, consumer: IInput):
+        """Add a downstream consumer."""
         pass
 
     @abstractmethod
-    def remove_consumer(self, consumer: IInput):
+    def remove_consumer(
+        self,
+        consumer: IInput,
+    ):
         pass
 
     @abstractmethod
-    def add_adapter(self, adapter: IExchangeAdapter):
-        """Add an adapter to the output port."""
-        pass
-
-    @abstractmethod
-    def remove_adapter(self, adapter_id: str):
+    def clear_consumers(self):
         pass
 
     @abstractmethod
     def get_values(
         self,
-        requester: Optional[IInput] = None,
+        requester: IInput = None,
     ) -> np.ndarray:
-        """Return current data payload."""
+        pass
+
+    @abstractmethod
+    def add_values(self, values: np.ndarray):
         pass
 
 
@@ -131,31 +156,36 @@ class IOutput(IExchangeItem):
 # ---------------------------------------------------
 
 
-class IExchangeAdapter(ABC):
+class IAdapterOutput(IOutput):
     """Transform data from one output layout to another
     (spatial, temporal, unit)."""
 
     @property
     @abstractmethod
-    def id(self) -> str:
+    def adaptee(self) -> IOutput:
+        """The output to adapt from."""
+        pass
+
+    @adaptee.setter
+    @abstractmethod
+    def adaptee(self, adaptee: IOutput):
+        pass
+
+    @abstractmethod
+    def then(self, next_adapter: "IAdapterOutput") -> "IAdapterOutput":
+        """Fluent chaining:
+        `a.then(b)` wires a -> b and returns b."""
         pass
 
     @abstractmethod
     def adapt(
         self,
         data: np.ndarray,
-        source: IOutput,
-        target: IInput,
     ) -> np.ndarray:
-        """Transform data from one output to another."""
+        """Transform data."""
         pass
 
-    @classmethod
     @abstractmethod
-    def can_adapt(
-        cls,
-        source: IOutput,
-        target: IInput,
-    ) -> bool:
-        """Check if the given ports can be adapted."""
+    def refresh(self):
+        """Refresh the adapter chain."""
         pass

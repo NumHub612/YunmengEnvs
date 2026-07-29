@@ -6,7 +6,6 @@ Lightweight input port implementation.
 """
 
 from __future__ import annotations
-from typing import Optional
 import numpy as np
 
 from yunmeng.solutions.standards import (
@@ -26,15 +25,17 @@ class BaseInput(IInput):
         self,
         item_id: str,
         quantity: Quantity,
-        element_set: IElementSet,
+        elements: IElementSet,
         time_span: TimeSpan = None,
     ):
         self._id = item_id
         self._quantity = quantity
-        self._element_set = element_set
+        self._elements = elements
         self._time_span = time_span or TimeSpan()
-        self._provider: Optional[IOutput] = None
-        self._values: Optional[np.ndarray] = None
+        self._provider: IOutput = None
+        self._values: np.ndarray = None
+
+    # -- instance properties ------------------------
 
     @property
     def id(self) -> str:
@@ -46,7 +47,7 @@ class BaseInput(IInput):
 
     @property
     def element_set(self) -> IElementSet:
-        return self._element_set
+        return self._elements
 
     @property
     def time_span(self) -> TimeSpan:
@@ -54,10 +55,10 @@ class BaseInput(IInput):
 
     @property
     def values(self) -> IValueSet:
-        return None  # placeholder for strict interface
+        return None
 
     @property
-    def provider(self) -> Optional[IOutput]:
+    def provider(self) -> IOutput:
         return self._provider
 
     @provider.setter
@@ -72,14 +73,20 @@ class BaseInput(IInput):
     def is_connected(self) -> bool:
         return self._provider is not None
 
+    # -- instance methods ---------------------------
+
     def pull(self) -> np.ndarray:
         if self._provider is None:
             raise ValueError(f"Input {self._id} has no provider.")
         self._values = self._provider.get_values(self)
         return self._values
 
-    def set_values(self, values: np.ndarray):
-        self._values = values
+    def get_values(self, requester: IInput = None) -> np.ndarray:
+        """Values last pulled into this input.
+        + None before the first pull;
+        + an input does not re-query its provider here."""
+        return self._values
 
-    def __repr__(self) -> str:
-        return f"BaseInput({self._id}, connected={self.is_connected})"
+    def set_values(self, values: np.ndarray):
+        """Set values directly."""
+        self._values = values

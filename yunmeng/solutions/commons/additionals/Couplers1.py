@@ -3,35 +3,10 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Concrete coupling execution layer.
-
-  - PullCoupler          : one-way data transfer (trivial strategy).
-  - FixedPointCoupler    : IIterativeCoupler implementation — per-step
-                           fixed-point iteration with optional
-                           relaxation, convergence checking and the
-                           rollback / continue / freeze divergence
-                           actions defined by CouplingConfig.
-
-Fixed-point semantics
----------------------
-A LOOP pair advances one time step as follows:
-
-    1. Snapshot both components (pre-step state).
-    2. Iteration k:
-         a. Restore both to the pre-step snapshot, so update()
-            re-advances the *same* step (no over-accumulation).
-         b. update(A) — A pulls B's latest exchanged outputs (cached
-            from the previous iteration) as boundary conditions.
-         c. update(B) — B pulls A's fresh outputs.
-         d. Compare exchanged variables against iteration k-1.
-         e. If omega < 1, write relaxed values into the exchanged output
-            caches, which is what the next iteration will pull.
-    3. On convergence: the pair has advanced one step with mutually
-       consistent boundary conditions.
-    4. On divergence: apply CouplingConfig.divergence_action.
 """
 
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Any
 import numpy as np
 
 from yunmeng.solutions.standards import (
@@ -83,10 +58,24 @@ class PullCoupler(ICouplingStrategy):
 class FixedPointCoupler(IIterativeCoupler):
     """Fixed-point iterative coupler for LOOP-linked component pairs.
 
-    Both components must implement IStateful (snapshot / restore);
+    Both components must implement `IStateful` (snapshot / restore);
     that is what makes re-advancing the same step possible.
 
+    A LOOP pair advances one time step as follows:
 
+    1. Snapshot both components (pre-step state).
+    2. Iteration k:
+         a. Restore both to the pre-step snapshot, so update()
+            re-advances the *same* step (no over-accumulation).
+         b. update(A) — A pulls B's latest exchanged outputs (cached
+            from the previous iteration) as boundary conditions.
+         c. update(B) — B pulls A's fresh outputs.
+         d. Compare exchanged variables against iteration k-1.
+         e. If omega < 1, write relaxed values into exchanged output
+            caches, which is what the next iteration will pull.
+    3. On convergence: the pair has advanced one step with mutually
+       consistent boundary conditions.
+    4. On divergence: apply CouplingConfig.divergence_action.
     """
 
     def __init__(self, use_relative: bool = False):
@@ -139,8 +128,8 @@ class FixedPointCoupler(IIterativeCoupler):
         # acceleration, which suppresses the oscillatory divergence
         # typical of strongly coupled pairs.
         omega = config.relaxation
-        u_pp: Optional[np.ndarray] = None  # iterate k-2 (relaxed)
-        u_p: Optional[np.ndarray] = None  # iterate k-1 (relaxed)
+        u_pp: np.ndarray = None  # iterate k-2 (relaxed)
+        u_p: np.ndarray = None  # iterate k-1 (relaxed)
 
         for k in range(1, config.max_iterations + 1):
             # restore pre-step state: the step is re-advanced, never
