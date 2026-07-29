@@ -101,13 +101,13 @@ class BaseOutput(IOutput):
 
     def add_consumer(self, consumer: IInput):
         if consumer not in self._consumers:
-            consumer.provider = self
             self._consumers.append(consumer)
+            consumer.provider = self
 
     def remove_consumer(self, consumer: IInput):
         if consumer in self._consumers:
-            consumer.provider = None
             self._consumers.remove(consumer)
+            consumer.provider = None
 
     def clear_consumers(self):
         for consumer in self._consumers:

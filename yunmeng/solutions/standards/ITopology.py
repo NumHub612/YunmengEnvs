@@ -21,11 +21,13 @@ Design principles:
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Optional
 from enum import Enum
 import numpy as np
 
-from yunmeng.solutions.standards.IModel import ExchangeMeta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from yunmeng.solutions.standards.IModel import ExchangeMeta
 
 # ---------------------------------------------------
 # region Geometry type
@@ -62,14 +64,14 @@ class IInternalTopology(ABC):
         """Return all topology layers, outermost first."""
         pass
 
-    def get_layer(self, layer_id: str) -> Optional[ITopologyLayer]:
+    def get_layer(self, layer_id: str) -> ITopologyLayer:
         """Convenience: fetch a layer by its id."""
         for layer in self.get_layers():
             if layer.layer_id == layer_id:
                 return layer
         return None
 
-    def get_spatial_index(self, layer_id: str = "") -> Optional[ISpatialIndex]:
+    def get_spatial_index(self, layer_id: str = "") -> ISpatialIndex:
         """Return a spatial index for the given layer.
 
         If *layer_id* is empty, the finest (innermost) layer is used.
@@ -109,7 +111,7 @@ class ITopologyLayer(ABC):
 
     @property
     @abstractmethod
-    def parent_id(self) -> Optional[str]:
+    def parent_id(self) -> str:
         """ID of the parent layer; None for the root layer."""
         pass
 
@@ -138,7 +140,7 @@ class ITopologyLayer(ABC):
         """Return compute elements."""
         pass
 
-    def get_parent_map(self) -> dict[str, Optional[str]]:
+    def get_parent_map(self) -> dict[str, str]:
         """Return mapping from element id → parent element id
         in the layer above.
         """
@@ -158,12 +160,12 @@ class ISpatialIndex(ABC):
     """Fast spatial queries on the internal topology."""
 
     @abstractmethod
-    def find_nearest(self, x: float, y: float, z: float = 0.0) -> Optional[str]:
+    def find_nearest(self, x: float, y: float, z: float = 0.0) -> str:
         """Return the id of the nearest element to the given coordinates."""
         pass
 
     @abstractmethod
-    def find_containing(self, x: float, y: float, z: float = 0.0) -> Optional[str]:
+    def find_containing(self, x: float, y: float, z: float = 0.0) -> str:
         """Return the id of the element that contains the point,
         or None if the point is outside the domain."""
         pass

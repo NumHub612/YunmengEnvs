@@ -19,10 +19,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any
-from dataclasses import dataclass, field, fields as dc_fields
+from dataclasses import dataclass, field
 
 from yunmeng.solutions.standards.IExchange import IInput, IOutput
 from yunmeng.solutions.standards.IData import IElementSet, Quantity
+from yunmeng.solutions.standards.ITopology import GeometryType
 
 # ---------------------------------------------------
 # region ModelStatus
@@ -64,7 +65,7 @@ class ExchangeMeta:
     description: str = ""
     quantity: str = ""  # e.g. "discharge", "water_level"
     unit: str = ""  # SI unit string, e.g. "m3/s"
-    gtype: str = "point"  # GeometryType, e.g. "point", "line"
+    gtype: GeometryType.POINT
     temporal: str = "instant"  # instant, cumulative, ...
     dtype: str = "float64"
     required: bool = True
@@ -91,9 +92,9 @@ class ModelMeta:
     version: str = "1.0"
     category: str = ""
 
-    outputs: list[ExchangeMeta] = []
-    inputs: list[ExchangeMeta] = []
-    parameters: list[ParamMeta] = []
+    outputs: list[ExchangeMeta] = field(default_factory=list)
+    inputs: list[ExchangeMeta] = field(default_factory=list)
+    parameters: list[ParamMeta] = field(default_factory=list)
 
     supports_loop: bool = False
 

@@ -63,11 +63,7 @@ class BaseInput(IInput):
 
     @provider.setter
     def provider(self, output: IOutput):
-        if self._provider is not None:
-            self._provider.remove_consumer(self)
         self._provider = output
-        if output is not None:
-            output.add_consumer(self)
 
     @property
     def is_connected(self) -> bool:

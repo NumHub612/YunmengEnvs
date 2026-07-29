@@ -209,7 +209,7 @@ class FixedPointCoupler(IIterativeCoupler):
                 if not inp.is_connected:
                     continue
                 out = inp.provider
-                if getattr(out, "component", None) is provider_owner:
+                if getattr(out, "model", None) is provider_owner:
                     pairs.append((out, inp))
         return pairs
 
@@ -239,8 +239,8 @@ class FixedPointCoupler(IIterativeCoupler):
         """Write relaxed values into exchanged output caches; the next
         iteration's pull() will read them as boundary conditions."""
         for out, start, end in slices:
-            if hasattr(out, "set_cache"):
-                out.set_cache(vector[start:end])
+            if hasattr(out, "set_values"):
+                out.set_values(vector[start:end])
 
     def _vector_residual(self, previous: np.ndarray, current: np.ndarray) -> float:
         diff = np.abs(current - previous)

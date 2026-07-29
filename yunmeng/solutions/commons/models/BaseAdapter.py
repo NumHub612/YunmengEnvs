@@ -36,8 +36,8 @@ class BaseAdapter(IAdapterOutput):
         self._upstream = adaptee
         self._quantity = quantity
         self._element_set = elements
-        self._adapter: IAdapterOutput = None
-        self._consumer: IInput = None
+        self._adapters: list[IAdapterOutput] = None
+        self._consumers: list[IInput] = None
         self._cache_enabled = cache
         self._cache: np.ndarray = None
         self._cache_version: int = -1
@@ -45,12 +45,12 @@ class BaseAdapter(IAdapterOutput):
     # -- IOutput properties -------------------------
 
     @property
-    def consumers(self) -> list[IInput]:
-        return [self._consumer] if self._consumer else []
+    def adapters(self) -> list[IAdapterOutput]:
+        return self._adapters
 
     @property
-    def adapters(self) -> list[IAdapterOutput]:
-        return [self._adapter] if self._adapter else []
+    def consumers(self) -> list[IInput]:
+        return self._consumers
 
     @property
     def model(self):
@@ -97,41 +97,39 @@ class BaseAdapter(IAdapterOutput):
 
     @adaptee.setter
     def adaptee(self, adaptee: IOutput):
-        if self._upstream is not None:
-            self._upstream.remove_adapter(self)
         self._upstream = adaptee
 
     # -- IOutput properties -------------------------
 
     def add_adapter(self, adapter: IAdapterOutput):
-        if self._adapter is not self._adapter:
-            self.remove_adapter(self._adapter)
-        adapter.adaptee = self
-        self._adapter = adapter
+        if adapter not in self._adapters:
+            adapter.adaptee = self
+            self._adapters.append(adapter)
 
     def remove_adapter(self, adapter: IAdapterOutput):
-        if adapter is self._adapter:
+        if adapter in self._adapters:
             adapter.adaptee = None
-            self._adapter = None
+            self._adapters.remove(adapter)
 
     def clear_adapters(self):
-        if self._adapter is not None:
-            self.remove_adapter(self._adapter)
+        for adapter in self._adapters:
+            adapter.adaptee = None
+        self._adapters.clear()
 
     def add_consumer(self, consumer: IInput):
-        if consumer is not self._consumer:
-            self.remove_consumer(self._consumer)
-        consumer.provider = self
-        self._consumer = consumer
+        if consumer not in self._consumers:
+            self._consumers.append(consumer)
+            consumer.provider = self
 
     def remove_consumer(self, consumer: IInput):
-        if consumer is self._consumer:
+        if consumer in self._consumers:
+            self._consumers.remove(consumer)
             consumer.provider = None
-            self._consumer = None
 
     def clear_consumers(self):
-        if self._consumer is not None:
-            self.remove_consumer(self._consumer)
+        for consumer in self._consumers:
+            consumer.provider = None
+        self._consumers.clear()
 
     def add_values(self, values: np.ndarray):
         self._cache = np.asarray(values, dtype=float)
@@ -161,8 +159,13 @@ class BaseAdapter(IAdapterOutput):
 
             a.then(b).then(c)   # source -> a -> b -> c, returns c
         """
+        self.add_adapter(next_adapter)
         next_adapter.adaptee = self
         return next_adapter
+
+    def refresh(self):
+        if self._adapter is not None:
+            self._adapter.refresh()
 
     def adapt(self, data: np.ndarray) -> np.ndarray:
         raise NotImplementedError

@@ -69,7 +69,7 @@ class ElementMapAdapter(BaseAdapter):
         adaptee: IOutput = None,
         target_elements: IElementSet = None,
     ):
-        super().__init__(adapter_id, adaptee, element_set=target_elements)
+        super().__init__(adapter_id, adaptee, elements=target_elements)
         self._src = np.asarray(source_indices, dtype=int).flatten()
         self._tgt = (
             np.asarray(target_indices, dtype=int).flatten()
@@ -119,7 +119,7 @@ class ElementMapAdapter(BaseAdapter):
             src_idx,
             tgt_idx,
             tgt_size,
-            upstream=source,
+            adaptee=source,
         )
 
     def adapt(self, data: np.ndarray) -> np.ndarray:
@@ -143,10 +143,10 @@ class ScaleOutput(BaseAdapter):
         self,
         adapter_id: str,
         factor: float,
-        upstream: IOutput = None,
+        adaptee: IOutput = None,
         quantity: Quantity = None,
     ):
-        super().__init__(adapter_id, upstream, quantity=quantity)
+        super().__init__(adapter_id, adaptee, quantity=quantity)
         self._factor = factor
 
     def adapt(self, data: np.ndarray) -> np.ndarray:

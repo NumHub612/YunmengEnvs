@@ -122,8 +122,7 @@ class BaseModel(ILinkableModel):
             port_id,
             quantity,
             elements or ScalarElementSet(self._id),
-            None,
-            self,
+            model=self,
         )
         self.add_output(port)
         return port

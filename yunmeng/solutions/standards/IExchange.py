@@ -115,7 +115,7 @@ class IOutput(IExchangeItem):
     @abstractmethod
     def remove_adapter(
         self,
-        adapter_id: str,
+        adapter: IAdapterOutput,
     ):
         pass
 
