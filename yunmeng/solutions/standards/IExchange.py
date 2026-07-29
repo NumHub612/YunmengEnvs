@@ -150,6 +150,10 @@ class IOutput(IExchangeItem):
     def add_values(self, values: np.ndarray):
         pass
 
+    @abstractmethod
+    def set_values(self, values: np.ndarray):
+        pass
+
 
 # ---------------------------------------------------
 # region IAdapter

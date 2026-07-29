@@ -36,8 +36,8 @@ class BaseAdapter(IAdapterOutput):
         self._upstream = adaptee
         self._quantity = quantity
         self._element_set = elements
-        self._adapters: list[IAdapterOutput] = None
-        self._consumers: list[IInput] = None
+        self._adapters: list[IAdapterOutput] = []
+        self._consumers: list[IInput] = []
         self._cache_enabled = cache
         self._cache: np.ndarray = None
         self._cache_version: int = -1
@@ -134,14 +134,16 @@ class BaseAdapter(IAdapterOutput):
     def add_values(self, values: np.ndarray):
         self._cache = np.asarray(values, dtype=float)
         self._cache_version = self._upstream.version if self._upstream else -1
-        if self._adapter is not None:
-            self._adapter.refresh()
+        self.refresh()
+
+    def set_values(self, values: np.ndarray):
+        self.add_values(values)
 
     def get_values(self, requester: IInput = None) -> np.ndarray:
         if self._upstream is None:
             raise ValueError(f"Adapter '{self._id}' has no upstream.")
         v = self._upstream.version
-        if self._cache_enabled and self._cache and self._cache_version == v:
+        if self._cache_enabled and self._cache is not None and self._cache_version == v:
             return self._cache
 
         data = self._upstream.get_values(self)
@@ -164,8 +166,8 @@ class BaseAdapter(IAdapterOutput):
         return next_adapter
 
     def refresh(self):
-        if self._adapter is not None:
-            self._adapter.refresh()
+        for adapter in self._adapters:
+            adapter.refresh()
 
     def adapt(self, data: np.ndarray) -> np.ndarray:
         raise NotImplementedError

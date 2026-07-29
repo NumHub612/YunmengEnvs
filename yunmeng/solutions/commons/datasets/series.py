@@ -4,9 +4,14 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Time-, curve- and pattern-series data structures.
 """
+
 import numpy as np
 from typing import Hashable, Any
 from dateutil.parser import parse
+
+# ---------------------------------------------------
+# region Timeseries
+# ---------------------------------------------------
 
 
 class Timeseries:
@@ -77,11 +82,16 @@ class Timeseries:
             return self._data[idx]
         return np.interp(time, self._time, self._data)
 
-    def resample(self, step: float) -> "Timeseries":
+    def resample(self, id: str, step: float) -> "Timeseries":
         """Resample with uniform time step."""
         new_time = np.arange(self._time[0], self._time[-1], step)
         new_data = np.interp(new_time, self._time, self._data)
-        return Timeseries(new_time, new_data)
+        return Timeseries(id, new_time, new_data)
+
+
+# ---------------------------------------------------
+# region Curve
+# ---------------------------------------------------
 
 
 class Curve:
@@ -158,6 +168,11 @@ class Curve:
         return Curve(self._id, new_xs, new_ys)
 
 
+# ---------------------------------------------------
+# region Pattern
+# ---------------------------------------------------
+
+
 class Pattern:
     """
     A pattern is a reusable, periodic timeseries.
@@ -176,9 +191,9 @@ class Pattern:
         self._data = np.asarray(data).flatten()
 
         self._modes = {"s": 1, "h": 3600, "d": 86400, "m": 2592000}
-        dt = self._modes[mode]
+        self._dt = self._modes[mode]
         self._time = np.array(
-            [i * dt for i in range(len(self._data))],
+            [i * self._dt for i in range(len(self._data))],
         )
 
     def __len__(self):
@@ -199,8 +214,7 @@ class Pattern:
 
     @property
     def period(self) -> float:
-        """Return the period."""
-        return self._time[-1]
+        return len(self._data) * self._dt
 
     def get_value(self, t: float) -> float:
         """Get pattern value at relative time t by nearest interp."""
@@ -217,6 +231,11 @@ class Pattern:
         new_time = np.arange(0, self.period, step)
         new_data = np.interp(new_time, self._time, self._data)
         return Pattern(self._id, mode, new_data)
+
+
+# ---------------------------------------------------
+# region Table
+# ---------------------------------------------------
 
 
 class Table:

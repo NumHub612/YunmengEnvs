@@ -25,7 +25,7 @@ from yunmeng.solutions.standards.ITopology import GeometryType
 # ---------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class TimeSpan:
     """Time span attached to an exchange item.
 
@@ -106,7 +106,7 @@ class IElementSet(ABC):
 # ---------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class Quantity:
     """Physical quantity metadata."""
 

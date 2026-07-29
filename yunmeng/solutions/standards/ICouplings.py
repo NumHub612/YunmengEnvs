@@ -64,6 +64,19 @@ class CouplingMode(Enum):
     after a PDE solver."""
 
 
+class DivergenceAction(Enum):
+    """Action when iteration finished without convergence."""
+
+    ROLLBACK = "rollback"
+    """restore pre-iteration state and mark FAILED"""
+
+    CONTINUE = "continue"
+    """accept the best approximation and emit a warning"""
+
+    FREEZE = "freeze"
+    """keep the last converged state from previous step"""
+
+
 # ---------------------------------------------------
 # region CouplingConfig
 # ---------------------------------------------------
@@ -71,13 +84,7 @@ class CouplingMode(Enum):
 
 @dataclass
 class CouplingConfig:
-    """Configuration for a coupling link.
-
-    Action when max_iterations is reached without convergence:
-    rollback — restore pre-iteration state and mark FAILED
-    continue — accept the best approximation and emit a warning
-    freeze   — keep the last converged state from previous step
-    """
+    """Configuration for a coupling link."""
 
     mode: CouplingMode = CouplingMode.PULL
 
@@ -92,11 +99,11 @@ class CouplingConfig:
     relaxation: float = 1.0
     """Relaxation factor ω (0 < ω ≤ 1)."""
 
-    convergence_vars: list[str] = []
+    convergence_vars: list[str] = field(default_factory=list)
     """Exchanged variables need convergence check.  
     If empty, all linked variables are checked."""
 
-    divergence_action: str = "rollback"
+    divergence_action = DivergenceAction.ROLLBACK
 
 
 # ---------------------------------------------------
@@ -117,7 +124,7 @@ class IterationResult:
     residual: float
     """Final residual value (max abs diff)."""
 
-    residual_history: list[float] = []
+    residual_history: list[float] = field(default_factory=list)
     """Per-iteration residual sequence."""
 
     message: str = ""
@@ -145,11 +152,7 @@ class ICouplingStrategy(ABC):
         target: ILinkableModel,
         config: CouplingConfig,
     ) -> IterationResult:
-        """Executes coupling cycle for this current time step.
-
-        For PULL this is a trivial data transfer.
-        For LOOP this performs the full fixed-point iteration.
-        """
+        """Executes coupling cycle for this current time step."""
         pass
 
 

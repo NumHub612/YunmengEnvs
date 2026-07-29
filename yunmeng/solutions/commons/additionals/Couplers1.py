@@ -260,8 +260,8 @@ class FixedPointCoupler(IIterativeCoupler):
         if action == "rollback":
             comp_a.restore(snap_a)
             comp_b.restore(snap_b)
-            comp_a.mark_failed()
-            comp_b.mark_failed()
+            comp_a.finish()
+            comp_b.finish()
         elif action == "freeze":
             comp_a.restore(snap_a)
             comp_b.restore(snap_b)

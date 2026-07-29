@@ -65,7 +65,7 @@ class ExchangeMeta:
     description: str = ""
     quantity: str = ""  # e.g. "discharge", "water_level"
     unit: str = ""  # SI unit string, e.g. "m3/s"
-    gtype: GeometryType.POINT
+    gtype = GeometryType.POINT
     temporal: str = "instant"  # instant, cumulative, ...
     dtype: str = "float64"
     required: bool = True
@@ -246,10 +246,6 @@ class ILinkableModel(ABC):
         (providers detached, consumers dropped)."""
         pass
 
-    def get_port(self, port_id: str):
-        """Look up any port by id."""
-        return self.get_input(port_id) or self.get_output(port_id)
-
     # -- lifecycle ----------------------------------
 
     @abstractmethod
@@ -271,7 +267,7 @@ class ILinkableModel(ABC):
         pass
 
     @abstractmethod
-    def update(self) -> ModelStatus:
+    def update(self, inquirers: list[IOutput] = None) -> ModelStatus:
         """Advance the model by one logical time step.
 
         In PULL mode the Scheduler has already pushed data from upstream
@@ -287,4 +283,9 @@ class ILinkableModel(ABC):
 
         After called finish(), the model returns to CREATED and may be
         re-initialized for a new run."""
+        pass
+
+    @abstractmethod
+    def get_last_error(self) -> str:
+        """Return a string describing the last error, if any."""
         pass

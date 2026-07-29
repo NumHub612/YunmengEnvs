@@ -80,6 +80,10 @@ class BaseModel(ILinkableModel):
                 return p
         return None
 
+    def get_port(self, port_id: str):
+        """Look up any port by id."""
+        return self.get_input(port_id) or self.get_output(port_id)
+
     def add_output(self, item: IOutput):
         self._outputs.append(item)
 
@@ -160,12 +164,12 @@ class BaseModel(ILinkableModel):
     def prepare(self):
         self._fire(CallbackEvent.ON_PREPARE)
 
-    def update(self, required_outputs: list[IOutput] = None) -> ModelStatus:
+    def update(self, inquirers: list[IOutput] = None) -> ModelStatus:
         if self._status in (ModelStatus.DONE, ModelStatus.FAILED):
             return self._status
         self._status = ModelStatus.RUNNING
         self._fire(CallbackEvent.BEFORE_UPDATE)
-        self._do_update(required_outputs)
+        self._do_update(inquirers)
 
         if self._status == ModelStatus.RUNNING:
             self._status = ModelStatus.READY

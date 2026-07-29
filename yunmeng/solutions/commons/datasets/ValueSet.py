@@ -23,6 +23,10 @@ class SimpleValueSet(IValueSet):
         self._values = np.asarray(values)
 
     @property
+    def shape(self) -> tuple:
+        return self._values.shape
+
+    @property
     def quantity(self) -> Quantity:
         return self._quantity
 
@@ -30,8 +34,14 @@ class SimpleValueSet(IValueSet):
     def values(self) -> np.ndarray:
         return self._values
 
-    def set_values(self, values: np.ndarray):
+    def get_values(self, time_idx: int = -1) -> np.ndarray:
+        return self._values
+
+    def set_values(self, time_idx: int, values: np.ndarray):
         self._values = np.asarray(values)
+
+    def append_values(self, values: np.ndarray):
+        self._values = np.append(self._values, values, axis=0)
 
 
 # ---------------------------------------------------

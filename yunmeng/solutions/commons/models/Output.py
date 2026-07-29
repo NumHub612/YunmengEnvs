@@ -117,7 +117,11 @@ class BaseOutput(IOutput):
     def add_values(self, values: np.ndarray):
         self._cache = np.asarray(values)
         self._generation += 1
+        for adapter in self._adapters:
+            adapter.refresh()
 
+    def add_values(self, values: np.ndarray):
+        self._cache = np.asarray(values)
         for adapter in self._adapters:
             adapter.refresh()
 
