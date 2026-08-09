@@ -7,10 +7,14 @@ Lightweight exchange item interfaces.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Optional
 import numpy as np
 
+
 from yunmeng.solutions.standards.IData import IElementSet, IValueSet, Quantity, TimeSpan
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from yunmeng.solutions.standards.IModel import ILinkableModel
 
 # ---------------------------------------------------
 # region IExchangeItem
@@ -23,6 +27,12 @@ class IExchangeItem(ABC):
     @property
     @abstractmethod
     def id(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def owner(self) -> "ILinkableModel":
+        """Model instance owning this port."""
         pass
 
     @property
@@ -93,12 +103,6 @@ class IOutput(IExchangeItem):
     @abstractmethod
     def consumers(self) -> list[IInput]:
         """All downstream consumers."""
-        pass
-
-    @property
-    @abstractmethod
-    def model(self) -> Any:
-        """Model owning this output."""
         pass
 
     @property

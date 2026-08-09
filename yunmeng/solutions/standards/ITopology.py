@@ -122,64 +122,37 @@ class ISpatialIndex(ABC):
 
     @abstractmethod
     def find_nearest(self, x: float, y: float, z: float = 0.0) -> str:
-        """Return the id of the nearest element to the given coordinates."""
+        """Return the id of the nearest element."""
         pass
 
     @abstractmethod
-    def find_containing(self, x: float, y: float, z: float = 0.0) -> str:
+    def find_containing(
+        self,
+        x: float,
+        y: float,
+        z: float = 0.0,
+    ) -> str:
         """Return the id of the element that contains the point,
         or None if the point is outside the domain."""
         pass
 
     @abstractmethod
-    def find_within_radius(self, x: float, y: float, radius: float) -> list[str]:
-        """Return ids of all elements within *radius* (m) of the point."""
+    def find_within_radius(
+        self,
+        x: float,
+        y: float,
+        radius: float,
+    ) -> list[str]:
+        """Return ids of all elements within *radius*."""
         pass
 
     @abstractmethod
     def interpolate_to_point(
-        self, values: dict[str, np.ndarray], x: float, y: float, z: float = 0.0
+        self,
+        values: dict[str, np.ndarray],
+        x: float,
+        y: float,
+        z: float = 0.0,
     ) -> dict[str, float]:
         """Interpolate field values to an arbitrary point."""
         pass
-
-
-# ---------------------------------------------------
-# region IInternalTopology
-# ---------------------------------------------------
-
-
-class IInternalTopology(ABC):
-    """Interface for components that contain internal topology."""
-
-    @property
-    def has_internal_topology(self) -> bool:
-        """Whether this model has meaningful internal topology."""
-        return False
-
-    @abstractmethod
-    def get_layers(self) -> list[ITopologyLayer]:
-        """Return all topology layers, outermost first."""
-        pass
-
-    def get_layer(self, layer_id: str) -> ITopologyLayer:
-        """Convenience: fetch a layer by its id."""
-        for layer in self.get_layers():
-            if layer.layer_id == layer_id:
-                return layer
-        return None
-
-    def get_spatial_index(self, layer_id: str = "") -> ISpatialIndex:
-        """Return a spatial index for the given layer.
-
-        If *layer_id* is empty, the finest (innermost)
-        layer is used. Returns None if the layer has
-        no spatial extent (e.g. SCALAR).
-        """
-        return None
-
-    def get_exposed_ports(self) -> list[ExchangeMeta]:
-        """Return subset of internal nodes that are exposed
-        as coupling ports to other components.
-        """
-        return []

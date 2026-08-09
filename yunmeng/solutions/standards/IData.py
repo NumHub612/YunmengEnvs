@@ -15,7 +15,7 @@ every piece of data flowing between components:
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 import numpy as np
 
 from yunmeng.solutions.standards.ITopology import GeometryType
@@ -35,9 +35,9 @@ class TimeSpan:
     """
 
     start: float = 0.0
-    """Start timestamp (seconds since epoch, or datetime timestamp)."""
+    """Start timestamp (seconds since epoch, or datetime)."""
 
-    end: Optional[float] = None
+    end: float = None
     """End timestamp; None means open-ended."""
 
     step: float = 3600.0
@@ -47,13 +47,13 @@ class TimeSpan:
     """Offset from UTC in hours."""
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float:
         """Total duration in seconds."""
         if self.end is None:
             return None
         return self.end - self.start
 
-    def steps_count(self) -> Optional[int]:
+    def steps_count(self) -> int:
         """Number of steps."""
         if self.end is None:
             return None
@@ -91,13 +91,13 @@ class IElementSet(ABC):
         pass
 
     @abstractmethod
-    def get_coordinates(self, element_index: int) -> np.ndarray:
-        """Return coordinates of element vertices."""
+    def get_center(self, element_index: int) -> np.ndarray:
+        """Return element centroid, shape (3,)."""
         pass
 
     @abstractmethod
-    def get_center(self, element_index: int) -> np.ndarray:
-        """Return element centroid, shape (3,)."""
+    def get_coordinates(self, element_index: int) -> np.ndarray:
+        """Return coordinates of element vertices."""
         pass
 
 

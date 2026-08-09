@@ -16,10 +16,10 @@ Design principles:
 """
 
 from __future__ import annotations
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any
-from dataclasses import dataclass, field
 
 from yunmeng.solutions.standards.IExchange import IInput, IOutput
 from yunmeng.solutions.standards.IData import IElementSet, Quantity
@@ -270,7 +270,7 @@ class ILinkableModel(ABC):
     def update(self, inquirers: list[IOutput] = None) -> ModelStatus:
         """Advance the model by one logical time step.
 
-        In PULL mode the Scheduler has already pushed data from upstream
+        In PULL mode `Scheduler` has already pushed data from upstream
         providers into input buffers before calling update().
         In LOOP mode the IterativeCoupler manages the exchange and
         convergence; update() performs a single inner solve.
@@ -283,9 +283,4 @@ class ILinkableModel(ABC):
 
         After called finish(), the model returns to CREATED and may be
         re-initialized for a new run."""
-        pass
-
-    @abstractmethod
-    def get_last_error(self) -> str:
-        """Return a string describing the last error, if any."""
         pass

@@ -4,7 +4,7 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Coupling protocol interfaces — PULL (one-way) and LOOP (iterative two-way).
 
-The Scheduler uses these interfaces to manage how data flows between
+The `Scheduler` uses these interfaces to manage how data flows between
 LinkableComponents:
 
   PULL mode (default):
@@ -19,7 +19,7 @@ LinkableComponents:
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
