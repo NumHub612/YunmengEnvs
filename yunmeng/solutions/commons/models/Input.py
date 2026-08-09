@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 
 from yunmeng.solutions.standards import (
+    ILinkableModel,
     IInput,
     IOutput,
     IElementSet,
@@ -16,10 +17,11 @@ from yunmeng.solutions.standards import (
     Quantity,
     TimeSpan,
 )
+from yunmeng.solutions.commons.datasets import FrameValueSet
 
 
 class BaseInput(IInput):
-    """Simple input port backed by a numpy array."""
+    """Single-provider input port backed by a numpy frame."""
 
     def __init__(
         self,
@@ -27,19 +29,27 @@ class BaseInput(IInput):
         quantity: Quantity,
         elements: IElementSet,
         time_span: TimeSpan = None,
+        owner: ILinkableModel = None,
+        required: bool = True,
     ):
         self._id = item_id
         self._quantity = quantity
         self._elements = elements
         self._time_span = time_span or TimeSpan()
+        self._owner = owner
+        self._required = required
         self._provider: IOutput = None
         self._values: np.ndarray = None
 
-    # -- instance properties ------------------------
+    # -- IExchangeItem --------------------------------
 
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def owner(self):
+        return self._owner
 
     @property
     def quantity(self) -> Quantity:
@@ -55,7 +65,16 @@ class BaseInput(IInput):
 
     @property
     def values(self) -> IValueSet:
-        return None
+        if self._values is None:
+            return None
+        return FrameValueSet(self._quantity, self._values)
+
+    # -- IInput ----------------------------------------
+
+    @property
+    def required(self) -> bool:
+        """Whether this input must be connected before running."""
+        return self._required
 
     @property
     def provider(self) -> IOutput:
@@ -69,20 +88,21 @@ class BaseInput(IInput):
     def is_connected(self) -> bool:
         return self._provider is not None
 
-    # -- instance methods ---------------------------
-
     def pull(self) -> np.ndarray:
         if self._provider is None:
             raise ValueError(f"Input {self._id} has no provider.")
-        self._values = self._provider.get_values(self)
+        self._values = _as_frame(self._provider.get_values(self))
         return self._values
 
+    # -- direct frame access ----------------------------
+
     def get_values(self, requester: IInput = None) -> np.ndarray:
-        """Values last pulled into this input.
-        + None before the first pull;
-        + an input does not re-query its provider here."""
+        """Values last pulled (an input never re-queries here)."""
         return self._values
 
     def set_values(self, values: np.ndarray):
-        """Set values directly."""
-        self._values = values
+        self._values = _as_frame(values)
+
+
+def _as_frame(values) -> np.ndarray:
+    return np.atleast_1d(np.asarray(values, dtype=float))

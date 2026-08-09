@@ -280,7 +280,6 @@ class ILinkableModel(ABC):
     @abstractmethod
     def finish(self):
         """Release resources, flush outputs, close files.
-
         After called finish(), the model returns to CREATED and may be
         re-initialized for a new run."""
         pass

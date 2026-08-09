@@ -6,19 +6,21 @@ Concrete coupling execution layer.
 """
 
 from __future__ import annotations
-from typing import Any
 import numpy as np
 
 from yunmeng.solutions.standards import (
     ILinkableModel,
     IInput,
     IOutput,
+    IStateful,
     ICouplingStrategy,
     IIterativeCoupler,
     CouplingMode,
     CouplingConfig,
     IterationResult,
+    DivergenceAction,
 )
+from yunmeng.setting import logger
 
 # ---------------------------------------------------
 # region PullCoupler
@@ -27,9 +29,8 @@ from yunmeng.solutions.standards import (
 
 class PullCoupler(ICouplingStrategy):
     """One-way PULL coupling: data transfer happens implicitly through
-    the target's input ports when it updates (`BaseInput.pull` reads
-    the provider's cache, applying any adapter chain).  The strategy
-    therefore only needs to advance the target."""
+    the target's input ports when it updates.  The strategy therefore
+    only needs to advance the target."""
 
     @property
     def mode(self) -> CouplingMode:
@@ -43,10 +44,7 @@ class PullCoupler(ICouplingStrategy):
     ) -> IterationResult:
         target.update()
         return IterationResult(
-            converged=True,
-            iterations=1,
-            residual=0.0,
-            message="pull transfer",
+            converged=True, iterations=1, residual=0.0, message="pull transfer"
         )
 
 
@@ -58,53 +56,78 @@ class PullCoupler(ICouplingStrategy):
 class FixedPointCoupler(IIterativeCoupler):
     """Fixed-point iterative coupler for LOOP-linked component pairs.
 
-    Both components must implement `IStateful` (snapshot / restore);
-    that is what makes re-advancing the same step possible.
+    Both components must implement ``IStateful`` — re-advancing the
+    same step is only possible via snapshot/restore.
 
-    A LOOP pair advances one time step as follows:
-
-    1. Snapshot both components (pre-step state).
-    2. Iteration k:
-         a. Restore both to the pre-step snapshot, so update()
-            re-advances the *same* step (no over-accumulation).
-         b. update(A) — A pulls B's latest exchanged outputs (cached
-            from the previous iteration) as boundary conditions.
-         c. update(B) — B pulls A's fresh outputs.
-         d. Compare exchanged variables against iteration k-1.
-         e. If omega < 1, write relaxed values into exchanged output
-            caches, which is what the next iteration will pull.
-    3. On convergence: the pair has advanced one step with mutually
-       consistent boundary conditions.
-    4. On divergence: apply CouplingConfig.divergence_action.
+    Snapshot contract: a snapshot captures the component's complete
+    observable state INCLUDING the frames published on its output
+    ports.  Each iteration therefore re-injects the latest relaxed
+    iterate into the exchanged output caches *after* restoring, which
+    keeps the fixed-point sequence intact across restores.
     """
 
     def __init__(self, use_relative: bool = False):
-        """Initialize with convergence criteria.
-
-        Args:
-            use_relative: when True, convergence is judged on the
-                relative change instead of the abs. difference.
-        """
         self._use_relative = use_relative
 
     @property
     def mode(self) -> CouplingMode:
         return CouplingMode.LOOP
 
-    def execute(
-        self,
-        source: ILinkableModel,
-        target: ILinkableModel,
-        config: CouplingConfig,
-    ) -> IterationResult:
+    def execute(self, source, target, config) -> IterationResult:
         return self.iterate(source, target, config)
 
-    def iterate(
-        self,
-        comp_a: ILinkableModel,
-        comp_b: ILinkableModel,
-        config: CouplingConfig,
-    ) -> IterationResult:
+    # -- helpers ------------------------------------------
+
+    @staticmethod
+    def _require_stateful(comp: ILinkableModel):
+        if not isinstance(comp, IStateful):
+            raise TypeError(
+                f"LOOP coupling requires IStateful components; "
+                f"'{comp.id}' does not implement snapshot/restore."
+            )
+
+    @staticmethod
+    def _exchanged_ports(comp_a, comp_b) -> list[tuple[IOutput, IInput]]:
+        """All (output, input) pairs linking the two components."""
+        pairs = []
+        for consumer, provider_owner in ((comp_a, comp_b), (comp_b, comp_a)):
+            for inp in consumer.inputs:
+                for out in inp.providers:
+                    if getattr(out, "owner", None) is provider_owner:
+                        pairs.append((out, inp))
+        return pairs
+
+    def _extract_vector(self, pairs, config):
+        parts, slices, pos = [], [], 0
+        for out, _ in pairs:
+            short = out.id.split(".")[-1]
+            if config.convergence_vars and short not in config.convergence_vars:
+                continue
+            v = np.atleast_1d(np.asarray(out.get_values(), dtype=float))
+            parts.append(v)
+            slices.append((out, pos, pos + v.size))
+            pos += v.size
+        if not parts:
+            return np.zeros(0), []
+        return np.concatenate(parts), slices
+
+    @staticmethod
+    def _write_vector(slices, vector: np.ndarray):
+        for out, start, end in slices:
+            out.set_values(vector[start:end])
+
+    def _vector_residual(self, previous, current) -> float:
+        diff = np.abs(current - previous)
+        if self._use_relative:
+            diff = diff / (0.5 * (np.abs(previous) + np.abs(current)) + 1e-12)
+        return float(np.max(diff))
+
+    # -- main loop ------------------------------------------
+
+    def iterate(self, comp_a, comp_b, config) -> IterationResult:
+        self._require_stateful(comp_a)
+        self._require_stateful(comp_b)
+
         pairs = self._exchanged_ports(comp_a, comp_b)
         if not pairs:
             return IterationResult(
@@ -122,25 +145,26 @@ class FixedPointCoupler(IIterativeCoupler):
         residual = np.inf
         k = 0
 
-        # Fixed-point iterate over the stacked vector of exchanged
-        # values.  Relaxation factor omega starts at config.relaxation
-        # and is then adapted per iteration by Aitken's delta-squared
-        # acceleration, which suppresses the oscillatory divergence
-        # typical of strongly coupled pairs.
         omega = config.relaxation
-        u_pp: np.ndarray = None  # iterate k-2 (relaxed)
-        u_p: np.ndarray = None  # iterate k-1 (relaxed)
+        u_pp = None  # iterate k-2 (relaxed)
+        u_p = None  # iterate k-1 (relaxed)
 
         for k in range(1, config.max_iterations + 1):
-            # restore pre-step state: the step is re-advanced, never
-            # accumulated, so source terms are applied exactly once
+            # Re-advance the SAME step from the pre-step state.
             comp_a.restore(snap_a)
             comp_b.restore(snap_b)
+            # Re-inject the relaxed iterate so this round's update()
+            # pulls the *latest* boundary conditions, not the
+            # pre-step ones wiped out by restore().
+            if u_p is not None:
+                # slices are recomputed below but geometry is stable
+                self._write_vector(self._last_slices, u_p)
 
             comp_a.update()
             comp_b.update()
 
             u_c, slices = self._extract_vector(pairs, config)
+            self._last_slices = slices
             if u_p is None:
                 u_p = u_c
                 continue
@@ -170,7 +194,7 @@ class FixedPointCoupler(IIterativeCoupler):
                 residual=float(residual),
                 residual_history=history,
                 message=f"diverged after {k} iterations; "
-                f"action='{config.divergence_action}'",
+                f"action={config.divergence_action.name}",
             )
 
         return IterationResult(
@@ -181,12 +205,7 @@ class FixedPointCoupler(IIterativeCoupler):
             message=f"converged in {k} iterations",
         )
 
-    def converge(
-        self,
-        previous: dict[str, np.ndarray],
-        current: dict[str, np.ndarray],
-        config: CouplingConfig,
-    ) -> tuple[bool, float]:
+    def converge(self, previous, current, config) -> tuple[bool, float]:
         residual = 0.0
         for name, cur in current.items():
             prev = previous.get(name)
@@ -198,74 +217,32 @@ class FixedPointCoupler(IIterativeCoupler):
             residual = max(residual, float(np.max(diff)))
         return residual < config.tolerance, residual
 
-    @staticmethod
-    def _exchanged_ports(
-        comp_a: ILinkableModel, comp_b: ILinkableModel
-    ) -> list[tuple[IOutput, IInput]]:
-        """All (output, input) pairs linking the two components, both ways."""
-        pairs = []
-        for consumer, provider_owner in ((comp_a, comp_b), (comp_b, comp_a)):
-            for inp in consumer.inputs:
-                if not inp.is_connected:
-                    continue
-                out = inp.provider
-                if getattr(out, "model", None) is provider_owner:
-                    pairs.append((out, inp))
-        return pairs
+    # -- divergence handling ---------------------------------
 
     @staticmethod
-    def _extract_vector(
-        pairs: list[tuple[IOutput, IInput]], config: CouplingConfig
-    ) -> tuple[np.ndarray, list[tuple]]:
-        """Stack the exchanged output values into one vector.
-
-        Returns the vector and a slice list [(output, start, end)] used
-        to write relaxed values back into the output caches."""
-        parts, slices, pos = [], [], 0
-        for out, _ in pairs:
-            short = out.id.split(".")[-1]
-            if config.convergence_vars and short not in config.convergence_vars:
-                continue
-            v = np.atleast_1d(np.asarray(out.get_values(), dtype=float))
-            parts.append(v)
-            slices.append((out, pos, pos + v.size))
-            pos += v.size
-        if not parts:
-            return np.zeros(0), []
-        return np.concatenate(parts), slices
-
-    @staticmethod
-    def _write_vector(slices: list[tuple], vector: np.ndarray):
-        """Write relaxed values into exchanged output caches; the next
-        iteration's pull() will read them as boundary conditions."""
-        for out, start, end in slices:
-            if hasattr(out, "set_values"):
-                out.set_values(vector[start:end])
-
-    def _vector_residual(self, previous: np.ndarray, current: np.ndarray) -> float:
-        diff = np.abs(current - previous)
-        if self._use_relative:
-            diff = diff / (0.5 * (np.abs(previous) + np.abs(current)) + 1e-12)
-        return float(np.max(diff))
-
-    @staticmethod
-    def _on_divergence(
-        comp_a: ILinkableModel,
-        comp_b: ILinkableModel,
-        snap_a: Any,
-        snap_b: Any,
-        config: CouplingConfig,
-    ):
+    def _on_divergence(comp_a, comp_b, snap_a, snap_b, config):
         action = config.divergence_action
-        if action == "rollback":
+        if not isinstance(action, DivergenceAction):
+            # tolerate the enum *name* or *value* being passed
+            try:
+                action = DivergenceAction[action]
+            except (KeyError, TypeError):
+                try:
+                    action = DivergenceAction(action)
+                except ValueError:
+                    raise ValueError(f"Unknown divergence_action '{action}'.") from None
+
+        if action is DivergenceAction.ROLLBACK:
             comp_a.restore(snap_a)
             comp_b.restore(snap_b)
-            comp_a.finish()
-            comp_b.finish()
-        elif action == "freeze":
+            comp_a.mark_failed("LOOP coupling diverged (rollback).")
+            comp_b.mark_failed("LOOP coupling diverged (rollback).")
+        elif action is DivergenceAction.FREEZE:
             comp_a.restore(snap_a)
             comp_b.restore(snap_b)
-        elif action == "continue":
-            pass  # keep the best approximation reached so far
-        else:
-            raise ValueError(f"Unknown divergence_action '{action}'.")
+        elif action is DivergenceAction.CONTINUE:
+            logger.warning.warn(
+                f"LOOP coupling {comp_a.id}<->{comp_b.id} diverged; "
+                f"keeping the best approximation.",
+                stacklevel=2,
+            )

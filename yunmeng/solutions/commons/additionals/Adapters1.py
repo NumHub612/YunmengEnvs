@@ -25,7 +25,7 @@ from yunmeng.setting import logger
 
 
 class WeightedAdapter(BaseAdapter):
-    """Weight adaptation (such as Thiessen weights)."""
+    """Weighted-sum reduction (e.g. Thiessen weights over stations)."""
 
     def __init__(
         self,
@@ -57,19 +57,25 @@ class WeightedAdapter(BaseAdapter):
 
 class ElementMapAdapter(BaseAdapter):
     """Arbitrary element mapping: gather a subset of upstream elements
-    and optionally scatter them into target positions (M -> N).
-    """
+    and optionally scatter them into target positions (M -> N)."""
 
     def __init__(
         self,
         adapter_id: str,
-        source_indices: list[int] | np.ndarray,
+        source_indices: list[int] | np.ndarray = None,
         target_indices: list[int] | np.ndarray = None,
         target_size: int = None,
         adaptee: IOutput = None,
         target_elements: IElementSet = None,
     ):
         super().__init__(adapter_id, adaptee, elements=target_elements)
+        self._src = None
+        self._tgt = None
+        self._target_size = 0
+        if source_indices is not None:
+            self._configure(source_indices, target_indices, target_size)
+
+    def _configure(self, source_indices, target_indices=None, target_size=None):
         self._src = np.asarray(source_indices, dtype=int).flatten()
         self._tgt = (
             np.asarray(target_indices, dtype=int).flatten()
@@ -78,7 +84,7 @@ class ElementMapAdapter(BaseAdapter):
         )
         if self._tgt is not None and self._tgt.size != self._src.size:
             raise ValueError(
-                f"ElementMapAdapter {adapter_id}: source/target index "
+                f"ElementMapAdapter {self._id}: source/target index "
                 f"count mismatch {self._src.size} vs {self._tgt.size}."
             )
         self._target_size = target_size or self._src.size
@@ -122,7 +128,30 @@ class ElementMapAdapter(BaseAdapter):
             adaptee=source,
         )
 
+    def set_mapping(
+        self,
+        target_port: IInput,
+        source_port: IOutput,
+        source_elements: list,
+        target_elements: list = None,
+    ):
+        """Configure this adapter in place (used by Scheduler.link)."""
+        src_idx = self._resolve(source_port.element_set, source_elements)
+        tgt_idx, tgt_size = None, None
+        if target_elements is not None:
+            tgt_idx = self._resolve(
+                target_port.element_set,
+                target_elements,
+            )
+            tgt_size = target_port.element_set.element_count
+        self._configure(src_idx, tgt_idx, tgt_size)
+        if self._upstream is not source_port:
+            source_port.add_adapter(self)
+        target_port.provider = self
+
     def adapt(self, data: np.ndarray) -> np.ndarray:
+        if self._src is None:
+            raise ValueError(f"ElementMapAdapter '{self._id}' has no mapping.")
         data = np.asarray(data, dtype=float).flatten()
         gathered = data[self._src]
         if self._tgt is not None:
@@ -136,8 +165,13 @@ class ElementMapAdapter(BaseAdapter):
         return out
 
 
+# ---------------------------------------------------
+# region ScaleOutput
+# ---------------------------------------------------
+
+
 class ScaleOutput(BaseAdapter):
-    """Constant factor scaling - stands in for unit conversion."""
+    """Constant factor scaling — stands in for unit conversion."""
 
     def __init__(
         self,
@@ -147,7 +181,11 @@ class ScaleOutput(BaseAdapter):
         quantity: Quantity = None,
     ):
         super().__init__(adapter_id, adaptee, quantity=quantity)
-        self._factor = factor
+        self._factor = float(factor)
+
+    @property
+    def factor(self) -> float:
+        return self._factor
 
     def adapt(self, data: np.ndarray) -> np.ndarray:
         return np.asarray(data, dtype=float) * self._factor

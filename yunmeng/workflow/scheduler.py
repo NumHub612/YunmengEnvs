@@ -51,11 +51,14 @@ class Link:
     source_port: IOutput
     target_port: IInput
     config: CouplingConfig
-    target_model: Optional[ILinkableModel] = None
 
     @property
     def source_model(self) -> Optional[ILinkableModel]:
-        return getattr(self.source_port, "component", None)
+        return self.source_port.owner
+
+    @property
+    def target_model(self) -> Optional[ILinkableModel]:
+        return self.target_port.owner
 
 
 class Scheduler:
@@ -67,10 +70,11 @@ class Scheduler:
         self._loop_coupler = loop_coupler or FixedPointCoupler()
         self._pull_strategy = PullCoupler()
         self._order: list[ILinkableModel] = []
-        self._loop_of: dict[int, tuple] = {}
+        self._loop_of: dict[int, list] = {}
         self.results: list[IterationResult] = []
+        self._callbacks: list = []
 
-    # -- graph construction --------------------------------------------
+    # -- graph construction ---------------------------------
 
     def add(self, model: ILinkableModel):
         if model not in self._models:
@@ -83,43 +87,43 @@ class Scheduler:
         config: CouplingConfig = None,
         source_elements: list = None,
         target_elements: list = None,
+        slot: str = None,
     ):
-        """Connect two ports with the given coupling config (PULL by
-        default).  The target model is resolved from the port's owner.
+        """Connect two ports (PULL by default).
 
         When *source_elements* (and optionally *target_elements*) are
-        given, an :class:`ElementMapAdapter` is attached to the source
-        output so that only the addressed elements reach this consumer
-        — this is how arbitrary element-to-element coupling is wired
-        (e.g. basin outlet "sub2" -> reach section "sec_05")."""
+        given, an ElementMapAdapter is inserted so that only the
+        addressed elements reach this consumer.
+
+        When *target_port* is a WeightedSumInput, *slot* names the
+        fan-in slot this provider binds to; the link is still recorded
+        so the topological ordering sees the dependency.
+        """
         config = config or CouplingConfig()
-        target_port.provider = source_port
+
         if source_elements is not None:
-            adapter = self._element_adapter_for(source_port)
+            adapter = ElementMapAdapter(
+                f"element_map.{source_port.id}.{target_port.id}"
+            )
             adapter.set_mapping(
                 target_port, source_port, source_elements, target_elements
             )
-        target_model = self._resolve_owner(target_port)
-        if source_port.component is not None:
-            self.add(source_port.component)
-        if target_model is not None:
-            self.add(target_model)
-        self._links.append(Link(source_port, target_port, config, target_model))
+        else:
+            if target_port.is_connected:
+                raise ValueError(
+                    f"Input port '{target_port.id}' already has a "
+                    f"provider; an input accepts exactly one provider "
+                    f"(use WeightedSumInput for fan-in)."
+                )
+            target_port.provider = source_port
 
-    @staticmethod
-    def _element_adapter_for(source_port: IOutput) -> ElementMapAdapter:
-        """Reuse an existing ElementMapAdapter on the port or attach one."""
-        for a in getattr(source_port, "_adapters", []):
-            if isinstance(a, ElementMapAdapter):
-                return a
-        adapter = ElementMapAdapter(f"element_map.{source_port.id}")
-        source_port.add_adapter(adapter)
-        return adapter
+        for model in (source_port.owner, target_port.owner):
+            if model is not None:
+                self.add(model)
+        self._links.append(Link(source_port, target_port, config))
 
     def unlink(self, source_port: IOutput, target_port: IInput) -> bool:
-        """Remove a link: detach the provider and drop the link record.
-
-        Call :meth:`rebuild` afterwards to refresh the execution plan."""
+        """Remove a link.  Call rebuild() afterwards."""
         for i, l in enumerate(self._links):
             if l.source_port is source_port and l.target_port is target_port:
                 del self._links[i]
@@ -132,17 +136,15 @@ class Scheduler:
         """Rebuild the execution plan after dynamic graph changes."""
         self._build_execution_plan()
 
-    def _resolve_owner(self, port: IInput) -> Optional[ILinkableModel]:
-        for m in self._models:
-            if port in m.inputs:
-                return m
-        return None
-
     @property
     def models(self) -> list[ILinkableModel]:
         return self._models
 
-    # -- lifecycle -------------------------------------------------------
+    @property
+    def links(self) -> list[Link]:
+        return list(self._links)
+
+    # -- lifecycle --------------------------------------------
 
     def initialize(self):
         errors = []
@@ -179,9 +181,11 @@ class Scheduler:
                 if indeg[nid] == 0:
                     ready.append(nid)
         if len(order) != len(self._models):
+            cyclic = [m.id for mid, m in model_by_id.items() if indeg[mid] > 0]
             raise ValueError(
-                "PULL dependency graph contains a cycle; feedback links "
-                "must be declared with CouplingMode.LOOP."
+                "PULL dependency graph contains a cycle involving "
+                f"{cyclic}; feedback links must be declared with "
+                "CouplingMode.LOOP."
             )
         self._order = order
 
@@ -189,14 +193,21 @@ class Scheduler:
         pairs: dict[frozenset, tuple] = {}
         for l in loop_links:
             s, t = l.source_model, l.target_model
+            if s is None or t is None:
+                continue
             key = frozenset((id(s), id(t)))
             pairs[key] = (s, t, l.config)
         for key, (s, t, cfg) in pairs.items():
             entry = (s, t, cfg, key)
-            self._loop_of[id(s)] = entry
-            self._loop_of[id(t)] = entry
+            self._loop_of.setdefault(id(s), []).append(entry)
+            self._loop_of.setdefault(id(t), []).append(entry)
 
-    # -- stepping ----------------------------------------------------------
+    @property
+    def execution_order(self) -> list[str]:
+        """Model ids in execution order (diagnostics)."""
+        return [m.id for m in self._order]
+
+    # -- stepping ----------------------------------------------
 
     def step(self) -> list[IterationResult]:
         """Advance every model by one time step."""
@@ -206,47 +217,50 @@ class Scheduler:
         for m in self._order:
             if m.status in (ModelStatus.DONE, ModelStatus.FAILED):
                 continue
-            entry = self._loop_of.get(id(m))
-            if entry is None:
+            entries = self._loop_of.get(id(m))
+            if not entries:
                 m.update()
                 continue
-            comp_a, comp_b, cfg, key = entry
-            if key in done_pairs:
-                continue
-            done_pairs.add(key)
-            results.append(self._loop_coupler.iterate(comp_a, comp_b, cfg))
+            for comp_a, comp_b, cfg, key in entries:
+                if key in done_pairs:
+                    continue
+                done_pairs.add(key)
+                results.append(self._loop_coupler.iterate(comp_a, comp_b, cfg))
         self.results.extend(results)
         self._fire(CallbackEvent.STEP_END, results=results)
         return results
 
-    # -- graph-level state (calibration / ensemble support) ----------------
+    # -- graph-level state (calibration / ensemble) ----------------
 
     def snapshot_graph(self) -> dict:
-        """Snapshot every model in the graph (keyed by model id)."""
-        return {m.id: m.snapshot() for m in self._models if hasattr(m, "snapshot")}
+        """Snapshot every stateful model (keyed by model id)."""
+        from yunmeng.solutions.standards import IStateful
+
+        return {m.id: m.snapshot() for m in self._models if isinstance(m, IStateful)}
 
     def restore_graph(self, snapshot: dict):
-        """Restore every model from a graph snapshot — the reset half of
-        an objective-function evaluation loop."""
+        """Restore every model from a graph snapshot."""
+        from yunmeng.solutions.standards import IStateful
+
         for m in self._models:
-            if hasattr(m, "restore") and m.id in snapshot:
+            if isinstance(m, IStateful) and m.id in snapshot:
                 m.restore(snapshot[m.id])
 
-    # -- callbacks ------------------------------------------------------------
+    # -- callbacks -----------------------------------------------
 
     def add_callback(self, callback):
-        if not hasattr(self, "_callbacks"):
-            self._callbacks = []
         if callback not in self._callbacks:
             self._callbacks.append(callback)
 
     def remove_callback(self, callback):
-        if hasattr(self, "_callbacks") and callback in self._callbacks:
+        if callback in self._callbacks:
             self._callbacks.remove(callback)
 
     def _fire(self, event: str, **context):
-        for cb in list(getattr(self, "_callbacks", [])):
+        for cb in list(self._callbacks):
             cb.on_event(event, self, context)
+
+    # -- run --------------------------------------------------------
 
     def run(self, max_steps: int = None) -> list[IterationResult]:
         """Run until all models are DONE/FAILED or *max_steps* reached."""

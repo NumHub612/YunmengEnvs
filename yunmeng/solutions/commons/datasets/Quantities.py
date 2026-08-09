@@ -14,19 +14,19 @@ from yunmeng.solutions.standards import Quantity
 
 PRECIPITATION = Quantity(
     name="precipitation",
-    description="Rainfall intensity",
+    description="Rainfall depth per time step",
     unit="mm",
 )
 
 EVAPORATION = Quantity(
     name="evaporation",
-    description="Potential (pan) evaporation",
+    description="Potential evaporation depth per time step",
     unit="mm",
 )
 
 RUNOFF = Quantity(
     name="runoff",
-    description="Total runoff depth",
+    description="Runoff depth",
     unit="mm",
 )
 
@@ -48,20 +48,28 @@ WATER_LEVEL = Quantity(
     unit="m",
 )
 
-PRESSURE = Quantity(
-    name="pressure",
-    description="Atmospheric pressure",
-    unit="Pa",
+STORAGE = Quantity(
+    name="storage",
+    description="Stored water volume",
+    unit="m3",
 )
 
-TEMPERATURE = Quantity(
-    name="temperature",
-    description="Air temperature",
-    unit="K",
-)
+PRESSURE = Quantity(name="pressure", description="Atmospheric pressure", unit="Pa")
+TEMPERATURE = Quantity(name="temperature", description="Air temperature", unit="K")
+VELOCITY = Quantity(name="velocity", description="Flow velocity", unit="m/s")
 
-VELOCITY = Quantity(
-    name="velocity",
-    description="Flow velocity",
-    unit="m/s",
-)
+CANONICAL = {
+    q.name: q
+    for q in (
+        PRECIPITATION,
+        EVAPORATION,
+        RUNOFF,
+        SOIL_MOISTURE,
+        DISCHARGE,
+        WATER_LEVEL,
+        STORAGE,
+        PRESSURE,
+        TEMPERATURE,
+        VELOCITY,
+    )
+}

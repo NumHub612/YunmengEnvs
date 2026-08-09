@@ -8,6 +8,42 @@ Time-, curve- and pattern-series data structures.
 import numpy as np
 from typing import Hashable, Any
 from dateutil.parser import parse
+import math
+import numpy as np
+from typing import Hashable, Any
+
+# ---------------------------------------------------
+# region Mathmetics
+# ---------------------------------------------------
+
+_ALLOWED_FUNCS = {
+    name: getattr(math, name)
+    for name in (
+        "sin",
+        "cos",
+        "tan",
+        "exp",
+        "log",
+        "sqrt",
+        "fabs",
+        "floor",
+        "ceil",
+        "pow",
+    )
+}
+_ALLOWED_FUNCS.update({"abs": abs, "min": min, "max": max, "pi": math.pi, "e": math.e})
+
+
+def _safe_callable(expr: str):
+    code = compile(expr, "<expr>", "eval")
+
+    def f(t: float) -> float:
+        env = dict(_ALLOWED_FUNCS)
+        env["t"] = t
+        return float(eval(code, {"__builtins__": {}}, env))
+
+    return f
+
 
 # ---------------------------------------------------
 # region Timeseries
@@ -15,75 +51,72 @@ from dateutil.parser import parse
 
 
 class Timeseries:
-    """
-    A timeseries is a sequence of data points indexed by time.
-    """
+    """A sequence of data points indexed by (monotonic increasing) time
+    in seconds."""
 
     def __init__(self, id: str, time: np.ndarray, data: np.ndarray):
-        """Timeseries.
-
-        Args:
-            id: The id of the timeseries.
-            time: The time array, must be monotonic, increasing and in seconds.
-            data: The data array, must be 1d array.
-        """
-        self._data = np.asarray(data).flatten()
-        self._time = np.asarray(time).flatten()
+        self._data = np.asarray(data, dtype=float).flatten()
+        self._time = np.asarray(time, dtype=float).flatten()
         self._id = id
-
         self._check()
 
     def _check(self):
-        """Check time and data validity."""
         if len(self._time) != len(self._data):
             raise ValueError("Time and data length mismatch.")
+        if len(self._time) == 0:
+            raise ValueError("Empty timeseries.")
+        if len(self._time) > 1 and not np.all(np.diff(self._time) > 0):
+            raise ValueError("Time is not monotonic increasing.")
 
-        if not np.all(np.diff(self._time) > 0):
-            raise ValueError("Time is not monotonic.")
+    @staticmethod
+    def from_expr(
+        id: str, func: str, start: float, end: float, step: float
+    ) -> "Timeseries":
+        """Create a timeseries from an expression in variable ``t``.
+
+        ``start``/``end`` are timestamps in seconds.  The expression is
+        evaluated in a restricted math namespace (no builtins).
+        """
+        f = _safe_callable(func)
+        ts = np.arange(start, end + 0.5 * step, step)
+        ys = np.array([f(t) for t in ts])
+        return Timeseries(id, ts, ys)
 
     def __len__(self):
         return len(self._time)
 
-    @staticmethod
-    def from_expr(
-        id: str, func: str, start: str, end: str, step: float
-    ) -> "Timeseries":
-        """Create a timeseries from an expression."""
-        t0 = parse(start).timestamp()
-        t1 = parse(end).timestamp()
-        ts = np.arange(t0, t1 + step, step)
-        ys = np.array([eval(func)(t) for t in ts])
-        return Timeseries(id, ts, ys)
-
     @property
     def id(self) -> str:
-        """Return the id of the timeseries."""
         return self._id
 
     @property
+    def time(self) -> np.ndarray:
+        return self._time.copy()
+
+    @property
+    def data(self) -> np.ndarray:
+        return self._data.copy()
+
+    @property
     def time_range(self) -> tuple[float, float]:
-        """Return the time range."""
         return (self._time[0], self._time[-1])
 
     @property
     def data_range(self) -> tuple[float, float]:
-        """Return the data range."""
-        return (np.min(self._data), np.max(self._data))
+        return (float(np.min(self._data)), float(np.max(self._data)))
+
+    def value_at(self, index: int) -> float:
+        """Value at integer position (used by step-driven models)."""
+        return float(self._data[index])
 
     def get_value(self, time: float, interp: str = "linear") -> float:
-        """Get the data value at a specific time.
-
-        Args:
-            time: The time to get the data value.
-            interp: The interpolation method, ["linear", "nearest].
-        """
+        """Interpolated value at an arbitrary timestamp."""
         if interp == "nearest":
-            idx = np.abs(self._time - time).argmin()
-            return self._data[idx]
-        return np.interp(time, self._time, self._data)
+            idx = int(np.abs(self._time - time).argmin())
+            return float(self._data[idx])
+        return float(np.interp(time, self._time, self._data))
 
     def resample(self, id: str, step: float) -> "Timeseries":
-        """Resample with uniform time step."""
         new_time = np.arange(self._time[0], self._time[-1], step)
         new_data = np.interp(new_time, self._time, self._data)
         return Timeseries(id, new_time, new_data)
@@ -95,74 +128,47 @@ class Timeseries:
 
 
 class Curve:
-    """
-    A curve is a function that maps two float dataseries.
-    """
+    """A monotonic 1-D lookup function y = f(x)."""
 
     def __init__(self, id: str, xs: np.ndarray, ys: np.ndarray):
-        """Curve.
-
-        Args:
-            id: The id of the curve.
-            xs: The x array, must be monotonic.
-            ys: The y array, must be 1d array.
-        """
-        self._xs = np.asarray(xs).flatten()
-        self._ys = np.asarray(ys).flatten()
+        self._xs = np.asarray(xs, dtype=float).flatten()
+        self._ys = np.asarray(ys, dtype=float).flatten()
         self._id = id
-
         self._is_one2one = False
         self._check()
 
     def _check(self):
         if len(self._xs) != len(self._ys):
             raise ValueError("Curve xs and ys length mismatch.")
-
         if not np.all(np.diff(self._xs) > 0) and not np.all(np.diff(self._xs) < 0):
             raise ValueError("Curve xs is not monotonic.")
-
         if np.all(np.diff(self._ys) > 0) or np.all(np.diff(self._ys) < 0):
             self._is_one2one = True
 
     def __len__(self):
         return len(self._xs)
 
-    @staticmethod
-    def from_expr(expr: str) -> "Curve":
-        """Create a curve from an expression.
-
-        NOTE: To be implemented later.
-        """
-        pass
-
     @property
     def id(self) -> str:
-        """Return the id of the curve."""
         return self._id
 
     @property
     def xs_range(self) -> tuple[float, float]:
-        """Return the xs range."""
-        return (np.min(self._xs), np.max(self._xs))
+        return (float(np.min(self._xs)), float(np.max(self._xs)))
 
     @property
     def ys_range(self) -> tuple[float, float]:
-        """Return the ys range."""
-        return (np.min(self._ys), np.max(self._ys))
+        return (float(np.min(self._ys)), float(np.max(self._ys)))
 
     def get_value(self, x: float) -> float:
-        """Get the y value at a specific x."""
-        return np.interp(x, self._xs, self._ys)
+        return float(np.interp(x, self._xs, self._ys))
 
     def inverse(self, y: float) -> float:
-        """Get the x value at a specific y."""
         if not self._is_one2one:
-            raise ValueError("Curve is not one-to-one, cannot inverse.")
-
-        return np.interp(y, self._ys, self._xs)
+            raise ValueError("Curve is not one-to-one, cannot invert.")
+        return float(np.interp(y, self._ys, self._xs))
 
     def resample(self, step: float) -> "Curve":
-        """Resample with uniform x step."""
         new_xs = np.arange(self._xs[0], self._xs[-1], step)
         new_ys = np.interp(new_xs, self._xs, self._ys)
         return Curve(self._id, new_xs, new_ys)
