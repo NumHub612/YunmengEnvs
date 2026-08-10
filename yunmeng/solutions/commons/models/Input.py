@@ -41,7 +41,7 @@ class BaseInput(IInput):
         self._provider: IOutput = None
         self._values: np.ndarray = None
 
-    # -- IExchangeItem --------------------------------
+    # -- IExchangeItem ------------------------------
 
     @property
     def id(self) -> str:
@@ -69,7 +69,7 @@ class BaseInput(IInput):
             return None
         return FrameValueSet(self._quantity, self._values)
 
-    # -- IInput ----------------------------------------
+    # -- IInput -------------------------------------
 
     @property
     def required(self) -> bool:
@@ -94,7 +94,7 @@ class BaseInput(IInput):
         self._values = _as_frame(self._provider.get_values(self))
         return self._values
 
-    # -- direct frame access ----------------------------
+    # -- direct frame access ------------------------
 
     def get_values(self, requester: IInput = None) -> np.ndarray:
         """Values last pulled (an input never re-queries here)."""

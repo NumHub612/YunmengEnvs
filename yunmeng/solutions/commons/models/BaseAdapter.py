@@ -42,7 +42,7 @@ class BaseAdapter(IAdapterOutput):
         self._cache: np.ndarray = None
         self._cache_version: int = -1
 
-    # -- IExchangeItem ---------------------------------
+    # -- IExchangeItem ------------------------------
 
     @property
     def id(self) -> str:
@@ -84,7 +84,7 @@ class BaseAdapter(IAdapterOutput):
 
         return FrameValueSet(self.quantity, frame)
 
-    # -- IAdapterOutput ---------------------------------
+    # -- IAdapterOutput -----------------------------
 
     @property
     def adaptee(self) -> IOutput:
@@ -95,7 +95,7 @@ class BaseAdapter(IAdapterOutput):
         self._upstream = adaptee
         self._cache_version = -1
 
-    # -- IOutput -----------------------------------------
+    # -- IOutput ------------------------------------
 
     @property
     def adapters(self) -> list[IAdapterOutput]:
@@ -164,7 +164,7 @@ class BaseAdapter(IAdapterOutput):
             self._cache_version = v
         return out
 
-    # -- chaining -----------------------------------------
+    # -- chaining -----------------------------------
 
     def then(self, next_adapter: IAdapterOutput) -> IAdapterOutput:
         """``a.then(b)`` wires a -> b and returns b."""

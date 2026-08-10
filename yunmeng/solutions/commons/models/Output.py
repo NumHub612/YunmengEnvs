@@ -42,7 +42,7 @@ class BaseOutput(IOutput):
         self._cache: np.ndarray = None
         self._generation: int = 0
 
-    # -- IExchangeItem -----------------------------------
+    # -- IExchangeItem ------------------------------
 
     @property
     def id(self) -> str:
@@ -70,7 +70,7 @@ class BaseOutput(IOutput):
             return None
         return FrameValueSet(self._quantity, self._cache)
 
-    # -- IOutput ------------------------------------------
+    # -- IOutput ------------------------------------
 
     @property
     def adapters(self) -> list:
@@ -114,7 +114,7 @@ class BaseOutput(IOutput):
             consumer.provider = None
         self._consumers.clear()
 
-    # -- data ----------------------------------------------
+    # -- data ---------------------------------------
 
     def _publish(self, values: np.ndarray):
         # bumps version, refreshes adapters
@@ -136,7 +136,7 @@ class BaseOutput(IOutput):
             raise ValueError(f"Output {self._id} has no data.")
         return self._cache
 
-    # -- snapshot support ------------------------------------
+    # -- snapshot support ---------------------------
 
     def _state(self) -> tuple:
         if self._cache is not None:

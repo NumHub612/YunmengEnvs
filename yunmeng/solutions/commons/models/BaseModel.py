@@ -63,7 +63,7 @@ class BaseModel(ILinkableModel):
     def status(self) -> ModelStatus:
         return self._status
 
-    # -- callbacks -----------------------------------
+    # -- callbacks ----------------------------------
 
     def add_callback(self, callback: ICallback):
         if callback not in self._callbacks:
@@ -77,7 +77,7 @@ class BaseModel(ILinkableModel):
         for cb in list(self._callbacks):
             cb.on_event(event, self, context)
 
-    # -- ports ----------------------------------------
+    # -- ports --------------------------------------
 
     def get_output(self, port_id: str) -> IOutput:
         for p in self._outputs:
@@ -155,7 +155,7 @@ class BaseModel(ILinkableModel):
             return True
         return False
 
-    # -- lifecycle -------------------------------------
+    # -- lifecycle ----------------------------------
 
     def initialize(self):
         if self._status == ModelStatus.FAILED:
@@ -210,7 +210,7 @@ class BaseModel(ILinkableModel):
     def _do_finish(self):
         """Subclass hook: release resources, flush outputs."""
 
-    # -- failure handling ---------------------------------
+    # -- failure handling ---------------------------
 
     def _fail(self, exc: Exception):
         self._status = ModelStatus.FAILED

@@ -76,7 +76,7 @@ class FixedPointCoupler(IIterativeCoupler):
     def execute(self, source, target, config) -> IterationResult:
         return self.iterate(source, target, config)
 
-    # -- helpers ------------------------------------------
+    # -- helpers ------------------------------------
 
     @staticmethod
     def _require_stateful(comp: ILinkableModel):
@@ -122,7 +122,7 @@ class FixedPointCoupler(IIterativeCoupler):
             diff = diff / (0.5 * (np.abs(previous) + np.abs(current)) + 1e-12)
         return float(np.max(diff))
 
-    # -- main loop ------------------------------------------
+    # -- main loop ----------------------------------
 
     def iterate(self, comp_a, comp_b, config) -> IterationResult:
         self._require_stateful(comp_a)
@@ -217,7 +217,7 @@ class FixedPointCoupler(IIterativeCoupler):
             residual = max(residual, float(np.max(diff)))
         return residual < config.tolerance, residual
 
-    # -- divergence handling ---------------------------------
+    # -- divergence handling ------------------------
 
     @staticmethod
     def _on_divergence(comp_a, comp_b, snap_a, snap_b, config):

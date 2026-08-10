@@ -17,6 +17,7 @@ from yunmeng.solutions.standards.ITopology import ISpatialIndex, ITopologyLayer
 # ---------------------------------------------------
 
 
+# TODO: Add interface for descripting parameter coupling relationships.
 class IParametric(ABC):
     """Flat, named, bounded parameter vector plus run reset."""
 
