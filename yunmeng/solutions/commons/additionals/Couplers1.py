@@ -92,9 +92,9 @@ class FixedPointCoupler(IIterativeCoupler):
         pairs = []
         for consumer, provider_owner in ((comp_a, comp_b), (comp_b, comp_a)):
             for inp in consumer.inputs:
-                for out in inp.providers:
-                    if getattr(out, "owner", None) is provider_owner:
-                        pairs.append((out, inp))
+                out = inp.provider
+                if out is not None and getattr(out, "owner", None) is provider_owner:
+                    pairs.append((out, inp))
         return pairs
 
     def _extract_vector(self, pairs, config):

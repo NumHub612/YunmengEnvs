@@ -103,7 +103,7 @@ class CouplingConfig:
     """Exchanged variables need convergence check.  
     If empty, all linked variables are checked."""
 
-    divergence_action = DivergenceAction.ROLLBACK
+    divergence_action: DivergenceAction = DivergenceAction.ROLLBACK
 
 
 # ---------------------------------------------------

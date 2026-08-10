@@ -4,20 +4,13 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Scheduler: drives a coupling graph of linkable models step by step.
 
-  - PULL links define a dependency DAG; models update in topological
-    order (data sources first) and pull through their input ports.
-  - LOOP links define component pairs executed by an IIterativeCoupler
-    (FixedPointCoupler by default).  LOOP back-edges are excluded from
-    the topological ordering — that is what makes cyclic feedback
-    graphs schedulable at all.
-
 Usage:
     sched = Scheduler()
     sched.add(rain); sched.add(sub); sched.add(reach)
-    sched.link(rain.output_port, sub.inputs[0])                    # PULL
-    sched.link(sub.discharge_port, reach.inputs[0])                # PULL
-    sched.link(reach.water_level_port, sub.tailwater_port,
-               CouplingConfig(mode=CouplingMode.LOOP, ...))        # LOOP
+    sched.link(rain.output_port, sub.inputs[0])               # PULL
+    sched.link(sub.discharge_port, reach.inputs[0])           # PULL
+    sched.link(reach.level_port, sub.tailwater_port,
+               CouplingConfig(mode=CouplingMode.LOOP, ...))   # LOOP
     sched.initialize()
     sched.run(n_steps)
 """
@@ -31,6 +24,7 @@ from yunmeng.solutions.standards import (
     IInput,
     IOutput,
     IIterativeCoupler,
+    IStateful,
     CouplingMode,
     CouplingConfig,
     IterationResult,
@@ -42,6 +36,7 @@ from yunmeng.solutions.commons.additionals import (
     FixedPointCoupler,
     ElementMapAdapter,
 )
+from yunmeng.setting import logger
 
 
 @dataclass
@@ -74,7 +69,7 @@ class Scheduler:
         self.results: list[IterationResult] = []
         self._callbacks: list = []
 
-    # -- graph construction ---------------------------------
+    # -- graph construction -------------------------
 
     def add(self, model: ILinkableModel):
         if model not in self._models:
@@ -87,19 +82,17 @@ class Scheduler:
         config: CouplingConfig = None,
         source_elements: list = None,
         target_elements: list = None,
-        slot: str = None,
     ):
         """Connect two ports (PULL by default).
 
         When *source_elements* (and optionally *target_elements*) are
         given, an ElementMapAdapter is inserted so that only the
         addressed elements reach this consumer.
-
-        When *target_port* is a WeightedSumInput, *slot* names the
-        fan-in slot this provider binds to; the link is still recorded
-        so the topological ordering sees the dependency.
         """
         config = config or CouplingConfig()
+        self._check_compatible(
+            source_port, target_port, adapted=source_elements is not None
+        )
 
         if source_elements is not None:
             adapter = ElementMapAdapter(
@@ -111,16 +104,39 @@ class Scheduler:
         else:
             if target_port.is_connected:
                 raise ValueError(
-                    f"Input port '{target_port.id}' already has a "
-                    f"provider; an input accepts exactly one provider "
-                    f"(use WeightedSumInput for fan-in)."
+                    f"Input port '{target_port.id}' already has a provider; "
+                    f"an input accepts exactly one provider "
+                    f"(use an adapter chain for fan-in reduction)."
                 )
-            target_port.provider = source_port
+            source_port.add_consumer(target_port)
 
         for model in (source_port.owner, target_port.owner):
             if model is not None:
                 self.add(model)
         self._links.append(Link(source_port, target_port, config))
+
+    @staticmethod
+    def _check_compatible(source_port: IOutput, target_port: IInput, adapted: bool):
+        """NEW: quantity / time-step compatibility check at link time."""
+        sq, tq = source_port.quantity, target_port.quantity
+        if not adapted and sq.name != tq.name:
+            raise ValueError(
+                f"Quantity mismatch: '{source_port.id}' provides "
+                f"'{sq.name}' but '{target_port.id}' expects '{tq.name}'. "
+                f"Insert an adapter (e.g. ScaleOutput) to convert."
+            )
+        if sq.unit and tq.unit and sq.unit != tq.unit:
+            logger.warning(
+                f"Unit mismatch on link {source_port.id} -> {target_port.id}: "
+                f"'{sq.unit}' vs '{tq.unit}'; make sure an adapter converts."
+            )
+        s_step = getattr(source_port.time_span, "step", None)
+        t_step = getattr(target_port.time_span, "step", None)
+        if s_step and t_step and s_step != t_step:
+            logger.warning(
+                f"Time-step mismatch on link {source_port.id} ({s_step}s) -> "
+                f"{target_port.id} ({t_step}s); values are pulled as-is."
+            )
 
     def unlink(self, source_port: IOutput, target_port: IInput) -> bool:
         """Remove a link.  Call rebuild() afterwards."""
@@ -128,12 +144,11 @@ class Scheduler:
             if l.source_port is source_port and l.target_port is target_port:
                 del self._links[i]
                 if target_port.provider is source_port:
-                    target_port.provider = None
+                    source_port.remove_consumer(target_port)
                 return True
         return False
 
     def rebuild(self):
-        """Rebuild the execution plan after dynamic graph changes."""
         self._build_execution_plan()
 
     @property
@@ -144,7 +159,7 @@ class Scheduler:
     def links(self) -> list[Link]:
         return list(self._links)
 
-    # -- lifecycle --------------------------------------------
+    # -- lifecycle ----------------------------------
 
     def initialize(self):
         errors = []
@@ -204,13 +219,11 @@ class Scheduler:
 
     @property
     def execution_order(self) -> list[str]:
-        """Model ids in execution order (diagnostics)."""
         return [m.id for m in self._order]
 
-    # -- stepping ----------------------------------------------
+    # -- stepping -----------------------------------
 
     def step(self) -> list[IterationResult]:
-        """Advance every model by one time step."""
         results = []
         done_pairs = set()
         self._fire(CallbackEvent.STEP_BEGIN)
@@ -230,23 +243,17 @@ class Scheduler:
         self._fire(CallbackEvent.STEP_END, results=results)
         return results
 
-    # -- graph-level state (calibration / ensemble) ----------------
+    # -- graph-level state (calibration / ensemble)
 
     def snapshot_graph(self) -> dict:
-        """Snapshot every stateful model (keyed by model id)."""
-        from yunmeng.solutions.standards import IStateful
-
         return {m.id: m.snapshot() for m in self._models if isinstance(m, IStateful)}
 
     def restore_graph(self, snapshot: dict):
-        """Restore every model from a graph snapshot."""
-        from yunmeng.solutions.standards import IStateful
-
         for m in self._models:
             if isinstance(m, IStateful) and m.id in snapshot:
                 m.restore(snapshot[m.id])
 
-    # -- callbacks -----------------------------------------------
+    # -- callbacks ----------------------------------
 
     def add_callback(self, callback):
         if callback not in self._callbacks:
@@ -260,10 +267,9 @@ class Scheduler:
         for cb in list(self._callbacks):
             cb.on_event(event, self, context)
 
-    # -- run --------------------------------------------------------
+    # -- run ----------------------------------------
 
     def run(self, max_steps: int = None) -> list[IterationResult]:
-        """Run until all models are DONE/FAILED or *max_steps* reached."""
         all_results = []
         n = 0
         while True:

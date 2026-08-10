@@ -2,7 +2,7 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-ReservoirModel — independent reservoir regulation model.
+ReservoirModel — stand-alone reservoir regulation model.
 """
 
 from __future__ import annotations
@@ -20,28 +20,11 @@ from yunmeng.solutions.standards import (
 )
 from yunmeng.solutions.commons.models import BaseModel, BaseInput
 from yunmeng.solutions.commons.datasets import ScalarElementSet, Quantities
-from yunmeng.solutions.HydrologicalSims.algorithms import create, ReleasePolicy
-
-
-class LinearStorageCurve:
-    """Linear storage-level relation:  S = S0 + A·(Z - Z0)."""
-
-    def __init__(self, z0: float, s0: float, area_km2: float):
-        self.z0 = float(z0)
-        self.s0 = float(s0)
-        self.area_m2 = float(area_km2) * 1e6
-        if self.area_m2 <= 0:
-            raise ValueError("storage curve area must be positive.")
-
-    def level(self, storage: float) -> float:
-        return self.z0 + (storage - self.s0) / self.area_m2
-
-    def storage(self, level: float) -> float:
-        return self.s0 + (level - self.z0) * self.area_m2
+from yunmeng.solutions.HydrologicalSims.HydroNodes import ReservoirNode
 
 
 class ReservoirModel(BaseModel, IStateful, IParametric):
-    """Stand-alone reservoir regulation model."""
+    """Stand-alone reservoir regulation model (composes a ReservoirNode)."""
 
     def __init__(self, config: dict):
         model_id = config["id"]
@@ -52,51 +35,42 @@ class ReservoirModel(BaseModel, IStateful, IParametric):
         self._start = float(config.get("start", 0.0))
         self._cursor = 0
 
-        sc = config["storage"]
-        self._curve = LinearStorageCurve(sc["z0"], sc["s0"], sc["area_km2"])
-        self._storage = float(sc.get("s_init", sc["s0"]))
-        release_cfg = config["release"]
-        self._release: ReleasePolicy = create(
-            "release", release_cfg["algo"], **release_cfg.get("params", {})
+        # single source of truth for the water balance
+        self._node = ReservoirNode(
+            model_id,
+            {
+                "storage": config["storage"],
+                "release": config["release"],
+                "external_inflows": config.get("inflows", []),
+            },
         )
 
         ts = TimeSpan(start=self._start, step=self._dt)
         self._inflow_ports: dict[str, BaseInput] = {}
-        for entry in config.get("inflows", []):
-            if isinstance(entry, dict):
-                name, required = entry["name"], bool(entry.get("required", True))
-            else:
-                name, required = str(entry), True
+        for slot in self._node.external_slots():
+            name = slot[3:]
             port = BaseInput(
-                f"{model_id}.in.{name}",
+                f"{model_id}.{slot}",
                 Quantities.DISCHARGE,
                 ScalarElementSet(name),
                 time_span=ts,
                 owner=self,
-                required=required,
+                required=self._node.slot_required(slot),
             )
             self.add_input(port)
             self._inflow_ports[name] = port
 
-        for var, q in (
-            ("Q_out", Quantities.DISCHARGE),
-            ("Q_in", Quantities.DISCHARGE),
-            ("Z", Quantities.WATER_LEVEL),
-            ("S", Quantities.STORAGE),
-        ):
+        for var, qname in self._node.output_vars.items():
+            quantity = (
+                getattr(Quantities, qname.upper(), None) or Quantities.CANONICAL[qname]
+            )
             self.create_output(
-                q, ScalarElementSet(model_id), port_id=f"{model_id}.{var}"
+                quantity, ScalarElementSet(model_id), port_id=f"{model_id}.{var}"
             )
 
-        self._current = {
-            "Q_out": 0.0,
-            "Q_in": 0.0,
-            "Z": self._curve.level(self._storage),
-            "S": self._storage,
-        }
         self._initial_snapshot: Optional[dict] = None
 
-    # -- info -------------------------------------------------
+    # -- info ---------------------------------------
 
     @property
     def dt(self) -> float:
@@ -107,39 +81,37 @@ class ReservoirModel(BaseModel, IStateful, IParametric):
         return self._start + self._cursor * self._dt
 
     @property
-    def storage_curve(self) -> LinearStorageCurve:
-        return self._curve
+    def node(self) -> ReservoirNode:
+        """The composed reservoir node (storage curve, release policy)."""
+        return self._node
 
-    # -- lifecycle ----------------------------------------------
+    @property
+    def storage_curve(self):
+        return self._node.storage_curve
+
+    # -- lifecycle ----------------------------------
 
     def _do_initialize(self):
         self._initial_snapshot = self.snapshot()
 
     def _do_update(self, inquirers=None):
-        q_in = 0.0
-        for name, port in self._inflow_ports.items():
+        for slot in self._node.external_slots():
+            port = self._inflow_ports[slot[3:]]
             if port.is_connected:
-                q_in += float(np.asarray(port.pull()).flat[0])
+                value = float(np.asarray(port.pull()).flat[0])
             elif port.required:
                 raise ValueError(
                     f"{self._id}: required inflow port '{port.id}' is "
                     f"not connected."
                 )
+            else:
+                value = 0.0
+            self._node.set_inflow(slot, value)
 
-        ctx = {"curve": self._curve, "storage": self._storage, "model": self}
-        q_out = self._release.release(
-            self._storage, q_in, self.current_time, self._dt, ctx
-        )
-        self._storage = max(self._storage + (q_in - q_out) * self._dt, 0.0)
+        self._node.step(self._dt, self.current_time, {})
 
-        self._current = {
-            "Q_out": q_out,
-            "Q_in": q_in,
-            "Z": self._curve.level(self._storage),
-            "S": self._storage,
-        }
-        for var, value in self._current.items():
-            self.get_output(f"{self._id}.{var}").add_values([value])
+        for var in self._node.output_vars:
+            self.get_output(f"{self._id}.{var}").add_values([self._node.current(var)])
 
         self._cursor += 1
         if 0 < self._steps <= self._cursor:
@@ -148,20 +120,18 @@ class ReservoirModel(BaseModel, IStateful, IParametric):
     def _do_finish(self):
         self._cursor = 0
 
-    # -- IStateful -------------------------------------------------
+    # -- IStateful ----------------------------------
 
     def snapshot(self) -> dict:
         return {
             "cursor": self._cursor,
-            "storage": self._storage,
-            "release": self._release.snapshot(),
+            "node": self._node.snapshot(),
             "ports": {p.id: p._state() for p in self._outputs},
         }
 
     def restore(self, snapshot: dict):
         self._cursor = int(snapshot["cursor"])
-        self._storage = float(snapshot["storage"])
-        self._release.restore(snapshot["release"])
+        self._node.restore(snapshot["node"])
         for p in self._outputs:
             state = snapshot["ports"].get(p.id)
             if state is not None:
@@ -169,37 +139,45 @@ class ReservoirModel(BaseModel, IStateful, IParametric):
         if self._status != ModelStatus.CREATED:
             self._status = ModelStatus.READY
 
-    # -- IParametric --------------------------------------------------
+    # -- IParametric --------------------------------
 
     def param_spec(self) -> list[ParamMeta]:
         spec = []
-        for meta in self._release.param_spec():
-            if meta.name in self._release.get_params():
-                spec.append(
-                    ParamMeta(
-                        name=f"release.{meta.name}",
-                        description=meta.description,
-                        bounds=meta.bounds,
-                        default=meta.default,
+        for algo_name, algo in self._node.algorithms().items():
+            for meta in algo.param_spec():
+                if meta.name in algo.get_params():
+                    spec.append(
+                        ParamMeta(
+                            name=f"{algo_name}.{meta.name}",
+                            description=meta.description,
+                            bounds=meta.bounds,
+                            default=meta.default,
+                        )
                     )
-                )
         return spec
 
     def param_names(self) -> list[str]:
         return [m.name for m in self.param_spec()]
 
+    def _algo(self, namespaced: str):
+        algo_name = namespaced.split(".")[0]
+        return self._node.algorithms()[algo_name]
+
     def get_param_vector(self, names: list[str] = None) -> np.ndarray:
         names = names or self.param_names()
-        params = self._release.get_params([n.split(".")[-1] for n in names])
-        return np.array([params[n.split(".")[-1]] for n in names])
+        return np.array(
+            [
+                self._algo(n).get_params([n.split(".")[-1]])[n.split(".")[-1]]
+                for n in names
+            ]
+        )
 
     def set_param_vector(self, values: np.ndarray, names: list[str] = None):
         names = names or self.param_names()
         if len(values) != len(names):
             raise ValueError("values / names length mismatch.")
-        self._release.set_params(
-            {n.split(".")[-1]: float(v) for n, v in zip(names, values)}
-        )
+        for n, v in zip(names, values):
+            self._algo(n).set_params({n.split(".")[-1]: float(v)})
 
     def reset_run(self):
         if self._initial_snapshot is None:

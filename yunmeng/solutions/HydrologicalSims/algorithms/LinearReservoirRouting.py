@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 
 from yunmeng.solutions.standards import ParamMeta
-from yunmeng.solutions.HydrologicalSims.algorithms.Bases import SurfaceRouting
+from yunmeng.solutions.HydrologicalSims.algorithms.Bases import SurfaceRouting, register
 
 
 class ThreeSourceLinearReservoir(SurfaceRouting):
@@ -102,3 +102,6 @@ class ThreeSourceLinearReservoir(SurfaceRouting):
         self._qi = ci * self._qi + (1.0 - ci) * max(ri, 0.0) * u
         self._qg = cg * self._qg + (1.0 - cg) * max(rg, 0.0) * u
         return self._qs + self._qi + self._qg
+
+
+register("surface", ThreeSourceLinearReservoir.algo_name, ThreeSourceLinearReservoir)

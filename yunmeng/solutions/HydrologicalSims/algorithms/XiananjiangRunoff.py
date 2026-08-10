@@ -21,7 +21,10 @@ Recession coefficients KI/KG are per-step fractions (0<KI+KG<1).
 from __future__ import annotations
 
 from yunmeng.solutions.standards import ParamMeta
-from yunmeng.solutions.HydrologicalSims.algorithms.Bases import RunoffGeneration
+from yunmeng.solutions.HydrologicalSims.algorithms.Bases import (
+    RunoffGeneration,
+    register,
+)
 
 
 class XinanjiangRunoff(RunoffGeneration):
@@ -232,3 +235,6 @@ class XinanjiangRunoff(RunoffGeneration):
         self._s = max(self._s + r - rs - ri - rg, 0.0)
 
         return rs, ri, rg
+
+
+register("runoff", XinanjiangRunoff.algo_name, XinanjiangRunoff)

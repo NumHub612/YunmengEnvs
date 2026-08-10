@@ -65,7 +65,7 @@ class ExchangeMeta:
     description: str = ""
     quantity: str = ""  # e.g. "discharge", "water_level"
     unit: str = ""  # SI unit string, e.g. "m3/s"
-    gtype = GeometryType.POINT
+    gtype: GeometryType = GeometryType.POINT
     temporal: str = "instant"  # instant, cumulative, ...
     dtype: str = "float64"
     required: bool = True

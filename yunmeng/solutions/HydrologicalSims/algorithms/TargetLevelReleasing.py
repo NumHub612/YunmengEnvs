@@ -9,27 +9,20 @@ from __future__ import annotations
 
 from yunmeng.solutions.standards import ParamMeta
 from yunmeng.solutions.commons.datasets import Timeseries
-from yunmeng.solutions.HydrologicalSims.algorithms.Bases import ReleasePolicy
+from yunmeng.solutions.HydrologicalSims.algorithms.Bases import ReleasePolicy, register
 
 
 class TargetLevelRelease(ReleasePolicy):
-    """Reservoir target water level balanced releasing algorithm.
-
-    Calculate the outbound inventory step by step according to
-    the principle of
-    'return to target storage capacity at the end':
+    """Release to return to the target storage at the end of each step:
 
         Q = clip( (S + I·Δt - S_target(t)) / Δt,  q_min,  q_max )
 
-    And add two safety rules:
-      * When the reservoir volume exceeds the flood control limit `S_flood`,
-      release water at `q_max`;
-      * When the reservoir volume is below the dead storage `S_dead`,
-      only allow outflow, no inflow, changed to `q_min` (can be 0).
+    Safety rules:
+      * storage above ``flood_storage`` -> release at q_max;
+      * storage at/below ``dead_storage`` -> no release.
 
-    The target storage can be a constant `target_storage`,
-    or it can be a rule curve that changes over time `target_series`
-    (Timeseries, interpolated at the current moment).
+    The target can be a constant ``target_storage`` or a rule curve
+    ``target_series`` (Timeseries, interpolated at the current time).
     """
 
     algo_name = "target_level"
@@ -85,9 +78,6 @@ class TargetLevelRelease(ReleasePolicy):
             raise ValueError("TargetLevelRelease: q_min must be <= q_max.")
         self._target_series = target_series
 
-    def on_params_changed(self):
-        pass
-
     def _target(self, t: float) -> float:
         if self._target_series is not None:
             return self._target_series.get_value(t)
@@ -103,19 +93,17 @@ class TargetLevelRelease(ReleasePolicy):
         self, storage: float, inflow: float, t: float, dt: float, context: dict = None
     ) -> float:
         target = self._target(t)
-        s_next = storage + max(inflow, 0.0) * dt
+        s_next = storage + inflow * dt  # FIX: negative inflow (pumping) allowed
         q = (s_next - target) / dt
 
         flood = self._params.get("flood_storage")
         if flood is not None and s_next > flood:
             q = self.p("q_max")
-        dead = self.p("dead_storage")
-        if s_next <= dead:
+        if s_next <= self.p("dead_storage"):
             q = 0.0
 
-        # never release more water than is (or will be) available
         q = min(max(q, self.p("q_min")), self.p("q_max"))
-        q = min(q, s_next / dt)
+        q = min(q, max(s_next, 0.0) / dt)  # never release more than available
         return max(q, 0.0)
 
     def plan(
@@ -126,12 +114,19 @@ class TargetLevelRelease(ReleasePolicy):
         dt: float,
         context: dict,
     ) -> list[float]:
+        """Plan the full outflow sequence.  Does NOT mutate inputs."""
+        if len(inflows) != len(timestamps):
+            raise ValueError(
+                f"TargetLevelRelease.plan: inflows ({len(inflows)}) and "
+                f"timestamps ({len(timestamps)}) length mismatch."
+            )
         outflows = []
         storage = initial_storage
-        for inflow in inflows:
-            outflows.append(
-                self.release(storage, inflow, timestamps[0], dt, context=context)
-            )
-            storage += inflow * dt - outflows[-1] * dt
-            timestamps.pop(0)
+        for inflow, t in zip(inflows, timestamps):  # FIX: no pop(0)
+            q = self.release(storage, inflow, t, dt, context=context)
+            outflows.append(q)
+            storage += (inflow - q) * dt
         return outflows
+
+
+register("release", TargetLevelRelease.algo_name, TargetLevelRelease)

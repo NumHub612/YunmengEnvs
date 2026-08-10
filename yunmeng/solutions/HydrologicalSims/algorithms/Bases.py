@@ -4,20 +4,9 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Pluggable hydrological algorithm interfaces and registry.
 
-Four algorithm *kinds* exist, one per computational role:
-
-  runoff    — RunoffGeneration:  rainfall/evap -> (RS, RI, RG) depths [mm]
-  slope     — SlopeRouting:      (RS, RI, RG) over area -> outlet flow [m3/s]
-  river     — RiverRouting:    inflow -> outflow along a reach [m3/s]
-  release   — ReleasePolicy:     reservoir storage/inflow -> outflow [m3/s]
-
 New algorithms register via ``register(kind, name, cls)`` and are
-instantiated through ``create(kind, name, **params)`` — components only
-ever talk to the interfaces, never to concrete classes.
+instantiated through ``create(kind, name, **params)``.
 
-All algorithms are stateful, expose a flat parameter vector (for
-calibration), and support snapshot/restore (for iterative coupling and
-run resets).
 """
 
 from __future__ import annotations
@@ -25,10 +14,6 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from yunmeng.solutions.standards import ParamMeta
-
-# ---------------------------------------------------
-# region Base
-# ---------------------------------------------------
 
 
 class HydroAlgorithm(ABC):
@@ -66,7 +51,7 @@ class HydroAlgorithm(ABC):
             self._params[name] = value
         self._initial_state = None
 
-    # -- parameters --------------------------------------
+    # -- parameters ---------------------------------
 
     @classmethod
     @abstractmethod
@@ -98,16 +83,14 @@ class HydroAlgorithm(ABC):
     def p(self, name: str) -> float:
         return self._params[name]
 
-    # -- state --------------------------------------------
+    # -- state --------------------------------------
 
     @abstractmethod
     def state(self) -> dict[str, Any]:
-        """Current internal state (flat dict of floats)."""
         pass
 
     @abstractmethod
     def set_state(self, state: dict[str, Any]):
-        """Overwrite internal state."""
         pass
 
     def snapshot(self) -> dict:
@@ -117,15 +100,12 @@ class HydroAlgorithm(ABC):
         self.set_state(dict(snapshot))
 
     def reset(self):
-        """Back to the post-construction state."""
         if self._initial_state is None:
             self._initial_state = self.snapshot()
         else:
             self.restore(self._initial_state)
 
     def freeze_initial_state(self):
-        """Capture the current state as the reset point (called by
-        components after warm-up configuration)."""
         self._initial_state = self.snapshot()
 
 
@@ -144,34 +124,18 @@ class RunoffGeneration(HydroAlgorithm):
     ) -> tuple[float, float, float]:
         """Generate one step runoff depth.
 
-        Args:
-            rain: areal rainfall this step [mm].
-            evap: potential evaporation depth this step [mm].
-            dt: step size [s].
-
         Returns:
-            (RS, RI, RG): surface / interflow / groundwater
-            runoff depths over the whole sub-basin.
+            (RS, RI, RG): surface / interflow / groundwater depths [mm].
         """
 
 
 class SurfaceRouting(HydroAlgorithm):
-    """Surface routing algorithm: runoff depth -> sub-basin outlet
-    discharge [m3/s]."""
+    """Surface routing: runoff depth -> sub-basin outlet discharge."""
 
     @abstractmethod
     def route(
         self, rs: float, ri: float, rg: float, area_km2: float, dt: float
     ) -> float:
-        """Route one step of runoff depth to outlet discharge.
-
-        Args:
-            rs: surface runoff depth [mm].
-            ri: interflow runoff depth [mm].
-            rg: groundwater runoff depth [mm].
-            area_km2: sub-basin area [km2].
-            dt: step size [s].
-        """
         pass
 
 
@@ -180,14 +144,11 @@ class RiverRouting(HydroAlgorithm):
 
     @abstractmethod
     def route(self, q_in: float, dt: float) -> float:
-        """Route one step of inflow to outflow."""
         pass
 
 
 class ReleasePolicy(HydroAlgorithm):
-    """Reservoir release policy:
-    reservoir storage, inflow -> outflow.
-    """
+    """Reservoir release policy: storage, inflow -> outflow."""
 
     @abstractmethod
     def release(
@@ -198,16 +159,6 @@ class ReleasePolicy(HydroAlgorithm):
         dt: float,
         context: dict,
     ) -> float:
-        """Decide the outflow for this step.
-
-        Args:
-            storage: current reservoir storage [m3].
-            inflow: total inflow this step [m3/s].
-            t: current timestamp [s].
-            dt: step size [s].
-            context: extra node info
-            (e.g. capacity, operation constraints).
-        """
         pass
 
     @abstractmethod
@@ -219,17 +170,6 @@ class ReleasePolicy(HydroAlgorithm):
         dt: float,
         context: dict,
     ) -> list[float]:
-        """Plan the complete outflow sequence based
-        on the global inflow process.
-
-        Args:
-            initial_storage: The starting reservoir storage [m3].
-            inflows: Total inflows for each step [m3/s].
-            timestamps: Timestamps [s].
-            dt: The uniform step size [s].
-            context: Extra node info
-            (e.g. capacity, operational constraints).
-        """
         pass
 
 
@@ -237,12 +177,12 @@ class ReleasePolicy(HydroAlgorithm):
 # region Registry
 # ---------------------------------------------------
 
-
+# FIX: kind names now match what every caller requests.
 _REGISTRY_HYDROS: dict[str, dict[str, type[HydroAlgorithm]]] = {
     "runoff": {},
     "surface": {},
     "river": {},
-    "reservoir": {},
+    "release": {},
 }
 
 

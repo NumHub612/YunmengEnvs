@@ -2,21 +2,14 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-HydroModel — An semi-distributed watershed hydrological linkable model.
+HydroModel — a semi-distributed watershed hydrological linkable model.
 
 Inside the model is a *tree* (node = sub-basin/station/reservoir,
-edge = river connection).
-During initialization, it is strictly checked that:
-* Each node has at most one downstream;
-* There is exactly one root node (outlet);
-* No cycles, and all nodes can reach the root.
-
-The model also implements IStateful (LOOP/breakpoint continuation)
-and IParametric (calibration).
+edge = river connection), validated by HydroTopology.
 """
 
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -32,19 +25,16 @@ from yunmeng.solutions.commons.models import BaseModel, BaseInput
 from yunmeng.solutions.commons.datasets import ScalarElementSet, Quantities
 from yunmeng.solutions.HydrologicalSims.HydroNodes import NODE_TYPES, HydrologyNode
 from yunmeng.solutions.HydrologicalSims.Topology import HydroTopology
-from yunmeng.solutions.HydrologicalSims.WeightedSumInput import WeightedSumInput
+from yunmeng.solutions.HydrologicalSims.Gauges import GaugeSet
 
-#: slot -> canonical Quantity
 _SLOT_QUANTITIES = {
     "P": Quantities.PRECIPITATION,
     "E": Quantities.EVAPORATION,
 }
 
 
-def _slot_quantity(node: HydrologyNode, slot: str):
-    if slot in _SLOT_QUANTITIES:
-        return _SLOT_QUANTITIES[slot]
-    return Quantities.DISCHARGE
+def _slot_quantity(slot: str):
+    return _SLOT_QUANTITIES.get(slot, Quantities.DISCHARGE)
 
 
 class HydrologyModel(BaseModel, IStateful, IParametric):
@@ -60,16 +50,14 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
         self._cursor = 0
         self._nodes: dict[str, HydrologyNode] = {}
         self._topo: list[HydrologyNode] = []
-        self._root: Optional[HydrologyNode] = None
-        self._slot_ports: dict[tuple[str, str], Any] = {}  # (node, slot) -> port
-        self._var_ports: dict[tuple[str, str], Any] = {}  # (node, var) -> port
-        self._initial_snapshot: Optional[dict] = None
-        self._built = False
-        # Build structure and ports eagerly so that coupling (port
-        # lookup / connect) can happen before initialize().
+        self._root: HydrologyNode = None
+        self._gauges = GaugeSet(config.get("gauges", {}))
+        self._slot_ports: dict[tuple[str, str], Any] = {}
+        self._var_ports: dict[tuple[str, str], Any] = {}
+        self._initial_snapshot: dict = None
         self._build()
 
-    # -- construction / validation -----------------------------
+    # -- info ---------------------------------------
 
     @property
     def dt(self) -> float:
@@ -84,24 +72,28 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
         return dict(self._nodes)
 
     @property
-    def root(self) -> Optional[HydrologyNode]:
+    def root(self) -> HydrologyNode:
         return self._root
 
     @property
     def topology(self) -> HydroTopology:
-        """The validated tree topology (DFS/BFS traversal, path queries)."""
         return self._topology
+
+    @property
+    def gauges(self) -> GaugeSet:
+        return self._gauges
 
     def node(self, name: str) -> HydrologyNode:
         return self._nodes[name]
 
     def _do_initialize(self):
-        # structure/ports were built eagerly in __init__; nothing to redo
+        # structure/ports built eagerly in __init__
         pass
+
+    # -- build --------------------------------------
 
     def _build(self):
         cfg = self._cfg
-        # -- nodes --
         for ncfg in cfg.get("nodes", []):
             name = ncfg["name"]
             ntype = ncfg["type"]
@@ -119,7 +111,6 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
         if not self._nodes:
             raise ValueError(f"{self._id}: no nodes configured.")
 
-        # -- edges / tree validation & traversal (HydroTopology) --
         edges = [(u, v) for u, v in cfg.get("edges", [])]
         try:
             self._topology = HydroTopology(list(self._nodes), edges)
@@ -128,53 +119,46 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
         self._root = self._nodes[self._topology.root]
         self._topo = [self._nodes[n] for n in self._topology.topo_order]
 
-        # wire internal inflow slots
         for u, v in edges:
             self._nodes[v].add_internal_inflow(u)
 
-        # -- ports --
+        self._bind_forcing()
         self._create_ports(cfg)
-        self._built = True
         self._initial_snapshot = self.snapshot()
+
+    def _bind_forcing(self):
+        """Register per-node gauge bindings (P/E) with the GaugeSet."""
+        for node in self._topo:
+            forcing = node.cfg.get("forcing") or {}
+            for slot, binding in forcing.items():
+                key = f"{node.name}.{slot}"
+                self._gauges.bind(key, binding)
+
+    def _forcing_of(self, node: HydrologyNode, slot: str) -> float:
+        key = f"{node.name}.{slot}"
+        if self._gauges.has_binding(key):
+            return self._gauges.value(key, self._cursor)
+        return None
 
     def _create_ports(self, cfg: dict):
         ts = TimeSpan(start=self._start, step=self._dt)
 
         for node in self._topo:
-            gauge_cfg = node.cfg.get("gauges") or {}
-
             for slot in node.external_slots():
+                if self._gauges.has_binding(f"{node.name}.{slot}"):
+                    continue  # fed internally by gauges -> no port
                 port_id = f"{self._id}.{node.name}.{slot}"
-                quantity = _slot_quantity(node, slot)
-                required = self._slot_required(node, slot)
-
-                if slot in gauge_cfg:
-                    # multi-gauge weighted fan-in: {"g1": 0.6, "g2": 0.4}
-                    bindings = gauge_cfg[slot]
-                    port = WeightedSumInput(
-                        port_id,
-                        quantity,
-                        ScalarElementSet(node.name),
-                        weights=list(bindings.values()),
-                        slot_names=list(bindings.keys()),
-                        time_span=ts,
-                        owner=self,
-                        required=required,
-                    )
-                    self.add_input(port)
-                else:
-                    port = BaseInput(
-                        port_id,
-                        quantity,
-                        ScalarElementSet(node.name),
-                        time_span=ts,
-                        owner=self,
-                        required=required,
-                    )
-                    self.add_input(port)
+                port = BaseInput(
+                    port_id,
+                    _slot_quantity(slot),
+                    ScalarElementSet(node.name),
+                    time_span=ts,
+                    owner=self,
+                    required=self._slot_required(node, slot),
+                )
+                self.add_input(port)
                 self._slot_ports[(node.name, slot)] = port
 
-        # exposed output variables
         exposes = list(cfg.get("expose", []))
         default_ref = f"{self._root.name}.Q"
         if default_ref not in exposes:
@@ -206,14 +190,11 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
             )
             self._var_ports[(node_name, var)] = port
 
-    @staticmethod
-    def _slot_required(node: HydrologyNode, slot: str) -> bool:
+    def _slot_required(self, node: HydrologyNode, slot: str) -> bool:
         if slot in ("P", "E"):
-            return True
-        for entry in node.cfg.get("external_inflows", []):
-            if isinstance(entry, dict) and entry.get("name") == slot[3:]:
-                return bool(entry.get("required", True))
-        return True
+            # required only when no internal forcing feeds it
+            return not self._gauges.has_binding(f"{node.name}.{slot}")
+        return node.slot_required(slot)
 
     # -- stepping ---------------------------------------------
 
@@ -224,26 +205,37 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
         for node in self._topo:
             inputs: dict[str, float] = {}
             for slot in node.external_slots():
-                port = self._slot_ports[(node.name, slot)]
-                if port.is_connected:
-                    inputs[slot] = float(np.asarray(port.pull()).flat[0])
-                elif getattr(port, "required", True):
+                # 1) internal gauge forcing (P/E)
+                forced = self._forcing_of(node, slot)
+                if forced is not None:
+                    inputs[slot] = forced
+                    continue
+                # 2) coupled input port
+                port = self._slot_ports.get((node.name, slot))
+                if port is not None and port.is_connected:
+                    value = float(np.asarray(port.pull()).flat[0])
+                elif port is not None and port.required:
                     raise ValueError(
                         f"{self._id}: required input port '{port.id}' is "
                         f"not connected."
                     )
                 else:
-                    inputs[slot] = 0.0
+                    value = 0.0
+                if slot.startswith("in."):
+                    # FIX: external inflows are actually injected now
+                    node.set_inflow(slot, value)
+                else:
+                    inputs[slot] = value
             node.step(dt, t, inputs)
 
-            # feed downstream
-            downstream_port_q = node.current("Q")
-            for other in self._topo:
-                slot = other.internal_inflow_slot(node.name)
-                if slot in other._inflows:
-                    other.set_inflow(slot, downstream_port_q)
+            # feed downstream via topology (O(1) lookup, no private scan)
+            down = self._topology.downstream(node.name)
+            if down is not None:
+                target = self._nodes[down]
+                target.set_inflow(
+                    target.internal_inflow_slot(node.name), node.current("Q")
+                )
 
-        # publish exposed variables
         for (node_name, var), port in self._var_ports.items():
             port.add_values([self._nodes[node_name].current(var)])
 
@@ -274,10 +266,9 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
         if self._status != ModelStatus.CREATED:
             self._status = ModelStatus.READY
 
-    # -- IParametric ----------------------------------------------
+    # -- IParametric --------------------------------
 
     def _algo_params(self) -> list[tuple[str, Any, ParamMeta]]:
-        """(namespaced_name, algorithm, ParamMeta) triples."""
         out = []
         for node in self._topo:
             for algo_name, algo in node.algorithms().items():
@@ -287,17 +278,15 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
         return out
 
     def param_spec(self) -> list[ParamMeta]:
-        spec = []
-        for full, _, meta in self._algo_params():
-            spec.append(
-                ParamMeta(
-                    name=full,
-                    description=meta.description,
-                    bounds=meta.bounds,
-                    default=meta.default,
-                )
+        return [
+            ParamMeta(
+                name=full,
+                description=meta.description,
+                bounds=meta.bounds,
+                default=meta.default,
             )
-        return spec
+            for full, _, meta in self._algo_params()
+        ]
 
     def param_names(self) -> list[str]:
         return [full for full, _, _ in self._algo_params()]
@@ -333,13 +322,14 @@ class HydrologyModel(BaseModel, IStateful, IParametric):
             raise RuntimeError(f"{self._id}: not initialized yet.")
         self.restore(self._initial_snapshot)
 
-    # -- diagnostics ----------------------------------------------
+    # -- diagnostics --------------------------------
 
     def describe(self) -> str:
         lines = [f"HydroModel '{self._id}' (dt={self._dt}s, steps={self._steps})"]
         for node in self._topo:
             lines.append(f"  [{node.node_type}] {node.name}")
         lines.append(f"  root: {self._root.name if self._root else '?'}")
+        lines.append(f"  gauges: {self._gauges.gauge_ids}")
         lines.append(f"  inputs:  {[p.id for p in self._inputs]}")
         lines.append(f"  outputs: {[p.id for p in self._outputs]}")
         return "\n".join(lines)

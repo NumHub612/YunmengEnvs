@@ -35,8 +35,6 @@ class BaseModel(ILinkableModel):
         self._callbacks: list[ICallback] = []
         self._last_error: str = ""
 
-    # -- class-level metadata -----------------------
-
     @classmethod
     def get_meta(cls) -> ModelMeta:
         return ModelMeta(name=cls.__name__)
@@ -92,7 +90,6 @@ class BaseModel(ILinkableModel):
         return None
 
     def get_port(self, port_id: str):
-        """Look up any port by id."""
         return self.get_input(port_id) or self.get_output(port_id)
 
     def add_input(self, item: IInput):
@@ -144,6 +141,9 @@ class BaseModel(ILinkableModel):
     def remove_port(self, port_id: str) -> bool:
         inp = self.get_input(port_id)
         if inp is not None:
+            provider = inp.provider
+            if provider is not None:
+                provider.remove_consumer(inp)
             inp.provider = None
             self._inputs.remove(inp)
             return True
