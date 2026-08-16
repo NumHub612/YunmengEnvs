@@ -10,7 +10,7 @@ from yunmeng.numerics.mesh.elements import Node, Face, Cell, Element
 
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import Callable
 
 # -----------------------------------------------
 # region Mesh
@@ -218,9 +218,9 @@ class Region:
     name: str
     mesh: Mesh
     type: ElementType = ElementType.NONE
-    indices: Optional[list[int]] = None
-    tags: Optional[list[str]] = None
-    predicate: Optional[Callable[[np.ndarray], np.ndarray]] = None
+    indices: list[int] = None
+    tags: list[str] = None
+    predicate: Callable[[np.ndarray], np.ndarray] = None
 
     _element_ids = None
     _version = None

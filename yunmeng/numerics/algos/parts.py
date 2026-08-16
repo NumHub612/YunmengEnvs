@@ -7,13 +7,38 @@ Mesh partitioning methods.
 
 from yunmeng.numerics.fields import MeshShard, SharedInfo
 from yunmeng.numerics.mesh import Mesh, ElementType
-from yunmeng.utils.ParseGpu import parse_gpu
 from yunmeng.setting import settings
 import numpy as np
 import pymetis
 
 from typing import List
 from collections import defaultdict
+import torch
+
+
+def parse_gpu(gpu: str | int | None, device: str = "cuda") -> torch.device:
+    """Parse single GPU device strings into torch.device object.
+
+    Args:
+        gpu (str | int | None): GPU device string or index.
+        device (str, optional): Device type. Defaults to "cuda".
+
+    Returns:
+        torch.device: Parsed GPU device.
+    """
+    if device.lower() == "cpu":
+        return torch.device("cpu")
+    if gpu is None:
+        return torch.device("cpu")
+
+    if isinstance(gpu, int):
+        gpu = f"cuda:{gpu}"
+        return torch.device(gpu)
+    elif isinstance(gpu, str):
+        gpu = gpu.lower()
+        return torch.device(gpu)
+    else:
+        raise ValueError(f"Invalid GPU specification: {gpu}")
 
 
 class MeshPart:

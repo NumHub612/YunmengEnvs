@@ -8,7 +8,7 @@ Backend of variables and fields.
 from yunmeng.numerics.enums import BackendType, DeviceType
 from yunmeng.setting import settings
 
-from typing import Dict, Optional, Union
+from typing import Dict, Union
 from contextlib import contextmanager
 import warnings
 import numpy as np
@@ -167,7 +167,7 @@ class Backend:
 class BackendContext:
     """Backend context manager, supports per-context Backend instantiation."""
 
-    _instance: Optional["BackendContext"] = None
+    _instance: "BackendContext" = None
     _backends: Dict[BackendType, Dict[DeviceType, Backend]] = {}
 
     def __new__(cls):
@@ -178,7 +178,7 @@ class BackendContext:
     def __init__(self):
         if not hasattr(self, "_initialized"):
             self._initialized = True
-            self._active_backend: Optional[Backend] = None
+            self._active_backend: Backend = None
             self._active_device: DeviceType = DeviceType.AUTO
 
     @contextmanager

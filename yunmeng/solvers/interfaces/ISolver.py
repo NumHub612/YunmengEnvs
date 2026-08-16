@@ -15,7 +15,7 @@ from yunmeng.numerics.fields import Field, FieldMeta
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields as dc_fields
 import enum
-from typing import Any, Optional
+from typing import Any
 import numpy as np
 
 # --------------------------------------------------

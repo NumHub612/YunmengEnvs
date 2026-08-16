@@ -1,320 +1,286 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-To provide linking network analysis and management functionalities.
+Scheduler: drives a coupling graph of linkable models step by step.
+
+Usage:
+    sched = Scheduler()
+    sched.add(rain); sched.add(sub); sched.add(reach)
+    sched.link(rain.output_port, sub.inputs[0])               # PULL
+    sched.link(sub.discharge_port, reach.inputs[0])           # PULL
+    sched.link(reach.level_port, sub.tailwater_port,
+               CouplingConfig(mode=CouplingMode.LOOP, ...))   # LOOP
+    sched.initialize()
+    sched.run(n_steps)
 """
 
+from __future__ import annotations
+from dataclasses import dataclass
+
 from yunmeng.solutions.standards import (
-    ILinkableComponent,
-    IOutput,
+    ILinkableModel,
     IInput,
-    LinkableComponentStatus,
+    IOutput,
+    IIterativeCoupler,
+    IStateful,
+    CouplingMode,
+    CouplingConfig,
+    IterationResult,
+    ModelStatus,
+    CallbackEvent,
 )
-from yunmeng.solutions.commons.links import LoopController, AdapterFactory
-from yunmeng.workflow.parser import Orchestrator
-
-from typing import Union, Tuple, Callable
-from enum import Enum
-import networkx as nx
-import datetime as dt
-
-
-class SchedulerStatus(Enum):
-    """Scheduler status."""
-
-    CREATED = 1
-    LOADING = 2
-    READY = 3
-    RUNNING = 4
-    PAUSED = 5
-    DONE = 6
-    FAILED = 7
+from yunmeng.solutions.commons.additionals import (
+    PullCoupler,
+    FixedPointCoupler,
+    ElementMapAdapter,
+)
+from yunmeng.setting import logger
 
 
-Breakpoint = Union[float, Tuple[str, float], Callable[["Scheduler"], bool]]
+@dataclass
+class Link:
+    """One coupling link between an output port and an input port."""
+
+    source_port: IOutput
+    target_port: IInput
+    config: CouplingConfig
+
+    @property
+    def source_model(self) -> ILinkableModel:
+        return self.source_port.owner
+
+    @property
+    def target_model(self) -> ILinkableModel:
+        return self.target_port.owner
 
 
 class Scheduler:
-    """The scheduler is responsible for managing the initializing、coupling
-    and scheduling of the linking components."""
+    """Step-wise driver for a mixed PULL / LOOP coupling graph."""
 
-    def __init__(self, regietered_components: dict[str, ILinkableComponent]):
-        self._registered_components = regietered_components
-        self._status = SchedulerStatus.CREATED
-        self._breakpoints: set[float] = set()
-        self._paused = False
+    def __init__(self, loop_coupler: IIterativeCoupler = None):
+        self._models: list[ILinkableModel] = []
+        self._links: list[Link] = []
+        self._loop_coupler = loop_coupler or FixedPointCoupler()
+        self._pull_strategy = PullCoupler()
+        self._order: list[ILinkableModel] = []
+        self._loop_of: dict[int, list] = {}
+        self.results: list[IterationResult] = []
+        self._callbacks: list = []
 
-        self._system_config = None
-        self._models: dict[str, ILinkableComponent] = {}
-        self._topo: nx.DiGraph = nx.DiGraph()
-        self._trigger: ILinkableComponent = None
+    # -- graph construction -------------------------
 
-        self._start_time = dt.datetime.now()
-        self._timeout = None
-        self._log_freq = 60.0
-        self._log_time = 0.0
-        self._verbose = True
+    def add(self, model: ILinkableModel):
+        if model not in self._models:
+            self._models.append(model)
 
-    @property
-    def components(self) -> list[ILinkableComponent]:
-        """All registered components"""
-        return list(self._models.values())
+    def link(
+        self,
+        source_port: IOutput,
+        target_port: IInput,
+        config: CouplingConfig = None,
+        source_elements: list = None,
+        target_elements: list = None,
+    ):
+        """Connect two ports (PULL by default).
 
-    @property
-    def status(self) -> SchedulerStatus:
-        """Scheduler status"""
-        return self._status
+        When *source_elements* (and optionally *target_elements*) are
+        given, an ElementMapAdapter is inserted so that only the
+        addressed elements reach this consumer.
+        """
+        config = config or CouplingConfig()
+        self._check_compatible(
+            source_port, target_port, adapted=source_elements is not None
+        )
 
-    @property
-    def elapsed_time(self) -> float:
-        """Elapsed time since start"""
-        time = dt.datetime.now() - self._start_time
-        return time.total_seconds()
+        if source_elements is not None:
+            adapter = ElementMapAdapter(
+                f"element_map.{source_port.id}.{target_port.id}"
+            )
+            adapter.set_mapping(
+                target_port, source_port, source_elements, target_elements
+            )
+        else:
+            if target_port.is_connected:
+                raise ValueError(
+                    f"Input port '{target_port.id}' already has a provider; "
+                    f"an input accepts exactly one provider "
+                    f"(use an adapter chain for fan-in reduction)."
+                )
+            source_port.add_consumer(target_port)
 
-    def setup(self, system: Orchestrator):
-        """Setup scheduler with system configs."""
-        self._system_config = system
-        # Instantiate all components
-        for mid, mcfg in system.models.items():
-            model_type = mcfg.pop("TYPE")
-            io_items = mcfg.pop("IOS")
-            model = self._registered_components[model_type](mid, mcfg, io_items)
-            self._models[mid] = model
-            self._topo.add_node(mid, model=model)
+        for model in (source_port.owner, target_port.owner):
+            if model is not None:
+                self.add(model)
+        self._links.append(Link(source_port, target_port, config))
 
-        # Set scheduler config
-        settings = system.schedules
-        if "timeout" in settings:
-            self._timeout = settings["timeout"]
-        if "log_freq" in settings:
-            self._log_freq = settings["log_freq"]
-        if "verbose" in settings:
-            self._verbose = settings["verbose"]
+    @staticmethod
+    def _check_compatible(source_port: IOutput, target_port: IInput, adapted: bool):
+        """NEW: quantity / time-step compatibility check at link time."""
+        sq, tq = source_port.quantity, target_port.quantity
+        if not adapted and sq.name != tq.name:
+            raise ValueError(
+                f"Quantity mismatch: '{source_port.id}' provides "
+                f"'{sq.name}' but '{target_port.id}' expects '{tq.name}'. "
+                f"Insert an adapter (e.g. ScaleOutput) to convert."
+            )
+        if sq.unit and tq.unit and sq.unit != tq.unit:
+            logger.warning(
+                f"Unit mismatch on link {source_port.id} -> {target_port.id}: "
+                f"'{sq.unit}' vs '{tq.unit}'; make sure an adapter converts."
+            )
+        s_step = getattr(source_port.time_span, "step", None)
+        t_step = getattr(target_port.time_span, "step", None)
+        if s_step and t_step and s_step != t_step:
+            logger.warning(
+                f"Time-step mismatch on link {source_port.id} ({s_step}s) -> "
+                f"{target_port.id} ({t_step}s); values are pulled as-is."
+            )
 
-        self._log("setup done", True)
-        self._status = SchedulerStatus.LOADING
-
-    def initialize(self):
-        """Initialze all components in order or topological order."""
-        # Initialize all components in topological order
-        for cid in self._topo_order():
-            comp = self._models[cid]
-            comp.initialize()
-            if comp.status == LinkableComponentStatus.FAILED:
-                raise RuntimeError(f"{cid} initialize failed")
-
-        # Establish links
-        for link in self._system_config.links:
-            lid = link["id"]
-            is_used = link.get("is_use", True)
-            mode = link.get("mode", "PULL")
-            if not is_used:
-                continue
-            if not ({"source", "target"} <= set(link.keys())):
-                continue
-
-            provider = link["source"]
-            if provider["model"] not in self._models:
-                raise ValueError(f"Link {lid}: provider model not found")
-            src_model = self._models[provider["model"]]
-            provider_id = provider["item"]
-            idx = None
-            for i, o in enumerate(src_model.outputs):
-                if o.id == provider_id:
-                    idx = i
-                    break
-            if idx is None:
-                raise ValueError(f"Link {lid}: provider item not found")
-            output = src_model.outputs[idx]
-
-            consumer = link["target"]
-            if consumer["model"] not in self._models:
-                raise ValueError(f"Link {lid}: consumer model not found")
-            tar_model = self._models[consumer["model"]]
-            consumer_id = consumer["item"]
-            idx = None
-            for i, i_ in enumerate(tar_model.inputs):
-                if i_.id == consumer_id:
-                    idx = i
-                    break
-            if idx is None:
-                raise ValueError(f"Link {lid}: consumer item not found")
-            input = tar_model.inputs[idx]
-
-            if "data_operations" in link:
-                adapters = AdapterFactory("")
-                # TODO： configure adapters
-
-            if mode == "PULL":
-                input.provider = output
-            elif mode == "LOOP":
-                looper = LoopController()
-                # TODO： configure looper
-            else:
-                raise ValueError(f"Link {lid}: invalid mode {mode}")
-
-        # Analyze trigger
-        self._analyze_trigger()
-
-        self._log("initialize done", True)
-
-    def _topo_order(self) -> list[str]:
-        try:
-            return list(nx.topological_sort(self._topo))
-        except nx.NetworkXError as e:
-            raise RuntimeError("cycle detected") from e
-
-    def _analyze_trigger(self):
-        """Analyze trigger from system network."""
-        self._trigger = self._models[self._topo_order()[-1]]
-
-    def validate(self) -> dict[str, list[str]]:
-        """Validate all components and return errors."""
-        errors = {}
-        for cid, comp in self._models.items():
-            res = comp.validate()
-            if res:
-                errors[cid] = res
-        if errors:
-            self._status = SchedulerStatus.FAILED
-
-        self._log(f"validate done with {len(errors)} errors", True)
-        return errors
-
-    def prepare(self):
-        """Prepare all components for running."""
-        for cid in self._topo_order():
-            self._models[cid].prepare()
-
-        self._status = SchedulerStatus.READY
-        self._log("prepare done", True)
-
-    def run(self):
-        """Run scheduler until all components are done or failed."""
-        if self.status == SchedulerStatus.PAUSED:
-            self.resume()
-            return
-        if self.status not in (SchedulerStatus.READY, SchedulerStatus.CREATED):
-            raise RuntimeError(f"Cannot run from status {self.status}")
-
-        self._status = SchedulerStatus.RUNNING
-        self._main_loop()
-
-        self._log("run done", True)
-
-    def _main_loop(self):
-        while True:
-            # Check if trigger are done or failed
-            if self._trigger.status == LinkableComponentStatus.DONE:
-                self._status = SchedulerStatus.DONE
-                break
-            if self._trigger.status == LinkableComponentStatus.FAILED:
-                self._status = SchedulerStatus.FAILED
-                break
-
-            # Stop if user paused or hit breakpoint or timeout.
-            if self._hit_breakpoint():
-                self._status = SchedulerStatus.PAUSED
-                break
-            if self._paused:
-                self._status = SchedulerStatus.PAUSED
-                break
-            if self._timeout and self.elapsed_time >= self._timeout:
-                self._status = SchedulerStatus.PAUSED
-                break
-
-            # Update to next step
-            self._trigger.update([])
-            self._log("updated")
-
-    def _hit_breakpoint(self) -> bool:
-        """Check if scheduler hits any breakpoint."""
-        t = self.elapsed_time
-        for bp in list(self._breakpoints):
-            is_hint = False
-            # timestamp breakpoint
-            if isinstance(bp, float) and t >= bp:
-                is_hint = True
-            # componenet breakpoint
-            if isinstance(bp, tuple):
-                mid, tgt = bp
-                if t >= tgt and self._models[mid].status in (
-                    LinkableComponentStatus.DONE,
-                    LinkableComponentStatus.FAILED,
-                ):
-                    is_hint = True
-            # conditional breakpoint
-            if callable(bp) and bp(self):
-                is_hint = True
-            # remove bp if hit
-            if is_hint:
-                self._breakpoints.remove(bp)
+    def unlink(self, source_port: IOutput, target_port: IInput) -> bool:
+        """Remove a link.  Call rebuild() afterwards."""
+        for i, l in enumerate(self._links):
+            if l.source_port is source_port and l.target_port is target_port:
+                del self._links[i]
+                if target_port.provider is source_port:
+                    source_port.remove_consumer(target_port)
                 return True
         return False
 
-    def resume(self):
-        if self.status != SchedulerStatus.PAUSED:
-            raise RuntimeError("Not paused, cannot resume")
+    def rebuild(self):
+        self._build_execution_plan()
 
-        self._status = SchedulerStatus.RUNNING
-        self._main_loop()
-        self._log("resume done", True)
+    @property
+    def models(self) -> list[ILinkableModel]:
+        return self._models
 
-    def finish(self):
-        """Finish all components in order or reverse order."""
-        for cid in reversed(self._topo_order()):
-            self._models[cid].finish()
-        self._status = SchedulerStatus.DONE
-        self._log("finish done", True)
+    @property
+    def links(self) -> list[Link]:
+        return list(self._links)
 
-    def _log(self, message: str = "", force: bool = False):
-        """Log current status."""
-        if not self._verbose or not self._log_freq:
-            return
+    # -- lifecycle ----------------------------------
 
-        elapsed_time = self.elapsed_time
-        date_str = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        if elapsed_time - self._log_time >= 1e-6 or force:
-            time_str = self._format_time(elapsed_time)
-            print(f"{date_str}, {time_str}, {self.status.name}: {message}")
-            while elapsed_time >= self._log_time:
-                self._log_time += self._log_freq
+    def initialize(self):
+        errors = []
+        for m in self._models:
+            errors += m.validate()
+        if errors:
+            raise ValueError("Validation failed:\n  " + "\n  ".join(errors))
+        for m in self._models:
+            m.initialize()
+        self._build_execution_plan()
 
-    def _format_time(self, elapsed_time: float) -> str:
-        """Format time in readable string."""
-        if elapsed_time < 60.0:
-            time_str = f"{elapsed_time:06.3f}s"
-        elif elapsed_time < 3600.0:
-            mins = int(elapsed_time // 60.0)
-            secs = elapsed_time - 60.0 * mins
-            time_str = f"{mins:02d}m{secs:06.3f}s"
-        elif elapsed_time < 86400.0:
-            hours = int(elapsed_time // 3600.0)
-            mins = int((elapsed_time % 3600.0) // 60.0)
-            secs = elapsed_time - 3600.0 * hours - 60.0 * mins
-            time_str = f"{hours:02d}h{mins:02d}m{secs:06.3f}s"
-        else:
-            days = int(elapsed_time // 86400.0)
-            hours = int((elapsed_time % 86400.0) // 3600.0)
-            mins = int((elapsed_time % 3600.0) // 60.0)
-            secs = elapsed_time - 86400.0 * days - 3600.0 * hours - 60.0 * mins
-            time_str = f"{days}d{hours:02d}h{mins:02d}m{secs:06.3f}s"
+    def _build_execution_plan(self):
+        """Topological order over PULL links; group LOOP pairs."""
+        pull_links = [l for l in self._links if l.config.mode != CouplingMode.LOOP]
+        loop_links = [l for l in self._links if l.config.mode == CouplingMode.LOOP]
 
-        return time_str
+        model_by_id = {id(m): m for m in self._models}
+        indeg = {mid: 0 for mid in model_by_id}
+        downstream: dict[int, list[int]] = {}
+        for l in pull_links:
+            s, t = l.source_model, l.target_model
+            if s is None or t is None or s is t:
+                continue
+            downstream.setdefault(id(s), []).append(id(t))
+            indeg[id(t)] += 1
 
-    def pause(self):
-        """Pause scheduler."""
-        self._paused = True
+        ready = [mid for mid, d in indeg.items() if d == 0]
+        order = []
+        while ready:
+            mid = ready.pop()
+            order.append(model_by_id[mid])
+            for nid in downstream.get(mid, []):
+                indeg[nid] -= 1
+                if indeg[nid] == 0:
+                    ready.append(nid)
+        if len(order) != len(self._models):
+            cyclic = [m.id for mid, m in model_by_id.items() if indeg[mid] > 0]
+            raise ValueError(
+                "PULL dependency graph contains a cycle involving "
+                f"{cyclic}; feedback links must be declared with "
+                "CouplingMode.LOOP."
+            )
+        self._order = order
 
-    def breakpoint(self, bp: Breakpoint):
-        """Debug: add breakpoint."""
-        self._breakpoints.add(bp)
+        self._loop_of = {}
+        pairs: dict[frozenset, tuple] = {}
+        for l in loop_links:
+            s, t = l.source_model, l.target_model
+            if s is None or t is None:
+                continue
+            key = frozenset((id(s), id(t)))
+            pairs[key] = (s, t, l.config)
+        for key, (s, t, cfg) in pairs.items():
+            entry = (s, t, cfg, key)
+            self._loop_of.setdefault(id(s), []).append(entry)
+            self._loop_of.setdefault(id(t), []).append(entry)
 
-    def snapshot(self, tag: str) -> dict:
-        """Generate current global state snapshot."""
-        snapshot = {}
-        for mid, model in self._models.items():
-            if hasattr(model, "keep_current_state"):
-                snapshot[mid] = model.keep_current_state()
-        return {tag: snapshot}
+    @property
+    def execution_order(self) -> list[str]:
+        return [m.id for m in self._order]
+
+    # -- stepping -----------------------------------
+
+    def step(self) -> list[IterationResult]:
+        results = []
+        done_pairs = set()
+        self._fire(CallbackEvent.STEP_BEGIN)
+        for m in self._order:
+            if m.status in (ModelStatus.DONE, ModelStatus.FAILED):
+                continue
+            entries = self._loop_of.get(id(m))
+            if not entries:
+                m.update()
+                continue
+            for comp_a, comp_b, cfg, key in entries:
+                if key in done_pairs:
+                    continue
+                done_pairs.add(key)
+                results.append(self._loop_coupler.iterate(comp_a, comp_b, cfg))
+        self.results.extend(results)
+        self._fire(CallbackEvent.STEP_END, results=results)
+        return results
+
+    # -- graph-level state (calibration / ensemble)
+
+    def snapshot_graph(self) -> dict:
+        return {m.id: m.snapshot() for m in self._models if isinstance(m, IStateful)}
+
+    def restore_graph(self, snapshot: dict):
+        for m in self._models:
+            if isinstance(m, IStateful) and m.id in snapshot:
+                m.restore(snapshot[m.id])
+
+    # -- callbacks ----------------------------------
+
+    def add_callback(self, callback):
+        if callback not in self._callbacks:
+            self._callbacks.append(callback)
+
+    def remove_callback(self, callback):
+        if callback in self._callbacks:
+            self._callbacks.remove(callback)
+
+    def _fire(self, event: str, **context):
+        for cb in list(self._callbacks):
+            cb.on_event(event, self, context)
+
+    # -- run ----------------------------------------
+
+    def run(self, max_steps: int = None) -> list[IterationResult]:
+        all_results = []
+        n = 0
+        while True:
+            active = [
+                m
+                for m in self._models
+                if m.status not in (ModelStatus.DONE, ModelStatus.FAILED)
+            ]
+            if not active:
+                break
+            if max_steps is not None and n >= max_steps:
+                break
+            all_results.extend(self.step())
+            n += 1
+        return all_results
