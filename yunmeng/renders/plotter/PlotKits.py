@@ -23,6 +23,13 @@ from yunmeng.numerics.algos import (
     MeshGeom,
 )
 
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore", message="findfont: Generic family 'sans-serif' not found"
+)
+
 # ---------------------------------------------------
 # region matplotlib 2D
 # ---------------------------------------------------

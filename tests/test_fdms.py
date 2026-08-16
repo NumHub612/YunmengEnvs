@@ -102,7 +102,7 @@ class TestBurgers2D:
     def test_2d_grid(self, grid_41x41: Grid2D, H0: Field, U0: Field):
         """Test burgers2d on grid2d."""
         # visualize the grid and initial conditions
-        os.makedir("tests/results/bg", exist_ok=True)
+        os.makedirs("tests/results/bg", exist_ok=True)
         plot_mesh(
             grid_41x41,
             title="grid_41x41",
