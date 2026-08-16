@@ -2,50 +2,24 @@
 """
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Auxiliary functions for mesh processing.
+Mesh geometry assistant.
 """
+
 from yunmeng.numerics.enums import MeshDimension
-from yunmeng.numerics.mesh.spatials import Face, Mesh
-from yunmeng.numerics.mesh.elements import Element, Coordinate
-from yunmeng.numerics.fields.variables import Variable, Var
-from yunmeng.numerics.algos.topos import (
-    MeshTopo,
+from yunmeng.numerics.mesh import Face, Mesh, Element, Coordinate
+from yunmeng.numerics.mesh import (
     sort_anticlockwise,
     calculate_center,
     extract_coordinates,
+    calculate_distance,
+    generate_projection,
 )
+from yunmeng.numerics.grids import Grid
+from yunmeng.numerics.fields import Variable, Var
+from yunmeng.numerics.algos.topos import MeshTopo
 
 import numpy as np
-from typing import Dict, List, Optional
-
-# -----------------------------------------------
-# region geom methods
-# -----------------------------------------------
-
-
-def calculate_distance(
-    point1: Coordinate | Element, point2: Coordinate | Element
-) -> float:
-    """Calculate the distance between two coordinates."""
-    if isinstance(point1, Element):
-        point1 = point1.coordinate
-    if isinstance(point2, Element):
-        point2 = point2.coordinate
-    return np.linalg.norm(point1.to_numpy() - point2.to_numpy())
-
-
-def generate_projection(
-    coordinate: Coordinate,
-    face: Face,
-    normal: Variable,
-) -> Coordinate:
-    """Generate the projection on the given face."""
-    vec_np = (coordinate - face.coordinate).to_numpy()
-    proj_np = np.dot(vec_np, normal.to_numpy()) * normal.to_numpy()
-    proj_np = proj_np + face.coordinate.to_numpy()
-    proj_coord = Coordinate.from_numpy(proj_np)
-    return proj_coord
-
+from typing import Dict, List
 
 # -----------------------------------------------
 # region MeshGeom
@@ -63,12 +37,18 @@ class MeshGeom:
         self._mesh: Mesh = mesh
         self._topo: MeshTopo = mesh.get_topo_assistant()
 
+        # Detect structured grid
+        self._is_structured_2d = isinstance(mesh, Grid)
+        if self._is_structured_2d:
+            self._nx = mesh.nx
+            self._ny = mesh.ny
+
         # Element properties caches
-        self._face_areas: Optional[np.ndarray] = None
-        self._face_perimeters: Optional[np.ndarray] = None
-        self._face_normals: Optional[np.ndarray] = None
-        self._cell_volumes: Optional[np.ndarray] = None
-        self._cell_surfaces: Optional[np.ndarray] = None
+        self._face_areas: np.ndarray = None
+        self._face_perimeters: np.ndarray = None
+        self._face_normals: np.ndarray = None
+        self._cell_volumes: np.ndarray = None
+        self._cell_surfaces: np.ndarray = None
 
         # Distance caches
         self._cell2cell_dists: List[Dict[int, float]] = None
@@ -88,7 +68,7 @@ class MeshGeom:
         self.__init__(mesh)
 
     # -----------------------------------------------
-    # region Continous properties
+    # region Continuous properties
     # -----------------------------------------------
 
     @property
@@ -128,16 +108,16 @@ class MeshGeom:
     def face_perimeter(self) -> np.ndarray:
         """Face perimeter."""
         if self._face_perimeters is None:
-            if self._mesh.dimension == MeshDimension.NONE:
-                face_perimeters = [0.0] * self._mesh.face_count
-            elif self._mesh.dimension != MeshDimension.D3:
-                face_perimeters = self._calculate_perimeters_2d()
-            else:
-                face_perimeters = self._calculate_perimeters_3d()
-            self._face_perimeters = np.array(face_perimeters)
+            if self._mesh.dimension == MeshDimension.D1:
+                raise NotImplementedError("1D mesh does not have face perimeters.")
+            elif self._mesh.dimension == MeshDimension.D2:
+                self._face_perimeters = np.array(self._calculate_perimeters_2d())
+            elif self._mesh.dimension == MeshDimension.D3:
+                self._face_perimeters = np.array(self._calculate_perimeters_3d())
         return self._face_perimeters
 
     def _calculate_perimeters_2d(self) -> List[float]:
+        """Original per-element perimeter calculation."""
         face_perimeters = []
         for face in self._mesh.faces:
             # In 2D, face connects two nodes
@@ -165,16 +145,60 @@ class MeshGeom:
     def face_normal(self) -> np.ndarray:
         """Face unit normal vectors."""
         if self._face_normals is None:
-            if self._mesh.dimension == MeshDimension.NONE:
-                face_normals = [None] * self._mesh.face_count
-            elif self._mesh.dimension != MeshDimension.D3:
-                face_normals = self._calculate_normals_2d()
-            else:
-                face_normals = self._calculate_normals_3d()
-            self._face_normals = np.array(face_normals)
+            if self._mesh.dimension == MeshDimension.D1:
+                raise NotImplementedError("1D mesh does not have face normals.")
+            elif self._mesh.dimension == MeshDimension.D2:
+                if self._is_structured_2d:
+                    self._face_normals = self._calculate_normals_2d_structured()
+                else:
+                    self._face_normals = np.array(self._calculate_normals_2d())
+            elif self._mesh.dimension == MeshDimension.D3:
+                self._face_normals = np.array(self._calculate_normals_3d())
         return self._face_normals
 
+    def _calculate_normals_2d_structured(self) -> np.ndarray:
+        """Vectorized normal calculation for structured 2D grids.
+
+        Horizontal faces (normal points in +y / -y):
+        - South face of cell: normal = (0, -1, 0)
+        - North face of cell: normal = (0, 1, 0)
+
+        Vertical faces (normal points in +x / -x):
+        - West face of cell: normal = (-1, 0, 0)
+        - East face of cell: normal = (1, 0, 0)
+
+        For orthogonal uniform grid, all normals are axis-aligned.
+        """
+        nx, ny = self._nx, self._ny
+        n_h_faces = (nx - 1) * ny
+        n_v_faces = nx * (ny - 1)
+        n_faces = n_h_faces + n_v_faces
+
+        # (n_faces, 3) array of normals
+        normals = np.zeros((n_faces, 3), dtype=np.float64)
+
+        # Horizontal faces: normals point in +/- y direction
+        for i in range(nx - 1):
+            for j in range(ny):
+                fid = i * ny + j
+                # Face between node(i,j) and node(i+1,j)
+                # Points south for even i (convention), north for odd
+                normals[fid] = [0.0, 1.0, 0.0]
+
+        # Vertical faces: normals point in +/- x direction
+        v_offset = n_h_faces
+        for i in range(nx):
+            for j in range(ny - 1):
+                fid = v_offset + i * (ny - 1) + j
+                # Face between node(i,j) and node(i,j+1)
+                # Normal points in +x direction (eastward)
+                normals[fid] = [1.0, 0.0, 0.0]
+
+        # Convert to Variable array
+        return np.array([Var(n) for n in normals])
+
     def _calculate_normals_2d(self) -> List[Variable]:
+        """Original per-element normal calculation."""
         face_normals = []
         for fid in range(self._mesh.face_count):
             n1_id, n2_id = self._topo.face_nodes[fid]
@@ -215,16 +239,15 @@ class MeshGeom:
         """Cell volumes."""
         if self._cell_volumes is None:
             if self._mesh.dimension == MeshDimension.D1:
-                cell_volumes = [0.0] * self._mesh.cell_count
+                self._cell_volumes = np.zeros(self._mesh.cell_count)
             elif self._mesh.dimension == MeshDimension.D2:
-                cell_volumes = self._calculate_volumes_2d()
+                self._cell_volumes = np.array(self._calculate_volumes_2d())
             else:
-                cell_volumes = self._calculate_volumes_3d()
-            self._cell_volumes = np.array(cell_volumes)
+                self._cell_volumes = np.array(self._calculate_volumes_3d())
         return self._cell_volumes
 
     def _calculate_volumes_2d(self) -> List[float]:
-        """Calculate the cell area as volume."""
+        """Original per-element area calculation (shoelace)."""
         cell_volumes = []
         for cid, _ in enumerate(self._mesh.cells):
             node_ids = self._topo.cell_nodes[cid]
@@ -239,7 +262,7 @@ class MeshGeom:
             x_appended = np.append(x, x[0])
             y_appended = np.append(y, y[0])
 
-            # Shoelly's formula
+            # Shoelace formula
             area = 0.5 * np.abs(
                 np.sum(x_appended[:-1] * y_appended[1:])
                 - np.sum(x_appended[1:] * y_appended[:-1])
@@ -287,10 +310,9 @@ class MeshGeom:
         """Cell surface areas."""
         if self._cell_surfaces is None:
             if self._mesh.dimension == MeshDimension.D1:
-                cell_surfaces = [0.0] * self._mesh.cell_count
+                self._cell_surfaces = np.zeros(self._mesh.cell_count)
             else:
-                cell_surfaces = self._calculate_cell_surface()
-            self._cell_surfaces = np.array(cell_surfaces)
+                self._cell_surfaces = np.array(self._calculate_cell_surface())
         return self._cell_surfaces
 
     def _calculate_cell_surface(self) -> List[float]:
@@ -302,7 +324,7 @@ class MeshGeom:
         return cell_surfaces
 
     # -----------------------------------------------
-    # region non-Continous attrs
+    # region non-Continuous attrs
     # -----------------------------------------------
 
     @property
@@ -425,7 +447,7 @@ class MeshGeom:
             return self.cell2cell_distance[nbr_id][cell_id]
 
     # -----------------------------------------------
-    # region non-Continous statis
+    # region non-Continuous statistics
     # -----------------------------------------------
 
     @property

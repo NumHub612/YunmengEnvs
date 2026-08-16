@@ -4,7 +4,7 @@
   </a>
 </p>
 
----------------------------------------------------------------------------------
+---
 
 ## What is YunmengEnvs?
 
@@ -12,31 +12,29 @@
 
 [简体中文](README.md) | [English](README_en.md)
 
-***The purpose of modeling: simplification of reality that is constructed to gain insights into select attributes of a particular physical, biological, economic, or social system.***
+**_The purpose of modeling: simplification of reality that is constructed to gain insights into select attributes of a particular physical, biological, economic, or social system._**
 
 **YunmengEnvs**, or Yunmeng Environments, aims to deeply integrate computational fluid dynamics with artificial intelligence technologies. Our goal is to provide an integrated framework for understanding environmental fluid dynamics concepts, analyzing real-world data, and solving engineering problems. We hope this platform can serve as a testbed to help researchers and developers experiment with new ideas, technologies, and solutions more conveniently.
 
 **What's News!**
 
-- 🔥🔥🔥 **[2024-12-25]**: The project is in the development and validation phase. Everyone is welcome to participate in testing and contributions!
+- 🔥🔥🔥 **[2026-07-22]**: The project is in the development and validation phase. Everyone is welcome to participate in testing and contributions!
 
----------------------------------------------------------------------------------
+---
 
 ## How to Use?
 
+---
 
-
----------------------------------------------------------------------------------
-
-## Join Us!  
+## Join Us!
 
 We hope to make some interesting attempts and achievements and share these ideas and experiences with the entire community.
 
 If you are interested in this project, feel free to join us!
 
-+ [Developer Guide](Developer.md#developer-guide)
-+ [Feedback](https://github.com/NumHub612/YunmengEnvs/issues)
-+ [Discussions](https://github.com/orgs/NumHub612/discussions)
+- [Developer Guide](Developer.md#developer-guide)
+- [Feedback](https://github.com/NumHub612/YunmengEnvs/issues)
+- [Discussions](https://github.com/orgs/NumHub612/discussions)
 
 Thanks to all contributors:
 
@@ -44,4 +42,4 @@ Thanks to all contributors:
   <img src="https://contrib.rocks/image?repo=NumHub612/YunmengEnvs" />
 </a>
 
----------------------------------------------------------------------------------
+---

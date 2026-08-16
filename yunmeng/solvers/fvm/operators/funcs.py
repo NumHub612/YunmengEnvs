@@ -4,14 +4,15 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 The function operators used in FVM.
 """
+
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
     OperatorType,
     BoundaryType,
 )
-from yunmeng.numerics.mesh.grids import Grid
-from yunmeng.numerics.fields.fields import Field, Variable
+from yunmeng.numerics.grids import Grid
+from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.fields.datahubs import DataHub
 
 
@@ -31,5 +32,5 @@ class CFL01(IOperator):
     def prepare(self, fields: list[str], mesh: Grid, bounds: dict):
         pass
 
-    def run(self, sources: DataHub) -> Variable:
+    def forward(self, sources: DataHub) -> Variable:
         pass

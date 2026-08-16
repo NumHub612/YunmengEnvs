@@ -1,107 +1,232 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Base model for all linkable components.
+Lightweight base implementation of ``ILinkableModel``.
 """
+
+from __future__ import annotations
+
 from yunmeng.solutions.standards import (
-    ILinkableComponent,
-    IArgument,
+    ILinkableModel,
     IInput,
     IOutput,
-    IIdentifiable,
-    IManageState,
-    LinkableComponentStatus,
-    LinkableComponentStatusChangeEventArgs,
+    ICallback,
+    CallbackEvent,
+    ModelStatus,
+    ModelMeta,
+    Quantity,
+    IElementSet,
 )
-from yunmeng.solutions.commons import events
-from yunmeng.solutions.commons.enums import EnvRunMode
-from typing import Any
+from yunmeng.solutions.commons.datasets import ScalarElementSet
+from yunmeng.solutions.commons.models.Input import BaseInput
+from yunmeng.solutions.commons.models.Output import BaseOutput
 
 
-class BaseModel(ILinkableComponent, IManageState):
-    """Base model for all linkable components.
+class BaseModel(ILinkableModel):
+    """Concrete-ish base class for a linkable model."""
 
-    In a typical pull-driven scenario, the component A `update` method would
-    call the `values` property of its input items, which in turn calls
-    the `get_values` method of the bound output item. This method then calls
-    the `update` method of the owner, component B, to update the data,
-    and after retrieving the data, it propagates back along this calls chain.
-
-    While in Loop-driven scenario, there is a bidirectional data requirement
-    between coupled components, and data exchange would occur back and forth
-    multiple times within the same step (external loop or iterative loop)
-    until the next time step is reached or the convergence is achieved.
-    """
-
-    def __init__(self, id: str):
-        self._id = id
-        self._arguments: list[IArgument] = []
+    def __init__(self, model_id: str, meta: ModelMeta = None):
+        self._id = model_id
+        self._meta = meta or ModelMeta(name=model_id)
+        self._status = ModelStatus.CREATED
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []
+        self._callbacks: list[ICallback] = []
+        self._last_error: str = ""
 
-        self._run_mode = EnvRunMode.DEVELOP
-        self._cascading = False
-        self._status = LinkableComponentStatus.CREATED
-        self._event_manager = events.EventManager()
+    @classmethod
+    def get_meta(cls) -> ModelMeta:
+        return ModelMeta(name=cls.__name__)
 
-    @property
-    def status(self) -> LinkableComponentStatus:
-        return self._status
-
-    @property
-    def arguments(self) -> list[IArgument]:
-        return self._arguments
+    # -- instance properties ------------------------
 
     @property
-    def outputs(self) -> list[IOutput]:
-        return self._outputs
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def callbacks(self) -> list[ICallback]:
+        return self._callbacks
 
     @property
     def inputs(self) -> list[IInput]:
         return self._inputs
 
     @property
-    def CascadingUpdate(self) -> bool:
-        return self._cascading
+    def outputs(self) -> list[IOutput]:
+        return self._outputs
 
-    @CascadingUpdate.setter
-    def CascadingUpdate(self, cascading: bool):
-        self._cascading = cascading
+    @property
+    def status(self) -> ModelStatus:
+        return self._status
+
+    # -- callbacks ----------------------------------
+
+    def add_callback(self, callback: ICallback):
+        if callback not in self._callbacks:
+            self._callbacks.append(callback)
+
+    def remove_callback(self, callback: ICallback):
+        if callback in self._callbacks:
+            self._callbacks.remove(callback)
+
+    def _fire(self, event: str, **context):
+        for cb in list(self._callbacks):
+            cb.on_event(event, self, context)
+
+    # -- ports --------------------------------------
+
+    def get_output(self, port_id: str) -> IOutput:
+        for p in self._outputs:
+            if p.id == port_id:
+                return p
+        return None
+
+    def get_input(self, port_id: str) -> IInput:
+        for p in self._inputs:
+            if p.id == port_id:
+                return p
+        return None
+
+    def get_port(self, port_id: str):
+        return self.get_input(port_id) or self.get_output(port_id)
+
+    def add_input(self, item: IInput):
+        self._inputs.append(item)
+
+    def add_output(self, item: IOutput):
+        self._outputs.append(item)
+
+    def _new_port_id(self, port_id: str, suffix: str) -> str:
+        pid = port_id or f"{self._id}.{suffix}"
+        if self.get_port(pid) is not None:
+            raise ValueError(f"{self._id}: port '{pid}' exists.")
+        return pid
+
+    def create_input(
+        self,
+        quantity: Quantity,
+        elements: IElementSet = None,
+        port_id: str = None,
+        required: bool = True,
+    ) -> IInput:
+        pid = self._new_port_id(port_id, quantity.name)
+        port = BaseInput(
+            pid,
+            quantity,
+            elements or ScalarElementSet(self._id),
+            owner=self,
+            required=required,
+        )
+        self.add_input(port)
+        return port
+
+    def create_output(
+        self,
+        quantity: Quantity,
+        elements: IElementSet = None,
+        port_id: str = None,
+    ) -> IOutput:
+        pid = self._new_port_id(port_id, quantity.name)
+        port = BaseOutput(
+            pid,
+            quantity,
+            elements or ScalarElementSet(self._id),
+            owner=self,
+        )
+        self.add_output(port)
+        return port
+
+    def remove_port(self, port_id: str) -> bool:
+        inp = self.get_input(port_id)
+        if inp is not None:
+            provider = inp.provider
+            if provider is not None:
+                provider.remove_consumer(inp)
+            inp.provider = None
+            self._inputs.remove(inp)
+            return True
+        out = self.get_output(port_id)
+        if out is not None:
+            out.clear_adapters()
+            out.clear_consumers()
+            self._outputs.remove(out)
+            return True
+        return False
+
+    # -- lifecycle ----------------------------------
 
     def initialize(self):
-        raise NotImplementedError()
+        if self._status == ModelStatus.FAILED:
+            raise RuntimeError(
+                f"{self._id}: model is FAILED ({self._last_error}); "
+                f"call finish() before re-initializing."
+            )
+        self._fire(CallbackEvent.BEFORE_INITIALIZE)
+        try:
+            self._do_initialize()
+        except Exception as e:
+            self._fail(e)
+            raise
+        self._status = ModelStatus.READY
+        self._fire(CallbackEvent.AFTER_INITIALIZE)
+
+    def _do_initialize(self):
+        """Subclass hook: build internal structures."""
 
     def validate(self) -> list[str]:
-        raise NotImplementedError()
+        return []
 
     def prepare(self):
-        raise NotImplementedError()
+        self._fire(CallbackEvent.ON_PREPARE)
 
-    def update(self, required_outputs: list[IOutput]):
-        raise NotImplementedError()
+    def update(self, inquirers: list[IOutput] = None) -> ModelStatus:
+        if self._status in (ModelStatus.DONE, ModelStatus.FAILED):
+            return self._status
+        self._status = ModelStatus.RUNNING
+        self._fire(CallbackEvent.BEFORE_UPDATE)
+        try:
+            self._do_update(inquirers)
+        except Exception as e:  # noqa: BLE001
+            self._fail(e)
+            return self._status
+        if self._status == ModelStatus.RUNNING:
+            self._status = ModelStatus.READY
+        self._fire(CallbackEvent.AFTER_UPDATE)
+        return self._status
+
+    def _do_update(self, inquirers: list[IOutput] = None):
+        """Subclass hook: advance one step."""
 
     def finish(self):
-        raise NotImplementedError()
+        try:
+            self._do_finish()
+        finally:
+            self._fire(CallbackEvent.ON_FINISH)
+            self._status = ModelStatus.CREATED
+            self._last_error = ""
 
-    def set_status(self, status: LinkableComponentStatus, message: str):
-        event_args = LinkableComponentStatusChangeEventArgs(
-            self, message, self._status, status
+    def _do_finish(self):
+        """Subclass hook: release resources, flush outputs."""
+
+    # -- failure handling ---------------------------
+
+    def _fail(self, exc: Exception):
+        self._status = ModelStatus.FAILED
+        self._last_error = f"{type(exc).__name__}: {exc}"
+        self._fire(
+            CallbackEvent.ON_ERROR,
+            error=self._last_error,
         )
-        self._status = status
-        self._event_manager.invoke(event_args)
 
-    def load_state(self, path: str) -> IIdentifiable:
-        raise NotImplementedError()
+    def get_last_error(self) -> str:
+        return self._last_error
 
-    def keep_current_state(self) -> IIdentifiable:
-        raise NotImplementedError()
+    def mark_done(self):
+        self._status = ModelStatus.DONE
 
-    def restore_state(self, state_id: IIdentifiable):
-        raise NotImplementedError()
-
-    def clear_state(self, state_id: IIdentifiable):
-        raise NotImplementedError()
-
-    def save_state(self, state_id: IIdentifiable, path: str):
-        raise NotImplementedError()
+    def mark_failed(self, message: str = ""):
+        self._status = ModelStatus.FAILED
+        if message:
+            self._last_error = message

@@ -4,19 +4,17 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 The Laplacian operators for the finite volume method.
 """
+
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
     OperatorType,
     BoundaryType,
 )
-from yunmeng.numerics.mats.linalgs import LinearEqs
-from yunmeng.numerics.mesh.grids import Grid
-from yunmeng.numerics.algos.topos import MeshTopo
-from yunmeng.numerics.algos.geoms import MeshGeom
-from yunmeng.numerics.algos.parts import MeshPart
-from yunmeng.numerics.fields.fields import Field, Variable
-from yunmeng.numerics.fields.datahubs import DataHub
+from yunmeng.numerics.linalgs import LinearEqs
+from yunmeng.numerics.grids import Grid
+from yunmeng.numerics.algos import MeshTopo, MeshGeom, MeshPart
+from yunmeng.numerics.fields import Field, Variable, DataHub
 
 
 class Lap01(IOperator):
@@ -59,7 +57,7 @@ class Lap01(IOperator):
         self._bcs = bounds
         self._var = fields[0]
 
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def forward(self, sources: DataHub) -> Field | LinearEqs:
         data = sources.field(self._var).data
         lap_eqs = LinearEqs.zeros(self._part, rhs_type=data.dtype, etype=data.etype)
 
@@ -95,7 +93,7 @@ class Lap01(IOperator):
         return lap_eqs
 
     def _handle_boundary(self, fid: int, bc: IBoundaryCondition):
-        items = bc.evaluate()
+        items = bc.apply()
         if bc.get_type() == BoundaryType.FIXED:
             return self._boundary_1st(fid, items)
         elif bc.get_type() == BoundaryType.NATURAL:

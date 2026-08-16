@@ -2,17 +2,15 @@
 """
 Unit tests for LinearEqs class.
 """
+
 import pytest
 import numpy as np
 import torch
 import scipy.sparse as sp
 
-from yunmeng.numerics.mats.linalgs import LinearEqs
-from yunmeng.numerics.mats.sparse import TorchMatrix, NumpyMatrix
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.linalgs import LinearEqs, TorchMatrix, NumpyMatrix
+from yunmeng.numerics.fields import Field, MeshShard
 from yunmeng.numerics.enums import VariableType, ElementType, BackendType
-from yunmeng.numerics.algos.parts import MeshShard
-
 
 # ============================================
 # region Fixtures
@@ -63,7 +61,7 @@ def sample_rhs_field(simple_mesh_shard):
     # Create a scalar field with size 5
     return Field.from_size(
         size=5,
-        vtype=VariableType.SCALAR,
+        vtype=VariableType.scalar(),
         etype=ElementType.CELL,
         init_val=1.0,
     )
@@ -75,7 +73,7 @@ def sample_vector_rhs_field(simple_mesh_shard):
     # Create a vector field with size 5 and 3 components
     return Field.from_size(
         size=5,
-        vtype=VariableType.VECTOR,
+        vtype=VariableType.vector(3),
         etype=ElementType.CELL,
         init_val=1.0,
     )
@@ -202,7 +200,7 @@ class TestLinearEqsOperations:
         matrix = TorchMatrix.from_data(data)
         small_field = Field.from_size(
             size=3,
-            vtype=VariableType.SCALAR,
+            vtype=VariableType.scalar(),
             etype=ElementType.CELL,
             init_val=1.0,
         )
@@ -269,7 +267,7 @@ class TestLinearEqsSolve:
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.SCALAR
+        assert solution.vtype.is_scalar
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_rhs_field.gather_to_host()
@@ -297,7 +295,7 @@ class TestLinearEqsSolve:
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.SCALAR
+        assert solution.vtype.is_scalar
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_rhs_field.gather_to_host()
@@ -319,14 +317,13 @@ class TestLinearEqsSolve:
                 [float(i + 1), float(i + 2), float(i + 3)]
             )
 
-        print("0", sample_vector_rhs_field.shape)
         eqs = LinearEqs(sample_torch_matrix, sample_vector_rhs_field)
         solution = eqs.solve()
 
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.VECTOR
+        assert solution.vtype.is_vector
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_vector_rhs_field.gather_to_host()
@@ -354,7 +351,7 @@ class TestLinearEqsSolve:
         # Verify solution
         assert isinstance(solution, Field)
         assert solution.size == 5
-        assert solution.vtype == VariableType.VECTOR
+        assert solution.vtype.is_vector
 
         # Verify that solution satisfies the equations (A * x = b)
         rhs_array = sample_vector_rhs_field.gather_to_host()

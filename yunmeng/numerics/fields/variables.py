@@ -6,129 +6,124 @@ Variables definition.
 """
 
 from yunmeng.numerics.enums import VariableType
-from yunmeng.numerics.fields.backends import Backend, get_backend
+from yunmeng.numerics.fields.backends import (
+    Backend,
+    backend_context,
+    ArrayLike,
+    get_backend,
+)
+
 import numpy as np
 import torch
-from typing import Optional, Any
+from typing import Union, Tuple
 
-
-def Var(arr: float | list | np.ndarray | Any):
-    """To create a variable."""
-    if isinstance(arr, Variable):
-        return arr
-    if isinstance(arr, torch.Tensor):
-        return Variable.from_numpy(arr.detach().numpy())
-    if isinstance(arr, np.ndarray):
-        return Variable.from_numpy(arr)
-    if isinstance(arr, list):
-        return Variable.from_numpy(np.array(arr))
-    if isinstance(arr, float):
-        return Variable.scalar(arr)
-
-    raise TypeError("Invalid value.")
+# --------------------------------------------------
+# region Variable
+# --------------------------------------------------
 
 
 class Variable:
-    """Variable for Scalar, Vector, Tensor."""
+    """轻量级变量类型视图，不包装运算，仅作为类型视图和操作入口"""
 
     __slots__ = ("_data", "_type", "_back")
 
-    # -----------------------------------------------
-    # region constructor
-    # -----------------------------------------------
-
     def __init__(
         self,
-        data: np.ndarray | torch.Tensor,
+        data: ArrayLike,
         vtype: VariableType,
-        back: Optional[Backend] = None,
+        back: Backend = None,
     ):
         if not vtype.check_shape(data):
             raise ValueError(f"Shape {data.shape} doesn't match type {vtype.name}")
+
+        # Canonicalize scalar storage to 0-d to matches scalar VariableType.shape.
+        if vtype.is_scalar and data.shape != ():
+            if data.shape == (1,):
+                data = data.reshape(())
+            else:
+                raise ValueError(
+                    f"Scalar Variable must have shape () or (1,), got {data.shape}"
+                )
+
         self._data = data
         self._type = vtype
-        self._back = back or get_backend()
+        self._back = back or backend_context.active_backend
 
     @staticmethod
-    def scalar(x: float, requires_grad: bool = False) -> "Variable":
-        """Scalar variable."""
-        back = get_backend()
-        data = back.array(
-            [x],
-            dtype=back.float64,
-            requires_grad=requires_grad,
-        )
-        return Variable(data, VariableType.SCALAR)
+    def scalar(x: float, backend: Backend = None) -> "Variable":
+        back = backend or get_backend()
+        data = back.array(x, dtype=back.float64)
+        return Variable(data, VariableType.scalar(), back)
 
     @staticmethod
-    def vector(x: float, y: float, z: float = 0.0, requires_grad=False) -> "Variable":
-        """Vector variable."""
-        back = get_backend()
-        data = back.array(
-            [x, y, z],
-            dtype=back.float64,
-            requires_grad=requires_grad,
-        )
-        return Variable(data, VariableType.VECTOR)
-
-    @staticmethod
-    def tensor(*args, requires_grad: bool = False) -> "Variable":
-        """Tensor variable.
+    def vector(
+        x: float, y: float, z: float = 0.0, backend: Backend = None, dim: int = 3
+    ) -> "Variable":
+        """Create a vector variable.
 
         Args:
-            args (list[float]): (ux, ux, vx, vy) or (ux, uy, uz, vx, vy, vz, wx, wy, wz)
+            x: x component
+            y: y component
+            z: z component (only used for 3D)
+            backend: computation backend
+            dim: dimension of the vector
         """
-        back = get_backend()
-        data = back.array(args, dtype=back.float64, requires_grad=requires_grad)
-        if len(args) == 9:
-            data = data.reshape((3, 3))
-        elif len(args) == 4:
-            data = data.reshape((2, 2))
-            # NOTE: always assume the plane is xy-plane
-            data = np.pad(data, ((0, 1), (0, 1)), mode="constant")
+        back = backend or get_backend()
+        if dim == 2:
+            data = back.array([x, y], dtype=back.float64)
         else:
-            raise ValueError("Invalid tensor shape.")
-        return Variable(data, VariableType.TENSOR)
+            data = back.array([x, y, z], dtype=back.float64)
+        return Variable(data, VariableType.vector(dim), back)
 
     @staticmethod
-    def zero(vtype: VariableType, requires_grad: bool = False) -> "Variable":
-        """Zeros variable."""
-        if vtype == VariableType.SCALAR:
-            args = [0.0]
-        elif vtype == VariableType.VECTOR:
-            args = [0.0] * 3
-        elif vtype == VariableType.TENSOR:
-            args = [0.0] * 9
-        else:
-            raise NotImplementedError
+    def tensor(
+        components: Tuple[float, ...], backend: Backend = None, dim: int = 3
+    ) -> "Variable":
+        """Create a tensor variable from flat components.
 
-        back = get_backend()
-        data = back.array(
-            args, dtype=back.float64, requires_grad=requires_grad
-        ).reshape(vtype.value)
-        return Variable(data, vtype)
+        Args:
+            components: dim*dim values for dim*dim tensor
+            backend: computation backend
+            dim: dimension of the tensor (2 or 3)
+        Note:
+            components are ordered as (ux, ux, vx, vy) for 2D tensor,
+            (ux, uy, uz, vx, vy, vz, wx, wy, wz) for 3D tensor.
+        """
+        back = backend or get_backend()
+        data = back.array(components, dtype=back.float64)
+        expected_components = dim * dim
+        if len(components) != expected_components:
+            raise ValueError(
+                f"Expected {expected_components} components for {dim}D tensor, got {len(components)}"
+            )
+        data = data.reshape((dim, dim))
+        return Variable(data, VariableType.tensor(dim), back)
 
     @staticmethod
-    def from_numpy(arr: np.ndarray) -> "Variable":
-        if arr.shape == (1,):
-            vtype = VariableType.SCALAR
-        elif arr.shape == (3,):
-            vtype = VariableType.VECTOR
-        elif arr.shape == (3, 3):
-            vtype = VariableType.TENSOR
-        else:
-            raise ValueError(f"Invalid numpy shape {arr.shape}.")
-
-        back = get_backend()
-        data = back.array(arr, dtype=back.float64)
+    def zeros(vtype: VariableType, backend: Backend = None) -> "Variable":
+        back = backend or get_backend()
+        shape = (vtype.ncom,)
+        data = back.zeros(shape, dtype=back.float64).reshape(vtype.shape)
         return Variable(data, vtype, back)
+
+    @staticmethod
+    def from_array(data: ArrayLike, vtype: VariableType = None) -> "Variable":
+        """Infer or assign VariableType from array shape."""
+        if vtype is None:
+            vtype = VariableType.from_shape(data.shape)
+        return Variable(data, vtype)
 
     def to_numpy(self) -> np.ndarray:
         return self._back.to_numpy(self._data)
 
-    def to(self, device) -> "Variable":
-        _data = self._back.to_device(self._data, device)
-        return Variable(_data, self._type, self._back)
+    def to_tensor(self, device=None, requires_grad: bool = False) -> torch.Tensor:
+        t = self._back.to_tensor(self._data, requires_grad=requires_grad)
+        if device is not None:
+            t = t.to(device)
+        return t
+
+    def to_device(self, device):
+        return self._back.to_device(self._data, device)
 
     # -----------------------------------------------
     # region properties
@@ -137,32 +132,32 @@ class Variable:
     @property
     def data(self):
         """Data of the variable."""
-        if self._type == VariableType.SCALAR:
-            return self._data[0]
         return self._data
 
     @property
-    def type(self) -> VariableType:
+    def vtype(self) -> VariableType:
         """Type of the variable."""
         return self._type
 
     @property
+    def dtype(self):
+        """Data type."""
+        return self._data.dtype
+
+    @property
     def shape(self):
         """Shape of the variable."""
-        return self._data.shape
+        return self._type.shape
 
     @property
-    def magnitude(self):
-        """Magnitude of variable."""
-        return self._back.norm(self._data)
+    def ndim(self):
+        """Number of dimensions."""
+        return self._type.ndim
 
     @property
-    def minmax(self) -> tuple:
-        """Min and max of variable."""
-        return (
-            self._back.min(self._data),
-            self._back.max(self._data),
-        )
+    def ncom(self):
+        """Number of components."""
+        return self._type.ncom
 
     # -----------------------------------------------
     # region operators
@@ -186,7 +181,16 @@ class Variable:
         for inp in inputs:
             scalars.append(inp._data if isinstance(inp, Variable) else inp)
         out_raw = getattr(ufunc, method)(*scalars, **kwargs)
-        return Variable(out_raw, self._type, self._back)
+
+        if np.isscalar(out_raw) or (hasattr(out_raw, "ndim") and out_raw.ndim == 0):
+            return Variable.scalar(float(out_raw), self._back)
+        elif hasattr(out_raw, "shape"):
+            try:
+                vtype = VariableType.from_shape(out_raw.shape)
+                return Variable(out_raw, vtype, self._back)
+            except (ValueError, AttributeError):
+                return out_raw
+        return out_raw
 
     def __array_function__(self, func, types, args, kwargs):
         """To support numpy functions, such as np.sum, etc."""
@@ -245,41 +249,41 @@ class Variable:
 
     def __mul__(self, other):
         if isinstance(other, Variable):
-            if self.type == VariableType.SCALAR:
+            if self.vtype.is_scalar:
                 # scalar multiplication
                 return Variable(
                     self._back.xp.multiply(self._data, other._data),
                     other._type,
                     self._back,
                 )
-            if self.type == VariableType.TENSOR and other.type == VariableType.VECTOR:
+            if self.vtype.is_tensor and other.vtype.is_vector:
                 # matrix-vector multiplication
                 return Variable(
                     self._back.xp.matmul(self._data, other._data),
-                    VariableType.VECTOR,
+                    other.vtype,
                     self._back,
                 )
-            if self.type == VariableType.TENSOR and other.type == VariableType.TENSOR:
+            if self.vtype.is_tensor and other.vtype.is_tensor:
                 # matrix-matrix multiplication
                 return Variable(
                     self._back.xp.matmul(self._data, other._data),
-                    VariableType.TENSOR,
+                    self.vtype,
                     self._back,
                 )
-            if self.type == VariableType.VECTOR and other.type == VariableType.TENSOR:
+            if self.vtype.is_vector and other.vtype.is_tensor:
                 # vector-matrix multiplication
                 return Variable(
                     self._back.xp.matmul(self._data, other._data),
-                    VariableType.VECTOR,
+                    self.vtype,
                     self._back,
                 )
-            if self.type == other.type:
-                if self.type == VariableType.VECTOR:
+            if self.vtype == other.vtype:
+                if self.vtype.is_vector:
                     # dot product
                     return Variable.scalar(
                         self._back.xp.dot(self._data, other._data),
                     )
-                elif self.type == VariableType.SCALAR:
+                elif self.vtype.is_scalar:
                     # element-wise multiplication
                     return Variable(
                         self._back.xp.multiply(self._data, other._data),
@@ -299,7 +303,7 @@ class Variable:
 
     def __truediv__(self, other):
         if isinstance(other, Variable):
-            if self.type != other.type:
+            if self.vtype != other.vtype:
                 raise TypeError("Not same type.")
             return Variable(
                 self._back.xp.divide(self._data, other._data),
@@ -320,3 +324,49 @@ class Variable:
             self._type,
             self._back,
         )
+
+
+# --------------------------------------------------
+# region Var factory
+# --------------------------------------------------
+
+
+def Var(
+    value: Union[float, list, tuple, np.ndarray, torch.Tensor, Variable],
+    *,
+    vtype: VariableType = None,
+    backend: Backend = None,
+) -> Variable:
+    """Factory to create a Variable from various input types.
+
+    REFACTORED: Now supports explicit vtype specification and returns
+    a lightweight Variable view.
+
+    Examples:
+        >>> Var(1.0)                   # scalar
+        >>> Var([1.0, 2.0, 3.0])       # vector (inferred from length 3)
+        >>> Var(data, vtype=VariableType.VECTOR)  # explicit type
+    """
+    if isinstance(value, Variable):
+        return value
+
+    back = backend or get_backend()
+
+    if isinstance(value, torch.Tensor):
+        data = value
+        if vtype is None:
+            vtype = VariableType.from_shape(data.shape)
+    elif isinstance(value, np.ndarray):
+        data = value
+        if vtype is None:
+            vtype = VariableType.from_shape(data.shape)
+    elif isinstance(value, (list, tuple)):
+        data = back.array(value)
+        if vtype is None:
+            vtype = VariableType.from_shape(data.shape)
+    elif isinstance(value, (int, float)):
+        return Variable.scalar(float(value), back)
+    else:
+        raise TypeError(f"Cannot create Variable from {type(value)}")
+
+    return Variable(data, vtype, back)

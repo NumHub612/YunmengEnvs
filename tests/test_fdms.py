@@ -5,20 +5,22 @@ Unittests for the fdms solvers.
 
 import pytest
 import numpy as np
+import os
 
-from yunmeng.numerics.algos.modifiers import ElevationModifier
-from yunmeng.numerics.algos.parts import MeshShard
-from yunmeng.numerics.mesh.grids import Grid2D, Coordinate
-from yunmeng.numerics.fields.fields import Field, Variable
+from yunmeng.numerics.algos import ElevationModifier, MeshShard
+from yunmeng.numerics.grids import Grid2D, Coordinate
+from yunmeng.numerics.mesh import Region
+from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.enums import VariableType, ElementType
+from yunmeng.renders.plotter import plot_mesh_ids, plot_mesh, plot_field
+
 from yunmeng.solvers.commons.inits import *
 from yunmeng.solvers.commons.boundaries import *
 from yunmeng.solvers.commons.callbacks import ImageRender
+
 from yunmeng.solvers.fdm.BurgersSolver import *
 from yunmeng.solvers.fdm.NavierStokesSolver import *
 from yunmeng.solvers.fdm.operators import *
-from yunmeng.render.plotter.MeshPlotters import plot_mesh_ids, plot_mesh
-from yunmeng.render.plotter.FieldPlotters import plot_field
 
 # ============================================
 # region Fixtures
@@ -43,7 +45,7 @@ def H0(grid_41x41: Grid2D) -> Field:
     """Initial condition for the water depth field."""
     init_val = 1.0
     H0 = Field.from_size(
-        grid_41x41.node_count, VariableType.SCALAR, ElementType.NODE, init_val
+        grid_41x41.node_count, VariableType.scalar(), ElementType.NODE, init_val
     )
 
     # Gaussian perturbation
@@ -66,9 +68,9 @@ def H0(grid_41x41: Grid2D) -> Field:
 @pytest.fixture
 def U0(grid_41x41: Grid2D) -> Field:
     """Initial condition for the velocity field."""
-    init_val = Variable.vector(1.0, 1.0, 0.0)
+    init_val = Variable.vector(1.0, 1.0, dim=2)
     U0 = Field.from_size(
-        grid_41x41.node_count, VariableType.VECTOR, ElementType.NODE, init_val
+        grid_41x41.node_count, VariableType.vector(2), ElementType.NODE, init_val
     )
 
     nx, ny = grid_41x41.nx, grid_41x41.ny
@@ -84,7 +86,7 @@ def U0(grid_41x41: Grid2D) -> Field:
         for j in range(ny):
             idx = grid_41x41.match_node(i, j)
             if y_start <= j <= y_end and x_start <= i <= x_end:
-                U0[idx] = Variable.vector(2.0, 2.0, 0.0)
+                U0[idx] = Variable.vector(2.0, 2.0, dim=2)
 
     return U0
 
@@ -100,30 +102,34 @@ class TestBurgers2D:
     def test_2d_grid(self, grid_41x41: Grid2D, H0: Field, U0: Field):
         """Test burgers2d on grid2d."""
         # visualize the grid and initial conditions
+        os.makedirs("tests/results/bg", exist_ok=True)
         plot_mesh(
             grid_41x41,
             title="grid_41x41",
-            save_dir="tests/results/",
+            save_dir="tests/results/bg",
             show_edges=True,
         )
         plot_field(
-            U0, grid_41x41, title="U0", save_dir="tests/results/", show_edges=True
+            U0, grid_41x41, title="U0", save_dir="tests/results/bg", show_edges=True
         )
 
         # initial condition
-        u_init = HotstartInitialization("U0", U0)
+        u_init = HotstartInitializer("U0", "u", U0)
 
         # boundary condition
-        value_bc = ValueBoundary("bc", Var([1.0, 1.0, 0.0]))
         bc_nodes = grid_41x41.get_topo_assistant().boundary_nodes
+        bc_region = Region(
+            name="bc", mesh=grid_41x41, type=ElementType.NODE, indices=bc_nodes
+        )
+        u_bc = ValueBoundary("bc", "u", bc_region, Var([1.0, 1.0]))
 
         # callbacks
-        cb = ImageRender("render", "tests/results/", frequency=0.05)
+        cb = ImageRender("render", "tests/results/bg", frequency=0.05)
 
         # operators
         def source_func(loc: Coordinate, u: Variable) -> float:
             # zero source
-            forcing = Variable.vector(0.0, 0.0, 0.0)
+            forcing = Variable.vector(0.0, 0.0, dim=2)
             return forcing
 
         operators = [
@@ -132,20 +138,27 @@ class TestBurgers2D:
             Src01(["u"], tau=1.0, source_func=source_func),
         ]
 
+        # config
+        total_time = 1.0
+        configs = {
+            "time_step": 0.002,
+            "cfl": 0.5,
+            "end_time": 1.0,
+        }
+
         # solver
-        solver = BurgersExplicitSolver("solver", grid_41x41, operators)
+        solver = BurgersExplicitSolver("solver", grid_41x41, operators, configs)
         solver.add_ic("u", u_init)
-        solver.add_bc("u", value_bc, bc_nodes, ElementType.NODE)
+        solver.add_bc("u", u_bc)
         solver.add_callback(cb)
 
         # initialize
-        total_time = 1.0
-        solver.initialize(total_time, time_step=0.002, cfl=0.5)
+        solver.initialize()
 
         # run the simulation
         t, dt = 0.0, total_time / 10
         while not solver.status.finished:
-            status = solver.inference()
+            status = solver.forward()
             if status.current_time >= t or status.finished:
                 t += dt
                 print(
@@ -160,7 +173,7 @@ class TestBurgers2D:
             u_end,
             grid_41x41,
             title="u_end",
-            save_dir="tests/results/",
+            save_dir="tests/results/bg",
             show_edges=True,
         )
 
@@ -177,20 +190,21 @@ class TestNavierStokes2D:
         """Test 2d Navier-Stokes solver on driven cavity flow."""
         ll, ur = Coordinate(0, 0), Coordinate(2.0, 2.0)
         grid_41x41 = Grid2D.by_uniform(ll, ur, 41, 41)
-        plot_mesh_ids(grid_41x41, title="grid_41X41", save_dir="tests/results/")
+        os.makedirs("tests/results/ns", exist_ok=True)
+        plot_mesh_ids(grid_41x41, title="grid_41X41", save_dir="tests/results/ns")
 
         # Initial Conditions
-        u_init_val = Variable.vector(0.0, 0.0, 0.0)
+        u_init_val = Variable.vector(0.0, 0.0, dim=2)
         u_field = Field.from_size(
-            grid_41x41.node_count, VariableType.VECTOR, ElementType.NODE, u_init_val
+            grid_41x41.node_count, VariableType.vector(2), ElementType.NODE, u_init_val
         )
-        u_init = HotstartInitialization("U0", u_field)
+        u_init = HotstartInitializer("U0", "", u_field)
 
         p_init_val = 0.0
         p_field = Field.from_size(
-            grid_41x41.node_count, VariableType.SCALAR, ElementType.NODE, p_init_val
+            grid_41x41.node_count, VariableType.scalar(), ElementType.NODE, p_init_val
         )
-        p_init = HotstartInitialization("P0", p_field)
+        p_init = HotstartInitializer("P0", "", p_field)
 
         # Boundary
         topo = grid_41x41.get_topo_assistant()
@@ -204,11 +218,17 @@ class TestNavierStokes2D:
                 ohter_nodes.append(nid)
 
         # Boundary Conditions
-        north_v_bc = ValueBoundary("v_bc1", [1.0, 0.0, 0.0])
-        other_v_bc = ValueBoundary("v_bc2", [0.0, 0.0, 0.0])
+        north_region = Region(
+            name="north", mesh=grid_41x41, type=ElementType.NODE, indices=north_nodes
+        )
+        other_region = Region(
+            name="other", mesh=grid_41x41, type=ElementType.NODE, indices=ohter_nodes
+        )
+        north_v_bc = ValueBoundary("v_bc1", "u", north_region, [1.0, 0.0])
+        other_v_bc = ValueBoundary("v_bc2", "u", other_region, [0.0, 0.0])
 
-        north_p_bc = ValueBoundary("p_bc1", 0.0)
-        other_p_bc = FluxBoundary("p_bc2", [0.0, 0.0, 0.0])
+        north_p_bc = ValueBoundary("p_bc1", "p", north_region, 0.0)
+        other_p_bc = FluxBoundary("p_bc2", "p", other_region, [0.0, 0.0])
 
         # cfd operators
         operators = [
@@ -222,7 +242,7 @@ class TestNavierStokes2D:
         # callbacks
         cb = ImageRender(
             "render",
-            "tests/results/",
+            "tests/results/ns",
             frequency=0.5,
             fields={
                 "u": {"style": "streamplot"},
@@ -231,23 +251,29 @@ class TestNavierStokes2D:
         )
 
         # solver
-        solver = NavierStokesSolver("solver", grid_41x41, operators)
+        total_time = 5.0
+        configs = {
+            "time_step": 0.002,
+            "cfl": 0.5,
+            "end_time": 5.0,
+        }
+
+        solver = NavierStokesSolver("solver", grid_41x41, operators, configs)
         solver.add_ic("u", u_init)
         solver.add_ic("p", p_init)
-        solver.add_bc("u", north_v_bc, north_nodes, ElementType.NODE)
-        solver.add_bc("u", other_v_bc, ohter_nodes, ElementType.NODE)
-        solver.add_bc("p", north_p_bc, north_nodes, ElementType.NODE)
-        solver.add_bc("p", other_p_bc, ohter_nodes, ElementType.NODE)
+        solver.add_bc("u", north_v_bc)
+        solver.add_bc("u", other_v_bc)
+        solver.add_bc("p", north_p_bc)
+        solver.add_bc("p", other_p_bc)
         solver.add_callback(cb)
 
         # initialize
-        total_time = 5.0
-        solver.initialize(total_time, time_step=0.01, cfl=0.5)
+        solver.initialize()
 
         # run the simulation
         t, dt = 0.0, total_time / 10
         while not solver.status.finished:
-            status = solver.inference()
+            status = solver.forward()
             if status.current_time >= t or status.finished:
                 t += dt
                 print(
@@ -261,7 +287,7 @@ class TestNavierStokes2D:
             u_end,
             grid_41x41,
             title="u_end",
-            save_dir="tests/results/",
+            save_dir="tests/results/ns",
             show_edges=True,
         )
 
@@ -270,6 +296,6 @@ class TestNavierStokes2D:
             p_end,
             grid_41x41,
             title="p_end",
-            save_dir="tests/results/",
+            save_dir="tests/results/ns",
             show_edges=True,
         )

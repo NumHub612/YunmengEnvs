@@ -6,10 +6,9 @@ Callback for rendering the solver solutions.
 """
 
 from yunmeng.solvers.interfaces import ISolverCallback, ISolver
-from yunmeng.numerics.mesh.meshes import Mesh
-from yunmeng.render.plotter.FieldPlotters import plot_field
-from yunmeng.render.plotter.MeshPlotters import plot_mesh
-from yunmeng.render.animator import ImageSetPlayer
+from yunmeng.numerics.mesh import Mesh
+from yunmeng.renders.plotter import plot_field, plot_mesh
+from yunmeng.renders.animator import ImageSetPlayer
 
 import os
 import shutil

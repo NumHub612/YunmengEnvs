@@ -4,15 +4,15 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Abstract mesh class for describing the geometry and topology.
 """
+
 from yunmeng.numerics.enums import MeshDimension
-from yunmeng.numerics.mesh.elements import Coordinate, Node, Face, Cell, Element
-from yunmeng.numerics.mesh.spatials import Mesh
-from yunmeng.numerics.algos.topos import sort_anticlockwise, calculate_center
+from yunmeng.numerics.mesh.elements import Coordinate, Node, Face, Cell
+from yunmeng.numerics.mesh.mesh import Mesh
+from yunmeng.numerics.mesh.helpers import sort_anticlockwise, calculate_center
 
 import numpy as np
 import torch
 from shapely.geometry import Polygon
-
 
 # -----------------------------------------------
 # region GenericMesh

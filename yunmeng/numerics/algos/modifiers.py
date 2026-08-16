@@ -4,12 +4,51 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh modifiers.
 """
-from yunmeng.numerics.mesh.spatials import Mesh, MeshModifier, MeshModifyMode
-from yunmeng.numerics.algos.topos import extract_coordinates
+
+from yunmeng.numerics.mesh import Mesh
 from yunmeng.numerics.enums import ElementType
+from yunmeng.numerics.mesh import extract_coordinates
 import numpy as np
 
+from enum import Enum, auto
+from abc import abstractmethod
 
+# -----------------------------------------------
+# region Modifier
+# -----------------------------------------------
+
+
+class MeshModifyMode(Enum):
+    """Mesh update modes."""
+
+    GEOMETRY = auto()  # Geometry changes (Moving mesh, deformation)
+    TOPOLOGY = auto()  # Topology changes (AMR, remeshing)
+    HYBRID = auto()  # Both topology and geometry change
+
+
+class MeshModifier:
+    """Abstract class for mesh modification operations."""
+
+    @property
+    @abstractmethod
+    def mode(self) -> MeshModifyMode:
+        """The modification mode."""
+        pass
+
+    @abstractmethod
+    def validate(self, mesh: Mesh, **kwargs) -> bool:
+        """Validate if the modification can be applied."""
+        pass
+
+    @abstractmethod
+    def modify(self, mesh: Mesh, **kwargs):
+        """Apply the modification to the mesh."""
+        pass
+
+
+# -----------------------------------------------
+# region ElevationModifier
+# -----------------------------------------------
 class ElevationModifier(MeshModifier):
     """Mesh elelevation modifier."""
 

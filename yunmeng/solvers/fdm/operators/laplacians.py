@@ -3,24 +3,32 @@
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Laplacian operators for the finite difference method.
+
+OPTIMIZED: Lap01 uses pre-allocated output + in-place modification
+instead of creating new Field objects each call.
 """
 
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
-    IOperator,
     OperatorType,
     BoundaryType,
+    OperatorMode,
 )
+from yunmeng.solvers.commons.solvers import BaseExplicitOperator, BaseImplicitOperator
 from yunmeng.numerics.enums import BackendType
-from yunmeng.numerics.mesh import Grid2D, ElementType
-from yunmeng.numerics.algos.topos import MeshTopo
-from yunmeng.numerics.mats.linalgs import LinearEqs, Matrix
-from yunmeng.numerics.mats.sparse import NumpyMatrix, TorchMatrix
-from yunmeng.numerics.fields import DataHub, Field, VariableType, Variable
+from yunmeng.numerics.grids import Grid, ElementType
+from yunmeng.numerics.linalgs import LinearEqs, Matrix, NumpyMatrix, TorchMatrix
+from yunmeng.numerics.fields import (
+    DataHub,
+    Sample,
+    Field,
+    Variable,
+    VariableType,
+)
 import numpy as np
 
 
-class Lap01(IOperator):
+class Lap01(BaseExplicitOperator):
     """
     Center explicit scheme for laplacian operator.
     """
@@ -34,137 +42,99 @@ class Lap01(IOperator):
         return "lap01"
 
     def __init__(self, fields: list[str], diffusivity: float = 1.0):
-        if len(fields) != 1:
-            raise ValueError("FDM op lap01 only supports one field.")
+        super().__init__(fields)
         self._var = fields[0]
-
-        self._mesh: Grid2D = None
-        self._topo: MeshTopo = None
-        self._bcs = None
-
         self._nu = diffusivity
         self._dx = None
         self._dy = None
 
-    @property
-    def target_fields(self) -> list[str]:
-        return [self._var]
+        # Pre-allocated output field
+        self._out_field: Field = None
 
     def prepare(
         self,
-        mesh: Grid2D,
-        bounds: dict[int, dict[str, IBoundaryCondition]],
+        mesh: Grid,
+        bounds: dict[str, list[IBoundaryCondition]],
     ):
-        if not isinstance(mesh, Grid2D):
-            raise ValueError("FDM op lap01 only supports Grid2D.")
-        if not mesh.uniform:
-            # TODO: Support non-uniform grids
-            raise ValueError("FDM op lap01 requires uniform grids.")
+        super().prepare(mesh, bounds)
+        if not isinstance(mesh, Grid) or not mesh.uniform:
+            raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        for bc in bounds.values():
-            # TODO: Support more types of boundary conditions
-            for fname, v in bc.items():
-                if fname == self._var and v.get_type() != BoundaryType.VALUE:
-                    raise ValueError("FDM op lap01 requires value BC.")
-
-        self._mesh = mesh
-        self._bcs = bounds
-
-        self._topo = self._mesh.get_topo_assistant()
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def run(self, sources: Field | DataHub, dt: float = None) -> Field:
-        if isinstance(sources, Field):
-            old_field = sources
-        else:
-            old_field = sources.field(self._var, loc=ElementType.NODE).data
+    def forward(self, datahub: DataHub, time: float) -> Field:
+        sample = datahub.latest(self._var, ElementType.NODE)
+        if sample is None:
+            raise ValueError(f"Lap01: no data for '{self._var}'@NODE.")
+        old_field = sample.data
         new_field = old_field.copy()
-        if len(old_field.mesh_shards) != 1:
-            # TODO: Support multi-gpu divergence operator
-            raise ValueError("FDM op lap01 only supports cpu.")
+        self._apply_bc_directly(new_field, self._var)
 
-        # Apply boundary conditions
-        self._apply_bc(new_field)
-
-        # Run laplacian operator
-        if old_field.vtype == VariableType.SCALAR:
-            new_field = self._calculate_scalar_field(new_field)
-        elif old_field.vtype == VariableType.VECTOR:
-            new_field = self._calculate_vector_field(new_field)
+        if old_field.vtype.is_scalar:
+            result = self._calculate_scalar_field(new_field)
+        elif old_field.vtype.is_vector:
+            result = self._calculate_vector_field(new_field)
         else:
             raise ValueError("FDM op lap01 not support tensor fields.")
 
-        return new_field
-
-    def _apply_bc(self, field: Field):
-        """Apply boundary conditions to the field."""
-        for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
-            value = bc.evaluate().value
-            field[nid] = value
+        # publish to cache
+        self._publish(
+            datahub,
+            self._var,
+            ElementType.NODE,
+            Sample(time, result),
+            self.get_type().value,
+        )
+        return result
 
     def _calculate_vector_field(self, field: Field) -> Field:
-        """Calculate the vector field."""
-        new_field = Field(field.mesh_shards, VariableType.VECTOR, field.etype)
+        """Vectorized vector field laplacian (5-point stencil)."""
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
-        for nid in self._topo.internal_nodes:
-            # Neighbour nodes
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ue, uw, un, us, ui = field[[e, w, n, s, nid]]
+        nx, ny = self._mesh.nx, self._mesh.ny
+        dim = field._shards[0].data.shape[1]
+        u = field._shards[0].data.reshape(nx, ny, dim)
 
-            # Horizontal result
-            uh = (ue - 2 * ui + uw) * kx
+        # Vectorized 5-point stencil on internal region
+        lap = np.zeros_like(u)
+        lap[1:-1, 1:-1, :] = (
+            u[2:, 1:-1, :] - 2 * u[1:-1, 1:-1, :] + u[:-2, 1:-1, :]
+        ) * kx + (u[1:-1, 2:, :] - 2 * u[1:-1, 1:-1, :] + u[1:-1, :-2, :]) * ky
 
-            # Vertical result
-            uv = (un - 2 * ui + us) * ky
-
-            new_field[nid] = uh + uv
-
-        for nid in self._topo.boundary_nodes:
-            # Neighbour nodes
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ui = field[nid]
-
-            # Horizontal result
-            ue = field[e] if e is not None else ui
-            uw = field[w] if w is not None else ui
-            uh = (ue - 2 * ui + uw) * kx
-
-            # Vertical result
-            un = field[n] if n is not None else ui
-            us = field[s] if s is not None else ui
-            uv = (un - 2 * ui + us) * ky
-
-            new_field[nid] = uh + uv
-
-        return new_field
+        # Reuse pre-allocated field if possible, else create
+        if self._out_field is None or self._out_field.vtype != VariableType.vector(dim):
+            self._out_field = Field(
+                field.mesh_shards, VariableType.vector(dim), field.etype
+            )
+        self._out_field._shards[0].data = lap.reshape(-1, dim)
+        return self._out_field
 
     def _calculate_scalar_field(self, field: Field) -> Field:
-        """Calculate the scalar field."""
-        new_field = Field(field.mesh_shards, VariableType.SCALAR, field.etype)
+        """Vectorized scalar field laplacian (5-point stencil)."""
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
-        for nid in self._topo.internal_nodes:
-            # Neighbour nodes
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ue, uw, un, us, ui = field[[e, w, n, s, nid]]
+        nx, ny = self._mesh.nx, self._mesh.ny
+        u = field._shards[0].data.reshape(nx, ny)
 
-            # Horizontal result
-            uh = (ue - 2 * ui + uw) * kx
+        # Vectorized 5-point stencil on internal region
+        lap = np.zeros_like(u)
+        lap[1:-1, 1:-1] = (u[2:, 1:-1] - 2 * u[1:-1, 1:-1] + u[:-2, 1:-1]) * kx + (
+            u[1:-1, 2:] - 2 * u[1:-1, 1:-1] + u[1:-1, :-2]
+        ) * ky
 
-            # Vertical result
-            uv = (un - 2 * ui + us) * ky
+        # Reuse pre-allocated field if possible
+        if self._out_field is None or not self._out_field.vtype.is_scalar:
+            self._out_field = Field(
+                field.mesh_shards, VariableType.scalar(), field.etype
+            )
+        self._out_field._shards[0].data = lap.reshape(-1)
+        return self._out_field
 
-            new_field[nid] = uh + uv
 
-        return new_field
-
-
-class Lap02(IOperator):
+class Lap02(BaseImplicitOperator):
     """
     Center implicit scheme for laplacian operator on isotropic field.
     """
@@ -177,48 +147,32 @@ class Lap02(IOperator):
     def get_name(cls) -> str:
         return "lap02"
 
-    def __init__(self, fields: list[str]):
-        if len(fields) != 1:
-            raise ValueError("FDM op lap02 only supports one field.")
-        self._var = fields[0]
+    def __init__(self, target_fields: list[str]):
+        super().__init__(target_fields)
 
-        self._mesh: Grid2D = None
-        self._topo: MeshTopo = None
-        self._bcs = None
-
+        self._var = target_fields[0]
         self._dx = None
         self._dy = None
 
-    @property
-    def target_fields(self) -> list[str]:
-        return [self._var]
-
     def prepare(
-        self, mesh: Grid2D, bounds: dict[int, dict[str, IBoundaryCondition]] = None
+        self,
+        mesh: Grid,
+        bounds: dict[str, list[IBoundaryCondition]] = None,
     ):
-        if not isinstance(mesh, Grid2D):
-            raise ValueError("FDM op lap02 only supports Grid2D.")
-        if not mesh.uniform:
-            # TODO: Support non-uniform grids
-            raise ValueError("FDM op lap02 requires uniform grids.")
+        super().prepare(mesh, bounds)
+        if not isinstance(mesh, Grid) or not mesh.uniform:
+            raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._bcs = bounds
-        self._mesh = mesh
-        self._topo = self._mesh.get_topo_assistant()
         self._dx = self._mesh.lx / (self._mesh.nx - 1)
         self._dy = self._mesh.ly / (self._mesh.ny - 1)
 
-    def run(self, sources: Field | DataHub, dt: float = None) -> LinearEqs:
-        if isinstance(sources, Field):
-            old_field = sources
-        else:
-            old_field = sources.field(self._var, loc=ElementType.NODE).data
-        if len(old_field.mesh_shards) != 1:
-            # TODO: Support multi-gpu divergence operator
-            raise ValueError("FDM op lap02 only supports cpu.")
+    def forward(self, datahub: DataHub, time: float = None) -> LinearEqs:
+        sample = datahub.latest(self._var, ElementType.NODE)
+        if sample is None:
+            raise ValueError(f"Lap02: no data for '{self._var}'@NODE.")
 
-        eqs = self._generate_linear_eqs(old_field)
-        return eqs
+        old_field = sample.data
+        return self._generate_linear_eqs(old_field)
 
     def _create_matrix(self, field: Field) -> Matrix:
         """Create the matrix."""
@@ -238,9 +192,7 @@ class Lap02(IOperator):
         kx = 1.0 / self._dx**2
         ky = 1.0 / self._dy**2
 
-        # --------------------------------------------------
         # Internal nodes: standard 5-point stencil
-        # --------------------------------------------------
         for nid in self._topo.internal_nodes:
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
             values[nid, nid] = -2 * (kx + ky)
@@ -249,97 +201,75 @@ class Lap02(IOperator):
             values[nid, n] = ky
             values[nid, s] = ky
 
-        # --------------------------------------------------
         # Boundary nodes
-        # --------------------------------------------------
         for nid in self._topo.boundary_nodes:
-            bc = self._bcs[nid][self._var]
+            bcs = self._bcs[self._var]
             e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
 
-            if bc.get_type() == BoundaryType.VALUE:
-                # --------------------------------------------------
-                # Dirichlet: enforce p = value at boundary
-                # --------------------------------------------------
-                values[nid, :] = 0.0
-                values[nid, nid] = 1.0
-                val = bc.evaluate().value
-                if isinstance(val, Variable):
-                    val = val.data if val.type == VariableType.SCALAR else val.data
-                rhs_arr[nid] = float(val)
+            for bc in bcs:
+                if not bc.region.include(nid, ElementType.NODE):
+                    continue
 
-            elif bc.get_type() == BoundaryType.FLUX:
-                # --------------------------------------------------
-                # Neumann: ghost node reflection (2nd-order)
-                #
-                # For ∂p/∂n = q at a boundary:
-                #   - Set ghost node via: p_ghost = p_inner ∓ 2*dx*q
-                #   - This doubles the inner neighbor coefficient
-                #   - Adds a source term ±2*q/dx to RHS
-                #
-                # When q = 0 (zero flux), this reduces to symmetric reflection:
-                #   p_ghost = p_inner, giving 2nd-order accurate Laplacian.
-                # --------------------------------------------------
-                flux = bc.evaluate().flux
-                qx, qy = self._extract_flux_components(flux)
+                if bc.get_type() == BoundaryType.VALUE:
+                    # Dirichlet: enforce p = value at boundary
+                    values[nid, :] = 0.0
+                    values[nid, nid] = 1.0
+                    val = bc.get().value
+                    if isinstance(val, Variable):
+                        val = val.data
+                    if hasattr(val, "item"):
+                        val = val.item()
+                    rhs_arr[nid] = float(val)
+                elif bc.get_type() == BoundaryType.FLUX:
+                    # Neumann: ghost node reflection (2nd-order)
+                    flux = bc.get().flux
+                    qx, qy = self._extract_flux_components(flux)
 
-                # Clear the row
-                values[nid, :] = 0.0
+                    # Clear the row
+                    values[nid, :] = 0.0
 
-                diag_coeff = 0.0
+                    diag_coeff = 0.0
 
-                # ---- Horizontal direction ----
-                if w is None and e is not None:
-                    # Left boundary (x=0), normal points -x
-                    # ∂p/∂x = qx, ghost: p_w = p_e - 2*dx*qx
-                    diag_coeff += -2 * kx
-                    values[nid, e] = 2 * kx
-                    rhs_arr[nid] += -2 * qx / self._dx
+                    # Horizontal direction
+                    if w is None and e is not None:
+                        diag_coeff += -2 * kx
+                        values[nid, e] = 2 * kx
+                        rhs_arr[nid] += -2 * qx / self._dx
+                    elif e is None and w is not None:
+                        diag_coeff += -2 * kx
+                        values[nid, w] = 2 * kx
+                        rhs_arr[nid] += 2 * qx / self._dx
+                    elif e is not None and w is not None:
+                        diag_coeff += -2 * kx
+                        values[nid, e] = kx
+                        values[nid, w] = kx
 
-                elif e is None and w is not None:
-                    # Right boundary (x=lx), normal points +x
-                    # ∂p/∂x = qx, ghost: p_e = p_w + 2*dx*qx
-                    diag_coeff += -2 * kx
-                    values[nid, w] = 2 * kx
-                    rhs_arr[nid] += 2 * qx / self._dx
+                    # Vertical direction
+                    if s is None and n is not None:
+                        diag_coeff += -2 * ky
+                        values[nid, n] = 2 * ky
+                        rhs_arr[nid] += -2 * qy / self._dy
+                    elif n is None and s is not None:
+                        diag_coeff += -2 * ky
+                        values[nid, s] = 2 * ky
+                        rhs_arr[nid] += 2 * qy / self._dy
+                    elif n is not None and s is not None:
+                        diag_coeff += -2 * ky
+                        values[nid, n] = ky
+                        values[nid, s] = ky
 
-                elif e is not None and w is not None:
-                    # Not a horizontal boundary
-                    diag_coeff += -2 * kx
-                    values[nid, e] = kx
-                    values[nid, w] = kx
+                    values[nid, nid] = diag_coeff
 
-                # ---- Vertical direction ----
-                if s is None and n is not None:
-                    # Bottom boundary (y=0), normal points -y
-                    # ∂p/∂y = qy, ghost: p_s = p_n - 2*dy*qy
-                    diag_coeff += -2 * ky
-                    values[nid, n] = 2 * ky
-                    rhs_arr[nid] += -2 * qy / self._dy
-
-                elif n is None and s is not None:
-                    # Top boundary (y=ly), normal points +y
-                    # ∂p/∂y = qy, ghost: p_n = p_s + 2*dy*qy
-                    diag_coeff += -2 * ky
-                    values[nid, s] = 2 * ky
-                    rhs_arr[nid] += 2 * qy / self._dy
-
-                elif n is not None and s is not None:
-                    # Not a vertical boundary
-                    diag_coeff += -2 * ky
-                    values[nid, n] = ky
-                    values[nid, s] = ky
-
-                values[nid, nid] = diag_coeff
-
-        # --------------------------------------------------
         # Assemble linear system
-        # --------------------------------------------------
         matrix = self._create_matrix(field).from_data(values)
 
         # Build RHS field from array
-        rhs_field = Field(field.mesh_shards, VariableType.SCALAR, field.etype)
-        for nid in range(node_count):
-            rhs_field[nid] = Variable.scalar(rhs_arr[nid])
+        rhs_field = Field.from_array(
+            rhs_arr,
+            field.mesh_shards,
+            VariableType.scalar(),
+            field.etype,
+        )
 
         eqs = LinearEqs(matrix, rhs_field)
         return eqs
@@ -350,9 +280,9 @@ class Lap02(IOperator):
         qx, qy = 0.0, 0.0
         if isinstance(flux, Variable):
             data = flux.data
-            if flux.type == VariableType.SCALAR:
+            if flux.vtype.is_scalar:
                 qx = qy = float(data)
-            elif flux.type == VariableType.VECTOR:
+            elif flux.vtype.is_vector:
                 qx = float(data[0])
                 qy = float(data[1])
         elif isinstance(flux, (list, tuple, np.ndarray)):

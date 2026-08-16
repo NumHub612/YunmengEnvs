@@ -4,7 +4,8 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Interface of callback classes used in solvers.
 """
-from yunmeng.numerics.mesh.spatials import Mesh
+
+from yunmeng.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 
 

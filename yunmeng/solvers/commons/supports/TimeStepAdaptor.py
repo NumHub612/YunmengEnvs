@@ -5,8 +5,9 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Time step limiters for the solvers.
 """
 
-from yunmeng.numerics.mesh.spatials import Mesh, Grid
-from yunmeng.numerics.fields.fields import Field
+from yunmeng.numerics.mesh import Mesh, MeshDimension
+from yunmeng.numerics.grids import Grid
+from yunmeng.numerics.fields import Field
 from yunmeng.numerics.consts import G
 import numpy as np
 
@@ -35,7 +36,7 @@ def cfl_timestep(
 
     TODO: # Add source term effect on time step.
     """
-    if mesh.dimension.value != "2d":
+    if mesh.dimension != MeshDimension.D2:
         raise NotImplementedError(f"Not support for {mesh.dimension}.")
 
     # Compute the wave speed

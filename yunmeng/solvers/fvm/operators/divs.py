@@ -4,19 +4,17 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 The divergence operators for the finite volume method.
 """
+
 from yunmeng.solvers.interfaces import (
     IBoundaryCondition,
     IOperator,
     OperatorType,
     BoundaryType,
 )
-from yunmeng.numerics.mats.linalgs import LinearEqs
-from yunmeng.numerics.mesh.grids import Grid
-from yunmeng.numerics.fields.fields import Field, Variable
-from yunmeng.numerics.fields.datahubs import DataHub
-from yunmeng.numerics.algos.topos import MeshTopo
-from yunmeng.numerics.algos.geoms import MeshGeom
-from yunmeng.numerics.algos.parts import MeshPart
+from yunmeng.numerics.linalgs import LinearEqs
+from yunmeng.numerics.grids import Grid
+from yunmeng.numerics.fields import Field, Variable, DataHub
+from yunmeng.numerics.algos import MeshTopo, MeshGeom, MeshPart
 
 
 class Div01(IOperator):
@@ -57,7 +55,7 @@ class Div01(IOperator):
         self._bcs = bounds
         self._var = fields[0]
 
-    def run(self, sources: DataHub) -> Field | LinearEqs:
+    def forward(self, sources: DataHub) -> Field | LinearEqs:
         data = sources.field(self._var).data
         variable = data.name
         div_eqs = LinearEqs.zeros(self._part, rhs_type=data.dtype, etype=data.etype)
@@ -92,7 +90,7 @@ class Div01(IOperator):
         return div_eqs
 
     def _handle_boundary(self, fid: int, bc: IBoundaryCondition, field: Field):
-        items = bc.evaluate()
+        items = bc.apply()
         if bc.get_type() == BoundaryType.FIXED:
             return self._boundary_1st(fid, items, field)
         elif bc.get_type() == BoundaryType.NATURAL:

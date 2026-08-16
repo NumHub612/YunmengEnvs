@@ -2,12 +2,13 @@
 """
 Tests for MeshPart class.
 """
+
 import numpy as np
 import pytest
 import torch
 
-from yunmeng.numerics.mesh.grids import Grid2D, Grid
-from yunmeng.numerics.mesh.meshes import GenericMesh, Mesh
+from yunmeng.numerics.grids import Grid2D, Grid
+from yunmeng.numerics.mesh import GenericMesh, Mesh
 from yunmeng.numerics.enums import ElementType
 
 # ============================================
@@ -145,7 +146,7 @@ class TestStructuredGrid:
 
         assert len(shards) == 1
         assert shards[0].shard_id == 0
-        assert shards[0].gpu.type == "cpu"
+        assert shards[0].device.type == "cpu"
         assert len(shards[0].cells) == grid2d_4x4.cell_count
         assert len(shards[0].faces) == grid2d_4x4.face_count
         assert len(shards[0].nodes) == grid2d_4x4.node_count
@@ -158,7 +159,7 @@ class TestStructuredGrid:
         assert len(shards) == 4
         for i, shard in enumerate(shards):
             assert shard.shard_id == i
-            assert shard.gpu.type == "cpu"
+            assert shard.device.type == "cpu"
             # Check that all cells are distributed across shards
             assert len(shard.cells) > 0
 
@@ -176,8 +177,8 @@ class TestStructuredGrid:
 
         assert len(shards) == 1
         assert shards[0].shard_id == 0
-        assert shards[0].gpu.type == "cuda"
-        assert shards[0].gpu.index == 0
+        assert shards[0].device.type == "cuda"
+        assert shards[0].device.index == 0
         assert len(shards[0].cells) == grid2d_4x4.cell_count
 
     def test_partition_multiple_shards_gpu(self, grid2d_6x6: Grid):
@@ -191,8 +192,8 @@ class TestStructuredGrid:
         assert len(shards) == 2
         for i, shard in enumerate(shards):
             assert shard.shard_id == i
-            assert shard.gpu.type == "cuda"
-            assert shard.gpu.index == i
+            assert shard.device.type == "cuda"
+            assert shard.device.index == i
             assert len(shard.cells) > 0
 
         # Check that all cells are accounted for
@@ -270,7 +271,7 @@ class TestUnstructuredMesh:
 
         assert len(shards) == 1
         assert shards[0].shard_id == 0
-        assert shards[0].gpu.type == "cpu"
+        assert shards[0].device.type == "cpu"
         assert len(shards[0].cells) == mesh2d_4x4.cell_count
         assert len(shards[0].faces) == mesh2d_4x4.face_count
         assert len(shards[0].nodes) == mesh2d_4x4.node_count
@@ -283,7 +284,7 @@ class TestUnstructuredMesh:
         assert len(shards) == 4
         for i, shard in enumerate(shards):
             assert shard.shard_id == i
-            assert shard.gpu.type == "cpu"
+            assert shard.device.type == "cpu"
             # Check that all cells are distributed across shards
             assert len(shard.cells) > 0
 
@@ -301,8 +302,8 @@ class TestUnstructuredMesh:
 
         assert len(shards) == 1
         assert shards[0].shard_id == 0
-        assert shards[0].gpu.type == "cuda"
-        assert shards[0].gpu.index == 0
+        assert shards[0].device.type == "cuda"
+        assert shards[0].device.index == 0
         assert len(shards[0].cells) == mesh2d_4x4.cell_count
 
     def test_partition_multiple_shards_gpu(self, mesh2d_6x6: Mesh):
@@ -316,8 +317,8 @@ class TestUnstructuredMesh:
         assert len(shards) == 2
         for i, shard in enumerate(shards):
             assert shard.shard_id == i
-            assert shard.gpu.type == "cuda"
-            assert shard.gpu.index == i
+            assert shard.device.type == "cuda"
+            assert shard.device.index == i
             assert len(shard.cells) > 0
 
         # Check that all cells are accounted for

@@ -4,169 +4,41 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh partitioning methods.
 """
-from yunmeng.numerics.mesh.spatials import Mesh, ElementType
-from yunmeng.utils.ParseGpu import parse_gpu
+
+from yunmeng.numerics.fields import MeshShard, SharedInfo
+from yunmeng.numerics.mesh import Mesh, ElementType
 from yunmeng.setting import settings
 import numpy as np
 import pymetis
+
+from typing import List
+from collections import defaultdict
 import torch
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
-from collections import defaultdict
 
+def parse_gpu(gpu: str | int | None, device: str = "cuda") -> torch.device:
+    """Parse single GPU device strings into torch.device object.
 
-@dataclass(slots=True)
-class SharedInfo:
-    """Halo communication information."""
+    Args:
+        gpu (str | int | None): GPU device string or index.
+        device (str, optional): Device type. Defaults to "cuda".
 
-    # Neighbor shard IDs
-    neighbours: List[int] = field(default_factory=list)
+    Returns:
+        torch.device: Parsed GPU device.
+    """
+    if device.lower() == "cpu":
+        return torch.device("cpu")
+    if gpu is None:
+        return torch.device("cpu")
 
-    # Sender pack data: "Send my local_idx data to target_global_idx on neighbor"
-    send_map: Dict[int, List[Tuple[int, int]]] = field(
-        default_factory=dict
-    )  # [target_shard, (local_idx, target_global_idx)]
-
-    # Receiver unpack data: "Put data from source into my local_ghost_idxs"
-    recv_map: Dict[int, List[int]] = field(
-        default_factory=dict
-    )  # [source_shard, local_ghost_idxs]
-
-    # Synchronous operations where both sides own the entity (e.g., node, face)
-    shared_map: Dict[int, List[int]] = field(
-        default_factory=dict
-    )  # [neighbour_part, shared_local_idxs]
-
-
-@dataclass(slots=True)
-class MeshShard:
-    """Mesh shard for distributed computation."""
-
-    shard_id: int
-    gpu: torch.device
-
-    # Local entities (global indices): [Core..., Ghost...]
-    cells: np.ndarray
-    faces: np.ndarray
-    nodes: np.ndarray
-
-    # Entity indices mapping: global -> local (Owner only)
-    cell_g2l_core: Dict[int, int]
-    face_g2l_core: Dict[int, int]
-    node_g2l_core: Dict[int, int]
-
-    # Entity indices mapping: global -> local (Ghost only)
-    cell_g2l_halo: Dict[int, int]
-    face_g2l_halo: Dict[int, int]
-    node_g2l_halo: Dict[int, int]
-
-    # Halo communication info
-    cell_halo: SharedInfo
-    face_halo: SharedInfo
-    node_halo: SharedInfo
-
-    # Metadata: Count of core vs ghost
-    n_core_cells: int
-    n_core_faces: int
-    n_core_nodes: int
-
-    @property
-    def n_ghost_cells(self) -> int:
-        return len(self.cell_g2l_halo)
-
-    @property
-    def n_ghost_faces(self) -> int:
-        return len(self.face_g2l_halo)
-
-    @property
-    def n_ghost_nodes(self) -> int:
-        return len(self.node_g2l_halo)
-
-    def get_halo_info(self, etype: ElementType) -> SharedInfo:
-        if etype == ElementType.CELL:
-            return self.cell_halo
-        elif etype == ElementType.FACE:
-            return self.face_halo
-        elif etype == ElementType.NODE:
-            return self.node_halo
-        else:
-            raise ValueError("Unsupport ElementType!")
-
-    def get_entities(self, etype: ElementType) -> np.ndarray:
-        if etype == ElementType.CELL:
-            return self.cells
-        elif etype == ElementType.FACE:
-            return self.faces
-        elif etype == ElementType.NODE:
-            return self.nodes
-        else:
-            raise ValueError("Unsupport ElementType!")
-
-    def get_g2l_maps(self, etype: ElementType) -> tuple:
-        if etype == ElementType.CELL:
-            return self.cell_g2l_core, self.cell_g2l_halo
-        elif etype == ElementType.FACE:
-            return self.face_g2l_core, self.face_g2l_halo
-        elif etype == ElementType.NODE:
-            return self.node_g2l_core, self.node_g2l_halo
-        else:
-            raise ValueError("Unsupport ElementType!")
-
-    def get_sizes(self, etype: ElementType) -> tuple:
-        if etype == ElementType.CELL:
-            return len(self.cells), self.n_core_cells, self.n_ghost_cells
-        elif etype == ElementType.FACE:
-            return len(self.faces), self.n_core_faces, self.n_ghost_faces
-        elif etype == ElementType.NODE:
-            return len(self.nodes), self.n_core_nodes, self.n_ghost_nodes
-        else:
-            raise ValueError("Unsupport ElementType!")
-
-    @staticmethod
-    def from_size(
-        element_size: int,
-        etype: ElementType = ElementType.CELL,
-        device: str = settings.device,
-    ) -> "MeshShard":
-        """Single shard."""
-        ids = np.arange(element_size, dtype=np.int64)
-        g2l = {i: i for i in range(element_size)}
-
-        cells, faces, nodes = [], [], []
-        cell_g2l, face_g2l, node_g2l = {}, {}, {}
-
-        if etype == ElementType.CELL:
-            cells = ids.copy()
-            cell_g2l = g2l.copy()
-        elif etype == ElementType.FACE:
-            faces = ids.copy()
-            face_g2l = g2l.copy()
-        elif etype == ElementType.NODE:
-            nodes = ids.copy()
-            node_g2l = g2l.copy()
-        else:
-            raise ValueError("Unsupport ElementType!")
-
-        return MeshShard(
-            shard_id=0,
-            gpu=torch.device(device),
-            cells=cells,
-            faces=faces,
-            nodes=nodes,
-            cell_g2l_core=cell_g2l,
-            face_g2l_core=face_g2l,
-            node_g2l_core=node_g2l,
-            cell_g2l_halo={},
-            face_g2l_halo={},
-            node_g2l_halo={},
-            cell_halo=SharedInfo(),
-            face_halo=SharedInfo(),
-            node_halo=SharedInfo(),
-            n_core_cells=len(cells),
-            n_core_faces=len(faces),
-            n_core_nodes=len(nodes),
-        )
+    if isinstance(gpu, int):
+        gpu = f"cuda:{gpu}"
+        return torch.device(gpu)
+    elif isinstance(gpu, str):
+        gpu = gpu.lower()
+        return torch.device(gpu)
+    else:
+        raise ValueError(f"Invalid GPU specification: {gpu}")
 
 
 class MeshPart:
@@ -284,7 +156,7 @@ class MeshPart:
         # Build shard with core info
         return MeshShard(
             shard_id=sid,
-            gpu=parse_gpu(gpus[sid] if gpus else None),
+            device=parse_gpu(gpus[sid] if gpus else None),
             cells=local_cells,  # Will append ghosts later
             faces=local_faces,  # Will append ghosts later
             nodes=local_nodes,  # Will append ghosts later

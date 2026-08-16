@@ -4,7 +4,12 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Enumerations for the common use in YunmengEnvs.
 """
+
 from enum import Enum, auto
+
+# ---------------------------------------------------
+# region Running mode
+# ---------------------------------------------------
 
 
 class EnvRunMode(Enum):

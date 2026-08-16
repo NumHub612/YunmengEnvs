@@ -1,10 +1,16 @@
 <p align="center">
   <a href="https://github.com/NumHub612/YunmengEnvs">
-    <img src="./docs/assets/logo.jpg" alt="YunmengEnvs" width="540" height="460" />
+    <img 
+      src="./docs/assets/logo.jpg" 
+      onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='./assets/logo.jpg';}" 
+      alt="YunmengEnvs" 
+      width="540" 
+      height="460" 
+    />
   </a>
 </p>
 
----------------------------------------------------------------------------------
+---
 
 ## 什么是 YunmengEnvs？
 
@@ -16,25 +22,23 @@
 
 **What's News!**
 
-- 🔥🔥🔥 **[2026-04-25]**: 项目处于验证优化阶段，欢迎大家参与测试！
+- 🔥🔥🔥 **[2026-07-22]**: 项目处于验证优化阶段，欢迎大家参与测试！
 
----------------------------------------------------------------------------------
+---
 
 ## 如何使用？
 
+---
 
-
----------------------------------------------------------------------------------
-
-## 加入我们！  
+## 加入我们！
 
 我们希望能够做出一些有趣的尝试和成果，能够将这些想法和经验分享给整个社区。
 
-如果你对这个项目感兴趣，欢迎加入我们！   
+如果你对这个项目感兴趣，欢迎加入我们！
 
-+ [开发者指南](Developer.md#developer-guide)
-+ [参与反馈](https://github.com/NumHub612/YunmengEnvs/issues)
-+ [参与讨论](https://github.com/orgs/NumHub612/discussions)
+- [开发者指南](Developer.md#developer-guide)
+- [参与反馈](https://github.com/NumHub612/YunmengEnvs/issues)
+- [参与讨论](https://github.com/orgs/NumHub612/discussions)
 
 感谢所有的贡献者:
 
@@ -42,4 +46,4 @@
   <img src="https://contrib.rocks/image?repo=NumHub612/YunmengEnvs" />
 </a>
 
----------------------------------------------------------------------------------
+---
