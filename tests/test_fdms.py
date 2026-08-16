@@ -5,6 +5,7 @@ Unittests for the fdms solvers.
 
 import pytest
 import numpy as np
+import os
 
 from yunmeng.numerics.algos import ElevationModifier, MeshShard
 from yunmeng.numerics.grids import Grid2D, Coordinate
@@ -101,6 +102,7 @@ class TestBurgers2D:
     def test_2d_grid(self, grid_41x41: Grid2D, H0: Field, U0: Field):
         """Test burgers2d on grid2d."""
         # visualize the grid and initial conditions
+        os.makedir("tests/results/bg", exist_ok=True)
         plot_mesh(
             grid_41x41,
             title="grid_41x41",
@@ -188,6 +190,7 @@ class TestNavierStokes2D:
         """Test 2d Navier-Stokes solver on driven cavity flow."""
         ll, ur = Coordinate(0, 0), Coordinate(2.0, 2.0)
         grid_41x41 = Grid2D.by_uniform(ll, ur, 41, 41)
+        os.makedirs("tests/results/ns", exist_ok=True)
         plot_mesh_ids(grid_41x41, title="grid_41X41", save_dir="tests/results/ns")
 
         # Initial Conditions
