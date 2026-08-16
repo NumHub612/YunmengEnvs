@@ -17,7 +17,6 @@ Usage:
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional
 
 from yunmeng.solutions.standards import (
     ILinkableModel,
@@ -48,11 +47,11 @@ class Link:
     config: CouplingConfig
 
     @property
-    def source_model(self) -> Optional[ILinkableModel]:
+    def source_model(self) -> ILinkableModel:
         return self.source_port.owner
 
     @property
-    def target_model(self) -> Optional[ILinkableModel]:
+    def target_model(self) -> ILinkableModel:
         return self.target_port.owner
 
 

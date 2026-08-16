@@ -6,7 +6,7 @@ Interfaces for boundary conditions at faces of a mesh.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Union, Any
+from typing import Dict, Any
 from enum import Enum, auto
 from dataclasses import dataclass
 
@@ -18,9 +18,9 @@ from yunmeng.numerics.fields import Variable, FieldMeta, Field
 class BoundaryValue:
     """Boundary condition value container."""
 
-    value: Optional[Variable] = None  # Prescribed value
-    flux: Optional[Variable] = None  # Prescribed flux
-    extra: Optional[Dict[str, Any]] = None  # Type-specific extra data
+    value: Variable = None  # Prescribed value
+    flux: Variable = None  # Prescribed flux
+    extra: Dict[str, Any] = None  # Type-specific extra data
 
 
 class BoundaryType(Enum):

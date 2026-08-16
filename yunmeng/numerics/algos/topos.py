@@ -8,7 +8,7 @@ Mesh topology processing.
 from yunmeng.numerics.enums import MeshDimension
 from yunmeng.numerics.mesh import Mesh, sort_anticlockwise
 
-from typing import List, Optional
+from typing import List
 import collections
 import numpy as np
 
@@ -25,22 +25,22 @@ class MeshTopo:
 
         # Cache members - will be computed on first access
         # Internal/Boundary flags
-        self._internal_nodes: Optional[np.ndarray] = None
-        self._boundary_nodes: Optional[np.ndarray] = None
-        self._internal_faces: Optional[np.ndarray] = None
-        self._boundary_faces: Optional[np.ndarray] = None
-        self._internal_cells: Optional[np.ndarray] = None
-        self._boundary_cells: Optional[np.ndarray] = None
+        self._internal_nodes: np.ndarray = None
+        self._boundary_nodes: np.ndarray = None
+        self._internal_faces: np.ndarray = None
+        self._boundary_faces: np.ndarray = None
+        self._internal_cells: np.ndarray = None
+        self._boundary_cells: np.ndarray = None
 
         # Topology relations
-        self._cell_neighbours: Optional[List[np.ndarray]] = None
-        self._node_neighbours: Optional[List[np.ndarray]] = None
-        self._face_cells: Optional[List[int]] = None
-        self._face_nodes: Optional[List[np.ndarray]] = None
-        self._node_faces: Optional[List[np.ndarray]] = None
-        self._node_cells: Optional[List[np.ndarray]] = None
-        self._cell_nodes: Optional[List[np.ndarray]] = None
-        self._cell_faces: Optional[List[np.ndarray]] = None
+        self._cell_neighbours: List[np.ndarray] = None
+        self._node_neighbours: List[np.ndarray] = None
+        self._face_cells: List[int] = None
+        self._face_nodes: List[np.ndarray] = None
+        self._node_faces: List[np.ndarray] = None
+        self._node_cells: List[np.ndarray] = None
+        self._cell_nodes: List[np.ndarray] = None
+        self._cell_faces: List[np.ndarray] = None
 
     def reset(self, mesh: Mesh):
         """Resets all the cached topologies."""
@@ -167,7 +167,7 @@ class MeshTopo:
         return self._face_nodes
 
     @property
-    def face_cells(self) -> List[Optional[int]]:
+    def face_cells(self) -> List[int]:
         """Face cells list."""
         if self._face_cells is None:
             self._calculate_flags()

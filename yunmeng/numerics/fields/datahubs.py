@@ -7,7 +7,6 @@ Datahubs for managing of the fields and its history.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 import numpy as np
 import torch
@@ -144,7 +143,7 @@ class TensorHistory:
 
         # Store Sample references (not stacked tensors)
         # [newest, t-1, t-2, ...]
-        self._history: list[Optional[Sample]] = [None] * levels
+        self._history: list[Sample] = [None] * levels
 
     @property
     def name(self) -> str:
@@ -155,11 +154,11 @@ class TensorHistory:
         return self._version
 
     @property
-    def dtype(self) -> Optional[torch.dtype]:
+    def dtype(self) -> torch.dtype:
         return self._tensors.dtype if self._tensors is not None else None
 
     @property
-    def device(self) -> Optional[torch.device]:
+    def device(self) -> torch.device:
         return self._tensors.device if self._tensors is not None else None
 
     def push(self, sample: Sample) -> None:
@@ -178,17 +177,17 @@ class TensorHistory:
         self._history[0] = sample
         self._version += 1
 
-    def latest(self) -> Optional[Sample]:
+    def latest(self) -> Sample:
         """Get the most recent sample (level=0)."""
         return self._history[0]
 
-    def at(self, level: int = 0) -> Optional[Sample]:
+    def at(self, level: int = 0) -> Sample:
         """Get sample at time level (0=current, 1=previous, ...)."""
         if level < 0 or level >= self._max_levels:
             raise IndexError(f"Level {level} out of range [0, {self._max_levels})")
         return self._history[level]
 
-    def at_time(self, t: float) -> Optional[Sample]:
+    def at_time(self, t: float) -> Sample:
         """Find sample closest to given physical time."""
         best, best_dt = None, float("inf")
         for s in self._history:
@@ -199,7 +198,7 @@ class TensorHistory:
                 best, best_dt = s, dt
         return best
 
-    def as_stacked_tensor(self, levels: int = None) -> Optional[torch.Tensor]:
+    def as_stacked_tensor(self, levels: int = None) -> torch.Tensor:
         """Convert history to a stacked tensor for neural network input.
 
         Shape: (L, N, ...) where L=time levels, N=nodes, C=components.
@@ -304,7 +303,7 @@ class DataHub:
         name: str,
         etype: ElementType,
         level: int = 0,
-    ) -> Optional[Sample]:
+    ) -> Sample:
         """Get field at given time level and location."""
         key = self._key(name, etype)
         hist = self._history.get(key)
@@ -312,7 +311,7 @@ class DataHub:
             return None
         return hist.at(level)
 
-    def latest(self, name: str, etype: ElementType) -> Optional[Sample]:
+    def latest(self, name: str, etype: ElementType) -> Sample:
         """Get the most recent sample of a field."""
         return self.field(name, etype, level=0)
 
@@ -328,7 +327,7 @@ class DataHub:
 
     # -- cache management  --------------------------
 
-    def get_computed(self, product: DataProduct) -> Optional[Sample]:
+    def get_computed(self, product: DataProduct) -> Sample:
         """Query cache for a previously computed product.
 
         Wildcard query: if ``product.namespace == "*"``, matches ANY
@@ -366,7 +365,7 @@ class DataHub:
         self,
         product: DataProduct,
         sample: Sample,
-        depends: Optional[list[DataProduct]] = None,
+        depends: list[DataProduct] = None,
     ) -> None:
         """Store a computed product in cache for reuse."""
         key = str(product)
@@ -409,7 +408,7 @@ class DataHub:
 
     def to_tensor_batch(
         self, name: str, etype: ElementType, levels: int = None
-    ) -> Optional[torch.Tensor]:
+    ) -> torch.Tensor:
         """Export field history as batched tensor (T, N, C). Detached."""
         key = self._key(name, etype)
         hist = self._history.get(key)
@@ -420,7 +419,7 @@ class DataHub:
 
     def to_training_sample(
         self, name: str, etype: ElementType, input_levels: int = 2
-    ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Create (input, target) pair for supervised learning."""
         key = self._key(name, etype)
         hist = self._history.get(key)

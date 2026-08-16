@@ -19,7 +19,7 @@ from yunmeng.numerics.fields import Variable, Var
 from yunmeng.numerics.algos.topos import MeshTopo
 
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # -----------------------------------------------
 # region MeshGeom
@@ -44,11 +44,11 @@ class MeshGeom:
             self._ny = mesh.ny
 
         # Element properties caches
-        self._face_areas: Optional[np.ndarray] = None
-        self._face_perimeters: Optional[np.ndarray] = None
-        self._face_normals: Optional[np.ndarray] = None
-        self._cell_volumes: Optional[np.ndarray] = None
-        self._cell_surfaces: Optional[np.ndarray] = None
+        self._face_areas: np.ndarray = None
+        self._face_perimeters: np.ndarray = None
+        self._face_normals: np.ndarray = None
+        self._cell_volumes: np.ndarray = None
+        self._cell_surfaces: np.ndarray = None
 
         # Distance caches
         self._cell2cell_dists: List[Dict[int, float]] = None

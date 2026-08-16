@@ -6,8 +6,6 @@ ReservoirModel — stand-alone reservoir regulation model.
 """
 
 from __future__ import annotations
-from typing import Optional
-
 import numpy as np
 
 from yunmeng.solutions.standards import (
@@ -68,7 +66,7 @@ class ReservoirModel(BaseModel, IStateful, IParametric):
                 quantity, ScalarElementSet(model_id), port_id=f"{model_id}.{var}"
             )
 
-        self._initial_snapshot: Optional[dict] = None
+        self._initial_snapshot: dict = None
 
     # -- info ---------------------------------------
 

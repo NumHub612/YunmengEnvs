@@ -15,7 +15,7 @@ from yunmeng.numerics.fields.backends import (
 
 import numpy as np
 import torch
-from typing import Any, Union, Optional, Tuple, Callable
+from typing import Union, Tuple
 
 # --------------------------------------------------
 # region Variable
