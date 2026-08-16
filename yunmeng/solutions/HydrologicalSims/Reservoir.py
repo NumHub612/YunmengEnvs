@@ -40,7 +40,7 @@ class ReservoirModel(BaseModel, IStateful, IParametric):
             model_id,
             {
                 "storage": config["storage"],
-                "release": config["release"],
+                "reservoir": config["reservoir"],
                 "external_inflows": config.get("inflows", []),
             },
         )

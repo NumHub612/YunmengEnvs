@@ -32,7 +32,7 @@ STEPS = 24
 
 
 # ---------------------------------------------------------------
-# fixtures
+# region fixtures
 # ---------------------------------------------------------------
 
 
@@ -68,7 +68,7 @@ def reservoir_cfg(name="rsv1", target=5.0e7):
             },
             "s_init": 5.0e7,
         },
-        "release": {
+        "reservoir": {
             "algo": "target_level",
             "params": {"target_storage": target, "q_max": 1e6},
         },
@@ -96,7 +96,7 @@ def basin_model():
 
 
 # ---------------------------------------------------------------
-# 1. registry
+# region registry
 # ---------------------------------------------------------------
 
 
@@ -106,12 +106,12 @@ class TestRegistry:
         assert reg["runoff"] == ["xaj"]
         assert reg["surface"] == ["linear3"]
         assert reg["river"] == ["muskingum"]
-        assert reg["release"] == ["target_level"]
+        assert reg["reservoir"] == ["target_level"]
 
     def test_create_release_kind_works(self):
         # regression: registry kind used to be "reservoir" while callers
         # asked for "release" -> guaranteed KeyError
-        algo = create("release", "target_level", target_storage=1.0)
+        algo = create("reservoir", "target_level", target_storage=1.0)
         assert isinstance(algo, TargetLevelRelease)
 
     def test_unknown_param_rejected(self):
@@ -128,7 +128,7 @@ class TestRegistry:
 
 
 # ---------------------------------------------------------------
-# 2. algorithm numerics
+# region algorithms
 # ---------------------------------------------------------------
 
 
@@ -226,7 +226,7 @@ class TestTargetLevelRelease:
 
 
 # ---------------------------------------------------------------
-# 3. nodes
+# region nodes
 # ---------------------------------------------------------------
 
 
@@ -263,7 +263,7 @@ class TestReservoirNode:
 
 
 # ---------------------------------------------------------------
-# 4. HydroModel end-to-end
+# region HydroModels
 # ---------------------------------------------------------------
 
 
@@ -350,7 +350,7 @@ class TestGaugeSet:
 
 
 # ---------------------------------------------------------------
-# 5. standalone ReservoirModel
+# region ReservoirModel
 # ---------------------------------------------------------------
 
 
@@ -362,7 +362,7 @@ class TestReservoirModel:
                 "dt": DT,
                 "steps": 4,
                 "storage": reservoir_cfg("x")["storage"],
-                "release": reservoir_cfg("x")["release"],
+                "reservoir": reservoir_cfg("x")["reservoir"],
                 "inflows": [{"name": "up1", "required": False}],
             }
         )
@@ -379,7 +379,7 @@ class TestReservoirModel:
                 "dt": DT,
                 "steps": 4,
                 "storage": reservoir_cfg("x")["storage"],
-                "release": reservoir_cfg("x")["release"],
+                "reservoir": reservoir_cfg("x")["reservoir"],
                 "inflows": ["up1"],
             }
         )
@@ -390,7 +390,7 @@ class TestReservoirModel:
 
 
 # ---------------------------------------------------------------
-# 6. Scheduler
+# region Scheduler
 # ---------------------------------------------------------------
 
 
@@ -416,7 +416,7 @@ class TestScheduler:
                 "dt": DT,
                 "steps": 2,
                 "storage": reservoir_cfg("x")["storage"],
-                "release": reservoir_cfg("x")["release"],
+                "reservoir": reservoir_cfg("x")["reservoir"],
                 "inflows": ["up1"],
             }
         )
@@ -433,7 +433,7 @@ class TestScheduler:
                 "dt": DT,
                 "steps": 2,
                 "storage": reservoir_cfg("x")["storage"],
-                "release": reservoir_cfg("x")["release"],
+                "reservoir": reservoir_cfg("x")["reservoir"],
                 "inflows": ["up1"],
             }
         )
@@ -451,7 +451,7 @@ class TestScheduler:
                 "dt": DT,
                 "steps": STEPS,
                 "storage": reservoir_cfg("x")["storage"],
-                "release": reservoir_cfg("x")["release"],
+                "reservoir": reservoir_cfg("x")["reservoir"],
                 "inflows": ["up1"],
             }
         )

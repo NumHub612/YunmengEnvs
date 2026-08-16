@@ -182,7 +182,7 @@ _REGISTRY_HYDROS: dict[str, dict[str, type[HydroAlgorithm]]] = {
     "runoff": {},
     "surface": {},
     "river": {},
-    "release": {},
+    "reservoir": {},
 }
 
 

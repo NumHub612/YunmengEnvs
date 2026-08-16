@@ -129,4 +129,4 @@ class TargetLevelRelease(ReleasePolicy):
         return outflows
 
 
-register("release", TargetLevelRelease.algo_name, TargetLevelRelease)
+register("reservoir", TargetLevelRelease.algo_name, TargetLevelRelease)

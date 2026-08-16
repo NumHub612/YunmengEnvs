@@ -301,9 +301,9 @@ class ReservoirNode(HydrologyNode):
         s0 = sc["curve"]["params"].get("s0", 0.0)
         self._storage = float(sc.get("s_init", s0))
         self._release: ReleasePolicy = create(
-            "release",
-            cfg["release"]["algo"],
-            **cfg["release"].get("params", {}),
+            "reservoir",
+            cfg["reservoir"]["algo"],
+            **cfg["reservoir"].get("params", {}),
         )
         self._current = {
             "Q": 0.0,
