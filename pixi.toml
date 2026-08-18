@@ -1,0 +1,56 @@
+[project]
+name = "yunmeng"
+version = "0.1.0"
+description = "Yunmeng Environmental Fluid Dynamics Solution"
+authors = ["NumHub612 <yunmeng@example.com>"]
+channels = ["conda-forge"]
+platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = "3.12.*"
+gputil = ">=1.4.0"
+imageio = ">=2.37.0"
+matplotlib = ">=3.10.1"
+netcdf4 = ">=1.7.3"
+numpy = ">=1.26.4"
+pandas = ">=2.2.3"
+psutil = ">=6.1.0"
+pymetis = ">=2025.2.2"
+pyvista = ">=0.44.2"
+pyyaml = ">=6.0.1"
+scipy = ">=1.15.2"
+seaborn = ">=0.13.2"
+shapely = ">=2.1.2"
+sympy = ">=1.13.1"
+pytorch = ">=2.6.0"
+vtk = ">=9.3.1"
+
+# PyPI 独有包（conda-forge 没有或版本不匹配时）
+[pypi-dependencies]
+# 当前所有依赖均已在 conda-forge 覆盖
+
+[feature.dev.dependencies]
+pytest = ">=9.0.2"
+pytest-cov = ">=6.0.0"
+coverage = ">=7.6.0"
+
+[feature.docs.dependencies]
+mkdocs = ">=1.6.0"
+mkdocstrings-python = ">=0.25.0"
+mkdocs-material = ">=9.5.0"
+
+[feature.test.dependencies]
+pytest = ">=9.0.2"
+pytest-cov = ">=6.0.0"
+
+[environments]
+default = { features = ["dev"] }
+docs = { features = ["docs"] }
+test = { features = ["test"] }
+
+[tasks]
+test = { cmd = "pytest -v --cov=yunmeng --cov-report=term-missing", env = { PYTHONPATH = "." } }
+lint = "ruff check yunmeng tests"
+build = "python -m build"
+docs-serve = "mkdocs serve"
+docs-build = "mkdocs build --site-dir site"

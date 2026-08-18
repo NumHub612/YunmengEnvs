@@ -1,4 +1,4 @@
-name: python
+name: CI
 
 on:
   push:
@@ -9,71 +9,67 @@ on:
       - main
 
 jobs:
-  YunMeng_Test:
+  test:
     runs-on: ${{ matrix.os }}
-
     strategy:
+      fail-fast: false
       matrix:
-        os:
-          - ubuntu-22.04
+        os: [ubuntu-22.04]
+        python-version: ['3.12']
 
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: pyvista/setup-headless-display-action@v3
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.8.3
         with:
-          python-version: 3.10.11
+          pixi-version: v0.41.0
+          cache: true
+          environments: test
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r ${{ github.workspace }}/requirements.txt
+      - uses: pyvista/setup-headless-display-action@v3
 
-      - name: Run unittest tests
+      - name: Run tests with coverage
         run: |
-          export PYTHONPATH=$PYTHONPATH:${{ github.workspace }}
-          pip install pytest pytest-cov
-          coverage run -m pytest
-          coverage report
-          coverage xml
+          pixi run --environment test pytest -v --cov=yunmeng --cov-report=xml --cov-report=term
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
-      - name: Build and deploy docs
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
+      - name: Build docs
+        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main' }}
         run: |
-          cd ${{ github.workspace }}
           cp README.md docs/README.md
-          pip install mkdocs mkdocstrings[python] mkdocs-material
-          mkdocs build --site-dir site
+          pixi run --environment docs mkdocs build --site-dir site
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
 
       - name: Deploy docs to GitHub Pages
-        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main'}}
+        if: ${{ matrix.os == 'ubuntu-22.04' && github.ref == 'refs/heads/main' }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
           enable_jekyll: false
 
-      - name: Build package while tagging
-        if: ${{ matrix.os == 'ubuntu-22.04' && startsWith(github.ref, 'refs/tags')}}
+      - name: Build package
+        if: ${{ matrix.os == 'ubuntu-22.04' && startsWith(github.ref, 'refs/tags') }}
         run: |
-          pip install setuptools wheel twine
-          python setup.py sdist bdist_wheel
+          pixi run --environment default python -m build
 
       # - name: Upload to PyPI
-      #   if: ${{ matrix.os == 'ubuntu-22.04' && startsWith(github.ref, 'refs/tags')}}
+      #   if: ${{ matrix.os == 'ubuntu-22.04' && startsWith(github.ref, 'refs/tags') }}
       #   env:
       #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
       #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      #   run: twine upload dist/*
+      #   run: pixi run --environment default twine upload dist/*

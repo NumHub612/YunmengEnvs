@@ -1,0 +1,105 @@
+[build-system]
+requires = ["setuptools>=75.0", "wheel", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yunmeng"
+dynamic = ["version"]
+description = "云梦环境流体力学解决方案"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.12"
+authors = [
+    {name = "NumHub612", email = "yunmeng@example.com"},
+]
+keywords = ["cfd", "environment", "fluid-dynamics", "simulation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+dependencies = [
+    "gputil>=1.4.0",
+    "imageio>=2.37.0",
+    "matplotlib>=3.10.1",
+    "netCDF4>=1.7.3",
+    "numpy>=1.26.4",
+    "pandas>=2.2.3",
+    "psutil>=6.1.0",
+    "pymetis>=2025.2.2",
+    "pyvista>=0.44.2",
+    "PyYAML>=6.0.1",
+    "scipy>=1.15.2",
+    "seaborn>=0.13.2",
+    "shapely>=2.1.2",
+    "sympy>=1.13.1",
+    "torch>=2.6.0",
+    "vtk>=9.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=6.0.0",
+    "coverage>=7.6.0",
+]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocstrings[python]>=0.25.0",
+    "mkdocs-material>=9.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/NumHub612/YunmengEnvs"
+Repository = "https://github.com/NumHub612/YunmengEnvs"
+Documentation = "https://numhub612.github.io/YunmengEnvs"
+
+[tool.setuptools]
+packages = ["yunmeng"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+
+[tool.setuptools.package-data]
+yunmeng = ["*.yaml", "*.yml", "*.json", "*.nc", "*.vtk", "*.stl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+]
+
+[tool.coverage.run]
+source = ["yunmeng"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = false
+fail_under = 70
+
+[tool.coverage.xml]
+output = "coverage.xml"
