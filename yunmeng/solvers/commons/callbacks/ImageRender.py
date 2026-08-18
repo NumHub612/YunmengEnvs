@@ -7,8 +7,8 @@ Callback for rendering the solver solutions.
 
 from yunmeng.solvers.interfaces import ISolverCallback, ISolver
 from yunmeng.numerics.mesh import Mesh
-from yunmeng.renders.plotter import plot_field, plot_mesh
-from yunmeng.renders.animator import ImageSetPlayer
+from yunmeng.render.plotter import plot_field, plot_mesh
+from yunmeng.render.animator import ImageSetPlayer
 
 import os
 import shutil

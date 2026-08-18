@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+  - nodefaults
+
+channel_priority: strict
+
+show_channel_urls: true
+
+# 国内镜像加速
+custom_channels:
+  conda-forge: https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge

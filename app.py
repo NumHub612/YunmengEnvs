@@ -6,22 +6,14 @@ YunmengEnvs entrence.
 """
 
 import yunmeng as ym
-from yunmeng.workflow.parser import Orchestrator
-from yunmeng.workflow.scheduler import Scheduler
+from yunmeng.taskflow.parser import Orchestrator
+from yunmeng.taskflow.builder import SchedulerBuilder
 from yunmeng.setting import print_logo
 from yunmeng.solutions import ym_models
 from yunmeng.setting import logger
 
 import datetime
 import argparse
-import sys
-
-
-def _no_tb_hook(etype, val, _tb):
-    sys.stderr.write(f"{etype.__name__}: {val}\n")
-
-
-sys.excepthook = _no_tb_hook
 
 
 class YunmengEnvsApp:
@@ -38,21 +30,17 @@ class YunmengEnvsApp:
 
         try:
             self._configer = Orchestrator(self._parser.parse_args())
-            self._scheduler = Scheduler(ym_models)
-            self._scheduler.setup(self._configer)
+            builder = SchedulerBuilder(ym_models)
+            self._scheduler = builder.build(self._configer)
             self._scheduler.initialize()
-            errors = self._scheduler.validate()
-            if errors:
-                raise ValueError(f"Scheduler validation failed: {errors}")
         except Exception as e:
             logger.exception(e)
             raise e
 
     def run(self):
         try:
-            self._scheduler.prepare()
-            self._scheduler.run()
-            self._scheduler.finish()
+            max_steps = self._configer.schedules.get("max_steps")
+            self._scheduler.run(max_steps=max_steps)
         except Exception as e:
             logger.exception(e)
             raise e
