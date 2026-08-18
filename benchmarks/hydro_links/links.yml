@@ -1,93 +1,94 @@
 # ===============================================================================
-# 模型集配置。
+# 模型集配置。对应 TestScheduler.test_pull_chain_executes_upstream_first：
+# basin.rsv1.Q (PULL) -> down.in.up1，执行顺序 [basin, down]
 # ===============================================================================
 MODELS:
-  - id: "runoff"
-    description: "runoff model" # 所有description字段都仅是描述性文字，无功能作用
-    from: "./benchmarks/hydro_links/runoff.yml"
+  - id: "basin"
+    description: "Hydrology model (sub1 -> rsv1)"
+    from: "./benchmarks/hydro_links/basin.yml"
     # 模型Output交换项
     outputs:
-      - id: "Outflow"
-        description: "Catchment outlet outflow"
-        # 交换数据定义（指定内置预定义变量，unit随之确定）
+      - id: "rsv1.Q"
+        description: "Reservoir outflow"
         quantity:
           id: "FlowRate"
-          description: "Catchment runoff"
-          variable: "runoff" # 数据类型
-        # 交换位置定义（要求只能选择模型内对象id, geom随之确定）
-        position:
-          id: "Outlet"
-          description: "Catchment outlet"
-          element: "outlet" # 对象类型
-          ids: null # 交换对象id列表
-  - id: "river"
-    description: "1D River model"
-    from: "./benchmarks/hydro_links/river.yml"
-    # 模型Input交换项
-    inputs:
-      - id: "LateralInflow"
-        description: "Lateral inflow from RR"
-        quantity:
-          id: "FlowRate"
-          description: "River flow"
+          description: "Discharge"
           variable: "flow"
         position:
-          id: "cross_section_3"
-          description: "Catchment outlet"
-          element: "CrossSection"
-          ids: ["cross_3"]
-    # 模型Output交换项
-    outputs:
-      - id: "Outflow"
-        description: "River outflow"
-        # 交换数据定义
-        quantity:
-          id: "outflow"
-          description: "River flow"
-          variable: "flow"
-        # 交换位置定义
-        position:
-          id: "downstream"
-          description: "River outlet"
-          element: "CrossSection"
-          ids: ["cross_5"]
-      - id: "stage"
-        description: "Cross section stage"
-        # 交换数据定义
+          id: "rsv1"
+          description: "Reservoir node"
+          element: "node"
+          ids: ["rsv1"]
+      - id: "rsv1.Z"
+        description: "Reservoir water level"
         quantity:
           id: "stage"
-          description: "River stage"
+          description: "Water level"
           variable: "water_level"
-        # 交换位置定义
         position:
-          id: "cross_section"
-          description: "River cross section"
-          element: "CrossSection"
-          ids: ["cross_3"]
+          id: "rsv1"
+          description: "Reservoir node"
+          element: "node"
+          ids: ["rsv1"]
+      - id: "sub1.Q"
+        description: "Subbasin outflow"
+        quantity:
+          id: "FlowRate"
+          description: "Runoff discharge"
+          variable: "runoff"
+        position:
+          id: "sub1"
+          description: "Subbasin node"
+          element: "node"
+          ids: ["sub1"]
+  - id: "down"
+    description: "Downstream reservoir model"
+    from: "./benchmarks/hydro_links/down.yml"
+    # 模型Input交换项
+    inputs:
+      - id: "in.up1"
+        description: "Required upstream inflow"
+        quantity:
+          id: "FlowRate"
+          description: "Inflow discharge"
+          variable: "flow"
+        position:
+          id: "inlet"
+          description: "Reservoir inlet"
+          element: "node"
+          ids: null
+  - id: "rsv"
+    description: "Reservoir model"
+    from: "./benchmarks/hydro_links/rsv.yml"
 
 # ===============================================================================
 # 耦合配置。
 # ===============================================================================
 LINKS:
-  # RR → River（水下流）
-  - id: "RR_to_River"
-    description: "Lateral inflow from RR to River"
+  # basin → down（对应 test_pull_chain_executes_upstream_first）
+  - id: "Basin_to_Down"
+    description: "Upstream reservoir outflow into downstream reservoir"
+    if_use: True
+    mode: "PULL"
+    source:
+      model: "basin"
+      item: "rsv1.Q"
+    target:
+      model: "down"
+      item: "in.up1"
+
+  # 水位 -> 流量端口（对应 test_quantity_mismatch_rejected）：
+  # 启用后应在 link 阶段被 Scheduler 拒绝（Quantity mismatch）
+  - id: "Level_to_Inflow"
+    description: "Negative test: water level into discharge port"
     if_use: False
     mode: "PULL"
     source:
-      model: "runoff"
-      item: "Outflow"
+      model: "basin"
+      item: "rsv1.Z"
     target:
-      model: "river"
-      item: "LateralInflow"
-    # 可选：时空映射
-    data_operations:
-      - type: "TemporalInterpolation"
-        params:
-          mode: "Linear"
-      - type: "SpatialMapping"
-        params:
-          mode: "Nearest"
+      model: "down"
+      item: "in.up1"
 
 # ===============================================================================
 # 调度配置。
@@ -96,8 +97,9 @@ SCHEDULES:
   log_freq: 10
   timeout: 300
   verbose: true
+  max_steps: 24
 
 # ===============================================================================
 # 环境配置
 # ===============================================================================
-ENV: null
+ENVS: null

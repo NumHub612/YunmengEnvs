@@ -2,7 +2,9 @@
 """
 Support yml configuration.
 """
+
 from yunmeng.setting import settings, logger
+from argparse import Namespace
 import os
 import yaml
 
@@ -15,7 +17,7 @@ class Orchestrator:
     but it does not instantiate any components.
     """
 
-    REQUIRED_LINK_FIELDS = ["MODELS", "ENV", "LINKS", "SCHEDULES"]
+    REQUIRED_LINK_FIELDS = ["MODELS", "ENVS", "LINKS", "SCHEDULES"]
     REQUIRED_MODEL_FIELDS = [
         "PROJECT",
         "TYPE",
@@ -27,7 +29,7 @@ class Orchestrator:
         "CUSTOMS",
     ]
 
-    def __init__(self, configs):
+    def __init__(self, configs: Namespace):
         self._config_file = configs.config
         self._root = None
         self._config = {}
@@ -42,7 +44,7 @@ class Orchestrator:
     @property
     def envs(self) -> dict:
         """Environment configurations."""
-        return self._config.get("ENV", {})
+        return self._config.get("ENVS", {}) or {}
 
     @property
     def links(self) -> list:
@@ -98,7 +100,7 @@ class Orchestrator:
         self._parse_schedule_configs(configs["SCHEDULES"])
 
         # Check `ENV` section.
-        self._config["SCHEDULES"] = configs.get("ENV", {})
+        self._config["ENV"] = configs.get("ENV", {})
 
     def _parse_schedule_configs(self, configs: dict):
         """
@@ -171,6 +173,7 @@ class Orchestrator:
             raise ValueError(f"Model ID {model_id} doesn't match project.")
         if "TYPE" not in model_config:
             raise ValueError(f"Model {model_id} doesn't have TYPE.")
+        model_config["id"] = model_id
 
         # Check required fields.
         for field in self.REQUIRED_MODEL_FIELDS:
