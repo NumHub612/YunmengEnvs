@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "yunmeng"
 dynamic = ["version"]
-description = "云梦环境流体力学解决方案"
+description = "Yunmeng Environmental Fluid Dynamics Solution"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.12"
