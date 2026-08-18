@@ -25,7 +25,7 @@ from yunmeng.solutions.HydrologicalSims.HydroModel import HydrologyModel
 from yunmeng.solutions.HydrologicalSims.Reservoir import ReservoirModel
 from yunmeng.solutions.HydrologicalSims.Gauges import GaugeSet
 from yunmeng.solutions.standards import ModelStatus
-from yunmeng.workflow.scheduler import Scheduler
+from yunmeng.taskflow.scheduler import Scheduler
 
 DT = 3600.0
 STEPS = 24
