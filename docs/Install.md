@@ -75,6 +75,9 @@ pixi run python --version
 
 pixi run test
 # 自动执行项目测试，并输出coverage报告
+
+pixi shell -e new_env_name
+# 临时切换环境并进入交互式 Shell
 ```
 
 ## linux 平台

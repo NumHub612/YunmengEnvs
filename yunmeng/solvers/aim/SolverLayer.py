@@ -16,7 +16,7 @@ class SolverLayer(ISolver, nn.Module):
         self.num_steps = num_steps
         self.Re = nn.Parameter(torch.tensor([Re]))  # 可学习的雷诺数
 
-    def forward(self, velocity_init, forcing=None):
+    def step(self, velocity_init, forcing=None):
         """
         输入: velocity_init [batch, 2, H, W] - 初始速度场
         输出: velocity_final [batch, 2, H, W] - 模拟后的速度场

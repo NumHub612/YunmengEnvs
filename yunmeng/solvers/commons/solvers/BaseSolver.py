@@ -224,7 +224,7 @@ class BaseSolver(ISolver):
         return solver
 
     def __call__(self, **kwargs):
-        return self.forward(**kwargs)
+        return self.step(**kwargs)
 
     def set_problems(self, equations: list[IEquation]):
         pass
@@ -235,7 +235,7 @@ class BaseSolver(ISolver):
     def initialize(self):
         raise NotImplementedError()
 
-    def forward(self) -> SolverStatus:
+    def step(self) -> SolverStatus:
         raise NotImplementedError()
 
     def reset(self):

@@ -115,7 +115,7 @@ class Burgers2D(BaseSolver):
         for callback in self._callbacks:
             callback.on_task_begin()
 
-    def forward(self, dt: float = 1.0) -> SolverStatus:
+    def step(self, dt: float = 1.0) -> SolverStatus:
         start = time.perf_counter()
 
         # Call callbacks

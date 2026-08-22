@@ -136,7 +136,7 @@ class BurgersExplicitSolver(BaseSolver):
         for callback in self._callbacks:
             callback.on_task_begin()
 
-    def forward(self) -> SolverStatus:
+    def step(self) -> SolverStatus:
         start = time.perf_counter()
 
         # Compute time step

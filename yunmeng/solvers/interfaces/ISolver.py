@@ -30,7 +30,8 @@ class SolverType(enum.Enum):
     FVM = "fvm"  # Finite Volume Model.
     FEM = "fem"  # Finite Element Model.
     LBM = "lbm"  # Lattice Boltzmann Model.
-    AIM = "aim"  # AI Model.
+    AIM = "aim"  # AI powered Model.
+    HYB = "hyb"  # Physics-AI Hybrid Model.
     UNKNOWN = "unknown"
 
 
@@ -251,7 +252,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def forward(self, **kwargs) -> SolverStatus:
+    def step(self, **kwargs) -> SolverStatus:
         """
         Advance solver to next timestep.
         """

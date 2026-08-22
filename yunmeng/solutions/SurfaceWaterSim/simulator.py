@@ -312,7 +312,7 @@ class SurfaceWaterSimulator(models.BaseModel):
         self.set_status(models.LinkableComponentStatus.WAITING, "waiting")
 
         self.set_status(models.LinkableComponentStatus.UPDATING, "updating")
-        status = self._solver.forward(self._dt)
+        status = self._solver.step(self._dt)
         self._current += dt.timedelta(seconds=self._dt)
 
         if self._current >= self._end:
