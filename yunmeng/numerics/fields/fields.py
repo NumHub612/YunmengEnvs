@@ -8,7 +8,7 @@ Fields definition.
 from yunmeng.numerics.enums import ElementType, BackendType
 from yunmeng.numerics.mesh import Mesh
 from yunmeng.numerics.fields.variables import Variable, VariableType
-from yunmeng.numerics.fields.backends import get_backend, ArrayLike
+from yunmeng.numerics.fields.backends import get_backend, ArrayLike, DeviceLike
 from yunmeng.setting import settings
 
 import numpy as np
@@ -51,9 +51,11 @@ class MeshShard:
     """Mesh shard for distributed computation."""
 
     shard_id: int
-    device: torch.device
+    device: DeviceLike
 
     # Local entities (global indices): [Core..., Ghost...]
+    # Entity index tables are constant indices (not on the autograd graph);
+    # numpy is acceptable here regardless of compute backend.
     cells: np.ndarray
     faces: np.ndarray
     nodes: np.ndarray
@@ -211,7 +213,7 @@ class FieldShard:
     """Field shard for distributed computation."""
 
     shard_id: int
-    device: torch.device
+    device: DeviceLike
     data: ArrayLike  # [Core..., Ghost...]
     n_core: int
 
@@ -1137,16 +1139,10 @@ class Field:
                     shard.data[recv_idxs] = recv_data
 
     def _minmax_op(self, op: HaloMode):
-        if self._backend.type == BackendType.TORCH:
-            if op == HaloMode.MAX:
-                return torch.max
-            elif op == HaloMode.MIN:
-                return torch.min
-        else:
-            if op == HaloMode.MAX:
-                return np.maximum
-            elif op == HaloMode.MIN:
-                return np.minimum
+        if op == HaloMode.MAX:
+            return self._backend.maximum
+        elif op == HaloMode.MIN:
+            return self._backend.minimum
         raise RuntimeError("Invalid halo op")
 
     def _mark_dirty(self):
@@ -1210,7 +1206,12 @@ class Field:
         return self.gather_to_host()
 
     def to_tensor(self, **kwargs) -> torch.Tensor:
-        """Convert field to a PyTorch tensor."""
+        """Convert field to a PyTorch tensor (detached, host-aggregated).
+
+        WARNING: this path gathers to host numpy first and therefore BREAKS
+        the autograd graph. For graph-preserving extraction (training),
+        use `yunmeng.ai.adapters.field_to_tensor` instead.
+        """
         return torch.tensor(self.gather_to_host())
 
     def scalarize(self) -> list["Field"]:

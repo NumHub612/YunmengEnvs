@@ -10,13 +10,17 @@ from yunmeng.setting import settings
 
 from typing import Dict, Union
 from contextlib import contextmanager
-import warnings
 import numpy as np
 import torch
 
 # --------------------------------------------------
 # region Backend
 # --------------------------------------------------
+
+# Backend-neutral device annotation. Runtime values are backend-native
+# handles (torch.device under the torch backend); neutral layers must not
+# declare concrete torch/np types — conversion happens inside Backend.
+DeviceLike = Union[DeviceType, "torch.device", str, None]
 
 ArrayLike = Union[np.ndarray, torch.Tensor]
 
@@ -111,6 +115,132 @@ class Backend:
             arr = [t.to(device0) for t in arr]
             return torch.stack(arr, dim=axis)
         return np.stack(arr, axis=axis)
+
+    # --------------------------------------------------
+    # region ArrayNamespace primitives
+    # --------------------------------------------------
+    # Operator/Field layers must dispatch through these
+    # primitives instead of touching np./torch. directly.
+
+    def asarray(self, obj, dtype=None, device=None) -> ArrayLike:
+        """Convert array-like to backend array without copying when possible.
+
+        Note: converting across backends (e.g. torch -> numpy) detaches the
+        autograd graph by nature. Intra-backend conversion keeps the graph.
+        """
+        if self.is_torch:
+            if isinstance(obj, torch.Tensor):
+                t = obj
+                if dtype is not None:
+                    t = t.to(dtype)
+                if device is not None:
+                    t = t.to(device)
+                return t
+            return torch.as_tensor(obj, dtype=dtype, device=device)
+        if isinstance(obj, torch.Tensor):
+            return obj.detach().cpu().numpy()
+        return np.asarray(obj, dtype=dtype)
+
+    def where(self, cond, x, y) -> ArrayLike:
+        """Element-wise selection. Differentiable in torch (subgradient at
+        the switching surface is zero, acceptable for upwind/limiter logic)."""
+        return self.xp.where(cond, x, y)
+
+    def maximum(self, a, b) -> ArrayLike:
+        if self.is_torch:
+            return torch.maximum(self.asarray(a), self.asarray(b))
+        return np.maximum(a, b)
+
+    def minimum(self, a, b) -> ArrayLike:
+        if self.is_torch:
+            return torch.minimum(self.asarray(a), self.asarray(b))
+        return np.minimum(a, b)
+
+    def ones_like(self, arr) -> ArrayLike:
+        return self.xp.ones_like(arr)
+
+    def full_like(self, arr, fill_value) -> ArrayLike:
+        if self.is_torch:
+            return torch.full_like(arr, fill_value)
+        return np.full_like(arr, fill_value)
+
+    def arange(self, *args, dtype=None, device=None) -> ArrayLike:
+        if self.is_torch:
+            return torch.arange(*args, dtype=dtype, device=device)
+        return np.arange(*args, dtype=dtype)
+
+    def concatenate(self, arrs, axis=0) -> ArrayLike:
+        if self.is_torch:
+            return torch.cat(list(arrs), dim=axis)
+        return np.concatenate(list(arrs), axis=axis)
+
+    def sum(self, arr, axis=None, keepdims=False):
+        if self.is_torch:
+            return torch.sum(arr, dim=axis, keepdim=keepdims)
+        return np.sum(arr, axis=axis, keepdims=keepdims)
+
+    def mean(self, arr, axis=None, keepdims=False):
+        if self.is_torch:
+            return torch.mean(arr, dim=axis, keepdim=keepdims)
+        return np.mean(arr, axis=axis, keepdims=keepdims)
+
+    def sqrt(self, arr) -> ArrayLike:
+        return self.xp.sqrt(arr)
+
+    def is_tensor(self, obj) -> bool:
+        """Whether obj is the native array type of this backend."""
+        if self.is_torch:
+            return isinstance(obj, torch.Tensor)
+        return isinstance(obj, np.ndarray)
+
+    # --------------------------------------------------
+    # region Algorithmic primitives
+    # --------------------------------------------------
+    # Beyond data-type abstraction, the backend also abstracts ALGORITHMIC
+    # primitives whose optimal implementations diverge across backends
+    # (sparse ops, scatter/gather, linear solves). Operator code must call
+    # these instead of hand-rolling np./torch. variants. Heavy paths may
+    # have per-backend optimized implementations behind the same signature.
+
+    def matmul(self, a, b) -> ArrayLike:
+        if self.is_torch:
+            return torch.matmul(a, b)
+        return np.matmul(a, b)
+
+    def einsum(self, equation, *operands) -> ArrayLike:
+        if self.is_torch:
+            return torch.einsum(equation, *operands)
+        return np.einsum(equation, *operands)
+
+    def scatter_add(self, index, src, dim_size: int) -> ArrayLike:
+        """Segment/scatter accumulation — the core primitive of FEM/FVM
+        assembly and mesh-based GNN message passing.
+
+        Numpy: np.add.at (slow but correct). Torch: index_add_ (fast, on
+        device, differentiable)."""
+        if self.is_torch:
+            if not torch.is_tensor(index):
+                index = torch.as_tensor(index, dtype=torch.int64, device=src.device)
+            out = torch.zeros(
+                (dim_size, *src.shape[1:]), dtype=src.dtype, device=src.device
+            )
+            out.index_add_(0, index, src)
+            return out
+        out = np.zeros((dim_size, *src.shape[1:]), dtype=src.dtype)
+        np.add.at(out, index, src)
+        return out
+
+    def solve(self, a, b) -> ArrayLike:
+        """Dense linear solve (differentiable under torch).
+
+        Sparse/iterative solves are NOT covered here: they are handled by
+        numerics.linalgs with per-backend implementations; under torch a
+        differentiable sparse solve must be wrapped via the implicit
+        function theorem (custom autograd.Function), not plain AD through
+        the iterations."""
+        if self.is_torch:
+            return torch.linalg.solve(a, b)
+        return np.linalg.solve(a, b)
 
     def norm(self, arr) -> float:
         if self.type == BackendType.TORCH:

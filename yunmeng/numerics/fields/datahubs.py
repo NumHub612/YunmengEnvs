@@ -1,17 +1,49 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Datahubs for managing of the fields and its history.
+Centralizes solver-side data management across three concerns:
+    1. Time history of fields (multi-step schemes).
+    2. Cross-operator reuse of computed products (cache).
+    3. Version tracking with cascade cache invalidation.
+
+=====================================================
+Usage sketch
+=====================================================
+    hub = DataHub(fields=["u", "v"], levels=3, mode=RunMode.EVAL)
+
+    # 1) push a time-stamped snapshot
+    hub.push("u", Sample(t, Field(u_tensor)), ElementType.CELL)
+
+    # 2) operator A computes a gradient and caches the product
+    g = A(hub.latest("u", ElementType.CELL).data)
+    hub.put_computed(
+        DataProduct.for_producer("GradOp", "u", ElementType.CELL, otype="grad"),
+        Sample(t, Field(g)),
+    )
+
+    # 3) operator B reuses it via a wildcard query (namespace="*")
+    cached = hub.get_computed(
+        DataProduct.for_query("u", ElementType.CELL, otype="grad")
+    )
+
+    # 4) pushing a new "u" bumps its version -> the cached gradient is
+    #    cascade-invalidated automatically
+    hub.push("u", Sample(t2, Field(u_new)), ElementType.CELL)
+    assert hub.get_computed(...) is None
+
+    # 5) TRAIN mode: get/put_computed are bypassed, so all data flows
+    #    through the mode-agnostic *history* API (push/latest/field)
+    #    or as plain return values between operators.
+    hub.set_mode(RunMode.TRAIN)
+    u = hub.latest("u", ElementType.CELL).data.tensor
+
 """
 
 from __future__ import annotations
 from dataclasses import dataclass, field
 
-import numpy as np
-import torch
-
-from yunmeng.numerics.enums import ElementType
+from yunmeng.numerics.enums import ElementType, RunMode
 from yunmeng.numerics.fields import Field
 
 # ---------------------------------------------------
@@ -29,15 +61,6 @@ class Sample:
     def detach(self) -> Sample:
         """Return new Sample with data detached from computation graph."""
         return Sample(self.timestamp, self.data.detach())
-
-    def to_tensor(self) -> torch.Tensor:
-        """Extract tensor from underlying Field data."""
-        d = self.data
-        if hasattr(d, "to_tensor"):
-            return d.to_tensor()
-        if hasattr(d, "values"):
-            return torch.from_numpy(np.asarray(d.values))
-        return torch.as_tensor(d)
 
 
 # ---------------------------------------------------
@@ -58,12 +81,12 @@ class DataProduct:
     """
 
     otype: str  # "grad", "div", "lap", "rhs", ...
-    field_name: str  # which field this product is derived from
+    fname: str  # which field this product is derived from
     etype: ElementType  # where the product lives
     namespace: str = "default"
 
     def __str__(self) -> str:
-        return f"{self.otype}_{self.field_name}_{self.etype.name}_{self.namespace}"
+        return f"{self.otype}_{self.fname}_{self.etype.name}_{self.namespace}"
 
     @classmethod
     def for_producer(
@@ -116,9 +139,9 @@ class ComputedEntry:
     def depends_on_field(self, field_name: str) -> bool:
         """Check if this entry depends on field_name."""
         return (
-            self.product.field_name == field_name
+            self.product.fname == field_name
             or field_name in self.versions
-            or any(dep.field_name == field_name for dep in self.depends)
+            or any(dep.fname == field_name for dep in self.depends)
         )
 
 
@@ -128,11 +151,11 @@ class ComputedEntry:
 
 
 class TensorHistory:
-    """Stores time history as stacked tensors, preserving computation graphs.
+    """Stores time history as Sample references, preserving computation graphs.
 
-    History is stored as a single ``torch.Tensor`` of shape
-    ``(levels, N, ...)`` so PyTorch tracks gradients across time steps
-    natively.
+    Only Sample *references* are shifted on push (O(levels), no Field copy).
+    If a Field's underlying data is a torch tensor with requires_grad, the
+    computation graph connection is preserved across time levels.
     """
 
     def __init__(self, name: str, levels: int, shape_hint: tuple = None):
@@ -153,21 +176,8 @@ class TensorHistory:
     def version(self) -> int:
         return self._version
 
-    @property
-    def dtype(self) -> torch.dtype:
-        return self._tensors.dtype if self._tensors is not None else None
-
-    @property
-    def device(self) -> torch.device:
-        return self._tensors.device if self._tensors is not None else None
-
-    def push(self, sample: Sample) -> None:
-        """Push new sample — shifts history, drops oldest.
-
-        Only the Sample *reference* is moved (O(levels)), no Field copy.
-        If the Field's underlying data is a torch.Tensor with requires_grad,
-        the computation graph connection is preserved.
-        """
+    def push(self, sample: Sample):
+        """Push new sample — shifts history, drops oldest."""
         if not isinstance(sample, Sample):
             raise TypeError(f"Expected Sample, got {type(sample)}")
 
@@ -198,33 +208,12 @@ class TensorHistory:
                 best, best_dt = s, dt
         return best
 
-    def as_stacked_tensor(self, levels: int = None) -> torch.Tensor:
-        """Convert history to a stacked tensor for neural network input.
-
-        Shape: (L, N, ...) where L=time levels, N=nodes, C=components.
-        This creates a NEW tensor (copy) — the original Field data in
-        history is untouched.
-
-        If the Field's backend is numpy, tensors are converted via
-        ``torch.from_numpy()``.
-        """
+    def samples(self, levels: int = None) -> list[Sample]:
+        """Return valid samples [newest ... oldest] up to `levels`."""
         n = levels or self._max_levels
-        valid = [self._history[i] for i in range(n) if self._history[i] is not None]
-        if not valid:
-            return None
+        return [self._history[i] for i in range(n) if self._history[i] is not None]
 
-        tensors = []
-        for s in valid:
-            t = (
-                s.data.to_tensor()
-                if hasattr(s.data, "to_tensor")
-                else torch.as_tensor(s.data)
-            )
-            tensors.append(t)
-
-        return torch.stack(tensors, dim=0)
-
-    def clear(self) -> None:
+    def clear(self):
         self._history = [None] * self._max_levels
         self._version = 0
 
@@ -250,11 +239,24 @@ class DataHub:
         1. Time history  — TensorHistory per (field, loc) for multi-step schemes
         2. Computed cache — operator products for cross-operator reuse
         3. Version tracking — automatic cascade cache invalidation
+
+    Run mode:
+        - EVAL (default): computed-product cache enabled; detach-style
+          optimizations are allowed by consumers.
+        - TRAIN: computed-product cache bypassed (get/put become no-ops),
+          so every operator evaluation stays on the live autograd graph
+          during unrolled backpropagation.
     """
 
-    def __init__(self, fields: list[str], levels: int):
+    def __init__(
+        self,
+        fields: list[str],
+        levels: int,
+        mode: RunMode = RunMode.EVAL,
+    ):
         self._fields = list(set(fields))
         self._levels = levels
+        self._mode = mode
 
         # Time history: {field_name}_{loc.name} -> TensorHistory
         self._history: dict[str, TensorHistory] = {}
@@ -269,6 +271,16 @@ class DataHub:
         # Version tracking: {field_name} -> version counter
         self._versions: dict[str, int] = {f: 0 for f in self._fields}
 
+    # -- mode -----------------------------------------
+
+    @property
+    def mode(self) -> RunMode:
+        """Current run mode."""
+        return self._mode
+
+    def set_mode(self, mode: RunMode):
+        self._mode = mode
+
     # -- key helpers --------------------------------
 
     @staticmethod
@@ -277,7 +289,7 @@ class DataHub:
 
     # -- time history management --------------------
 
-    def push(self, name: str, sample: Sample, etype: ElementType) -> None:
+    def push(self, name: str, sample: Sample, etype: ElementType):
         """Push a field snapshot into time history.
 
         Args:
@@ -333,6 +345,9 @@ class DataHub:
         Wildcard query: if ``product.namespace == "*"``, matches ANY
         namespace (newest fresh hit wins).
         """
+        if self._mode == RunMode.TRAIN:
+            return None
+
         # --- wildcard: match any namespace ---
         if product.namespace == "*":
             candidate_key = None
@@ -340,8 +355,8 @@ class DataHub:
             for key, entry in self._cache.items():
                 if (
                     entry.product.otype == product.otype
-                    and entry.product.field_name == product.field_name
-                    and entry.product.loc == product.loc
+                    and entry.product.fname == product.fname
+                    and entry.product.etype == product.etype
                 ):
                     if entry.is_stale(self._versions):
                         continue
@@ -366,8 +381,10 @@ class DataHub:
         product: DataProduct,
         sample: Sample,
         depends: list[DataProduct] = None,
-    ) -> None:
+    ):
         """Store a computed product in cache for reuse."""
+        if self._mode == RunMode.TRAIN:
+            return
         key = str(product)
         self._cache[key] = ComputedEntry(
             product=product,
@@ -376,7 +393,7 @@ class DataHub:
             depends=list(depends) if depends else [],
         )
 
-    def _invalidate_cache_cascade(self, changed_field: str) -> None:
+    def _invalidate_cache_cascade(self, changed_field: str):
         """Remove cache entries affected transitively."""
         to_remove: set[str] = set()
 
@@ -400,43 +417,9 @@ class DataHub:
         for key in to_remove:
             del self._cache[key]
 
-    def clear_cache(self) -> None:
+    def clear_cache(self):
         """Clear all cached computed products."""
         self._cache.clear()
-
-    # -- tensor export for AI models ----------------
-
-    def to_tensor_batch(
-        self, name: str, etype: ElementType, levels: int = None
-    ) -> torch.Tensor:
-        """Export field history as batched tensor (T, N, C). Detached."""
-        key = self._key(name, etype)
-        hist = self._history.get(key)
-        if hist is None:
-            return None
-        stacked = hist.as_stacked_tensor(levels)
-        return stacked.detach() if stacked is not None else None
-
-    def to_training_sample(
-        self, name: str, etype: ElementType, input_levels: int = 2
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Create (input, target) pair for supervised learning."""
-        key = self._key(name, etype)
-        hist = self._history.get(key)
-        if hist is None or len(hist) < input_levels + 1:
-            return None, None
-
-        target_t = hist.at(0).to_tensor().detach()
-
-        past = []
-        for i in range(1, input_levels + 1):
-            s = hist.at(i)
-            if s is None:
-                return None, None
-            past.append(s.to_tensor().detach())
-        input_tensor = torch.stack(past, dim=0)
-
-        return input_tensor, target_t
 
     # -- cache introspection ------------------------
 
@@ -457,7 +440,7 @@ class DataHub:
 
     # -- cleanup ------------------------------------
 
-    def clear(self) -> None:
+    def clear(self):
         """Clear all history and cache."""
         for hist in self._history.values():
             hist.clear()

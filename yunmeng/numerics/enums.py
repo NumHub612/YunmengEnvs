@@ -9,9 +9,48 @@ from dataclasses import dataclass
 from typing import Tuple, Union
 from enum import Enum, auto
 
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------
+# region RunMode
+# ---------------------------------------------------
+
+
+class RunMode(Enum):
+    """Runtime mode of solver/data components."""
+
+    TRAIN = "train"
+    """Graph-preserving mode: no detach, cache bypassed or graph-aware.
+    Used when an estimator unrolls solver steps for backpropagation."""
+
+    EVAL = "eval"
+    """Inference mode: detach and cache-reuse optimizations allowed."""
+
+
+# --------------------------------------------------
+# region Mesh
+# --------------------------------------------------
+
+
+class MeshDimension(Enum):
+    """The mesh dimensions."""
+
+    NONE = 0
+    D1 = 1
+    D2 = 2
+    D3 = 3
+
+
+class ElementType(Enum):
+    """Element types in CFD."""
+
+    CELL = "cell"
+    FACE = "face"
+    NODE = "node"
+    NONE = "none"
+
+
+# ---------------------------------------------------
 # region DeviceType
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------
 
 
 class DeviceType(Enum):
@@ -123,31 +162,3 @@ class VariableType:
         if self.is_scalar:
             return "SCALAR"
         return f"{self.name}({self.shape[-1]})"
-
-
-# --------------------------------------------------
-# region Fields
-# --------------------------------------------------
-
-
-# --------------------------------------------------
-# region Mesh
-# --------------------------------------------------
-
-
-class MeshDimension(Enum):
-    """The mesh dimensions."""
-
-    NONE = 0
-    D1 = 1
-    D2 = 2
-    D3 = 3
-
-
-class ElementType(Enum):
-    """Element types in CFD."""
-
-    CELL = "cell"
-    FACE = "face"
-    NODE = "node"
-    NONE = "none"
