@@ -4,14 +4,6 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Dimension-aware internal topology interfaces.
 
-IInternalTopology exposes a component's internal spatial structure
-in a way that supports:
-
-  - 1-D: river reaches with cross-sections, channel networks
-  - 2-D: raster grids (DEM-based), unstructured meshes (triangles, quads)
-  - 3-D: layered lakes, estuaries, coastal oceans
-  - Mixed: 1-D channel + 2-D floodplain, nested basins
-
 Design principles:
   1. Hierarchical — a basin contains sub-basins, which contain grid cells
   2. Dimension-aware — 1-D chains, 2-D grids, 3-D volumes are first-class
@@ -23,12 +15,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 import numpy as np
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from yunmeng.solutions.standards.IModel import ExchangeMeta
-    from yunmeng.numerics.enums import MeshDimension
+from yunmeng.numerics.enums import MeshDimension
 
 # ---------------------------------------------------
 # region Geometry type

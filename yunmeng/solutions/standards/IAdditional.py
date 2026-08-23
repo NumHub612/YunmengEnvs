@@ -2,37 +2,64 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Parameter-vector interface for calibration and training.
+IEstimable: the estimation target abstraction (design doc v1.4).
+
+MERGE NOTE: this interface ABSORBS the former
+`solutions.standards.IAdditional.IParametric` (flat, named, bounded
+parameter vector + run reset), which existed solely for calibration.
+IParametric is kept as a deprecated alias — do not use it in new code.
+
+Both layers can implement IEstimable:
+  - ILinkableModel (end users, via the IEstimableModel mixin): parameters
+    map to ModelMeta.parameters / PARAMS yaml declarations. Black-box,
+    gradient-free calibration via Calibrator. A model need NOT be
+    solver-based (e.g. lumped hydrological models).
+  - ISolver (framework developers): white-box access, gradient-based
+    end-to-end training via GradientTrainer.
 """
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from typing import Any
 import numpy as np
 
-from yunmeng.solutions.standards.IModel import ParamMeta, ExchangeMeta
-from yunmeng.solutions.standards.ITopology import ISpatialIndex, ITopologyLayer
+from yunmeng.numerics.enums import RunMode
+from yunmeng.solutions.standards.IModel import ParamMeta
 
 # ---------------------------------------------------
-# region Parametric
+# region IEstimable
 # ---------------------------------------------------
 
 
-# TODO: Add interface for descripting parameter coupling relationships.
-class IParametric(ABC):
-    """Flat, named, bounded parameter vector plus run reset."""
+class IEstimable(ABC):
+    """Mixin for linkable models that support estimation (calibration or
+    training) with a unified user experience at the model layer.
+
+    Contract = parameter-vector access (calibration-ready) + run +
+    gradient capability declaration.
+    """
+
+    @property
+    @abstractmethod
+    def mode(self) -> RunMode:
+        """Current run mode of the model (and internal components)."""
+        pass
+
+    # -- parameter vector ---------------------------
 
     @abstractmethod
     def param_spec(self) -> list[ParamMeta]:
-        """Parameter descriptors."""
+        """Parameter descriptors (list[ParamMeta])."""
         pass
 
     @abstractmethod
     def param_names(self) -> list[str]:
-        """Ordered names."""
+        """Ordered parameter names."""
         pass
 
     @abstractmethod
     def get_param_vector(self, names: list[str] = None) -> np.ndarray:
+        """Flat parameter vector aligned with `names` (default: all)."""
         pass
 
     @abstractmethod
@@ -41,6 +68,7 @@ class IParametric(ABC):
         values: np.ndarray,
         names: list[str] = None,
     ):
+        """Write a flat parameter vector."""
         pass
 
     @abstractmethod
@@ -48,8 +76,6 @@ class IParametric(ABC):
         """Reset to the initial state for a fresh evaluation,
         keeping the current parameter values."""
         pass
-
-    # -- helpers ------------------------------------
 
     def param_bounds(
         self,
@@ -64,10 +90,41 @@ class IParametric(ABC):
             b = spec[n].bounds if n in spec else (None, None)
             lo.append(-np.inf if b[0] is None else b[0])
             hi.append(np.inf if b[1] is None else b[1])
+        return np.array(lo, dtype=float), np.array(hi, dtype=float)
 
-        lo = np.array(lo, dtype=float)
-        hi = np.array(hi, dtype=float)
-        return lo, hi
+    # -- run & gradient capability ------------------
+
+    @abstractmethod
+    def run(self, **kwargs) -> Any:
+        """Execute one full forward pass with current parameters.
+
+        Returns an object from which observation-equivalent
+        outputs can be extracted. In `TRAIN` mode the returned
+        state must stay on the autograd graph.
+        """
+        pass
+
+    @classmethod
+    def supports_gradient(cls) -> bool:
+        """Whether end-to-end backpropagation is available.
+
+        True requires differentiable solver chain (torch
+        backend + torch-ized operators). False for gradient-free.
+        """
+        return False
+
+    def train(self):
+        """Switch to TRAIN mode and propagate to internals."""
+        self._set_mode_recursive(RunMode.TRAIN)
+
+    def eval(self):
+        """Switch to EVAL mode and propagate to internals."""
+        self._set_mode_recursive(RunMode.EVAL)
+
+    @abstractmethod
+    def _set_mode_recursive(self, mode: RunMode):
+        """Set own mode and propagate: model->solvers->datahubs."""
+        pass
 
 
 def split_namespaces(names: list[str]) -> dict[str, list[str]]:
@@ -80,44 +137,3 @@ def split_namespaces(names: list[str]) -> dict[str, list[str]]:
         head, _, tail = n.partition(".")
         groups.setdefault(head, []).append(tail)
     return groups
-
-
-# ---------------------------------------------------
-# region IInternalTopology
-# ---------------------------------------------------
-
-
-class IInternalTopology(ABC):
-    """Interface for components that contain internal topology."""
-
-    @property
-    def has_internal_topology(self) -> bool:
-        """Whether this model has meaningful internal topology."""
-        return False
-
-    @abstractmethod
-    def get_layers(self) -> list[ITopologyLayer]:
-        """Return all topology layers, outermost first."""
-        pass
-
-    def get_layer(self, layer_id: str) -> ITopologyLayer:
-        """Convenience: fetch a layer by its id."""
-        for layer in self.get_layers():
-            if layer.layer_id == layer_id:
-                return layer
-        return None
-
-    def get_spatial_index(self, layer_id: str = "") -> ISpatialIndex:
-        """Return a spatial index for the given layer.
-
-        If *layer_id* is empty, the finest (innermost)
-        layer is used. Returns None if the layer has
-        no spatial extent (e.g. SCALAR).
-        """
-        return None
-
-    def get_exposed_ports(self) -> list[ExchangeMeta]:
-        """Return subset of internal nodes that are exposed
-        as coupling ports to other components.
-        """
-        return []

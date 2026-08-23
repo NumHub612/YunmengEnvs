@@ -8,8 +8,13 @@ from typing import Any, Dict
 import importlib
 
 from yunmeng.setting import logger
-from yunmeng.solutions.standards import CouplingConfig, CouplingMode
+from yunmeng.solutions.standards import CouplingConfig, CouplingMode, IEstimable
+from yunmeng.taskflow.estimator import Optimizer, Calibrator
 from yunmeng.taskflow.scheduler import Scheduler
+
+# ---------------------------------------------------
+# region Builder & Assembler
+# ---------------------------------------------------
 
 
 class ClassBuilder:
@@ -36,6 +41,11 @@ class PipelineAssembler:
     def assemble(self, pipeline_config: list) -> list:
         """Assemble components in order."""
         return [self.builder.build(step) for step in pipeline_config]
+
+
+# ---------------------------------------------------
+# region SchedulerBuilder
+# ---------------------------------------------------
 
 
 class SchedulerBuilder:
@@ -272,3 +282,96 @@ class SchedulerBuilder:
         sched.settings = dict(schedules)
         for cfg in schedules.get("callbacks") or []:
             sched.add_callback(self._class_builder.build(cfg))
+
+
+# ---------------------------------------------------
+# region EstimatorBuilder
+# ---------------------------------------------------
+
+
+class EstimatorBuilder(SchedulerBuilder):
+    """Build (estimator, target_model, data, loss) for TASK=estimation.
+
+    TODO: not yet implemented.
+    """
+
+    def build(self, orchestrator):
+        # -- structural guards --------------------------
+        if getattr(orchestrator, "links", None):
+            raise ValueError(
+                "Estimation task forbids LINKS (coupling is EVAL-only). "
+                "Train/calibrate the model standalone, then couple it in a "
+                "simulation task."
+            )
+
+        est_cfg = getattr(orchestrator, "estimation", None)
+        if not est_cfg:
+            raise ValueError("TASK=estimation requires an ESTIMATION section.")
+
+        # -- instantiate models (reused as-is) ----------
+        self._model_configs = dict(orchestrator.models or {})
+        self._build_models(sched=None)  # no scheduler in estimation tasks
+
+        # -- resolve target -----------------------------
+        target_id = est_cfg["target"]
+        if target_id not in self._instances:
+            raise ValueError(
+                f"Estimation target '{target_id}' not found in MODELS: "
+                f"{list(self._instances)}."
+            )
+        target = self._instances[target_id]
+
+        if not isinstance(target, IEstimable):
+            raise TypeError(
+                f"Model '{target_id}' ({type(target).__name__}) is not "
+                f"estimable. Mix in IEstimableModel to support "
+                f"calibration/training."
+            )
+
+        # -- resolve estimator & loss by short name -----
+        # estimator = self._build_by_name(
+        #     ym_estimators, est_cfg["estimator"], kind="estimator"
+        # )
+        # loss = self._build_by_name(ym_losses, est_cfg["loss"], kind="loss")
+
+        # -- parameter subset & data binding ------------
+        param_names = est_cfg.get("parameters") or target.param_names()
+        data = est_cfg.get("data")  # observations binding
+
+        logger.info(
+            f"Estimation task: target='{target_id}', "
+            f"estimator='{est_cfg['estimator']['name']}', "
+            f"params={param_names}."
+        )
+        # return estimator, target, data, loss, param_names
+
+    # -- internals --------------------------------------
+
+    def _build_models(self, sched):
+        """Reuse SchedulerBuilder model instantiation; `sched` is unused
+        here (no coupling graph in estimation tasks)."""
+        for model_id, cfg in self._model_configs.items():
+            model = self._instantiate_model(model_id, cfg)
+            self._instances[model_id] = model
+            logger.info(f"Model '{model_id}' (TYPE={cfg.get('TYPE')}) built.")
+
+    @staticmethod
+    def _build_by_name(registry: dict, cfg: dict, kind: str) -> Any:
+        """Resolve a short unique name from the registry and instantiate.
+
+        cfg: {"name": "sceua", "params": {...}} — class paths are NOT
+        accepted; the framework guarantees name uniqueness via registry.
+        """
+        name = cfg.get("name")
+        if "." in str(name):
+            raise ValueError(
+                f"Invalid {kind} reference '{name}': yaml must use short "
+                f"registered names, not class paths. Available: "
+                f"{sorted(registry)}."
+            )
+        cls = registry.get(name)
+        if cls is None:
+            raise ValueError(
+                f"Unknown {kind} '{name}'. Registered: {sorted(registry)}."
+            )
+        return cls(**(cfg.get("params") or {}))
