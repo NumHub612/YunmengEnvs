@@ -150,7 +150,7 @@ class TestBurgers2D:
         solver = BurgersExplicitSolver("solver", grid_41x41, operators, configs)
         solver.add_ic("u", u_init)
         solver.add_bc("u", u_bc)
-        solver.add_callback(cb)
+        # solver.add_callback(cb)
 
         # initialize
         solver.initialize()
@@ -265,7 +265,7 @@ class TestNavierStokes2D:
         solver.add_bc("u", other_v_bc)
         solver.add_bc("p", north_p_bc)
         solver.add_bc("p", other_p_bc)
-        solver.add_callback(cb)
+        # solver.add_callback(cb)
 
         # initialize
         solver.initialize()

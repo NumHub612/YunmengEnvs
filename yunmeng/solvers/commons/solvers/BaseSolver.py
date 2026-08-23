@@ -9,6 +9,8 @@ from yunmeng.solvers.interfaces import (
     IEquation,
     IOperator,
     ISolver,
+    IAssimilatable,
+    ISnapshotable,
     ISolverCallback,
     IInitialCondition,
     IBoundaryCondition,
@@ -18,7 +20,8 @@ from yunmeng.solvers.interfaces import (
     SolverType,
     SolverConfig,
 )
-from yunmeng.numerics.mesh import Element, ElementType, Mesh
+from yunmeng.numerics.enums import RunMode
+from yunmeng.numerics.mesh import Mesh
 from yunmeng.numerics.grids import Grid
 from yunmeng.numerics.fields import Field
 from yunmeng.setting import logger
@@ -28,7 +31,7 @@ from typing import Union
 import pickle
 
 
-class BaseSolver(ISolver):
+class BaseSolver(ISolver, ISnapshotable):
     """
     Basic solver.
 
@@ -88,6 +91,32 @@ class BaseSolver(ISolver):
 
         self._default_bc: IBoundaryCondition = None
         self._bcs: dict[str, list[IBoundaryCondition]] = defaultdict(list)
+
+        self._mode: RunMode = RunMode.EVAL
+
+    # -- run mode ------------------------------------
+
+    @property
+    def mode(self) -> RunMode:
+        return self._mode
+
+    def train(self):
+        """Switch to TRAIN mode; propagates to the DataHub if created."""
+        self._mode = RunMode.TRAIN
+        self._propagate_mode()
+
+    def eval(self):
+        """Switch to EVAL mode; propagates to the DataHub if created."""
+        self._mode = RunMode.EVAL
+        self._propagate_mode()
+
+    def _propagate_mode(self):
+        buffs = getattr(self, "_buffs", None)
+        if buffs is not None and hasattr(buffs, "set_mode"):
+            buffs.set_mode(self._mode)
+        for op in self._operators or []:
+            if hasattr(op, "set_mode"):
+                op.set_mode(self._mode)
 
     @property
     def id(self) -> str:
@@ -227,9 +256,6 @@ class BaseSolver(ISolver):
         return self.step(**kwargs)
 
     def set_problems(self, equations: list[IEquation]):
-        pass
-
-    def assimilate(self):
         pass
 
     def initialize(self):

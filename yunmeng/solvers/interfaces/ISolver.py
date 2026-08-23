@@ -245,13 +245,6 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def assimilate(self, **kwargs):
-        """
-        Assimilate with extra data.
-        """
-        pass
-
-    @abstractmethod
     def step(self, **kwargs) -> SolverStatus:
         """
         Advance solver to next timestep.
@@ -265,17 +258,36 @@ class ISolver(ABC):
         """
         pass
 
+
+# --------------------------------------------------
+# region Assimilatable
+# --------------------------------------------------
+
+
+class IAssimilatable(ABC):
+    """Capability: assimilate external observations into solver."""
+
     @abstractmethod
-    def save(self, path: str):
-        """
-        Save solver snapshot to a file.
-        """
+    def assimilate(self, observations: Any, **kwargs):
+        """Merge observations into the current state."""
+        pass
+
+
+# --------------------------------------------------
+# region Snapshotable
+# --------------------------------------------------
+
+
+class ISnapshotable(ABC):
+    """Capability: save/restore a solver snapshot."""
+
+    @abstractmethod
+    def save(self, path: str) -> None:
+        """Save snapshot (config + runtime state + model refs)."""
         pass
 
     @classmethod
     @abstractmethod
-    def load(self, path: str) -> "ISolver":
-        """
-        Load this solver from the file.
-        """
+    def load(cls, path: str) -> "ISnapshotable":
+        """Restore from snapshot."""
         pass

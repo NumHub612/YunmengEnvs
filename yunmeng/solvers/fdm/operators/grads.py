@@ -20,11 +20,29 @@ from yunmeng.numerics.fields import (
     DataProduct,
     Sample,
     Field,
-    Variable,
     VariableType,
 )
+from yunmeng.solvers.commons.supports import backend_of_field
 
-import numpy as np
+
+def _onesided_fill(out, u, kx, ky, backend):
+    """Fill boundary slices of a gradient array with one-sided differences.
+
+    Args:
+        out: gradient array under construction, shape (nx, ny, ..., >=2) —
+            the last axis indexes the derivative direction (0: d/dx, 1: d/dy)
+            for scalar input, or the derivative direction slot for vector
+            input handled by the caller.
+        u: source array, shape (nx, ny, ...).
+    Only the boundary slices are written; interior must be filled by caller.
+    """
+    # d/dx one-sided on i-edges
+    out[0, ..., 0] = (u[1] - u[0]) * (2.0 * kx)
+    out[-1, ..., 0] = (u[-1] - u[-2]) * (2.0 * kx)
+    # d/dy one-sided on j-edges
+    out[:, 0, ..., 1] = (u[:, 1] - u[:, 0]) * (2.0 * ky)
+    out[:, -1, ..., 1] = (u[:, -1] - u[:, -2]) * (2.0 * ky)
+    return out
 
 
 class Grad01(BaseExplicitOperator):
@@ -40,8 +58,7 @@ class Grad01(BaseExplicitOperator):
     especially in high Reynolds number or convection-dominated flows,
     where it effectively prevents numerical oscillations.
 
-    OPTIMIZED: Internal node loops are vectorized via NumPy array slicing
-    (~100x faster than per-node Python loops).
+    Backend-neutral and autograd-safe (stage-2 refactor).
     """
 
     @classmethod
@@ -59,13 +76,6 @@ class Grad01(BaseExplicitOperator):
         self._dx = None
         self._dy = None
 
-        # --- cached neighbor index arrays
-        self._idx_i = None  # internal node global indices
-        self._idx_e = None  # east neighbors
-        self._idx_w = None  # west neighbors
-        self._idx_n = None  # north neighbors
-        self._idx_s = None  # south neighbors
-
     def prepare(
         self,
         mesh: Grid,
@@ -75,41 +85,19 @@ class Grad01(BaseExplicitOperator):
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._dx = self._mesh.lx / (self._mesh.nx - 1)
-        self._dy = self._mesh.ly / (self._mesh.ny - 1)
-
-        # Precompute neighbor index arrays for internal nodes
-        self._build_neighbor_indices()
-
-    def _build_neighbor_indices(self):
-        """Precompute neighbor global indices for all internal nodes."""
-        internal = list(self._topo.internal_nodes)
-        self._idx_i = np.array(internal, dtype=np.int64)
-        e_arr, w_arr, n_arr, s_arr = [], [], [], []
-        for nid in internal:
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            e_arr.append(e)
-            w_arr.append(w)
-            n_arr.append(n)
-            s_arr.append(s)
-        self._idx_e = np.array(e_arr, dtype=np.int64)
-        self._idx_w = np.array(w_arr, dtype=np.int64)
-        self._idx_n = np.array(n_arr, dtype=np.int64)
-        self._idx_s = np.array(s_arr, dtype=np.int64)
+        self._dx = mesh.lx / (mesh.nx - 1)
+        self._dy = mesh.ly / (mesh.ny - 1)
 
     def forward(self, data_hub: DataHub, time: float) -> Field:
         """Calculate the gradient of the field."""
-        # Extract field from DataHub
         sample = data_hub.latest(self._var, ElementType.NODE)
         if sample is None:
             raise ValueError(f"Grad01: no data for '{self._var}'@NODE.")
         old_field = sample.data
 
-        # Apply boundary conditions
         new_field = old_field.copy()
         self._apply_bc_directly(new_field, self._var)
 
-        # Calculate the gradient
         if old_field.vtype.is_scalar:
             grads = self._calculate_scalar_field(new_field)
         elif old_field.vtype.is_vector:
@@ -117,7 +105,6 @@ class Grad01(BaseExplicitOperator):
         else:
             raise ValueError(f"FDM op {self.get_name()} not support tensor fields.")
 
-        # publish gradient to cache for cross-operator reuse
         self._publish(
             data_hub,
             self._var,
@@ -129,7 +116,10 @@ class Grad01(BaseExplicitOperator):
         return grads
 
     def _calculate_scalar_field(self, field: Field) -> Field:
-        """Vectorized gradient for scalar field."""
+        """Vectorized upwind gradient for scalar field (backend-neutral)."""
+        backend = backend_of_field(field)
+        xp = backend.xp
+
         dim = self._mesh.dimension.value
         new_field = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
         kx = 1.0 / self._dx
@@ -138,39 +128,38 @@ class Grad01(BaseExplicitOperator):
         nx, ny = self._mesh.nx, self._mesh.ny
         u = field._shards[0].data.reshape(nx, ny)
 
-        # --- Internal region via array slicing (vectorized) ---
         u_c = u[1:-1, 1:-1]
         u_e = u[2:, 1:-1]
         u_w = u[:-2, 1:-1]
         u_n = u[1:-1, 2:]
         u_s = u[1:-1, :-2]
 
-        # Upwind coefficients
-        fh1 = np.where(u_c >= 0, 1.0, 0.0)
+        # Upwind coefficients (zero subgradient at the switching surface)
+        fh1 = backend.where(u_c >= 0, 1.0, 0.0)
         fh2 = 1.0 - fh1
-        fv1 = np.where(u_c >= 0, 1.0, 0.0)
+        fv1 = backend.where(u_c >= 0, 1.0, 0.0)
         fv2 = 1.0 - fv1
 
-        # Interface fluxes
         ue = u_c * fh1 + u_e * fh2
         uw = u_w * fh1 + u_c * fh2
         un = u_c * fv1 + u_n * fv2
         us = u_s * fv1 + u_c * fv2
 
-        # Gradients
         ux = (ue - uw) * kx
         uy = (un - us) * ky
 
-        # Assemble result (N, dim) vector field
-        grad = np.zeros((nx, ny, dim))
+        grad = backend.zeros((nx, ny, dim), dtype=u.dtype)
         grad[1:-1, 1:-1, 0] = ux
         grad[1:-1, 1:-1, 1] = uy
+        grad = _onesided_fill(grad, u, kx, ky, backend)
 
         new_field._shards[0].data = grad.reshape(-1, dim)
         return new_field
 
     def _calculate_vector_field(self, field: Field) -> Field:
-        """Vectorized gradient for vector field."""
+        """Vectorized upwind gradient for vector field (backend-neutral)."""
+        backend = backend_of_field(field)
+
         dim = field.vtype.shape[0]
         new_field = Field(field.mesh_shards, VariableType.tensor(dim), field.etype)
         kx = 1.0 / self._dx
@@ -179,93 +168,56 @@ class Grad01(BaseExplicitOperator):
         nx, ny = self._mesh.nx, self._mesh.ny
         u = field._shards[0].data.reshape(nx, ny, dim)
 
-        # --- Internal region: fully vectorized ---
         u_c = u[1:-1, 1:-1, :]  # (nx-2, ny-2, dim)
         u_e = u[2:, 1:-1, :]
         u_w = u[:-2, 1:-1, :]
         u_n = u[1:-1, 2:, :]
         u_s = u[1:-1, :-2, :]
 
-        # Upwind coefficients based on flow direction
-        # Horizontal: based on u-component (index 0)
-        fh1 = np.where(u_c[..., 0] >= 0, 1.0, 0.0)  # (nx-2, ny-2)
+        # Upwind coefficients based on flow direction per axis
+        fh1 = backend.where(u_c[..., 0] >= 0, 1.0, 0.0)[..., None]
         fh2 = 1.0 - fh1
-        # Vertical: based on v-component (index 1)
-        fv1 = np.where(u_c[..., 1] >= 0, 1.0, 0.0)
+        fv1 = backend.where(u_c[..., 1] >= 0, 1.0, 0.0)[..., None]
         fv2 = 1.0 - fv1
 
-        # Expand dims for broadcasting: (nx-2, ny-2, 1)
-        fh1_b = fh1[..., np.newaxis]
-        fh2_b = fh2[..., np.newaxis]
-        fv1_b = fv1[..., np.newaxis]
-        fv2_b = fv2[..., np.newaxis]
+        ue = u_c * fh1 + u_e * fh2
+        uw = u_w * fh1 + u_c * fh2
+        un = u_c * fv1 + u_n * fv2
+        us = u_s * fv1 + u_c * fv2
 
-        # Interface fluxes (all components at once)
-        ue = u_c * fh1_b + u_e * fh2_b
-        uw = u_w * fh1_b + u_c * fh2_b
-        un = u_c * fv1_b + u_n * fv2_b
-        us = u_s * fv1_b + u_c * fv2_b
-
-        # Gradients per component
         dudx = (ue[..., 0] - uw[..., 0]) * kx
         dudy = (un[..., 0] - us[..., 0]) * ky
         dvdx = (ue[..., 1] - uw[..., 1]) * kx
         dvdy = (un[..., 1] - us[..., 1]) * ky
 
-        # Assemble result (N, dim, dim) tensor field
-        result = np.zeros((nx, ny, dim, dim))
+        result = backend.zeros((nx, ny, dim, dim), dtype=u.dtype)
         result[1:-1, 1:-1, 0, 0] = dudx
         result[1:-1, 1:-1, 0, 1] = dudy
         result[1:-1, 1:-1, 1, 0] = dvdx
         result[1:-1, 1:-1, 1, 1] = dvdy
 
-        # Write internal region to new_field
+        # Vectorized one-sided boundary fill (graph-safe; filler values,
+        # overwritten by solver-applied VALUE BCs after the update).
+        # d/dx on i-edges, both components:
+        result[0, :, 0, 0] = (u[1, :, 0] - u[0, :, 0]) * (2.0 * kx)
+        result[0, :, 1, 0] = (u[1, :, 1] - u[0, :, 1]) * (2.0 * kx)
+        result[-1, :, 0, 0] = (u[-1, :, 0] - u[-2, :, 0]) * (2.0 * kx)
+        result[-1, :, 1, 0] = (u[-1, :, 1] - u[-2, :, 1]) * (2.0 * kx)
+        # d/dy on j-edges:
+        result[:, 0, 0, 1] = (u[:, 1, 0] - u[:, 0, 0]) * (2.0 * ky)
+        result[:, 0, 1, 1] = (u[:, 1, 1] - u[:, 0, 1]) * (2.0 * ky)
+        result[:, -1, 0, 1] = (u[:, -1, 0] - u[:, -2, 0]) * (2.0 * ky)
+        result[:, -1, 1, 1] = (u[:, -1, 1] - u[:, -2, 1]) * (2.0 * ky)
+
         new_field._shards[0].data = result.reshape(-1, dim, dim)
-
-        # --- Boundary nodes: handle None neighbors ---
-        for nid in self._topo.boundary_nodes:
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ui = field[nid]
-
-            # Horizontal upwind
-            if e is not None and w is not None:
-                fh1_b, fh2_b = self._check_upwind(ui[0])
-                ue_b = ui * fh1_b + field[e] * fh2_b
-                uw_b = field[w] * fh1_b + ui * fh2_b
-            else:
-                ue_b = field[e] if e is not None else ui
-                uw_b = field[w] if w is not None else ui
-
-            # Vertical upwind
-            if n is not None and s is not None:
-                fv1_b, fv2_b = self._check_upwind(ui[1])
-                un_b = ui * fv1_b + field[n] * fv2_b
-                us_b = field[s] * fv1_b + ui * fv2_b
-            else:
-                un_b = field[n] if n is not None else ui
-                us_b = field[s] if s is not None else ui
-
-            # Gradients
-            ux_b = (ue_b[0] - uw_b[0]) * kx
-            uy_b = (un_b[0] - us_b[0]) * ky
-            vx_b = (ue_b[1] - uw_b[1]) * kx
-            vy_b = (un_b[1] - us_b[1]) * ky
-
-            grad = Variable.tensor([ux_b, uy_b, vx_b, vy_b], dim=dim)
-            new_field[nid] = grad
-
         return new_field
-
-    def _check_upwind(self, c: float) -> tuple[float, float]:
-        """Check if the flux is upwind or downwind."""
-        if abs(c) < 1e-6:
-            return (0.5, 0.5)
-        return (max(c / (abs(c) + 1e-6), 0), max(-c / (abs(c) + 1e-6), 0))
 
 
 class Grad02(BaseExplicitOperator):
     """
     Second order central explicit gradient operator on structured grids.
+
+    Backend-neutral and autograd-safe (stage-2 refactor).
     """
 
     @classmethod
@@ -291,8 +243,8 @@ class Grad02(BaseExplicitOperator):
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._dx = self._mesh.lx / (self._mesh.nx - 1)
-        self._dy = self._mesh.ly / (self._mesh.ny - 1)
+        self._dx = mesh.lx / (mesh.nx - 1)
+        self._dy = mesh.ly / (mesh.ny - 1)
 
     def forward(self, datahub: DataHub, time: float) -> Field:
         sample = datahub.latest(self._var, ElementType.NODE)
@@ -309,7 +261,6 @@ class Grad02(BaseExplicitOperator):
         else:
             raise ValueError(f"FDM op {self.get_name()} not support tensor fields.")
 
-        # publish to cache
         self._publish(
             datahub,
             self._var,
@@ -321,6 +272,8 @@ class Grad02(BaseExplicitOperator):
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Vectorized gradient for vector field (central difference)."""
+        backend = backend_of_field(field)
+
         dim = field.vtype.shape[0]
         new_field = Field(field.mesh_shards, VariableType.tensor(dim), field.etype)
         kx = 1.0 / (2.0 * self._dx)
@@ -329,7 +282,6 @@ class Grad02(BaseExplicitOperator):
         nx, ny = self._mesh.nx, self._mesh.ny
         u = field._shards[0].data.reshape(nx, ny, dim)
 
-        # --- Internal region: vectorized central difference ---
         u_e = u[2:, 1:-1, :]
         u_w = u[:-2, 1:-1, :]
         u_n = u[1:-1, 2:, :]
@@ -340,54 +292,30 @@ class Grad02(BaseExplicitOperator):
         dvdx = (u_e[..., 1] - u_w[..., 1]) * kx
         dvdy = (u_n[..., 1] - u_s[..., 1]) * ky
 
-        result = np.zeros((nx, ny, dim, dim))
+        result = backend.zeros((nx, ny, dim, dim), dtype=u.dtype)
         result[1:-1, 1:-1, 0, 0] = dudx
         result[1:-1, 1:-1, 0, 1] = dudy
         result[1:-1, 1:-1, 1, 0] = dvdx
         result[1:-1, 1:-1, 1, 1] = dvdy
 
-        # Boundary nodes
-        for nid in self._topo.boundary_nodes:
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-
-            is_bc = False
-            for bc in self._bcs[self._var]:
-                if bc.region.includes(nid) and bc.get_type() == BoundaryType.FLUX:
-                    flux = bc.get().flux
-                    new_field[nid] = flux
-                    is_bc = True
-                    break
-            if is_bc:
-                continue
-            else:
-                # Guard against None neighbors on domain boundaries
-                if e is not None and w is not None:
-                    ux = (field[e][0] - field[w][0]) * kx
-                    vx = (field[e][1] - field[w][1]) * kx
-                else:
-                    ue = field[e] if e is not None else field[w]
-                    uw = field[w] if w is not None else field[e]
-                    ux = 2.0 * (ue[0] - uw[0]) * kx
-                    vx = 2.0 * (ue[1] - uw[1]) * kx
-
-                if n is not None and s is not None:
-                    uy = (field[n][0] - field[s][0]) * ky
-                    vy = (field[n][1] - field[s][1]) * ky
-                else:
-                    un = field[n] if n is not None else field[s]
-                    us = field[s] if s is not None else field[n]
-                    uy = 2.0 * (un[0] - us[0]) * ky
-                    vy = 2.0 * (un[1] - us[1]) * ky
-
-                # Use nid directly via Field indexing instead of match_node_xy
-                grad = Variable.tensor([ux, uy, vx, vy], dim=dim)
-                new_field[nid] = grad
+        # Vectorized one-sided boundary fill (replaces the old per-node
+        # Python loop, which breaks the autograd graph).
+        result[0, :, 0, 0] = (u[1, :, 0] - u[0, :, 0]) / self._dx
+        result[0, :, 1, 0] = (u[1, :, 1] - u[0, :, 1]) / self._dx
+        result[-1, :, 0, 0] = (u[-1, :, 0] - u[-2, :, 0]) / self._dx
+        result[-1, :, 1, 0] = (u[-1, :, 1] - u[-2, :, 1]) / self._dx
+        result[:, 0, 0, 1] = (u[:, 1, 0] - u[:, 0, 0]) / self._dy
+        result[:, 0, 1, 1] = (u[:, 1, 1] - u[:, 0, 1]) / self._dy
+        result[:, -1, 0, 1] = (u[:, -1, 0] - u[:, -2, 0]) / self._dy
+        result[:, -1, 1, 1] = (u[:, -1, 1] - u[:, -2, 1]) / self._dy
 
         new_field._shards[0].data = result.reshape(-1, dim, dim)
         return new_field
 
     def _calculate_scalar_field(self, field: Field) -> Field:
         """Vectorized gradient for scalar field (central difference)."""
+        backend = backend_of_field(field)
+
         dim = self._mesh.dimension.value
         new_field = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
         kx = 1.0 / (2.0 * self._dx)
@@ -396,18 +324,13 @@ class Grad02(BaseExplicitOperator):
         nx, ny = self._mesh.nx, self._mesh.ny
         u = field._shards[0].data.reshape(nx, ny)
 
-        # --- Internal region: vectorized central difference ---
         ux = (u[2:, 1:-1] - u[:-2, 1:-1]) * kx
         uy = (u[1:-1, 2:] - u[1:-1, :-2]) * ky
 
-        grad = np.zeros((nx, ny, dim))
+        grad = backend.zeros((nx, ny, dim), dtype=u.dtype)
         grad[1:-1, 1:-1, 0] = ux
         grad[1:-1, 1:-1, 1] = uy
-
-        # Boundary nodes
-        for bc in self._bcs[self._var]:
-            if bc.get_type() == BoundaryType.FLUX:
-                bc.apply(new_field)
+        grad = _onesided_fill(grad, u, kx, ky, backend)
 
         new_field._shards[0].data = grad.reshape(-1, dim)
         return new_field

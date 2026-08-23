@@ -3,6 +3,10 @@
 Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Divergence operators for the finite difference method.
+
+Stage-2 refactor: backend-neutral compute; boundary divergence uses
+vectorized one-sided differences instead of the per-node Python loop
+(which breaks the autograd graph).
 """
 
 from yunmeng.solvers.interfaces import (
@@ -19,16 +23,16 @@ from yunmeng.numerics.fields import (
     DataProduct,
     Sample,
     Field,
-    Variable,
     VariableType,
 )
-
-import numpy as np
+from yunmeng.solvers.commons.supports import backend_of_field
 
 
 class Div01(BaseExplicitOperator):
     """
     Divergence operator based on central difference.
+
+    Backend-neutral and autograd-safe.
     """
 
     @classmethod
@@ -66,8 +70,8 @@ class Div01(BaseExplicitOperator):
         if not isinstance(mesh, Grid):
             raise ValueError("FDM op div01 only supports Grid.")
 
-        self._dx = self._mesh.lx / (self._mesh.nx - 1)
-        self._dy = self._mesh.ly / (self._mesh.ny - 1)
+        self._dx = mesh.lx / (mesh.nx - 1)
+        self._dy = mesh.ly / (mesh.ny - 1)
 
     def forward(self, datahub: DataHub, time: float) -> Field:
         """Calculate the divergence of the field.
@@ -75,8 +79,12 @@ class Div01(BaseExplicitOperator):
         If a grad operator has already published grad(u) to the cache,
         div compute divergence as trace(grad_u) instead of
         re-doing finite differences.
+
+        NOTE: in TRAIN mode the DataHub cache is bypassed by design, so
+        the fallback path (fresh finite differences on the live graph)
+        is always taken — this is intentional.
         """
-        # 1) Try to reuse cached gradient
+        # 1) Try to reuse cached gradient (EVAL only; TRAIN returns None)
         cached_grad = self._query(datahub, self._var, ElementType.NODE, "grad")
         if cached_grad is not None:
             return self._div_from_gradient(cached_grad.data)
@@ -88,7 +96,6 @@ class Div01(BaseExplicitOperator):
         old_field = sample.data
         div = self._calculate_divergence(old_field)
 
-        # Publish to cache
         self._publish(
             datahub,
             self._var,
@@ -109,11 +116,8 @@ class Div01(BaseExplicitOperator):
         g = grad_field._shards[0].data  # (N, 2, 2) or (N,)
 
         if g.ndim == 3 and g.shape[1:] == (2, 2):
-            # Vector field gradient: trace = dudx + dvdy
             div._shards[0].data = g[:, 0, 0] + g[:, 1, 1]
         elif g.ndim == 2 and g.shape[1] == 2:
-            # Scalar field gradient: divergence not defined directly,
-            # but for consistency treat as the sum (rare case)
             div._shards[0].data = g[:, 0] + g[:, 1]
         else:
             raise ValueError(
@@ -122,7 +126,9 @@ class Div01(BaseExplicitOperator):
         return div
 
     def _calculate_divergence(self, u_field: Field) -> Field:
-        """Vectorized divergence div(u) = du/dx + dv/dy."""
+        """Vectorized divergence div(u) = du/dx + dv/dy (backend-neutral)."""
+        backend = backend_of_field(u_field)
+
         div = Field(
             u_field.mesh_shards,
             VariableType.scalar(),
@@ -130,43 +136,34 @@ class Div01(BaseExplicitOperator):
         )
 
         nx, ny = self._mesh.nx, self._mesh.ny
-        # (N, 2) -> (nx, ny, 2)
         u = u_field._shards[0].data.reshape(nx, ny, 2)
 
         kx = 1.0 / (2.0 * self._dx)
         ky = 1.0 / (2.0 * self._dy)
 
-        # --- Internal region: vectorized central difference ---
+        # Internal region: central difference
         u_e = u[2:, 1:-1, :]
         u_w = u[:-2, 1:-1, :]
         u_n = u[1:-1, 2:, :]
         u_s = u[1:-1, :-2, :]
 
-        # div(u) = du/dx + dv/dy
         dudx = (u_e[..., 0] - u_w[..., 0]) * kx
         dvdy = (u_n[..., 1] - u_s[..., 1]) * ky
 
-        result = np.zeros((nx, ny))
-        result[1:-1, 1:-1] = dudx + dvdy
+        # Full-array dudx / dvdy: central in the interior, one-sided on the
+        # corresponding edges — graph-safe (no per-node Python loop).
+        dudx_full = backend.zeros((nx, ny), dtype=u.dtype)
+        dudx_full[1:-1, :] = (u[2:, :, 0] - u[:-2, :, 0]) * kx
+        dudx_full[0, :] = (u[1, :, 0] - u[0, :, 0]) / self._dx
+        dudx_full[-1, :] = (u[-1, :, 0] - u[-2, :, 0]) / self._dx
 
-        # Write internal region
+        dvdy_full = backend.zeros((nx, ny), dtype=u.dtype)
+        dvdy_full[:, 1:-1] = (u[:, 2:, 1] - u[:, :-2, 1]) * ky
+        dvdy_full[:, 0] = (u[:, 1, 1] - u[:, 0, 1]) / self._dy
+        dvdy_full[:, -1] = (u[:, -1, 1] - u[:, -2, 1]) / self._dy
+
+        result = dudx_full + dvdy_full
+        result[1:-1, 1:-1] = dudx + dvdy  # interior (already covered, exact)
+
         div._shards[0].data = result.reshape(-1)
-
-        # --- Boundary nodes: apply BC then compute ---
-        u_bc = u_field.copy()
-        for bc in self._bcs[self._var]:
-            if bc.get_type() == BoundaryType.VALUE:
-                bc.apply(u_bc)
-
-        for nid in self._topo.boundary_nodes:
-            e, w, n, s, _, _ = self._mesh.get_node_neighbours(nid)
-            ue = u_bc[e] if e is not None else u_bc[nid]
-            uw = u_bc[w] if w is not None else u_bc[nid]
-            un = u_bc[n] if n is not None else u_bc[nid]
-            us = u_bc[s] if s is not None else u_bc[nid]
-
-            dudx_b = (ue[0] - uw[0]) * kx
-            dvdy_b = (un[1] - us[1]) * ky
-            div[nid] = Variable.scalar(dudx_b + dvdy_b)
-
         return div

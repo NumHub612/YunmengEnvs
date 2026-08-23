@@ -4,8 +4,17 @@ Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Laplacian operators for the finite difference method.
 
-OPTIMIZED: Lap01 uses pre-allocated output + in-place modification
-instead of creating new Field objects each call.
+Stage-2 refactor (design doc section 5):
+  - Lap01 (explicit): backend-neutral via Backend dispatch; allocation
+    through backend.zeros_like. NOTE: output-field reuse (self._out_field)
+    is disabled under TRAIN semantics — reusing a buffer across steps
+    would alias autograd graph nodes. A fresh Field is created per call;
+    the DataHub cache (EVAL mode) still prevents redundant recompute.
+
+  - Lap02 (implicit): NOT differentiable. Matrix assembly stays numpy;
+    a differentiable implicit solve must wrap the linear solve via the
+    implicit function theorem (custom autograd.Function) rather than AD
+    through the assembly/solve — roadmap stage 4.
 """
 
 from yunmeng.solvers.interfaces import (
@@ -25,12 +34,15 @@ from yunmeng.numerics.fields import (
     Variable,
     VariableType,
 )
+from yunmeng.solvers.commons.supports import backend_of_field
 import numpy as np
 
 
 class Lap01(BaseExplicitOperator):
     """
     Center explicit scheme for laplacian operator.
+
+    Backend-neutral and autograd-safe (stage-2 refactor).
     """
 
     @classmethod
@@ -48,9 +60,6 @@ class Lap01(BaseExplicitOperator):
         self._dx = None
         self._dy = None
 
-        # Pre-allocated output field
-        self._out_field: Field = None
-
     def prepare(
         self,
         mesh: Grid,
@@ -60,8 +69,8 @@ class Lap01(BaseExplicitOperator):
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._dx = self._mesh.lx / (self._mesh.nx - 1)
-        self._dy = self._mesh.ly / (self._mesh.ny - 1)
+        self._dx = mesh.lx / (mesh.nx - 1)
+        self._dy = mesh.ly / (mesh.ny - 1)
 
     def forward(self, datahub: DataHub, time: float) -> Field:
         sample = datahub.latest(self._var, ElementType.NODE)
@@ -78,7 +87,6 @@ class Lap01(BaseExplicitOperator):
         else:
             raise ValueError("FDM op lap01 not support tensor fields.")
 
-        # publish to cache
         self._publish(
             datahub,
             self._var,
@@ -90,6 +98,7 @@ class Lap01(BaseExplicitOperator):
 
     def _calculate_vector_field(self, field: Field) -> Field:
         """Vectorized vector field laplacian (5-point stencil)."""
+        backend = backend_of_field(field)
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
@@ -97,46 +106,40 @@ class Lap01(BaseExplicitOperator):
         dim = field._shards[0].data.shape[1]
         u = field._shards[0].data.reshape(nx, ny, dim)
 
-        # Vectorized 5-point stencil on internal region
-        lap = np.zeros_like(u)
+        lap = backend.zeros_like(u)
         lap[1:-1, 1:-1, :] = (
             u[2:, 1:-1, :] - 2 * u[1:-1, 1:-1, :] + u[:-2, 1:-1, :]
         ) * kx + (u[1:-1, 2:, :] - 2 * u[1:-1, 1:-1, :] + u[1:-1, :-2, :]) * ky
 
-        # Reuse pre-allocated field if possible, else create
-        if self._out_field is None or self._out_field.vtype != VariableType.vector(dim):
-            self._out_field = Field(
-                field.mesh_shards, VariableType.vector(dim), field.etype
-            )
-        self._out_field._shards[0].data = lap.reshape(-1, dim)
-        return self._out_field
+        out = Field(field.mesh_shards, VariableType.vector(dim), field.etype)
+        out._shards[0].data = lap.reshape(-1, dim)
+        return out
 
     def _calculate_scalar_field(self, field: Field) -> Field:
         """Vectorized scalar field laplacian (5-point stencil)."""
+        backend = backend_of_field(field)
         kx = self._nu / self._dx**2
         ky = self._nu / self._dy**2
 
         nx, ny = self._mesh.nx, self._mesh.ny
         u = field._shards[0].data.reshape(nx, ny)
 
-        # Vectorized 5-point stencil on internal region
-        lap = np.zeros_like(u)
+        lap = backend.zeros_like(u)
         lap[1:-1, 1:-1] = (u[2:, 1:-1] - 2 * u[1:-1, 1:-1] + u[:-2, 1:-1]) * kx + (
             u[1:-1, 2:] - 2 * u[1:-1, 1:-1] + u[1:-1, :-2]
         ) * ky
 
-        # Reuse pre-allocated field if possible
-        if self._out_field is None or not self._out_field.vtype.is_scalar:
-            self._out_field = Field(
-                field.mesh_shards, VariableType.scalar(), field.etype
-            )
-        self._out_field._shards[0].data = lap.reshape(-1)
-        return self._out_field
+        out = Field(field.mesh_shards, VariableType.scalar(), field.etype)
+        out._shards[0].data = lap.reshape(-1)
+        return out
 
 
 class Lap02(BaseImplicitOperator):
     """
     Center implicit scheme for laplacian operator on isotropic field.
+
+    NOT differentiable (numpy assembly + direct solve). Differentiable
+    implicit solves require an implicit-function-theorem wrapper.
     """
 
     @classmethod
@@ -163,8 +166,8 @@ class Lap02(BaseImplicitOperator):
         if not isinstance(mesh, Grid) or not mesh.uniform:
             raise ValueError(f"FDM op {self.get_name()} only supports uniform Grid.")
 
-        self._dx = self._mesh.lx / (self._mesh.nx - 1)
-        self._dy = self._mesh.ly / (self._mesh.ny - 1)
+        self._dx = mesh.lx / (mesh.nx - 1)
+        self._dy = mesh.ly / (mesh.ny - 1)
 
     def forward(self, datahub: DataHub, time: float = None) -> LinearEqs:
         sample = datahub.latest(self._var, ElementType.NODE)
@@ -225,12 +228,9 @@ class Lap02(BaseImplicitOperator):
                     flux = bc.get().flux
                     qx, qy = self._extract_flux_components(flux)
 
-                    # Clear the row
                     values[nid, :] = 0.0
-
                     diag_coeff = 0.0
 
-                    # Horizontal direction
                     if w is None and e is not None:
                         diag_coeff += -2 * kx
                         values[nid, e] = 2 * kx
@@ -244,7 +244,6 @@ class Lap02(BaseImplicitOperator):
                         values[nid, e] = kx
                         values[nid, w] = kx
 
-                    # Vertical direction
                     if s is None and n is not None:
                         diag_coeff += -2 * ky
                         values[nid, n] = 2 * ky
@@ -260,10 +259,8 @@ class Lap02(BaseImplicitOperator):
 
                     values[nid, nid] = diag_coeff
 
-        # Assemble linear system
         matrix = self._create_matrix(field).from_data(values)
 
-        # Build RHS field from array
         rhs_field = Field.from_array(
             rhs_arr,
             field.mesh_shards,
