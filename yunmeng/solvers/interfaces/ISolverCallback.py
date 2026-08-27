@@ -7,6 +7,10 @@ Interface of callback classes used in solvers.
 
 from yunmeng.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from yunmeng.solvers.interfaces.ISolver import ISolver
 
 
 class ISolverCallback(ABC):
@@ -31,7 +35,7 @@ class ISolverCallback(ABC):
         pass
 
     @abstractmethod
-    def setup(self, solver, mesh: Mesh, **kwargs):
+    def setup(self, solver: ISolver, mesh: Mesh, **kwargs):
         """
         Set up the callback method.
         """

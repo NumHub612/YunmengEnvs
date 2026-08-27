@@ -215,7 +215,7 @@ class ISolver(ABC):
         pass
 
     @abstractmethod
-    def clear_bcs(self, field: str):
+    def clear_bcs(self, field: str = None):
         """
         Clear boundary conditions.
         """

@@ -94,6 +94,7 @@ class IOperator(ABC):
     # -- fields -------------------------------------
 
     @property
+    @abstractmethod
     def target_fields(self) -> list[str]:
         """
         The operator target fields.
