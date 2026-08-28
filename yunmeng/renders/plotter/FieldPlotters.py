@@ -7,7 +7,7 @@ Plotters for visualizing the fluid fields.
 
 from yunmeng.numerics.mesh import Mesh, MeshDimension, ElementType
 from yunmeng.numerics.fields import Field, VariableType
-from yunmeng.render.plotter.PlotKits import (
+from yunmeng.renders.plotter.PlotKits import (
     _extract_field_data,
     _extract_mesh_data,
     plot_lines,
