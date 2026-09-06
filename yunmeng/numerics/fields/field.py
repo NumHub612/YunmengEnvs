@@ -5,6 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Fields definition.
 """
 
+from yunmeng.interfaces.support import IField
 from yunmeng.numerics.enums import ElementType, BackendType
 from yunmeng.numerics.mesh import Mesh
 from yunmeng.numerics.fields.variables import Variable, VariableType
@@ -257,7 +258,7 @@ class FieldShard:
 # ---------------------------------------------------
 
 
-class Field:
+class Field(IField):
     """Distributed physical field based on mesh partition."""
 
     def __init__(

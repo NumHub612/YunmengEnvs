@@ -8,8 +8,6 @@ Initial condition protocols.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields as dc_fields
-from typing import Any, Protocol
 
 from yunmeng.interfaces.support.field import IField
 from yunmeng.interfaces.types import Variable

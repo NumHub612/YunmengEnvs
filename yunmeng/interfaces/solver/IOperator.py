@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Protocol, Sequence, runtime_checkable
 
-from yunmeng.interfaces.support.backend import Backend
+from yunmeng.interfaces.support.backend import IBackend
 from yunmeng.interfaces.support.datahub import IDataHub
 from yunmeng.interfaces.support.field import DataProduct, IField
 from yunmeng.interfaces.support.linalg import ILinearEqs
@@ -159,7 +159,7 @@ class IOperator(Protocol):
 
     # -- lifecycle ----------------------------------
 
-    def build(self, mesh: IMesh, backend: Backend):
+    def build(self, mesh: IMesh, backend: IBackend):
         """Static topology phase, ONCE per mesh: precompute stencils,
         neighbor indices, matrix structure, network shapes;
         move index arrays to the backend device.

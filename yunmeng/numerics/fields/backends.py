@@ -5,6 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Backend of variables and fields.
 """
 
+from yunmeng.interfaces.support import IBackend
 from yunmeng.numerics.enums import BackendType, DeviceType
 from yunmeng.setting import settings
 
@@ -25,7 +26,7 @@ DeviceLike = Union[DeviceType, "torch.device", str, None]
 ArrayLike = Union[np.ndarray, torch.Tensor]
 
 
-class Backend:
+class Backend(IBackend):
     """Backend to support torch and numpy."""
 
     __slots__ = ("xp", "btype")

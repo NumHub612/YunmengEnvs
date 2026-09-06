@@ -43,6 +43,7 @@ Usage sketch
 from __future__ import annotations
 from dataclasses import dataclass, field
 
+from yunmeng.interfaces.support import IDataHub
 from yunmeng.numerics.enums import ElementType, RunMode
 from yunmeng.numerics.fields import Field
 
@@ -232,7 +233,7 @@ class TensorHistory:
 # ---------------------------------------------------------------------------
 
 
-class DataHub:
+class DataHub(IDataHub):
     """Central data management for a solver.
 
     Three subsystems:

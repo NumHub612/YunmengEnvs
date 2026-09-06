@@ -13,7 +13,7 @@ from yunmeng.interfaces.types import ArrayLike, DeviceType
 
 
 @runtime_checkable
-class Backend(Protocol):
+class IBackend(Protocol):
     """Array namespace + algorithmic primitives."""
 
     # -- identity -----------------------------------
