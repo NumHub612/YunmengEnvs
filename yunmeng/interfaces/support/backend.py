@@ -3,14 +3,6 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Backend protocol (ArrayNamespace) for the interfaces layer.
-
-Design docs: v1.0 §4.2 (abstraction layer never names a concrete
-backend), v1.1 §13.3 (algorithmic primitives area, Array-API naming
-convention, on-demand backend specialization).
-
-The protocol below is the COMPLETE vocabulary the operator layer may
-use. Implementations (numpy/torch/...) live in numerics; adding a new
-primitive here is a deliberate, reviewed act (v2.0 §14.4).
 """
 
 from __future__ import annotations
@@ -22,12 +14,7 @@ from yunmeng.interfaces.types import ArrayLike, DeviceType
 
 @runtime_checkable
 class Backend(Protocol):
-    """Array namespace + algorithmic primitives.
-
-    Acquisition: operators never import numpy/torch directly; they
-    dispatch via ``backend = get_backend(field.meta.btype)`` and use
-    the members below (v1.3 §19 pattern).
-    """
+    """Array namespace + algorithmic primitives."""
 
     # -- identity -----------------------------------
 
@@ -38,13 +25,13 @@ class Backend(Protocol):
 
     @property
     def xp(self) -> object:
-        """The raw array namespace module (escape hatch; prefer the
-        typed primitives below in operator code)."""
+        """The raw array namespace module."""
         ...
 
     @property
     def differentiable(self) -> bool:
-        """Whether arrays on this backend can carry an autograd graph."""
+        """Whether arrays on this backend can carry
+        an autograd graph."""
         ...
 
     # -- construction / conversion ------------------
@@ -68,8 +55,7 @@ class Backend(Protocol):
     def to_device(self, a: ArrayLike, device: DeviceType) -> ArrayLike: ...
 
     def to_host(self, a: ArrayLike) -> ArrayLike:
-        """Detach-free host copy for I/O. Callers in TRAIN mode must not
-        route gradient-relevant values through here (v1.0 §4.1 L3)."""
+        """Detach-free host copy for I/O."""
         ...
 
     # -- elementwise / selection --------------------
@@ -82,7 +68,7 @@ class Backend(Protocol):
 
     def concatenate(self, arrays: Sequence[ArrayLike], axis: int = 0) -> ArrayLike: ...
 
-    # -- algorithmic primitives (v1.1 §13.3) --------
+    # -- algorithmic primitives ---------------------
 
     def matmul(self, a: ArrayLike, b: ArrayLike) -> ArrayLike: ...
 
@@ -90,14 +76,10 @@ class Backend(Protocol):
 
     def scatter_add(
         self, target: ArrayLike, indices: ArrayLike, values: ArrayLike
-    ) -> ArrayLike:
-        """FEM/FVM assembly and mesh-GNN message passing primitive.
-        numpy: np.add.at; torch: index_add_ (on-device, differentiable)."""
-        ...
+    ) -> ArrayLike: ...
 
     def solve(self, a: ArrayLike, b: ArrayLike) -> ArrayLike:
         """Dense differentiable solve only. Sparse/iterative paths belong
         to numerics.linalgs; under torch they must be wrapped via the
-        implicit-function theorem (v1.1 §13.1), not raw AD through
-        iterations."""
+        implicit-function theorem, not raw AD through iterations."""
         ...

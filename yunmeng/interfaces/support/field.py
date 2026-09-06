@@ -3,11 +3,6 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Field/data value types and minimal protocols.
-
-FieldMeta is a VALUE TYPE moved up from numerics.fields (v2.0 §14.3).
-IField/IDataProduct/ISample are minimal protocol surfaces — only the
-members referenced by interface signatures are declared here; the full
-behavioral API stays on the concrete classes in numerics.fields.
 """
 
 from __future__ import annotations
@@ -24,15 +19,14 @@ from yunmeng.interfaces.types import ArrayLike, DeviceType, ElementType, Variabl
 
 @dataclass
 class FieldMeta:
-    """Descriptor of a distributed field (backend-neutral, v1.0 §4.1 L1:
-    no torch/np types allowed here; device/backend are plain strings)."""
+    """Descriptor of a distributed field."""
 
     name: str
     vtype: VariableType = VariableType.SCALAR
     loc: ElementType = ElementType.CELL
     unit: str = ""
     dtype: str = "float64"
-    btype: str = "numpy"  # backend identifier, resolved via backends.Backend
+    btype: str = "numpy"  # backend identifier
     device: DeviceType = "cpu"
 
 
@@ -52,18 +46,15 @@ class DataProduct:
 
 @runtime_checkable
 class IField(Protocol):
-    """Minimal field surface used by interface signatures.
-
-    Operators interact with the concrete Field (arithmetic, slicing);
-    interfaces only require identity + metadata + raw value access.
-    """
+    """Minimal field surface used by interface signatures."""
 
     @property
     def meta(self) -> FieldMeta: ...
 
     @property
     def values(self) -> ArrayLike:
-        """Backend array of values. In TRAIN mode may carry a graph."""
+        """Backend array of values.
+        In TRAIN mode may carry a graph."""
         ...
 
     @values.setter
@@ -74,7 +65,7 @@ class IField(Protocol):
 class ISample(Protocol):
     """A versioned data sample retrieved from the DataHub.
 
-    TRAIN-mode contract (v1.1 §13.2): samples handed to callbacks must
+    TRAIN-mode contract: samples handed to callbacks must
     stay on the autograd graph — no detach, no stale-cache replay.
     """
 

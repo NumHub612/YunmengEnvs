@@ -3,11 +3,6 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Mesh protocols (minimal surface) for the interfaces layer.
-
-Only what IOperator.build / boundary providers actually need is
-declared here (v2.0 §14.3). Region is deliberately NOT restricted to
-the outer boundary — interior face/cell sets are legitimate regions
-(v2.0 §5.6: internal constraints = Region special case).
 """
 
 from __future__ import annotations
@@ -23,7 +18,7 @@ from yunmeng.interfaces.types import ArrayLike, ElementType, MeshDimension
 
 @runtime_checkable
 class IRegion(Protocol):
-    """A named set of mesh elements (faces or cells).
+    """A named set of mesh elements.
 
     May lie on the outer boundary OR in the domain interior.
     """
@@ -33,17 +28,17 @@ class IRegion(Protocol):
 
     @property
     def loc(self) -> ElementType:
-        """Element kind the region is defined over (usually FACE)."""
+        """Element kind the region is defined over."""
         ...
 
     @property
     def element_ids(self) -> ArrayLike:
-        """Canonical element indices (int array, backend-moved at build)."""
+        """Canonical element indices."""
         ...
 
 
 # ---------------------------------------------------
-# region Assistants (minimal)
+# region Assistants
 # ---------------------------------------------------
 
 
@@ -54,8 +49,7 @@ class ITopoAssistant(Protocol):
     def neighbors(self, element: int, loc: ElementType) -> Sequence[int]: ...
 
     def boundary_faces(self) -> ArrayLike:
-        """Canonical boundary-face numbering used by BoundaryValues
-        (v2.0 §5.5). Providers and operators share this ordering."""
+        """Canonical boundary-face numbering used by BoundaryValues."""
         ...
 
     def interior_faces(self) -> ArrayLike: ...
@@ -88,8 +82,7 @@ class IMesh(Protocol):
 
     @property
     def version(self) -> int:
-        """Topology version. AMR re-meshing bumps this; solvers trigger
-        explicit operator re-build on change (v2.0 §4.2)."""
+        """Topology version. AMR re-meshing bumps this."""
         ...
 
     def element_count(self, loc: ElementType) -> int: ...

@@ -3,10 +3,6 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Linear-system protocol for the interfaces layer (minimal surface).
-
-Only the members referenced by interface signatures live here
-(v2.0 §14.3: interface segregation). Assembly details, storage formats
-and iterative solvers stay in numerics.linalgs.
 """
 
 from __future__ import annotations
@@ -36,10 +32,5 @@ class ILinearEqs(Protocol):
         ...
 
     def solve(self, x0: ArrayLike | None = None) -> ArrayLike:
-        """Solve and return the unknown vector.
-
-        Note (v1.1 §13.1): under a differentiable backend this must be
-        an implicit-function-theorem wrapper so the iteration process
-        itself stays off the autograd graph.
-        """
+        """Solve and return the unknown vector."""
         ...
