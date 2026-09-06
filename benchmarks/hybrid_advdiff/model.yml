@@ -1,0 +1,48 @@
+# ==============================================================================
+# 混合求解器示例：二维对流扩散（机理算子 + NN 残差修正算子）
+# 链：configs -> model -> solver -> operators；估计任务由 ESTIMATION 段驱动
+# ==============================================================================
+PROJECT: advdiff_hybrid
+BRIEF: Hybrid (mechanism + NN correction) 2D advection-diffusion demo.
+
+TEMPORAL:
+  time_step: 0.02 # TRAIN 下固定 dt（v1.3 §20 约束）
+  end_time: 0.4
+
+SPATIAL:
+  type: StructuredGrid2D # 粗网格（学生）；教师网格由 gen_teacher 单独配置
+  params:
+    lower_left: [0, 0]
+    upper_right: [2, 2]
+    nx: 32
+    ny: 32
+
+MODEL:
+  type: AdvDiffModel
+  id: advdiff
+  backend: torch
+
+SOLVER:
+  type: AdvectionDiffusionSolver
+  params:
+    nu: 0.01 # 物理参数经 phys.* 命名空间可被率定/训练
+    vx: 0.5
+    vy: 0.3
+
+OPERATORS:
+  - { type: adv_upwind_2d, id: advection }
+  - { type: lap5_2d, id: diffusion }
+  - type: nn_correction
+    id: correction
+    params:
+      hidden: 16
+      model_ref: null # 部署时填 "correction@x.y.z"，由工件库解析
+
+ESTIMATION:
+  target: advdiff
+  estimator:
+    name: gradienttrainer
+    params: { unroll_steps: 20, epochs: 200, lr: 0.003, memory_strategy: full }
+  loss: { name: rollout_mse }
+  data: { from: ./data/teacher.npz }
+  artifact_store: ./artifacts/models

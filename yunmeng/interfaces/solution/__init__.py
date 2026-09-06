@@ -7,6 +7,7 @@ from yunmeng.interfaces.solution.IAdditional import (
     ILoss,
     EstimationResult,
     IEstimator,
+    ModelRef,
     TrainingMeta,
     IModelArtifactStore,
 )

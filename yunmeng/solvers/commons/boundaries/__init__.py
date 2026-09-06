@@ -1,6 +1,7 @@
 from yunmeng.solvers.interfaces import *
 from yunmeng.solvers.commons.boundaries.value import *
 from yunmeng.solvers.commons.boundaries.flux import *
+from yunmeng.solvers.commons.boundaries.new_boundary import *
 
 # register all the boundary conditions.
 boundary_conditions = {}
