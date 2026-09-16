@@ -1,165 +1,292 @@
 # -*- encoding: utf-8 -*-
 """
-Mechanism operators for the 2D advection-diffusion equation.
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-    du/dt = -(vx * du/dx + vy * du/dy) + nu * lap(u)
+Operators for the hybrid-validation demo:
+  - FdmDiffusionOperator     : physics term (backward-Euler diffusion)
+  - NeuralCorrectionOperator : neural term (local-stencil residual corrector)
 
-Both operators follow the v2.0 lifecycle:
-- build(grid, backend): precompute static topology (spacings, boundary
-  mask); no theta, no runtime data;
-- forward(datahub, t, dt): read the current field, publish the explicit
-  tendency. All array math goes through the backend namespace `xp`, so the
-  same code runs on numpy and torch (differentiable).
-
-Physical coefficients (vx, vy, nu) are operator parameters theta, exposed
-via IParameterized so the model layer can aggregate/route them.
+Both satisfy IOperator. The neural operator additionally implements
+IParameterized + IModeSwitchable.
 """
 
 from __future__ import annotations
 
-from typing import Mapping
+from typing import Mapping, Sequence
 
-from yunmeng.interfaces.solver import OperatorResult
-from yunmeng.interfaces.types import RunMode
-from yunmeng.numerics.fields import Field, FieldMeta
+import numpy as np
+
+from yunmeng.interfaces.solver.IOperator import OperatorKinds, OperatorResult
+from yunmeng.interfaces.support.backend import IBackend
+from yunmeng.interfaces.support.datahub import IDataHub
+from yunmeng.interfaces.support.field import DataProduct, FieldMeta, IField
+from yunmeng.interfaces.support.mesh import IMesh
+from yunmeng.interfaces.types import ArrayLike, ElementType, RunMode, VariableType
+from yunmeng.solvers.hyb.primitives import Field, LinearEqs
+from yunmeng.interfaces.solver.IOperator import (
+    IModeSwitchable,
+    IOperator,
+)
+from yunmeng.interfaces.support.estimable import IParameterized
+import torch
+import torch.nn as nn
+
+# ---------------------------------------------------
+# region Physics operator
+# ---------------------------------------------------
 
 
-def _roll(xp, a, shift, dim):
-    """Backend-neutral roll (numpy: axis=, torch: dims=)."""
-    if xp.__name__ == "torch":
-        return xp.roll(a, shift, dims=dim)
-    return xp.roll(a, shift, axis=dim)
+class FdmDiffusionOperator:
+    """Backward-Euler diffusion on a uniform 1D mesh:  (I - dt*nu*L) u' = rhs.
+
+    Physics (mechanistic) term. Implicit part only; differentiable when the
+    backend is (the Laplacian is a constant stencil, the solve carries AD).
+    """
+
+    def __init__(self, field: str, nu: float):
+        self._field = field
+        self._nu = float(nu)
+        self._n = 0
+        self._dx = 0.0
+        self._lap: ArrayLike | None = (
+            None  # (n, n) Laplacian, identity rows at BC cells
+        )
+        self._backend: IBackend | None = None
+        self._interior: ArrayLike | None = None
+
+    # -- metadata -----------------------------------
+
+    @classmethod
+    def get_name(cls) -> str:
+        return "FdmDiffusion"
+
+    @classmethod
+    def get_kind(cls) -> str:
+        return OperatorKinds.MATH_LAPLACIAN
+
+    @property
+    def explicit_part(self) -> bool:
+        return False
+
+    @property
+    def implicit_part(self) -> bool:
+        return True
+
+    @property
+    def differentiable(self) -> bool:
+        return True
+
+    @classmethod
+    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        return [DataProduct(name=f"laplacian:{fname}", loc=loc)]
+
+    @classmethod
+    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        return []
+
+    @property
+    def target_fields(self) -> Sequence[str]:
+        return (self._field,)
+
+    @property
+    def time_order(self) -> int:
+        return 1
+
+    # -- lifecycle ----------------------------------
+
+    def build(self, mesh: IMesh, backend: IBackend):
+        """Static phase: assemble the Laplacian stencil once per mesh."""
+        self._backend = backend
+        self._n = mesh.element_count(ElementType.CELL)
+        self._dx = mesh.dx
+        topo = mesh.get_topo_assistant()
+        lap = np.zeros((self._n, self._n), dtype="float64")
+        interior = []
+        for c in range(self._n):
+            nb = topo.neighbors(c, ElementType.CELL)
+            if len(nb) < 2:
+                continue  # boundary cell: identity row (Dirichlet by solver)
+            lap[c, c] = -2.0 / self._dx**2
+            for j in nb:
+                lap[c, j] += 1.0 / self._dx**2
+            interior.append(c)
+        self._interior = np.asarray(interior, dtype="int64")
+        self._lap = backend.asarray(lap)
+
+    def forward(self, datahub: IDataHub, t: float, dt: float) -> OperatorResult:
+        """Runtime: A = I - dt*nu*L; rhs rows at BC cells hold the already
+        scatter-written constrained values (identity rows)."""
+        u = datahub.get_field(self._field).values
+        xp_eye = self._backend.asarray(np.eye(self._n))
+        a = xp_eye - dt * self._nu * self._lap
+        rhs = self._backend.asarray(u).copy() if hasattr(u, "copy") else u.clone()
+        # Interior rows: backward-Euler rhs is u_old; BC rows: identity * u_bc.
+        return OperatorResult(
+            explicit=None,
+            implicit=LinearEqs(a, rhs, self._backend),
+        )
+
+    def __repr__(self) -> str:
+        return f"FdmDiffusionOperator(field={self._field!r}, nu={self._nu})"
 
 
-class _BaseMechanismOperator:
-    """Shared plumbing for the mechanism operators below."""
+# ---------------------------------------------------
+# region Neural operator
+# ---------------------------------------------------
 
-    kind: str = "math.unknown"
-    differentiable: bool = True
 
-    def __init__(self, name: str):
-        self.name = name
-        self._grid = None
-        self._xp = None
+class _StencilNet(nn.Module):
+    """MLP over the local 3-point stencil -> scalar correction tendency."""
+
+    def __init__(self, hidden: int = 16):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(3, hidden),
+            nn.Tanh(),
+            nn.Linear(hidden, hidden),
+            nn.Tanh(),
+            nn.Linear(hidden, 1),
+        )
+        # Zero-init the output layer: the hybrid starts as pure physics.
+        nn.init.zeros_(self.net[-1].weight)
+        nn.init.zeros_(self.net[-1].bias)
+
+    def forward(self, x: "torch.Tensor") -> "torch.Tensor":
+        return self.net(x).squeeze(-1)
+
+
+class NeuralCorrectionOperator(IParameterized, IModeSwitchable, IOperator):
+    """Neural correction term (kind: nn.correction).
+
+    Reads the target field from the DataHub, computes a per-cell correction
+    tendency from the local stencil, publishes it as an explicit product and
+    returns it as the explicit contribution. TRAIN contract: fresh output
+    tensors every forward; parameters stay on the graph.
+    """
+
+    def __init__(self, field: str, hidden: int = 16, device: str = "cpu"):
+        self._field = field
         self._mode = RunMode.EVAL
+        self._n = 0
+        self._dx = 0.0
+        self._backend: IBackend | None = None
+        self._device = torch.device(device)
+        self._net = _StencilNet(hidden).to(device=self._device, dtype=torch.float64)
+        self._interior_idx: "torch.Tensor | None" = None
 
-    # -- IOperator -----------------------------------
+    # -- metadata -----------------------------------
 
-    def build(self, grid, backend) -> None:
-        self._grid = grid
-        self._xp = backend
+    @classmethod
+    def get_name(cls) -> str:
+        return "NeuralCorrection"
 
-    def forward(self, datahub, t: float, dt: float) -> OperatorResult:
-        raise NotImplementedError()
+    @classmethod
+    def get_kind(cls) -> str:
+        return OperatorKinds.NN_CLOSURE
 
-    # -- IModeSwitchable ------------------------------
+    @property
+    def explicit_part(self) -> bool:
+        return True
+
+    @property
+    def implicit_part(self) -> bool:
+        return False
+
+    @property
+    def differentiable(self) -> bool:
+        return True
+
+    @classmethod
+    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        return [DataProduct(name=f"correction:{fname}", loc=loc)]
+
+    @classmethod
+    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        return []
+
+    @property
+    def target_fields(self) -> Sequence[str]:
+        return (self._field,)
+
+    @property
+    def time_order(self) -> int:
+        return 1
+
+    # -- capability: IParameterized -----------------
+
+    def get_parameters(self) -> dict[str, ArrayLike]:
+        return {name: p.detach().clone() for name, p in self._net.named_parameters()}
+
+    def set_parameters(self, params: Mapping[str, ArrayLike]):
+        with torch.no_grad():
+            for name, p in self._net.named_parameters():
+                if name not in params:
+                    raise KeyError(f"missing parameter {name!r}")
+                val = params[name]
+                if not isinstance(val, torch.Tensor):
+                    val = torch.as_tensor(np.asarray(val), dtype=torch.float64)
+                p.copy_(val.to(device=self._device, dtype=torch.float64))
+
+    # -- capability: IModeSwitchable ----------------
 
     def set_mode(self, mode: RunMode) -> None:
         self._mode = mode
+        if mode == RunMode.TRAIN:
+            self._net.train()
+        else:
+            self._net.eval()
 
-    # -- helpers --------------------------------------
+    # -- lifecycle ----------------------------------
 
-    def _check_built(self):
-        if self._grid is None or self._xp is None:
-            raise RuntimeError(f"Operator {self.name}: build() not called.")
+    def build(self, mesh: IMesh, backend: IBackend):
+        """Static phase: record sizes, spacing and interior indices; θ untouched."""
+        self._backend = backend
+        self._n = mesh.element_count(ElementType.CELL)
+        self._dx = mesh.dx
+        self._interior_idx = torch.arange(1, self._n - 1, device=self._device)
 
-    def _make_field(self, name: str, data) -> Field:
-        g = self._grid
-        return Field(data, FieldMeta(name=name, nx=g.nx, ny=g.ny))
+    def _as_torch(self, u: ArrayLike) -> "torch.Tensor":
+        if isinstance(u, torch.Tensor):
+            return u.to(device=self._device, dtype=torch.float64)
+        return torch.as_tensor(np.asarray(u), dtype=torch.float64, device=self._device)
 
+    def forward(self, datahub: IDataHub, t: float, dt: float) -> OperatorResult:
+        """Neural closure: corr_i = kappa_i * Lap(u)_i, where the MLP
+        predicts a per-cell effective-diffusivity increment kappa from the
+        local stencil. Flat fields get exactly zero correction, so the
+        learned closure extrapolates across decay phases."""
+        u_field = datahub.get_field(self._field)
+        u = self._as_torch(u_field.values)
 
-class AdvUpwind2D(_BaseMechanismOperator):
-    """First-order upwind advection tendency: -(vx dudx + vy dudy).
+        idx = self._interior_idx
+        lap = (u[idx - 1] - 2.0 * u[idx] + u[idx + 1]) / self._dx**2
+        stencil = torch.stack([u[idx - 1], u[idx], u[idx + 1]], dim=-1)
+        kappa = self._net(stencil)
+        corr_interior = kappa * lap
+        corr = torch.zeros_like(u)
+        corr[idx] = corr_interior
 
-    Parameters (IParameterized): vx, vy -- advection velocity components.
-    torch backend: velocities may carry requires_grad; `where` switching on
-    their sign gives piecewise-constant (sub)gradients, which is accepted
-    practice (same as JAX-Fluids; v1.0 §5).
-    """
+        if isinstance(u_field.values, torch.Tensor):
+            out = corr  # stays on the graph (TRAIN)
+        else:
+            out = corr.detach().cpu().numpy()
 
-    kind = "math.div"
+        meta = FieldMeta(
+            name=f"correction:{self._field}",
+            vtype=VariableType.SCALAR,
+            loc=ElementType.CELL,
+            btype=self._backend.name,
+        )
+        result_field = Field(meta, out)
+        datahub.publish(f"correction:{self._field}", result_field, t)
+        return OperatorResult(explicit=result_field, implicit=None)
 
-    def __init__(self, name: str = "advection", vx: float = 0.0, vy: float = 0.0):
-        super().__init__(name)
-        self._vx = vx
-        self._vy = vy
+    # -- parameter vector helpers (used by solver-level IEstimable) ---
 
-    # -- IParameterized -------------------------------
+    def torch_parameters(self) -> list["torch.nn.Parameter"]:
+        return list(self._net.parameters())
 
-    def get_parameters(self) -> dict:
-        return {"vx": self._vx, "vy": self._vy}
-
-    def set_parameters(self, params: Mapping) -> None:
-        if "vx" in params:
-            self._vx = params["vx"]
-        if "vy" in params:
-            self._vy = params["vy"]
-
-    # -- IOperator -------------------------------------
-
-    def forward(self, datahub, t: float, dt: float) -> OperatorResult:
-        self._check_built()
-        xp = self._xp
-        g = self._grid
-        u = datahub.field("u").data
-
-        roll = xp.roll if hasattr(xp, "roll") else None
-        if roll is None:  # torch has roll
-            raise RuntimeError("backend lacks roll")
-
-        up_xm = _roll(xp, u, 1, 0)  # u[i-1, j]
-        up_xp = _roll(xp, u, -1, 0)  # u[i+1, j]
-        up_ym = _roll(xp, u, 1, 1)
-        up_yp = _roll(xp, u, -1, 1)
-
-        def upwind(v, um, up_, spacing):
-            back = (u - um) / spacing
-            fwd = (up_ - u) / spacing
-            if isinstance(v, float):  # static branch for plain scalars
-                return back if v >= 0 else fwd
-            return xp.where(v >= 0, back, fwd)  # tensor: subgradient where
-
-        vx = self._vx
-        vy = self._vy
-        dudx = upwind(vx, up_xm, up_xp, g.dx)
-        dudy = upwind(vy, up_ym, up_yp, g.dy)
-
-        tendency = -(vx * dudx + vy * dudy)
-        return OperatorResult(explicit=self._make_field("adv_tendency", tendency))
-
-
-class Lap5Point2D(_BaseMechanismOperator):
-    """Five-point Laplacian diffusion tendency: nu * lap(u).
-
-    Parameters (IParameterized): nu -- diffusion coefficient.
-    """
-
-    kind = "math.laplacian"
-
-    def __init__(self, name: str = "diffusion", nu: float = 0.0):
-        super().__init__(name)
-        self._nu = nu
-
-    # -- IParameterized ---------------------------------
-
-    def get_parameters(self) -> dict:
-        return {"nu": self._nu}
-
-    def set_parameters(self, params: Mapping) -> None:
-        if "nu" in params:
-            self._nu = params["nu"]
-
-    # -- IOperator ---------------------------------------
-
-    def forward(self, datahub, t: float, dt: float) -> OperatorResult:
-        self._check_built()
-        xp = self._xp
-        g = self._grid
-        u = datahub.field("u").data
-
-        lap = (_roll(xp, u, 1, 0) - 2.0 * u + _roll(xp, u, -1, 0)) / (g.dx * g.dx) + (
-            _roll(xp, u, 1, 1) - 2.0 * u + _roll(xp, u, -1, 1)
-        ) / (g.dy * g.dy)
-        return OperatorResult(
-            explicit=self._make_field("diff_tendency", self._nu * lap)
+    def __repr__(self) -> str:
+        return (
+            f"NeuralCorrectionOperator(field={self._field!r}, mode={self._mode.value})"
         )
