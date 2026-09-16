@@ -19,14 +19,21 @@ from typing import Any, Mapping
 import numpy as np
 import torch
 
-from yunmeng.interfaces import IEstimable, ModelRef, RunMode
-from yunmeng.numerics import (
+from yunmeng.interfaces.solution import IEstimable, ModelRef
+from yunmeng.interfaces.types import RunMode
+from yunmeng.numerics.fields import (
     DataHub,
     Field,
-    StaticBoundaryProvider,
+)
+from yunmeng.numerics.grids.grids2 import (
     StructuredGrid2D,
 )
-from yunmeng.solvers import AdvectionDiffusionSolver, AdvDiffConfig
+from yunmeng.solvers.commons.boundaries.new_boundary import (
+    StaticBoundaryProvider,
+    SeriesBoundaryProvider,
+)
+
+from yunmeng.solvers.hyb import AdvectionDiffusionSolver, AdvDiffConfig
 
 # routing of phys.* names -> (operator name, parameter key)
 PHYS_ROUTING = {

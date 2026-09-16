@@ -8,7 +8,7 @@ Boundary condition protocols.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields as dc_field
+from dataclasses import dataclass, field as dc_field
 from typing import Any, Protocol
 
 from yunmeng.interfaces.support.mesh import IRegion

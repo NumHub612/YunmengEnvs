@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-from yunmeng.interfaces.solution.IAdditional import (
+from yunmeng.interfaces.solution.IEstimator import (
     IEstimable,
     split_namespaces,
     MemoryStrategy,

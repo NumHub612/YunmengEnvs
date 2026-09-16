@@ -23,7 +23,9 @@ from typing import Mapping
 import torch
 from torch import nn
 
-from yunmeng.interfaces import ModelRef, OperatorResult, RunMode
+from yunmeng.interfaces.solution import ModelRef
+from yunmeng.interfaces.solver import OperatorResult
+from yunmeng.interfaces.types import RunMode
 from yunmeng.numerics.fields import Field, FieldMeta
 
 

@@ -10,7 +10,6 @@ import numpy as np
 
 from yunmeng.solutions.standards import (
     IStateful,
-    IParametric,
     ModelMeta,
     ModelStatus,
     ParamMeta,
@@ -21,7 +20,7 @@ from yunmeng.solutions.commons.datasets import ScalarElementSet, Quantities
 from yunmeng.solutions.HydrologicalSims.HydroNodes import ReservoirNode
 
 
-class ReservoirModel(BaseModel, IStateful, IParametric):
+class ReservoirModel(BaseModel, IStateful):
     """Stand-alone reservoir regulation model (composes a ReservoirNode)."""
 
     def __init__(self, config: dict):

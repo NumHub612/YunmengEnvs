@@ -5,6 +5,7 @@ Copyright (C) 2024, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Interface of callback classes used in solvers.
 """
 
+from __future__ import annotations
 from yunmeng.numerics.mesh import Mesh
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING

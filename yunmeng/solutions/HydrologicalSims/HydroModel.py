@@ -15,7 +15,6 @@ import numpy as np
 
 from yunmeng.solutions.standards import (
     IStateful,
-    IParametric,
     ModelMeta,
     ModelStatus,
     ParamMeta,
@@ -37,7 +36,7 @@ def _slot_quantity(slot: str):
     return _SLOT_QUANTITIES.get(slot, Quantities.DISCHARGE)
 
 
-class HydrologyModel(BaseModel, IStateful, IParametric):
+class HydrologyModel(BaseModel, IStateful):
     """Semi-distributed watershed hydrological model (tree topology)."""
 
     def __init__(self, config: dict):
