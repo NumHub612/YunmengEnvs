@@ -12,7 +12,7 @@ from matplotlib.lines import Line2D
 from shapely.geometry import Polygon
 
 from yunmeng.numerics.mesh import MeshDimension, Mesh
-from yunmeng.renders.plotter.PlotKits import _extract_mesh_data, plot_mesh_geometry
+from yunmeng.render.plotter.PlotKits import _extract_mesh_data, plot_mesh_geometry
 
 
 def plot_mesh_ids(

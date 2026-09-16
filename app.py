@@ -6,8 +6,8 @@ YunmengEnvs entrence.
 """
 
 import yunmeng as ym
-from yunmeng.taskflow.parser import Orchestrator
-from yunmeng.taskflow.builder import SchedulerBuilder
+from yunmeng.workflow.parser import Orchestrator
+from yunmeng.workflow.builder import SchedulerBuilder
 from yunmeng.setting import print_logo
 from yunmeng.solutions import ym_models
 from yunmeng.setting import logger

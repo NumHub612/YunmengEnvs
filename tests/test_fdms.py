@@ -12,7 +12,7 @@ from yunmeng.numerics.grids import Grid2D, Coordinate
 from yunmeng.numerics.mesh import Region
 from yunmeng.numerics.fields import Field, Variable
 from yunmeng.numerics.enums import VariableType, ElementType
-from yunmeng.renders.plotter import plot_mesh_ids, plot_mesh, plot_field
+from yunmeng.render.plotter import plot_mesh_ids, plot_mesh, plot_field
 
 from yunmeng.solvers.commons.inits import *
 from yunmeng.solvers.commons.boundaries import *

@@ -10,14 +10,14 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from yunmeng.taskflow.trainer import (
+from yunmeng.workflow.trainer import (
     GradientTrainer,
     TrajectoryDataset,
     rollout_mse,
 )
-from yunmeng.taskflow.losses import rollout_mse
-from yunmeng.taskflow.artifacts import LocalArtifactStore
-from yunmeng.taskflow.dataset import TrajectoryEpisode, TrajectoryDataset
+from yunmeng.workflow.losses import rollout_mse
+from yunmeng.workflow.artifacts import LocalArtifactStore
+from yunmeng.workflow.dataset import TrajectoryEpisode, TrajectoryDataset
 
 from yunmeng.interfaces.solution import ModelRef, TrainingMeta
 from yunmeng.interfaces.types import RunMode
