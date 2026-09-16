@@ -1,16 +1,4 @@
 # -*- encoding: utf-8 -*-
-from yunmeng.interfaces.solution.IEstimator import (
-    IEstimable,
-    split_namespaces,
-    MemoryStrategy,
-    IObservationSet,
-    ILoss,
-    EstimationResult,
-    IEstimator,
-    ModelRef,
-    TrainingMeta,
-    IModelArtifactStore,
-)
 from yunmeng.interfaces.solution.ICouplings import (
     CouplingKinds,
     DivergenceAction,
@@ -41,5 +29,10 @@ from yunmeng.interfaces.solution.IModel import (
     ICallback,
     ILinkableModel,
     IStateful,
+    TrainingMeta,
+    IArtifactStore,
 )
-from yunmeng.interfaces.solution.ITopology import ITopologyLayer, ISpatialIndex
+from yunmeng.interfaces.solution.ITopology import (
+    ITopologyLayer,
+    ISpatialIndex,
+)

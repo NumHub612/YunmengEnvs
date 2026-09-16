@@ -12,7 +12,8 @@ from enum import Enum
 from typing import Any, Callable
 import numpy as np
 
-from yunmeng.solutions.standards import IEstimable
+from yunmeng.interfaces.solution import IEstimable
+from yunmeng.interfaces.types import ArrayLike
 from yunmeng.setting import logger
 
 # ---------------------------------------------------
@@ -63,6 +64,48 @@ class MemoryStrategy(Enum):
     ADJOINT = "adjoint"
     """O(1) memory in time via adjoint-state integration backwards.
     Research-grade for coupled FVM; reserved, not yet implemented."""
+
+
+class IObservationSet:
+    """Observation data for estimation (time series, gauges, fields)."""
+
+    def variables(self) -> list[str]: ...
+
+    def times(self) -> ArrayLike: ...
+
+    def values(self, variable: str) -> ArrayLike: ...
+
+
+class ILoss:
+    """Loss between model outputs and observations."""
+
+    def __call__(
+        self,
+        predicted: Any,
+        observed: IObservationSet,
+    ) -> ArrayLike:
+        """Returns a scalar array; differentiable under TRAIN."""
+        ...
+
+
+@dataclass
+class EstimationResult:
+    """Outcome of one estimation (calibration or training) run."""
+
+    parameters: dict[str, Any] = field(default_factory=dict)
+    """Inferred parameters theta (model refs, coefficients, ...)."""
+
+    model_refs: list[tuple[str, str]] = field(default_factory=list)
+    """Updated model artifact references: (model_id, version)."""
+
+    metrics: dict[str, float] = field(default_factory=dict)
+    """Evaluation metrics on validation/observation data."""
+
+    history: list[dict] = field(default_factory=list)
+    """Per-iteration loss / objective records."""
+
+    converged: bool = False
+    message: str = ""
 
 
 class IEstimator(ABC):

@@ -9,58 +9,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
-from typing import Any, Protocol
 
-from yunmeng.interfaces.support.mesh import IRegion
+from yunmeng.interfaces.support import IRegion
 from yunmeng.interfaces.types import ArrayLike
-
-# ---------------------------------------------------
-# region IBoundaryCondition
-# ---------------------------------------------------
-
-
-class IBoundaryCondition(ABC):
-    """Boundary rule object."""
-
-    @classmethod
-    @abstractmethod
-    def get_name(cls) -> str:
-        """The unique name of the boundary condition."""
-        ...
-
-    @property
-    @abstractmethod
-    def semantic_tag(self) -> str:
-        """Free-form type tag, e.g. "wall", "open"."""
-        ...
-
-    @property
-    @abstractmethod
-    def target_field(self) -> str:
-        """The name of field to which this BC applies."""
-        ...
-
-    @property
-    @abstractmethod
-    def region(self) -> IRegion:
-        """The mesh region to which this BC applies."""
-        ...
-
-    @property
-    @abstractmethod
-    def id(self) -> str: ...
-
-    @abstractmethod
-    def evaluate(self, t: float) -> tuple[str, ArrayLike]:
-        """Evaluate the rule at time t.
-
-        Returns (channel, values) where
-        channel is one of "constraints"|"fluxes"|"mixed"
-        and values are backend
-        arrays aligned with region.element_ids.
-        """
-        ...
-
 
 # ---------------------------------------------------
 # region Boundary values
@@ -86,11 +37,59 @@ class BoundaryValues:
 
 
 # ---------------------------------------------------
+# region IBoundaryCondition
+# ---------------------------------------------------
+
+
+class IBoundaryCondition(ABC):
+    """Boundary rule object."""
+
+    @classmethod
+    @abstractmethod
+    def get_name(cls) -> str:
+        """The unique name of the boundary condition."""
+        ...
+
+    @property
+    @abstractmethod
+    def id(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def semantic_tag(self) -> str:
+        """Free-form type tag, e.g. "wall", "open"."""
+        ...
+
+    @property
+    @abstractmethod
+    def target_field(self) -> str:
+        """The name of field to which this BC applies."""
+        ...
+
+    @property
+    @abstractmethod
+    def region(self) -> IRegion:
+        """The mesh region to which this BC applies."""
+        ...
+
+    @abstractmethod
+    def evaluate(self, t: float) -> tuple[str, ArrayLike]:
+        """Evaluate the rule at time t.
+
+        Returns (channel, values) where
+        channel is one of "constraints"|"fluxes"|"mixed"
+        and values are backend
+        arrays aligned with region.element_ids.
+        """
+        ...
+
+
+# ---------------------------------------------------
 # region IBoundaryProvider
 # ---------------------------------------------------
 
 
-class IBoundaryProvider(Protocol):
+class IBoundaryProvider:
     """Per-instant boundary evaluator, held by model/solver."""
 
     def evaluate(self, t: float) -> BoundaryValues:

@@ -9,7 +9,6 @@ from yunmeng.interfaces.solver.IOperator import (
     OperatorKinds,
     is_known_kind,
     OperatorResult,
-    IParameterized,
     IModeSwitchable,
     IOperator,
 )
@@ -18,7 +17,7 @@ from yunmeng.interfaces.solver.ISolver import (
     SolverStatus,
     SolverConfig,
     ISolver,
-    ISnapshotable,
+    IPersistable,
     IAssimilatable,
 )
 from yunmeng.interfaces.solver.ISolverCallback import ISolverCallback

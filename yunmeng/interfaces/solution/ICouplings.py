@@ -28,7 +28,7 @@ class CouplingKinds:
     from upstream output when it updates."""
 
     LOOP = "loop"
-    """Iterative two-way coupling. Both components exchange data 
+    """Iterative two-way coupling.Both components exchange data 
     and iterate within a single time step until convergence."""
 
     PUSH = "push"

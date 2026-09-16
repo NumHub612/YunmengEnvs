@@ -8,14 +8,16 @@ Solver-layer protocols.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Protocol, Sequence, runtime_checkable
 
-from yunmeng.interfaces.support.backend import IBackend
-from yunmeng.interfaces.support.datahub import IDataHub
-from yunmeng.interfaces.support.field import DataProduct, IField
-from yunmeng.interfaces.support.linalg import ILinearEqs
-from yunmeng.interfaces.support.mesh import IMesh
 from yunmeng.interfaces.types import ArrayLike, ElementType, RunMode
+from yunmeng.interfaces.support import (
+    IBackend,
+    IDataHub,
+    DataProduct,
+    IField,
+    ILinearEqs,
+    IMesh,
+)
 
 # ---------------------------------------------------
 # region Operator kinds
@@ -60,7 +62,7 @@ def is_known_kind(kind: str) -> bool:
 
 
 # ---------------------------------------------------
-# region result & capability
+# region IModeSwitchable
 # ---------------------------------------------------
 
 
@@ -72,27 +74,14 @@ class OperatorResult:
     implicit: ILinearEqs = None
 
 
-@runtime_checkable
-class IParameterized(Protocol):
-    """Capability: parameters θ io channel."""
-
-    def get_parameters(self) -> dict[str, ArrayLike]: ...
-
-    def set_parameters(
-        self,
-        params: Mapping[str, ArrayLike],
-    ): ...
-
-
-@runtime_checkable
-class IModeSwitchable(Protocol):
+class IModeSwitchable:
     """Capability: mode-sensitive behavior.
 
     TRAIN contract: forward() must allocate fresh outputs;
     EVAL mode may reuse buffers.
     """
 
-    def set_mode(self, mode: RunMode) -> None: ...
+    def set_mode(self, mode: RunMode): ...
 
 
 # ---------------------------------------------------
@@ -100,7 +89,7 @@ class IModeSwitchable(Protocol):
 # ---------------------------------------------------
 
 
-class IOperator(Protocol):
+class IOperator:
     """Operator discretizing PDE term to computable form.
     Runtime-pure and reusable acrossruns."""
 
@@ -113,8 +102,20 @@ class IOperator(Protocol):
 
     @classmethod
     def get_kind(cls) -> str:
-        """Open kind string, see `OperatorKinds`."""
+        """Open kind string."""
         ...
+
+    # -- products -----------------------------------
+
+    @classmethod
+    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        """Declares DataProducts this operator can produce for."""
+        return []
+
+    @classmethod
+    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        """Declares DataProducts this operator can consume."""
+        return []
 
     # -- structural behavior flags ------------------
 
@@ -133,23 +134,11 @@ class IOperator(Protocol):
         """Is the operator differentiable."""
         ...
 
-    # -- products -----------------------------------
-
-    @classmethod
-    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
-        """Declares DataProducts this operator can produce for."""
-        return []
-
-    @classmethod
-    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
-        """Declares DataProducts this operator can consume."""
-        return []
-
     # -- fields -------------------------------------
 
     @property
-    def target_fields(self) -> Sequence[str]:
-        """The operator target fields."""
+    def target_fields(self) -> list[str]:
+        """The name of fields the operator acts on."""
         ...
 
     @property
@@ -162,13 +151,14 @@ class IOperator(Protocol):
     def build(self, mesh: IMesh, backend: IBackend):
         """Static topology phase, ONCE per mesh: precompute stencils,
         neighbor indices, matrix structure, network shapes;
-        move index arrays to the backend device.
-        MUST NOT load parameters θ and MUST NOT bind runtime data."""
+        move index arrays to the backend device."""
         ...
 
-    def forward(self, datahub: IDataHub, t: float, dt: float) -> OperatorResult:
-        """Runtime phase, EVERY step. Boundary data is read from
-        fields (value constraints already scatter-written by the
-        solver) and from hub products under KEY_BOUNDARY (flux
-        constraints)."""
+    def forward(
+        self,
+        datahub: IDataHub,
+        t: float,
+        dt: float,
+    ) -> OperatorResult:
+        """Runtime phase, EVERY step."""
         ...

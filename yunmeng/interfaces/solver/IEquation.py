@@ -16,10 +16,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from yunmeng.interfaces.support.field import IField
-from yunmeng.interfaces.support.mesh import IMesh
+from yunmeng.interfaces.support import IField, IMesh, ILinearEqs
 from yunmeng.interfaces.types import VariableType
-from yunmeng.interfaces.support.linalg import ILinearEqs
 
 
 @dataclass

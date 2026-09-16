@@ -14,10 +14,15 @@ from typing import Any
 
 from yunmeng.interfaces.solution.IDataset import IElementSet, Quantity
 from yunmeng.interfaces.solution.IExchange import IInput, IOutput
-from yunmeng.interfaces.types import GeometryType, ParamMeta
+from yunmeng.interfaces.types import (
+    GeometryType,
+    ParamMeta,
+    ArrayLike,
+    ModelRef,
+)
 
 # ---------------------------------------------------
-# region ModelStatus
+# region Status
 # ---------------------------------------------------
 
 
@@ -44,7 +49,7 @@ class ModelStatus(Enum):
 
 
 # ---------------------------------------------------
-# region Meta value types
+# region Metas
 # ---------------------------------------------------
 
 
@@ -93,7 +98,6 @@ class CallbackEvent:
     AFTER_UPDATE = "after_update"
     ON_FINISH = "on_finish"
     ON_ERROR = "on_error"
-
     STEP_BEGIN = "step_begin"
     STEP_END = "step_end"
 
@@ -156,11 +160,51 @@ class IStateful(ABC):
 
 
 # ---------------------------------------------------
+# region IArtifactStore
+# ---------------------------------------------------
+
+
+@dataclass
+class TrainingMeta:
+    """Provenance of a trained parameter set."""
+
+    estimator: str = ""  # e.g. "GradientTrainer(checkpoint)"
+    data_lineage: str = ""  # which observation set / episodes
+    metrics: dict[str, float] = dc_field(default_factory=dict)
+    created_at: str = ""  # ISO-8601
+    notes: str = ""
+
+
+class IArtifactStore:
+    """Versioned persistence for parameters θ."""
+
+    def resolve(self, ref: ModelRef) -> dict[str, ArrayLike]:
+        """Fetch weights + normalization stats by reference.
+
+        Must raise a error listing the required model_id@version
+        when missing (snapshot load path relies on this)."""
+        ...
+
+    def register(
+        self,
+        params: dict[str, ArrayLike],
+        meta: TrainingMeta,
+    ) -> ModelRef:
+        """Persist a newly trained parameter set as new version
+        and return its reference."""
+        ...
+
+    def meta(self, ref: ModelRef) -> TrainingMeta: ...
+
+    def list_versions(self, model_id: str) -> list[str]: ...
+
+
+# ---------------------------------------------------
 # region ILinkableModel
 # ---------------------------------------------------
 
 
-class ILinkableModel(ABC):
+class ILinkableModel:
     """Coarse-grained linkable model. UNCHANGED state machine and port
     semantics (v2.0 §8: the base protocol carries no estimation or
     mode members).
@@ -182,15 +226,7 @@ class ILinkableModel(ABC):
 
     @property
     @abstractmethod
-    def id(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def status(self) -> ModelStatus: ...
-
-    @property
-    @abstractmethod
-    def callbacks(self) -> list[ICallback]: ...
+    def outputs(self) -> list[IOutput]: ...
 
     @property
     @abstractmethod
@@ -198,7 +234,15 @@ class ILinkableModel(ABC):
 
     @property
     @abstractmethod
-    def outputs(self) -> list[IOutput]: ...
+    def callbacks(self) -> list[ICallback]: ...
+
+    @property
+    @abstractmethod
+    def status(self) -> ModelStatus: ...
+
+    @property
+    @abstractmethod
+    def id(self) -> str: ...
 
     # -- assemble -----------------------------------
 

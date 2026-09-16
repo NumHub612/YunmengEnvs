@@ -8,3 +8,8 @@ from yunmeng.interfaces.support.mesh import (
     IGeomAssistant,
     IMesh,
 )
+from yunmeng.interfaces.support.estimable import (
+    IParameterized,
+    IEstimable,
+    split_namespaces,
+)

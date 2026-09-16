@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from yunmeng.interfaces.support.field import IField
+from yunmeng.interfaces.support import IField
 from yunmeng.interfaces.types import Variable
 
 
 class IInitialCondition(ABC):
-    """Field initializer. Unchanged semantics; Field type protocolized."""
+    """Field initializer."""
 
     @classmethod
     @abstractmethod
@@ -24,13 +24,13 @@ class IInitialCondition(ABC):
 
     @property
     @abstractmethod
-    def target_field(self) -> str:
-        """The name of field to which this initial condition applies."""
-        ...
+    def id(self) -> str: ...
 
     @property
     @abstractmethod
-    def id(self) -> str: ...
+    def target_field(self) -> str:
+        """The name of field to be initialized here."""
+        ...
 
     @abstractmethod
     def get(self, **kwargs) -> Variable: ...

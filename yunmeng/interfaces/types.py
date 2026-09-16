@@ -48,6 +48,22 @@ class RunMode(Enum):
 
 
 # ---------------------------------------------------
+# region Shared values
+# ---------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ModelRef:
+    """Versioned reference to a model artifact."""
+
+    model_id: str
+    version: str
+
+    def __str__(self) -> str:
+        return f"{self.model_id}@{self.version}"
+
+
+# ---------------------------------------------------
 # region Spatial enums
 # ---------------------------------------------------
 

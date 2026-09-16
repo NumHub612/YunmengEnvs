@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields as dc_fields
-from typing import Any, Protocol
+from typing import Any
 
-from yunmeng.interfaces.support.field import FieldMeta, IField
+from yunmeng.interfaces.support import FieldMeta, IField
 from yunmeng.interfaces.solver.IBoundaryCondition import (
     IBoundaryProvider,
     IBoundaryCondition,
@@ -94,7 +94,7 @@ class SolverConfig(ABC):
 # ---------------------------------------------------
 
 
-class ISolver(Protocol):
+class ISolver:
     """Inference-time solver interface.
 
     Lifecycle:
@@ -134,19 +134,16 @@ class ISolver(Protocol):
     # -- mode switchin ------------------------------
 
     def train(self):
-        """Set TRAIN and propagate:
-        solver -> DataHub -> IModeSwitchable operators (isinstance-checked).
-        BaseSolver provides the default propagation;
-        overrides must call super()."""
+        """Set TRAIN and propagate: solver ->DataHub ->operators."""
         ...
 
     def eval(self):
-        """Set EVAL and propagate (default; backward compatible)."""
+        """Set EVAL and propagate (by default)."""
         ...
 
     # -- assembly -----------------------------------
 
-    def set_problems(self, equations: list["IEquation"]):
+    def set_problems(self, eqs: list["IEquation"]):
         """Set the PDE problems to be solved."""
         ...
 
@@ -184,10 +181,7 @@ class ISolver(Protocol):
         """Cold setup for a run — binding phase, allowed to be expensive.
 
         Binds the boundary provider, allocates/refreshes the DataHub,
-        applies ICs, sets time to t0. MAY re-load parameters from
-        config; estimators must therefore NEVER call initialize
-        between trials — they call reset(), which preserves the
-        current parameter values.
+        applies ICs, sets time to t0. MAY re-load parameters from config.
         """
         ...
 
@@ -212,7 +206,7 @@ class ISolver(Protocol):
 
         Restoring an ARBITRARY state (hotstart / checkpoint) is NOT
         reset's job — that goes to the capability interfaces
-        ISnapshotable.load (solver layer) / IStateful.restore (model
+        ISnapshotable.load (solver layer) / IStateful.restore(model
         layer)."""
         ...
 
@@ -222,10 +216,10 @@ class ISolver(Protocol):
 # ---------------------------------------------------
 
 
-class ISnapshotable(ABC):
-    """Capability: solver snapshot.
+class IPersistable(ABC):
+    """Capability: solver persistence.
 
-    Snapshot = config + runtime state + model_refs. Parameter weights
+    persistance = config + runtime state + model_refs. Parameter weights
     are NEVER embedded. load() must raise clear error listing missing
     model_id@version when resolution fails.
     """
@@ -235,7 +229,7 @@ class ISnapshotable(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, path: str) -> "ISnapshotable": ...
+    def load(cls, path: str) -> "IPersistable": ...
 
 
 class IAssimilatable(ABC):
