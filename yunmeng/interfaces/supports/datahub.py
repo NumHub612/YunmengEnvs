@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol, Sequence, runtime_checkable
 
-from yunmeng.interfaces.support.field import DataProduct, IField, ISample
+from yunmeng.interfaces.supports.field import DataProduct, IField, ISample
 from yunmeng.interfaces.types import RunMode
 
 

@@ -3,6 +3,38 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Model-layer protocols.
+
+A Model describes a SCENARIO (e.g. a hydrodynamic simulation problem);
+a Solver provides the COMPUTE ENGINE (e.g. a Saint-Venant or
+advection-diffusion solver). A Model OWNS its Solver and delegates
+stepping to it.
+
+Design invariants of the model layer:
+
+1. INTEGRABILITY is the model layer's concern; DIFFERENTIABILITY is the
+   solver layer's. Exchange items (IInput/IOutput/IValueSet) carry COPY
+   semantics only — the model boundary is an explicit gradient cut.
+   Cross-component joint optimization goes through the copy-semantic
+   parameter channel (IEstimable), never through autograd across ports.
+
+2. TRAIN mode is STANDALONE-ONLY. set_mode(TRAIN) must raise if the
+   model participates in a coupling graph (any input connected, or the
+   model is held by a coupler). Coupling strategies must assert EVAL on
+   both ends before execute(). All coupling kinds are EVAL-only
+   ("train first, link after").
+
+3. Data wiring: Model.update() pulls from inputs -> writes solver
+   fields/boundaries -> solver.step(dt) -> reads solution fields ->
+   publishes outputs. Spatial mapping: MESH-type ports reference solver
+   Regions directly (zero-copy); POINT-type ports interpolate via
+   ISpatialIndex. Temporal mismatches between TimeSpan.step and the
+   solver's time step are resolved by adapters, never by silent
+   resampling.
+
+4. Namespaces: parameters exposed by a composed model are prefixed
+   "<model_id>.<param>" (see split_namespaces); mode propagation runs
+   model -> solver -> DataHub -> operators (propagate_mode); snapshots
+   aggregate the solver state plus port buffers.
 """
 
 from __future__ import annotations
@@ -10,19 +42,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
 from enum import Enum
-from typing import Any
 
 from yunmeng.interfaces.solution.IDataset import IElementSet, Quantity
-from yunmeng.interfaces.solution.IExchange import IInput, IOutput
-from yunmeng.interfaces.types import (
-    GeometryType,
-    ParamMeta,
-    ArrayLike,
-    ModelRef,
-)
+from yunmeng.interfaces.solution.IExchange import IInput, IOutput, ExchangeMeta
+from yunmeng.interfaces.capabilities import ParamMeta
 
 # ---------------------------------------------------
-# region Status
+# region Status & Metas
 # ---------------------------------------------------
 
 
@@ -48,25 +74,6 @@ class ModelStatus(Enum):
     finalized and re-instantiated."""
 
 
-# ---------------------------------------------------
-# region Metas
-# ---------------------------------------------------
-
-
-@dataclass
-class ExchangeMeta:
-    """Exchange port item meta."""
-
-    name: str
-    description: str = ""
-    quantity: str = ""  # e.g. "discharge", "water_level"
-    unit: str = ""  # SI unit string, e.g. "m3/s"
-    gtype: GeometryType = GeometryType.POINT
-    temporal: str = "instant"  # instant, cumulative, ...
-    dtype: str = "float64"
-    required: bool = True
-
-
 @dataclass
 class ModelMeta:
     """Basic model meta."""
@@ -75,11 +82,9 @@ class ModelMeta:
     description: str = ""
     version: str = "1.0"
     category: str = ""
-
     outputs: list[ExchangeMeta] = dc_field(default_factory=list)
     inputs: list[ExchangeMeta] = dc_field(default_factory=list)
     parameters: list[ParamMeta] = dc_field(default_factory=list)
-
     supports_loop: bool = False
 
 
@@ -88,7 +93,7 @@ class ModelMeta:
 # ---------------------------------------------------
 
 
-class CallbackEvent:
+class ModelEvent:
     """Standard lifecycle event names."""
 
     BEFORE_INITIALIZE = "before_initialize"
@@ -102,101 +107,11 @@ class CallbackEvent:
     STEP_END = "step_end"
 
 
-class ICallback(ABC):
+class IModelCallback(ABC):
     """Plugin invoked at model lifecycle points."""
 
     @abstractmethod
-    def on_event(
-        self,
-        event: str,
-        model: "ILinkableModel",
-        context: dict,
-    ): ...
-
-
-# ---------------------------------------------------
-# region IStateful
-# ---------------------------------------------------
-
-
-class IStateful(ABC):
-    """Interface for components whose full internal state can be
-    captured to an in-memory snapshot and restored later.
-
-    Snapshots are opaque to the framework; only the component itself
-    knows how to serialize and deserialize them.  They should be
-    treated as immutable blobs — the framework never modifies them.
-    """
-
-    @abstractmethod
-    def snapshot(self) -> Any:
-        """Capture a complete, self-contained snapshot of the
-        component's current internal state.
-
-        The returned object must contain everything needed to bring
-        the component back to exactly this state: field values,
-        parameter sets, time counters, random seeds, etc.
-        """
-        pass
-
-    @abstractmethod
-    def restore(self, snapshot: Any):
-        """Restore the component to the exact state captured in
-        *snapshot*.
-
-        After restore(), the component must behave as if it had just
-        completed the update() call that produced this snapshot.
-        Status should be set to READY.
-        """
-        pass
-
-    def diff(self, snapshot_a: Any, snapshot_b: Any) -> dict:
-        """Compare two snapshots and return a human-readable diff.
-
-        Default implementation returns an empty dict; override to
-        provide domain-specific diagnostics.
-        """
-        return {}
-
-
-# ---------------------------------------------------
-# region IArtifactStore
-# ---------------------------------------------------
-
-
-@dataclass
-class TrainingMeta:
-    """Provenance of a trained parameter set."""
-
-    estimator: str = ""  # e.g. "GradientTrainer(checkpoint)"
-    data_lineage: str = ""  # which observation set / episodes
-    metrics: dict[str, float] = dc_field(default_factory=dict)
-    created_at: str = ""  # ISO-8601
-    notes: str = ""
-
-
-class IArtifactStore:
-    """Versioned persistence for parameters θ."""
-
-    def resolve(self, ref: ModelRef) -> dict[str, ArrayLike]:
-        """Fetch weights + normalization stats by reference.
-
-        Must raise a error listing the required model_id@version
-        when missing (snapshot load path relies on this)."""
-        ...
-
-    def register(
-        self,
-        params: dict[str, ArrayLike],
-        meta: TrainingMeta,
-    ) -> ModelRef:
-        """Persist a newly trained parameter set as new version
-        and return its reference."""
-        ...
-
-    def meta(self, ref: ModelRef) -> TrainingMeta: ...
-
-    def list_versions(self, model_id: str) -> list[str]: ...
+    def on_event(self, event: str, model: "ILinkableModel", context: dict): ...
 
 
 # ---------------------------------------------------
@@ -204,10 +119,11 @@ class IArtifactStore:
 # ---------------------------------------------------
 
 
-class ILinkableModel:
-    """Coarse-grained linkable model. UNCHANGED state machine and port
-    semantics (v2.0 §8: the base protocol carries no estimation or
-    mode members).
+class ILinkableModel(ABC):
+    """Coarse-grained linkable model. The base protocol carries no
+    estimation or mode members; optional capabilities (ISnapshottable,
+    IAssimilatable, IParameterized via IEstimable) come from
+    capabilities.py and are isinstance-governed.
 
     Lifecycle (driven by Scheduler):
         CREATED  → initialize() → READY
@@ -234,7 +150,7 @@ class ILinkableModel:
 
     @property
     @abstractmethod
-    def callbacks(self) -> list[ICallback]: ...
+    def callbacks(self) -> list[IModelCallback]: ...
 
     @property
     @abstractmethod
@@ -247,10 +163,10 @@ class ILinkableModel:
     # -- assemble -----------------------------------
 
     @abstractmethod
-    def remove_callback(self, cb: ICallback): ...
+    def remove_callback(self, cb: IModelCallback): ...
 
     @abstractmethod
-    def add_callback(self, cb: ICallback): ...
+    def add_callback(self, cb: IModelCallback): ...
 
     @abstractmethod
     def get_output(self, port_id: str) -> IOutput: ...
@@ -286,19 +202,19 @@ class ILinkableModel:
     def initialize(self):
         """Initialize internal data structures, load parameters, build
         internal topology.  After success, status must be READY."""
-        pass
+        ...
 
     @abstractmethod
     def validate(self) -> list[str]:
         """Validate configuration and return a list of error messages.
         An empty list means validation passed."""
-        pass
+        ...
 
     @abstractmethod
     def prepare(self):
         """Pre-allocate buffers, warm caches, finalize compute graphs.
         Called once before the first update() in a run."""
-        pass
+        ...
 
     @abstractmethod
     def update(self, inquirers: list[IOutput] = None) -> ModelStatus:
@@ -309,11 +225,11 @@ class ILinkableModel:
         In LOOP mode the IterativeCoupler manages the exchange and
         convergence; update() performs a single inner solve.
         """
-        pass
+        ...
 
     @abstractmethod
     def finish(self):
         """Release resources, flush outputs, close files.
         After called finish(), the model returns to CREATED and may be
         re-initialized for a new run."""
-        pass
+        ...

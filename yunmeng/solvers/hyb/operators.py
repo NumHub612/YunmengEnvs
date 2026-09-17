@@ -17,17 +17,16 @@ from typing import Mapping, Sequence
 import numpy as np
 
 from yunmeng.interfaces.solver.IOperator import OperatorKinds, OperatorResult
-from yunmeng.interfaces.support.backend import IBackend
-from yunmeng.interfaces.support.datahub import IDataHub
-from yunmeng.interfaces.support.field import DataProduct, FieldMeta, IField
-from yunmeng.interfaces.support.mesh import IMesh
+from yunmeng.interfaces.supports.backend import IBackend
+from yunmeng.interfaces.supports.datahub import IDataHub
+from yunmeng.interfaces.supports.field import DataProduct, FieldMeta, IField
+from yunmeng.interfaces.supports.mesh import IMesh
 from yunmeng.interfaces.types import ArrayLike, ElementType, RunMode, VariableType
 from yunmeng.solvers.hyb.primitives import Field, LinearEqs
 from yunmeng.interfaces.solver.IOperator import (
-    IModeSwitchable,
     IOperator,
 )
-from yunmeng.interfaces.support.estimable import IParameterized
+from yunmeng.interfaces.capabilities import IParameterized, IModeSwitchable
 import torch
 import torch.nn as nn
 

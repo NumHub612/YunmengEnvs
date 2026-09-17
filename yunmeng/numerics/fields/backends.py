@@ -5,7 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Backend of variables and fields.
 """
 
-from yunmeng.interfaces.support import IBackend
+from yunmeng.interfaces.supports import IBackend
 from yunmeng.numerics.enums import BackendType, DeviceType
 from yunmeng.setting import settings
 

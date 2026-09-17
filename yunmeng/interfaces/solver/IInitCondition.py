@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from yunmeng.interfaces.support import IField
-from yunmeng.interfaces.types import Variable
+from yunmeng.interfaces.supports import IField, Variable
 
 
 class IInitialCondition(ABC):

@@ -44,34 +44,13 @@ class RunMode(Enum):
     EVAL = "eval"
 
 
-# ---------------------------------------------------
-# region Shared values
-# ---------------------------------------------------
-
-
-@dataclass(frozen=True)
-class ModelRef:
-    """Versioned reference to a model artifact."""
-
-    model_id: str
-    version: str
-
-    def __str__(self) -> str:
-        return f"{self.model_id}@{self.version}"
-
-
-# ---------------------------------------------------
-# region Spatial enums
-# ---------------------------------------------------
-
-
 class MeshDimension(Enum):
     """Spatial dimension of a mesh."""
 
-    NONE = "none"
-    D1 = "1d"
-    D2 = "2d"
     D3 = "3d"
+    D2 = "2d"
+    D1 = "1d"
+    NONE = "none"
 
 
 class ElementType(Enum):
@@ -93,11 +72,6 @@ class GeometryType(Enum):
     CUBE = "cube"
 
 
-# ---------------------------------------------------
-# region Variable
-# ---------------------------------------------------
-
-
 class VariableType(Enum):
     """Variable tensor rank descriptor."""
 
@@ -110,39 +84,12 @@ class VariableType(Enum):
         return self.value
 
     @property
-    def ndim(self) -> int:
+    def n_dimension(self) -> int:
         return len(self.value)
 
     @property
-    def n_components(self) -> int:
+    def n_component(self) -> int:
         n = 1
         for d in self.value:
             n *= d
         return n
-
-
-@dataclass
-class Variable:
-    """A named, typed value."""
-
-    name: str
-    vtype: VariableType = VariableType.SCALAR
-    values: ArrayLike = None
-    unit: str = ""
-
-
-# ---------------------------------------------------
-# region Shared values
-# ---------------------------------------------------
-
-
-@dataclass
-class ParamMeta:
-    """Tunable parameter descriptor."""
-
-    name: str
-    description: str = ""
-    dtype: str = "float"
-    bounds: tuple = (None, None)  # (min, max)
-    default: Any = None
-    required: bool = False

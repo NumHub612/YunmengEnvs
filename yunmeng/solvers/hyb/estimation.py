@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Mapping, Protocol
 
-from yunmeng.interfaces.types import ArrayLike, ParamMeta
+from yunmeng.interfaces.types import ArrayLike
+from yunmeng.interfaces.capabilities import ParamMeta
 
 # ---------------------------------------------------
 # region Shared values

@@ -25,12 +25,8 @@ from yunmeng.interfaces.solution.IModel import (
     ModelStatus,
     ExchangeMeta,
     ModelMeta,
-    CallbackEvent,
     ICallback,
     ILinkableModel,
-    IStateful,
-    TrainingMeta,
-    IArtifactStore,
 )
 from yunmeng.interfaces.solution.ITopology import (
     ITopologyLayer,

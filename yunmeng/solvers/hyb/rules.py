@@ -13,9 +13,9 @@ import numpy as np
 
 from yunmeng.interfaces.solver.IBoundaryCondition import IBoundaryCondition
 from yunmeng.interfaces.solver.IInitCondition import IInitialCondition
-from yunmeng.interfaces.support.field import IField
-from yunmeng.interfaces.support.mesh import IRegion
-from yunmeng.interfaces.types import ArrayLike, Variable, VariableType
+from yunmeng.interfaces.supports.field import IField, Variable
+from yunmeng.interfaces.supports.mesh import IRegion
+from yunmeng.interfaces.types import ArrayLike, VariableType
 
 from enum import Enum
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
 
-from yunmeng.interfaces.support import IRegion
+from yunmeng.interfaces.supports import IRegion
 from yunmeng.interfaces.types import ArrayLike
 
 # ---------------------------------------------------
@@ -89,9 +89,10 @@ class IBoundaryCondition(ABC):
 # ---------------------------------------------------
 
 
-class IBoundaryProvider:
+class IBoundaryProvider(ABC):
     """Per-instant boundary evaluator, held by model/solver."""
 
+    @abstractmethod
     def evaluate(self, t: float) -> BoundaryValues:
         """Merge all (region, variable, rule) bindings at time t.
 

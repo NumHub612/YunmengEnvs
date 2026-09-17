@@ -10,11 +10,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from yunmeng.interfaces.types import ArrayLike, DeviceType, ElementType, VariableType
+from yunmeng.interfaces.types import (
+    ArrayLike,
+    DeviceType,
+    ElementType,
+    VariableType,
+)
 
 # ---------------------------------------------------
 # region Value types
 # ---------------------------------------------------
+
+
+@dataclass
+class Variable:
+    """A named, typed value."""
+
+    name: str
+    vtype: VariableType = VariableType.SCALAR
+    value: ArrayLike = None
+    unit: str = ""
 
 
 @dataclass
@@ -40,7 +55,7 @@ class DataProduct:
 
 
 # ---------------------------------------------------
-# region Minimal protocols
+# region IField
 # ---------------------------------------------------
 
 

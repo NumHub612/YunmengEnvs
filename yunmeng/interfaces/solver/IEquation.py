@@ -16,7 +16,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from yunmeng.interfaces.support import IField, IMesh, ILinearEqs
+from yunmeng.interfaces.supports import IField, IMesh, ILinearEqs
 from yunmeng.interfaces.types import VariableType
 
 
@@ -25,7 +25,7 @@ class EqSymbol:
     """Symbol used in a configurable equation."""
 
     description: str  # Brief description about the symbol.
-    dtype: VariableType  # Data type of the symbol.
+    vtype: VariableType  # Data type of the symbol.
     coefficient: bool  # Whether the symbol is coefficient.
     bounds: tuple  # Low-high boundarys of the symbol.
 
@@ -39,6 +39,7 @@ class IEquation(ABC):
     def id(self) -> str: ...
 
     @property
+    @abstractmethod
     def symbols(self) -> dict[str, EqSymbol]: ...
 
     @abstractmethod

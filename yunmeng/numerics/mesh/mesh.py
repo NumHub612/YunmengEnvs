@@ -5,7 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Spatial domain classes and methods for the cfd.
 """
 
-from yunmeng.interfaces.support import IMesh
+from yunmeng.interfaces.supports import IMesh
 from yunmeng.numerics.enums import MeshDimension, ElementType
 from yunmeng.numerics.mesh.elements import Node, Face, Cell, Element
 

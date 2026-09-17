@@ -3,11 +3,40 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Exchange port interfaces.
+
+Exchange items are the model layer's INTEGRABILITY surface: they wire
+models into coupling graphs (PULL/LOOP/AGENT/SURROGATE) and describe
+data by Where (IElementSet), When (TimeSpan) and What (Quantity).
+
+Design invariants of the exchange layer:
+
+1. COPY semantics, always. pull()/get_values()/set_values() transfer
+   value snapshots — never autograd-carrying references. The exchange
+   boundary IS the gradient cut: differentiability ends at the solver
+   layer below; no TRAIN contract exists here, and none may be added.
+
+2. EVAL-only operation. All coupling kinds, including SURROGATE, run in
+   EVAL mode; TRAIN is standalone-only and rejected by the owning model
+   before any port traffic occurs. Ports therefore never need
+   graph-preservation guarantees (no "no detach" clauses — detaching
+   is the design, not a risk).
+
+3. Adaptation over assumption. Spatial (IElementSet layout vs solver
+   mesh Regions), temporal (TimeSpan.step vs solver time step) and unit
+   (Quantity.si_factor/si_offset) mismatches are resolved explicitly by
+   IAdapterOutput chains (see .then()), never by silent resampling or
+   implicit unit guessing inside ports.
+
+4. One provider, many consumers; adapters decorate the provider side.
+   IOutput.version supports cache validation for PULL-mode scheduling;
+   consumers pull through the adapter chain, so adapters must be
+   idempotent and side-effect free under repeated refresh().
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from yunmeng.interfaces.solution.IDataset import (
@@ -16,7 +45,7 @@ from yunmeng.interfaces.solution.IDataset import (
     Quantity,
     TimeSpan,
 )
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.interfaces.types import ArrayLike, GeometryType
 
 if TYPE_CHECKING:
     from yunmeng.interfaces.solution.IModel import ILinkableModel
@@ -24,6 +53,20 @@ if TYPE_CHECKING:
 # ---------------------------------------------------
 # region IExchangeItem
 # ---------------------------------------------------
+
+
+@dataclass
+class ExchangeMeta:
+    """Exchange port item meta."""
+
+    name: str
+    description: str = ""
+    quantity: str = ""  # e.g. "discharge", "water_level"
+    unit: str = ""  # SI unit string, e.g. "m3/s"
+    gtype: GeometryType = GeometryType.POINT
+    temporal: str = "instant"  # instant, cumulative, ...
+    dtype: str = "float64"
+    required: bool = True
 
 
 class IExchangeItem(ABC):

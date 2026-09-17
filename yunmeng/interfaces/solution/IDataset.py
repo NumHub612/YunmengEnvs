@@ -31,17 +31,14 @@ class TimeSpan:
     def duration(self) -> float:
         """Total duration in seconds."""
         if self.end is None:
-            return None
+            return float("inf")
         return self.end - self.start
 
     def steps_count(self) -> int:
         """Number of steps."""
-        if self.end is None:
-            return None
-        return int((self.end - self.start) / self.step)
+        return int(self.duration / self.step)
 
     def timestamp(self, step_idx: int) -> float:
-        """The wall-clock time of *step_idx*."""
         return self.start + step_idx * self.step
 
 

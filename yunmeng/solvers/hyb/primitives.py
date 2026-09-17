@@ -16,7 +16,7 @@ from typing import Sequence
 
 import numpy as np
 
-from yunmeng.interfaces.support.field import DataProduct, FieldMeta, IField
+from yunmeng.interfaces.supports.field import DataProduct, FieldMeta, IField
 from yunmeng.interfaces.types import (
     ArrayLike,
     ElementType,

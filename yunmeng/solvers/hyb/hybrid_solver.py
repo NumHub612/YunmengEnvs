@@ -23,26 +23,24 @@ from yunmeng.interfaces.solver.IBoundaryCondition import (
 )
 from yunmeng.interfaces.solver.IInitCondition import IInitialCondition
 from yunmeng.interfaces.solver.IOperator import (
-    IModeSwitchable,
     IOperator,
 )
+from yunmeng.interfaces.capabilities import IModeSwitchable, ISnapshottable, ParamMeta
 from yunmeng.interfaces.solver.ISolver import (
-    IPersistable,
     SolverConfig,
     SolverMeta,
     SolverStatus,
 )
 from yunmeng.interfaces.solver.ISolverCallback import ISolverCallback
 from yunmeng.solvers.hyb.estimation import IEstimable
-from yunmeng.interfaces.support.estimable import IParameterized
-from yunmeng.interfaces.support.backend import IBackend
-from yunmeng.interfaces.support.field import FieldMeta, IField
-from yunmeng.interfaces.support.mesh import IMesh
+from yunmeng.interfaces.capabilities.estimable import IParameterized
+from yunmeng.interfaces.supports.backend import IBackend
+from yunmeng.interfaces.supports.field import FieldMeta, IField
+from yunmeng.interfaces.supports.mesh import IMesh
 from yunmeng.interfaces.types import (
     ArrayLike,
     ElementType,
     MeshDimension,
-    ParamMeta,
     RunMode,
     VariableType,
 )
@@ -104,7 +102,7 @@ class ListBoundaryProvider:
 # ---------------------------------------------------
 
 
-class HybridSolver(IEstimable, IPersistable):
+class HybridSolver(IEstimable, ISnapshottable):
     """Hybrid physics+AI solver over a 1D uniform mesh.
 
     Step contract (per ISolver):
@@ -463,3 +461,9 @@ class HybridSolver(IEstimable, IPersistable):
             "rebuild via constructor and re-register parameters from the "
             "model artifact store."
         )
+
+    def snapshot(self):
+        return super().snapshot()
+
+    def restore(self, snapshot):
+        return super().restore(snapshot)

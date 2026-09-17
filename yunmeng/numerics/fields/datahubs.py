@@ -43,7 +43,7 @@ Usage sketch
 from __future__ import annotations
 from dataclasses import dataclass, field
 
-from yunmeng.interfaces.support import IDataHub
+from yunmeng.interfaces.supports import IDataHub
 from yunmeng.numerics.enums import ElementType, RunMode
 from yunmeng.numerics.fields import Field
 

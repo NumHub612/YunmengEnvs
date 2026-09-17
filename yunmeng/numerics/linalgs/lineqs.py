@@ -15,7 +15,7 @@ Usage:
     solution = eqs.solve(algorithm="cg")      # force CG
 """
 
-from yunmeng.interfaces.support import ILinearEqs
+from yunmeng.interfaces.supports import ILinearEqs
 from yunmeng.numerics.linalgs.matrixes import Matrix, TorchMatrix, NumpyMatrix
 from yunmeng.numerics.fields import Field, FieldMeta, VariableType
 from yunmeng.numerics.linalgs.engines import (
