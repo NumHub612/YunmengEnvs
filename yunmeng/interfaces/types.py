@@ -26,9 +26,6 @@ DeviceType: TypeAlias = str
 Open-ended by nature (device ordinals), hence a str alias rather
 than an enum."""
 
-Variable: TypeAlias = ArrayLike
-"""Alias kept for readability in value-carrying signatures
-(boundary values, initial conditions, parameters)."""
 
 # ---------------------------------------------------
 # region Env enums
@@ -86,14 +83,6 @@ class ElementType(Enum):
     NONE = "none"
 
 
-class VariableType(Enum):
-    """Tensor rank of a variable."""
-
-    SCALAR = "scalar"
-    VECTOR = "vector"
-    TENSOR = "tensor"
-
-
 class GeometryType(Enum):
     """Geometry kind of a topology layer."""
 
@@ -102,6 +91,44 @@ class GeometryType(Enum):
     POLYLINE = "polyline"
     POLYGON = "polygon"
     CUBE = "cube"
+
+
+# ---------------------------------------------------
+# region Variable
+# ---------------------------------------------------
+
+
+class VariableType(Enum):
+    """Variable tensor rank descriptor."""
+
+    SCALAR = ()
+    VECTOR = (3,)
+    TENSOR = (3, 3)
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        return self.value
+
+    @property
+    def ndim(self) -> int:
+        return len(self.value)
+
+    @property
+    def n_components(self) -> int:
+        n = 1
+        for d in self.value:
+            n *= d
+        return n
+
+
+@dataclass
+class Variable:
+    """A named, typed value."""
+
+    name: str
+    vtype: VariableType = VariableType.SCALAR
+    values: ArrayLike = None
+    unit: str = ""
 
 
 # ---------------------------------------------------

@@ -89,16 +89,17 @@ def truth_trajectory():
     dx = mesh.dx
     r = NU * DT_FINE / dx**2
     assert r < 0.5, f"explicit scheme unstable: r={r}"
+
     n_total = int(T_FORECAST / DT_FINE)
-    ratio = N_FINE // N_COARSE
-    stride = int(DT / DT_FINE)
-    snaps = []
+    ratio = N_FINE // N_COARSE  # coarsen the truth to the coarse grid on space
+    stride = int(DT / DT_FINE)  # coarsen the truth to the coarse grid on time
+    snaps = []  # coarse-grid-time snapshots
     for k in range(1, n_total + 1):
         lap = np.zeros_like(u)
-        lap[1:-1] = (u[:-2] - 2 * u[1:-1] + u[2:]) / dx**2
-        u = u + DT_FINE * NU * lap
+        lap[1:-1] = (u[:-2] - 2 * u[1:-1] + u[2:]) / dx**2  # Laplacian
+        u = u + DT_FINE * NU * lap  # explicit Euler
         u[0] = u[-1] = 0.0
-        if k % stride == 0:
+        if k % stride == 0:  # coarsen the truth to the coarse grid on time
             snaps.append(u.reshape(N_COARSE, ratio).mean(axis=1))
     return np.stack(snaps)  # (n_steps_total, N_COARSE)
 

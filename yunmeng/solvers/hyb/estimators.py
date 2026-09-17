@@ -142,8 +142,8 @@ class GradientTrainer(IEstimator):
         opt = torch.optim.Adam(leaves, lr=self._lr)
 
         history: list[dict] = []
-        n_val = max(1, int(self._n_steps * self._val_fraction))
-        n_fit = self._n_steps - n_val
+        n_val = max(1, int(self._n_steps * self._val_fraction))  # for early stopping
+        n_fit = self._n_steps - n_val  # for training
         best_val = float("inf")
         best_state = None
         stall = 0
@@ -151,37 +151,45 @@ class GradientTrainer(IEstimator):
         target.train()
         try:
             for epoch in range(self._epochs):
-                opt.zero_grad()
-                target.reset_run()
-                predicted = target.run(self._n_steps)
+                opt.zero_grad()  # clear gradients
+                target.reset_run()  # reset state, back to initial conditions
+                predicted = target.run(
+                    self._n_steps
+                )  # rollout trajectory (n_steps, n_cells)
                 # Fit on the early window; validate on the tail of the
                 # SAME rollout (no extra forward pass).
-                lval = loss(predicted[:n_fit], _window(data, 0, n_fit))
-                lval.backward()
-                opt.step()
+                lval = loss(
+                    predicted[:n_fit], _window(data, 0, n_fit)
+                )  # compute loss on the training window
+                lval.backward()  # backpropagate
+                opt.step()  # update parameters
                 with torch.no_grad():
                     vval = float(
                         loss(
-                            predicted[n_fit:].detach(),
+                            predicted[
+                                n_fit:
+                            ].detach(),  # detach() to leave the computational graph
                             _window(data, n_fit, self._n_steps),
                         )
-                    )
+                    )  # compute validation loss on the tail window
                 history.append(
                     {"epoch": epoch, "loss": float(lval.item()), "val_loss": vval}
                 )
                 if vval < best_val - 1e-12:
                     best_val = vval
-                    best_state = np.array(target.get_param_vector(), copy=True)
+                    best_state = np.array(
+                        target.get_param_vector(), copy=True
+                    )  # save best parameters snapshot without gradients
                     stall = 0
                 else:
                     stall += 1
-                    if stall >= self._patience:
+                    if stall >= self._patience:  # early stopping for no improvement
                         history.append({"epoch": epoch, "early_stop": True})
                         break
         finally:
-            target.eval()
+            target.eval()  # restore EVAL mode on exit or exception
 
-        if best_state is not None:
+        if best_state is not None:  # restore best parameters to the target
             target.set_param_vector(best_state)
 
         result = EstimationResult(
