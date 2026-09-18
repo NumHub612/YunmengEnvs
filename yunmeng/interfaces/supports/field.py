@@ -39,6 +39,9 @@ class IField(Protocol):
     def meta(self) -> FieldMeta: ...
 
     @property
+    def size(self) -> int: ...
+
+    @property
     def values(self) -> ArrayLike:
         """Backend array of values."""
         ...

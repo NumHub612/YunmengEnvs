@@ -27,6 +27,10 @@ class Field:
         return self._meta
 
     @property
+    def size(self) -> int:
+        return int(self.values.shape[0])
+
+    @property
     def values(self) -> ArrayLike:
         return self._values
 

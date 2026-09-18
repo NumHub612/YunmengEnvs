@@ -34,6 +34,11 @@ class IBackend(Protocol):
         an autograd graph."""
         ...
 
+    @property
+    def device(self) -> DeviceType:
+        """The default device for this backend."""
+        ...
+
     # -- construction / conversion ------------------
 
     def asarray(

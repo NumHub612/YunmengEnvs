@@ -18,17 +18,17 @@ Usage:
 from __future__ import annotations
 from dataclasses import dataclass
 
-from yunmeng.solutions.standards import (
+from yunmeng.interfaces.capabilities import ISnapshottable
+from yunmeng.interfaces.solution import (
     ILinkableModel,
     IInput,
     IOutput,
     IIterativeCoupler,
-    IStateful,
-    CouplingMode,
+    CouplingKinds,
     CouplingConfig,
     IterationResult,
     ModelStatus,
-    CallbackEvent,
+    ModelEvent,
 )
 from yunmeng.solutions.commons.additionals import (
     PullCoupler,
@@ -172,8 +172,8 @@ class Scheduler:
 
     def _build_execution_plan(self):
         """Topological order over PULL links; group LOOP pairs."""
-        pull_links = [l for l in self._links if l.config.mode != CouplingMode.LOOP]
-        loop_links = [l for l in self._links if l.config.mode == CouplingMode.LOOP]
+        pull_links = [l for l in self._links if l.config.mode != CouplingKinds.LOOP]
+        loop_links = [l for l in self._links if l.config.mode == CouplingKinds.LOOP]
 
         model_by_id = {id(m): m for m in self._models}
         indeg = {mid: 0 for mid in model_by_id}
@@ -225,7 +225,7 @@ class Scheduler:
     def step(self) -> list[IterationResult]:
         results = []
         done_pairs = set()
-        self._fire(CallbackEvent.STEP_BEGIN)
+        self._fire(ModelEvent.STEP_BEGIN)
         for m in self._order:
             if m.status in (ModelStatus.DONE, ModelStatus.FAILED):
                 continue
@@ -239,17 +239,19 @@ class Scheduler:
                 done_pairs.add(key)
                 results.append(self._loop_coupler.iterate(comp_a, comp_b, cfg))
         self.results.extend(results)
-        self._fire(CallbackEvent.STEP_END, results=results)
+        self._fire(ModelEvent.STEP_END, results=results)
         return results
 
     # -- graph-level state (calibration / ensemble)
 
     def snapshot_graph(self) -> dict:
-        return {m.id: m.snapshot() for m in self._models if isinstance(m, IStateful)}
+        return {
+            m.id: m.snapshot() for m in self._models if isinstance(m, ISnapshottable)
+        }
 
     def restore_graph(self, snapshot: dict):
         for m in self._models:
-            if isinstance(m, IStateful) and m.id in snapshot:
+            if isinstance(m, ISnapshottable) and m.id in snapshot:
                 m.restore(snapshot[m.id])
 
     # -- callbacks ----------------------------------

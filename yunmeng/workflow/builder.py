@@ -7,10 +7,10 @@ To assemble a new Scheduler from the orchestrator config.
 from typing import Any, Dict
 import importlib
 
-from yunmeng.setting import logger
-from yunmeng.solutions.standards import CouplingConfig, CouplingMode, IEstimable
-from yunmeng.workflow.estimator import Optimizer, Calibrator
+from yunmeng.interfaces.capabilities import IEstimable
+from yunmeng.interfaces.solution import CouplingConfig, CouplingKinds
 from yunmeng.workflow.scheduler import Scheduler
+from yunmeng.setting import logger
 
 # ---------------------------------------------------
 # region Builder & Assembler
@@ -246,8 +246,8 @@ class SchedulerBuilder:
         mode = str(link.get("mode", "PULL")).strip().upper()
         if mode == "LOOP":
             params = dict(link.get("loop", {}))
-            return CouplingConfig(mode=CouplingMode.LOOP, **params)
-        return CouplingConfig(mode=CouplingMode.PULL)
+            return CouplingConfig(mode=CouplingKinds.LOOP, **params)
+        return CouplingConfig(mode=CouplingKinds.PULL)
 
     def _element_mapping(self, link: dict):
         src_ids = self._io_item_ids(

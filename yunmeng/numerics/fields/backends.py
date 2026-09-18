@@ -43,6 +43,10 @@ class NumpyBackend:
     def differentiable(self) -> bool:
         return False
 
+    @property
+    def device(self) -> DeviceType:
+        return "cpu"
+
     # -- construction / conversion ------------------
 
     def asarray(

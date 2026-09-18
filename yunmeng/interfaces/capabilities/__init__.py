@@ -1,6 +1,7 @@
 from yunmeng.interfaces.capabilities.differentiable import (
     IDifferentiable,
     IModeSwitchable,
+    propagate_mode,
 )
 from yunmeng.interfaces.capabilities.estimable import (
     ParamMeta,
