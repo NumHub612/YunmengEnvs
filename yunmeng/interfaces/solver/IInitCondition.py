@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from yunmeng.interfaces.supports import IField, Variable
+from yunmeng.interfaces.supports import IField
+from yunmeng.interfaces.types import ArrayLike
 
 
 class IInitialCondition(ABC):
@@ -32,7 +33,7 @@ class IInitialCondition(ABC):
         ...
 
     @abstractmethod
-    def get(self, **kwargs) -> Variable: ...
+    def get(self, **kwargs) -> ArrayLike: ...
 
     @abstractmethod
     def apply(self, field: IField):

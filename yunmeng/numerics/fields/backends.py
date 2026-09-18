@@ -2,394 +2,371 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Backend of variables and fields.
+Concrete array backends: NumpyBackend (inference) and TorchBackend
+(differentiable).
 """
 
-from yunmeng.interfaces.supports import IBackend
-from yunmeng.numerics.enums import BackendType, DeviceType
-from yunmeng.setting import settings
+from __future__ import annotations
 
-from typing import Dict, Union
-from contextlib import contextmanager
+from typing import Sequence
+
 import numpy as np
-import torch
 
-# --------------------------------------------------
-# region Backend
-# --------------------------------------------------
+from yunmeng.interfaces.types import ArrayLike, DeviceType
+from yunmeng.interfaces.supports import IBackend
 
-# Backend-neutral device annotation. Runtime values are backend-native
-# handles (torch.device under the torch backend); neutral layers must not
-# declare concrete torch/np types — conversion happens inside Backend.
-DeviceLike = Union[DeviceType, "torch.device", str, None]
+try:
+    import torch
 
-ArrayLike = Union[np.ndarray, torch.Tensor]
+    _HAS_TORCH = True
+except ImportError:  # pragma: no cover
+    torch = None
+    _HAS_TORCH = False
+
+# ---------------------------------------------------
+# region NumpyBackend
+# ---------------------------------------------------
 
 
-class Backend(IBackend):
-    """Backend to support torch and numpy."""
-
-    __slots__ = ("xp", "btype")
-
-    def __init__(self, xp, backend_type: BackendType = BackendType.NUMPY):
-        assert xp is not None, "xp must be numpy or torch"
-        self.xp = xp  # numpy or torch backend
-        self.btype = backend_type
+class NumpyBackend:
+    """Pure-inference backend over numpy."""
 
     @property
-    def is_torch(self) -> bool:
-        return self.btype == BackendType.TORCH
+    def name(self) -> str:
+        return "numpy"
 
     @property
-    def is_numpy(self) -> bool:
-        return self.btype == BackendType.NUMPY
+    def xp(self) -> object:
+        return np
 
     @property
-    def type(self) -> BackendType:
-        return self.btype
+    def differentiable(self) -> bool:
+        return False
 
-    @property
-    def float32(self):
-        return self.xp.float32
+    # -- construction / conversion ------------------
 
-    @property
-    def float64(self):
-        return self.xp.float64
+    def asarray(
+        self, data: object, dtype: str = None, device: DeviceType = None
+    ) -> ArrayLike:
+        if isinstance(data, np.ndarray) and dtype is None:
+            return data
+        return np.asarray(data, dtype=dtype or "float64")
 
-    def array(self, value, dtype=None, device=None, requires_grad=False) -> ArrayLike:
-        dtype = dtype or self.float64
-        if self.type == BackendType.TORCH:
-            return torch.as_tensor(value, dtype=dtype, device=device).requires_grad_(
-                requires_grad
-            )
-        return self.xp.array(value, dtype=dtype)
+    def zeros(
+        self, shape: Sequence[int], dtype: str = None, device: DeviceType = None
+    ) -> ArrayLike:
+        return np.zeros(tuple(shape), dtype=dtype or "float64")
 
-    # (FIX) zeros: remove undefined self._device, accept device param instead
-    def zeros(self, shape, dtype=None, device=None) -> ArrayLike:
-        """Create zero-initialized array."""
-        dtype = dtype or self.float64
-        if self.is_torch:
-            return torch.zeros(shape, dtype=dtype, device=device)
-        return np.zeros(shape, dtype=dtype)
-
-    def zeros_like(self, arr) -> ArrayLike:
-        return self.xp.zeros_like(arr)
-
-    def empty(self, shape, dtype=None, device=None) -> ArrayLike:
-        dtype = dtype or self.float64
-        if self.type == BackendType.TORCH:
-            return torch.empty(
-                shape,
-                device=device,
-                dtype=dtype,
-            )
-        else:
-            return np.empty(shape, dtype=dtype)
-
-    def eye(self, n, dtype=None) -> ArrayLike:
-        dtype = dtype or self.float64
-        return self.xp.eye(n, dtype=dtype)
+    def zeros_like(self, a: ArrayLike) -> ArrayLike:
+        return np.zeros_like(a)
 
     def full(
-        self, shape, fill_value, dtype=None, device=None, requires_grad=False
+        self,
+        shape: Sequence[int],
+        fill_value: float,
+        dtype: str = None,
+        device: DeviceType = None,
     ) -> ArrayLike:
-        dtype = dtype or self.float64
-        if self.type == BackendType.TORCH:
-            data = torch.full(
-                shape,
-                fill_value,
-                dtype=dtype,
-                device=device,
-                requires_grad=requires_grad,
-            )
-        else:
-            data = np.full(
-                shape,
-                fill_value,
-                dtype=dtype,
-            )
-        return data
-
-    def stack(self, arr, axis=0) -> ArrayLike:
-        if self.type == BackendType.TORCH:
-            device0 = arr[0].device
-            arr = [t.to(device0) for t in arr]
-            return torch.stack(arr, dim=axis)
-        return np.stack(arr, axis=axis)
-
-    # --------------------------------------------------
-    # region ArrayNamespace primitives
-    # --------------------------------------------------
-    # Operator/Field layers must dispatch through these
-    # primitives instead of touching np./torch. directly.
-
-    def asarray(self, obj, dtype=None, device=None) -> ArrayLike:
-        """Convert array-like to backend array without copying when possible.
-
-        Note: converting across backends (e.g. torch -> numpy) detaches the
-        autograd graph by nature. Intra-backend conversion keeps the graph.
-        """
-        if self.is_torch:
-            if isinstance(obj, torch.Tensor):
-                t = obj
-                if dtype is not None:
-                    t = t.to(dtype)
-                if device is not None:
-                    t = t.to(device)
-                return t
-            return torch.as_tensor(obj, dtype=dtype, device=device)
-        if isinstance(obj, torch.Tensor):
-            return obj.detach().cpu().numpy()
-        return np.asarray(obj, dtype=dtype)
-
-    def where(self, cond, x, y) -> ArrayLike:
-        """Element-wise selection. Differentiable in torch (subgradient at
-        the switching surface is zero, acceptable for upwind/limiter logic)."""
-        return self.xp.where(cond, x, y)
-
-    def maximum(self, a, b) -> ArrayLike:
-        if self.is_torch:
-            return torch.maximum(self.asarray(a), self.asarray(b))
-        return np.maximum(a, b)
-
-    def minimum(self, a, b) -> ArrayLike:
-        if self.is_torch:
-            return torch.minimum(self.asarray(a), self.asarray(b))
-        return np.minimum(a, b)
-
-    def ones_like(self, arr) -> ArrayLike:
-        return self.xp.ones_like(arr)
-
-    def full_like(self, arr, fill_value) -> ArrayLike:
-        if self.is_torch:
-            return torch.full_like(arr, fill_value)
-        return np.full_like(arr, fill_value)
-
-    def arange(self, *args, dtype=None, device=None) -> ArrayLike:
-        if self.is_torch:
-            return torch.arange(*args, dtype=dtype, device=device)
-        return np.arange(*args, dtype=dtype)
-
-    def concatenate(self, arrs, axis=0) -> ArrayLike:
-        if self.is_torch:
-            return torch.cat(list(arrs), dim=axis)
-        return np.concatenate(list(arrs), axis=axis)
-
-    def sum(self, arr, axis=None, keepdims=False):
-        if self.is_torch:
-            return torch.sum(arr, dim=axis, keepdim=keepdims)
-        return np.sum(arr, axis=axis, keepdims=keepdims)
-
-    def mean(self, arr, axis=None, keepdims=False):
-        if self.is_torch:
-            return torch.mean(arr, dim=axis, keepdim=keepdims)
-        return np.mean(arr, axis=axis, keepdims=keepdims)
-
-    def sqrt(self, arr) -> ArrayLike:
-        return self.xp.sqrt(arr)
-
-    def is_tensor(self, obj) -> bool:
-        """Whether obj is the native array type of this backend."""
-        if self.is_torch:
-            return isinstance(obj, torch.Tensor)
-        return isinstance(obj, np.ndarray)
-
-    # --------------------------------------------------
-    # region Algorithmic primitives
-    # --------------------------------------------------
-    # Beyond data-type abstraction, the backend also abstracts ALGORITHMIC
-    # primitives whose optimal implementations diverge across backends
-    # (sparse ops, scatter/gather, linear solves). Operator code must call
-    # these instead of hand-rolling np./torch. variants. Heavy paths may
-    # have per-backend optimized implementations behind the same signature.
-
-    def matmul(self, a, b) -> ArrayLike:
-        if self.is_torch:
-            return torch.matmul(a, b)
-        return np.matmul(a, b)
-
-    def einsum(self, equation, *operands) -> ArrayLike:
-        if self.is_torch:
-            return torch.einsum(equation, *operands)
-        return np.einsum(equation, *operands)
-
-    def scatter_add(self, index, src, dim_size: int) -> ArrayLike:
-        """Segment/scatter accumulation — the core primitive of FEM/FVM
-        assembly and mesh-based GNN message passing.
-
-        Numpy: np.add.at (slow but correct). Torch: index_add_ (fast, on
-        device, differentiable)."""
-        if self.is_torch:
-            if not torch.is_tensor(index):
-                index = torch.as_tensor(index, dtype=torch.int64, device=src.device)
-            out = torch.zeros(
-                (dim_size, *src.shape[1:]), dtype=src.dtype, device=src.device
-            )
-            out.index_add_(0, index, src)
-            return out
-        out = np.zeros((dim_size, *src.shape[1:]), dtype=src.dtype)
-        np.add.at(out, index, src)
-        return out
-
-    def solve(self, a, b) -> ArrayLike:
-        """Dense linear solve (differentiable under torch).
-
-        Sparse/iterative solves are NOT covered here: they are handled by
-        numerics.linalgs with per-backend implementations; under torch a
-        differentiable sparse solve must be wrapped via the implicit
-        function theorem (custom autograd.Function), not plain AD through
-        the iterations."""
-        if self.is_torch:
-            return torch.linalg.solve(a, b)
-        return np.linalg.solve(a, b)
-
-    def norm(self, arr) -> float:
-        if self.type == BackendType.TORCH:
-            return torch.linalg.norm(arr)
-        return float(self.xp.linalg.norm(arr))
-
-    def dot(self, a, b):
-        return self.xp.dot(a, b)
-
-    def abs(self, arr):
-        if self.type == BackendType.TORCH:
-            return torch.abs(arr)
-        return self.xp.abs(arr)
-
-    def min(self, arr):
-        if self.type == BackendType.TORCH:
-            return torch.min(arr).item()
-        return float(self.xp.min(arr))
-
-    def max(self, arr):
-        if self.type == BackendType.TORCH:
-            return torch.max(arr).item()
-        return float(self.xp.max(arr))
-
-    def to_numpy(self, obj) -> np.ndarray:
-        if isinstance(obj, torch.Tensor):
-            return obj.detach().cpu().numpy()
-        return obj
-
-    def to_tensor(self, obj, dtype=None, requires_grad=False):
-        if isinstance(obj, torch.Tensor):
-            obj.requires_grad_(requires_grad)
-            return obj
-
-        return torch.tensor(
-            obj,
-            dtype=dtype,
-            requires_grad=requires_grad,
+        return np.full(
+            tuple(shape),
+            fill_value,
+            dtype=dtype or "float64",
         )
 
-    def to_device(self, obj, device=None):
-        if self.type == BackendType.TORCH:
-            device = device or settings.device
-            device = torch.device(device)
-            return obj.to(device)
-        return obj
+    def eye(self, n: int, dtype: str = None) -> ArrayLike:
+        return np.eye(n, dtype=dtype or "float64")
 
-
-# --------------------------------------------------
-# region BackendContext
-# --------------------------------------------------
-
-
-class BackendContext:
-    """Backend context manager, supports per-context Backend instantiation."""
-
-    _instance: "BackendContext" = None
-    _backends: Dict[BackendType, Dict[DeviceType, Backend]] = {}
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(self):
-        if not hasattr(self, "_initialized"):
-            self._initialized = True
-            self._active_backend: Backend = None
-            self._active_device: DeviceType = DeviceType.AUTO
-
-    @contextmanager
-    def use_backend(
+    def arange(
         self,
-        backend_type: BackendType,
-        device: DeviceType = DeviceType.AUTO,
-    ):
-        """A context manager that uses the specified backend and device."""
-        prev_backend = self._active_backend
-        prev_device = self._active_device
+        n: int,
+        dtype: str = None,
+        device: DeviceType = None,
+    ) -> ArrayLike:
+        return np.arange(n, dtype=dtype or "int64")
 
-        try:
-            if backend_type not in self._backends:
-                self._backends[backend_type] = {}
+    def stack(
+        self,
+        arrays: Sequence[ArrayLike],
+        axis: int = 0,
+    ) -> ArrayLike:
+        return np.stack(list(arrays), axis=axis)
 
-            if device not in self._backends[backend_type]:
-                xp = np if backend_type == BackendType.NUMPY else torch
-                self._backends[backend_type][device] = Backend(xp, backend_type)
+    def to_device(self, a: ArrayLike, device: DeviceType) -> ArrayLike:
+        return a
 
-            self._active_backend = self._backends[backend_type][device]
-            self._active_device = device
-            yield self._active_backend
-        finally:
-            self._active_backend = prev_backend
-            self._active_device = prev_device
+    def to_host(self, a: ArrayLike) -> ArrayLike:
+        return np.asarray(a, dtype="float64")
+
+    # -- elementwise / selection --------------------
+
+    def where(
+        self,
+        cond: ArrayLike,
+        x: ArrayLike,
+        y: ArrayLike,
+    ) -> ArrayLike:
+        return np.where(cond, x, y)
+
+    def maximum(self, x: ArrayLike, y: ArrayLike) -> ArrayLike:
+        return np.maximum(x, y)
+
+    def minimum(self, x: ArrayLike, y: ArrayLike) -> ArrayLike:
+        return np.minimum(x, y)
+
+    def concatenate(
+        self,
+        arrays: Sequence[ArrayLike],
+        axis: int = 0,
+    ) -> ArrayLike:
+        return np.concatenate(list(arrays), axis=axis)
+
+    def sum(self, a: ArrayLike, axis: int = None) -> ArrayLike:
+        return np.sum(a, axis=axis)
+
+    def norm(self, a: ArrayLike) -> ArrayLike:
+        return float(np.linalg.norm(a))
+
+    # -- algorithmic primitives ---------------------
+
+    def matmul(self, a: ArrayLike, b: ArrayLike) -> ArrayLike:
+        return a @ b
+
+    def einsum(self, equation: str, *operands: ArrayLike) -> ArrayLike:
+        return np.einsum(equation, *operands)
+
+    def scatter_add(
+        self, target: ArrayLike, indices: ArrayLike, values: ArrayLike
+    ) -> ArrayLike:
+        out = np.array(target, copy=True)
+        np.add.at(out, np.asarray(indices), np.asarray(values))
+        return out
+
+    def gather(
+        self,
+        a: ArrayLike,
+        indices: ArrayLike,
+        axis: int = 0,
+    ) -> ArrayLike:
+        return np.take(a, np.asarray(indices), axis=axis)
+
+    def roll(self, a: ArrayLike, shift: int, axis: int) -> ArrayLike:
+        return np.roll(a, shift, axis=axis)
+
+    def pad(
+        self,
+        a: ArrayLike,
+        pad_width: Sequence[tuple[int, int]],
+        mode: str = "constant",
+        value: float = 0.0,
+    ) -> ArrayLike:
+        if mode == "constant":
+            return np.pad(a, pad_width, mode=mode, constant_values=value)
+        return np.pad(a, pad_width, mode=mode)
+
+    def solve(self, a: ArrayLike, b: ArrayLike) -> ArrayLike:
+        return np.linalg.solve(np.asarray(a), np.asarray(b))
+
+
+# ---------------------------------------------------
+# region TorchBackend
+# ---------------------------------------------------
+
+
+class TorchBackend:
+    """Differentiable backend over torch (float64 by default)."""
+
+    def __init__(self, device: DeviceType = "cpu"):
+        if not _HAS_TORCH:
+            raise RuntimeError("torch is not available in this environment")
+        self._device = torch.device(device if device != "auto" else "cpu")
 
     @property
-    def active_backend(self) -> Backend:
-        """Get the current active backend."""
-        if self._active_backend is None:
-            raise RuntimeError(
-                "No backend is active. Use 'use_backend' context manager."
+    def name(self) -> str:
+        return "torch"
+
+    @property
+    def xp(self) -> object:
+        return torch
+
+    @property
+    def differentiable(self) -> bool:
+        return True
+
+    @property
+    def device(self) -> "torch.device":
+        return self._device
+
+    def _torch_dtype(self, dtype: str) -> "torch.dtype":
+        mapping = {
+            "float64": torch.float64,
+            "float32": torch.float32,
+            "int64": torch.int64,
+            "int32": torch.int32,
+        }
+        return mapping.get(dtype or "float64", torch.float64)
+
+    # -- construction / conversion ------------------
+
+    def asarray(
+        self, data: object, dtype: str = None, device: DeviceType = None
+    ) -> ArrayLike:
+        if isinstance(data, torch.Tensor):
+            return data.to(
+                dtype=self._torch_dtype(dtype),
+                device=device or self._device,
             )
-        return self._active_backend
+        return torch.as_tensor(
+            data,
+            dtype=self._torch_dtype(dtype),
+            device=device or self._device,
+        )
 
-    @property
-    def active_device(self) -> DeviceType:
-        """Get the current active device."""
-        return self._active_device
+    def zeros(
+        self,
+        shape: Sequence[int],
+        dtype: str = None,
+        device: DeviceType = None,
+    ) -> ArrayLike:
+        return torch.zeros(
+            tuple(shape),
+            dtype=self._torch_dtype(dtype),
+            device=device or self._device,
+        )
+
+    def zeros_like(self, a: ArrayLike) -> ArrayLike:
+        return torch.zeros_like(a)
+
+    def full(
+        self,
+        shape: Sequence[int],
+        fill_value: float,
+        dtype: str = None,
+        device: DeviceType = None,
+    ) -> ArrayLike:
+        return torch.full(
+            tuple(shape),
+            fill_value,
+            dtype=self._torch_dtype(dtype),
+            device=device or self._device,
+        )
+
+    def eye(self, n: int, dtype: str = None) -> ArrayLike:
+        return torch.eye(
+            n,
+            dtype=self._torch_dtype(dtype),
+            device=self._device,
+        )
+
+    def arange(
+        self,
+        n: int,
+        dtype: str = None,
+        device: DeviceType = None,
+    ) -> ArrayLike:
+        return torch.arange(
+            n,
+            dtype=self._torch_dtype(dtype or "int64"),
+            device=device or self._device,
+        )
+
+    def stack(self, arrays: Sequence[ArrayLike], axis: int = 0) -> ArrayLike:
+        return torch.stack(list(arrays), dim=axis)
+
+    def to_device(self, a: ArrayLike, device: DeviceType) -> ArrayLike:
+        return a.to(device)
+
+    def to_host(self, a: ArrayLike) -> ArrayLike:
+        if isinstance(a, torch.Tensor):
+            return a.detach().cpu().numpy().astype("float64")
+        return np.asarray(a, dtype="float64")
+
+    # -- elementwise / selection --------------------
+
+    def where(self, cond: ArrayLike, x: ArrayLike, y: ArrayLike) -> ArrayLike:
+        return torch.where(cond, x, y)
+
+    def maximum(self, x: ArrayLike, y: ArrayLike) -> ArrayLike:
+        return torch.maximum(x, y)
+
+    def minimum(self, x: ArrayLike, y: ArrayLike) -> ArrayLike:
+        return torch.minimum(x, y)
+
+    def concatenate(
+        self,
+        arrays: Sequence[ArrayLike],
+        axis: int = 0,
+    ) -> ArrayLike:
+        return torch.cat(list(arrays), dim=axis)
+
+    def sum(self, a: ArrayLike, axis: int = None) -> ArrayLike:
+        return torch.sum(a, dim=axis)
+
+    def norm(self, a: ArrayLike) -> ArrayLike:
+        return torch.linalg.norm(a)
+
+    # -- algorithmic primitives ---------------------
+
+    def matmul(self, a: ArrayLike, b: ArrayLike) -> ArrayLike:
+        return a @ b
+
+    def einsum(self, equation: str, *operands: ArrayLike) -> ArrayLike:
+        return torch.einsum(equation, *operands)
+
+    def scatter_add(
+        self, target: ArrayLike, indices: ArrayLike, values: ArrayLike
+    ) -> ArrayLike:
+        idx = torch.as_tensor(
+            indices,
+            dtype=torch.long,
+            device=target.device,
+        )
+        out = target.clone()
+        out.index_add_(0, idx, values)
+        return out
+
+    def gather(
+        self,
+        a: ArrayLike,
+        indices: ArrayLike,
+        axis: int = 0,
+    ) -> ArrayLike:
+        idx = torch.as_tensor(indices, dtype=torch.long, device=a.device)
+        return torch.index_select(a, axis, idx)
+
+    def roll(self, a: ArrayLike, shift: int, axis: int) -> ArrayLike:
+        return torch.roll(a, shift, dims=axis)
+
+    def pad(
+        self,
+        a: ArrayLike,
+        pad_width: Sequence[tuple[int, int]],
+        mode: str = "constant",
+        value: float = 0.0,
+    ) -> ArrayLike:
+        # torch.nn.functional.pad wants (last_dim_before, last_dim_after, ...)
+        import torch.nn.functional as F
+
+        flat: list[int] = []
+        for before, after in reversed(list(pad_width)):
+            flat.extend([before, after])
+        if mode == "constant":
+            return F.pad(a, flat, mode=mode, value=value)
+        return F.pad(a, flat, mode=mode)
+
+    def solve(self, a: ArrayLike, b: ArrayLike) -> ArrayLike:
+        # Dense differentiable solve (LU); torch.linalg.solve keeps the graph.
+        return torch.linalg.solve(a, b)
 
 
-# Global backend context instance
-backend_context = BackendContext()
-
-# --------------------------------------------------
-# region Conveniences
-# --------------------------------------------------
-
-__numpy_back = Backend(np, BackendType.NUMPY)
-__torch_back = Backend(torch, BackendType.TORCH)
+# ---------------------------------------------------
+# region get_backend
+# ---------------------------------------------------
 
 
-def use_numpy():
-    """Get numpy backend."""
-    return __numpy_back
-
-
-def use_torch():
-    """Get torch backend."""
-    return __torch_back
-
-
-def get_backend(type: BackendType = None):
-    """Get backend. Priority: active context > explicit type > settings default."""
-    # 1) If a context is active and type matches (or not specified), use it
-    try:
-        active = backend_context.active_backend
-        if type is None or active.type == type:
-            return active
-    except RuntimeError:
-        pass
-
-    # 2) Fallback to explicit type or settings
-    if type is None:
-        type = BackendType.TORCH if settings.device == "cuda" else BackendType.NUMPY
-
-    if type == BackendType.NUMPY:
-        return __numpy_back
-    elif type == BackendType.TORCH:
-        return __torch_back
-    else:
-        raise ValueError(f"Unknown backend type: {type}")
+def get_backend(name: str, device: DeviceType = "cpu"):
+    """Factory: "numpy" | "torch". Explicit, no global state."""
+    if name == "numpy":
+        return NumpyBackend()
+    if name == "torch":
+        return TorchBackend(device=device)
+    raise ValueError(f"unknown backend: {name!r}")

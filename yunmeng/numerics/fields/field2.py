@@ -2,14 +2,14 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Fields definition.
+Fields advanced implementation.
 """
 
 from yunmeng.interfaces.supports import IField
 from yunmeng.numerics.enums import ElementType, BackendType
 from yunmeng.numerics.mesh import Mesh
 from yunmeng.numerics.fields.variables import Variable, VariableType
-from yunmeng.numerics.fields.backends import get_backend, ArrayLike, DeviceLike
+from yunmeng.numerics.fields.backends import get_backend, ArrayLike, DeviceType
 from yunmeng.setting import settings
 
 import numpy as np
@@ -52,7 +52,7 @@ class MeshShard:
     """Mesh shard for distributed computation."""
 
     shard_id: int
-    device: DeviceLike
+    device: DeviceType
 
     # Local entities (global indices): [Core..., Ghost...]
     # Entity index tables are constant indices (not on the autograd graph);
@@ -214,7 +214,7 @@ class FieldShard:
     """Field shard for distributed computation."""
 
     shard_id: int
-    device: DeviceLike
+    device: DeviceType
     data: ArrayLike  # [Core..., Ghost...]
     n_core: int
 

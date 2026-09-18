@@ -17,20 +17,6 @@ from yunmeng.interfaces.types import (
     VariableType,
 )
 
-# ---------------------------------------------------
-# region Value types
-# ---------------------------------------------------
-
-
-@dataclass
-class Variable:
-    """A named, typed value."""
-
-    name: str
-    vtype: VariableType = VariableType.SCALAR
-    value: ArrayLike = None
-    unit: str = ""
-
 
 @dataclass
 class FieldMeta:
@@ -45,20 +31,6 @@ class FieldMeta:
     device: DeviceType = "cpu"
 
 
-@dataclass(frozen=True)
-class DataProduct:
-    """A named, located data product published into the DataHub."""
-
-    name: str
-    loc: ElementType
-    dtype: str = "float64"
-
-
-# ---------------------------------------------------
-# region IField
-# ---------------------------------------------------
-
-
 @runtime_checkable
 class IField(Protocol):
     """Minimal field surface used by interface signatures."""
@@ -68,27 +40,8 @@ class IField(Protocol):
 
     @property
     def values(self) -> ArrayLike:
-        """Backend array of values.
-        In TRAIN mode may carry a graph."""
+        """Backend array of values."""
         ...
 
     @values.setter
-    def values(self, v: ArrayLike) -> None: ...
-
-
-@runtime_checkable
-class ISample(Protocol):
-    """A versioned data sample retrieved from the DataHub.
-
-    TRAIN-mode contract: samples handed to callbacks must
-    stay on the autograd graph — no detach, no stale-cache replay.
-    """
-
-    @property
-    def value(self) -> ArrayLike: ...
-
-    @property
-    def time(self) -> float: ...
-
-    @property
-    def version(self) -> int: ...
+    def values(self, v: ArrayLike): ...

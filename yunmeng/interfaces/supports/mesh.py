@@ -69,7 +69,7 @@ class IGeomAssistant(Protocol):
 
 
 # ---------------------------------------------------
-# region Mesh
+# region IMesh
 # ---------------------------------------------------
 
 
@@ -94,3 +94,52 @@ class IMesh(Protocol):
     def get_region(self, region_id: str) -> IRegion: ...
 
     def regions(self) -> Sequence[IRegion]: ...
+
+
+# ---------------------------------------------------
+# region IGrid
+# ---------------------------------------------------
+
+
+@runtime_checkable
+class IGrid(IMesh, Protocol):
+    """Structured-grid capability (ALSO satisfies IMesh)."""
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Logical grid shape counted in CELLs: (nx,) / (nx, ny) / (nx, ny, nz)."""
+        ...
+
+    @property
+    def spacing(self) -> tuple[float, ...]:
+        """Cell spacing per axis: (dx,) / (dx, dy) / (dx, dy, dz)."""
+        ...
+
+    @property
+    def origin(self) -> tuple[float, ...]:
+        """Coordinate of the grid's lower corner."""
+        ...
+
+    @property
+    def uniform(self) -> bool:
+        """Whether spacing is constant along every axis."""
+        ...
+
+    def flat_index(self, ijk: tuple[int, ...]) -> int:
+        """Logical (i, j[, k]) -> flat cell index (C-order)."""
+        ...
+
+    def ijk_index(self, flat: int) -> tuple[int, ...]:
+        """Flat cell index -> logical (i, j[, k])."""
+        ...
+
+    def interior_slice(self) -> tuple[slice, ...]:
+        """Slice selecting interior cells on the multi-dim view,
+        e.g. (slice(1, -1),) * ndim."""
+        ...
+
+    def axis_slice(self, axis: int, shift: int) -> tuple[slice, ...]:
+        """Slice of the multi-dim view shifted by `shift` along `axis`
+        (shift=-1 -> cells i-1, +1 -> cells i+1), clipped to the
+        interior-compatible range."""
+        ...
