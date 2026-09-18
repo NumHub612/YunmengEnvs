@@ -1,7 +1,7 @@
 from yunmeng.interfaces.supports.backend import IBackend
 from yunmeng.interfaces.supports.datahub import IDataHub, DataProduct, Sample
 from yunmeng.interfaces.supports.field import FieldMeta, IField
-from yunmeng.interfaces.supports.linalg import ILinearEqs
+from yunmeng.interfaces.supports.linalg import ILinearEqs, IMatrix
 from yunmeng.interfaces.supports.mesh import (
     Region,
     ITopoAssistant,

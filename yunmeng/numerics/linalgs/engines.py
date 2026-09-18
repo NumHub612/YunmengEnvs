@@ -1,287 +1,225 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (C) 2025, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
+Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Linear algebra solver engines.
 """
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Literal
-import warnings
 
 import numpy as np
-import torch
 import scipy.sparse as sp
 from scipy.sparse.linalg import splu, spsolve
 
-from yunmeng.numerics.linalgs.matrixes import Matrix, TorchMatrix, NumpyMatrix
+from yunmeng.interfaces.supports import IMatrix
 
-# -----------------------------------------------
-# region Registry & Selection
-# -----------------------------------------------
+try:
+    import torch
 
-_ALGORITHM_REGISTRY: dict[str, type[LinearEngine]] = {}
-
-
-def register_solver(name: str, engine_cls: type[LinearEngine]):
-    """Register a solver under a canonical name."""
-    _ALGORITHM_REGISTRY[name] = engine_cls
-
-
-def select_engine(
-    matrix: Matrix,
-    algorithm: Literal["auto", "direct", "cg", "lu"] = "auto",
-) -> LinearEngine:
-    """Select the best solver for a given matrix.
-
-    Args:
-        matrix: The coefficient matrix (determines backend)
-        algorithm: Solver algorithm preference:
-            - "auto": Choose based on matrix properties (sparse/dense, size)
-            - "direct": Dense direct solve (LU/Cholesky)
-            - "cg": Conjugate Gradient (sparse SPD)
-            - "lu": Sparse LU factorization (scipy splu)
-
-    Returns:
-        A LinearSolver instance ready to use.
-    """
-    is_torch = isinstance(matrix, TorchMatrix)
-    is_sparse = getattr(matrix.data, "is_sparse", False)
-
-    if algorithm == "auto":
-        if is_torch:
-            if is_sparse:
-                return TorchSparseCGSolver()
-            return TorchDirectSolver()
-        else:
-            if is_sparse and matrix.shape[0] > 100:
-                return NumpySparseLUSolver()
-            return NumpyDirectSolver()
-
-    if algorithm == "direct":
-        return TorchDirectSolver() if is_torch else NumpyDirectSolver()
-    elif algorithm == "cg":
-        if not is_torch:
-            raise ValueError("CG solver requires TorchMatrix")
-        return TorchSparseCGSolver()
-    elif algorithm == "lu":
-        if is_torch:
-            raise ValueError("LU solver requires NumpyMatrix")
-        return NumpySparseLUSolver()
-    else:
-        raise ValueError(f"Unknown algorithm: {algorithm}")
+    _HAS_TORCH = True
+except ImportError:  # pragma: no cover
+    torch = None
+    _HAS_TORCH = False
 
 
 # -----------------------------------------------
-# region Linear Engine
+# region Engine base
 # -----------------------------------------------
 
 
 class LinearEngine(ABC):
     """Abstract base for linear system solvers: A @ x = b.
 
-    All solvers support both single RHS (1D array) and multi-RHS (2D array).
+    All engines accept a single RHS (shape (N,)) or multi-RHS
+    (shape (N, K)), and return the solution in the same layout.
     """
 
-    @abstractmethod
-    def solve(self, mat_data, rhs: np.ndarray | torch.Tensor):
-        """Solve A @ x = b.
-
-        Args:
-            mat_data: Matrix representation (backend-specific)
-            rhs: Right-hand side. Single: shape (N,) or (N, 1).
-                 Multi: shape (N, K) with K > 1.
-
-        Returns:
-            Solution array, same backend/type as rhs.
-            Single RHS → shape (N,)
-            Multi RHS → shape (N, K)
-        """
-        raise NotImplementedError
+    #: Whether solve() preserves the autograd graph of the rhs
+    #: (TRAIN contract). Engines using scipy / host round-trips are
+    #: EVAL-only and set this to False.
+    differentiable: bool = False
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """Canonical solver name."""
+        """Canonical engine name."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def solve(self, mat_data, rhs):
+        """Solve A @ x = b with backend-native data."""
         raise NotImplementedError
 
 
 # -----------------------------------------------
-# region Torch Solvers
+# region Np/Sp engines (EVAL-only)
+# -----------------------------------------------
+
+
+class NumpyDirectSolver(LinearEngine):
+    """Sparse direct solve via scipy.sparse.linalg.spsolve."""
+
+    name = "numpy_direct"
+    differentiable = False
+
+    def solve(self, mat_sparse: sp.spmatrix, rhs_array: np.ndarray) -> np.ndarray:
+        if rhs_array.ndim == 1 or (rhs_array.ndim == 2 and rhs_array.shape[1] == 1):
+            return spsolve(mat_sparse, rhs_array.ravel())
+        return NumpySparseLUSolver().solve(mat_sparse, rhs_array)
+
+
+class NumpySparseLUSolver(LinearEngine):
+    """Sparse LU factorization (splu): factor once, solve many RHS."""
+
+    name = "numpy_lu"
+    differentiable = False
+
+    def solve(self, mat_sparse: sp.spmatrix, rhs_array: np.ndarray) -> np.ndarray:
+        mat_csc = mat_sparse.tocsc() if mat_sparse.format != "csc" else mat_sparse
+        return splu(mat_csc).solve(rhs_array)
+
+
+# -----------------------------------------------
+# region Torch engines
 # -----------------------------------------------
 
 
 class TorchDirectSolver(LinearEngine):
-    """Dense direct solver via torch.linalg.solve.
-
-    Supports multi-RHS natively (B matrix shape N x K).
-    """
+    """Dense direct solve via torch.linalg.solve (differentiable)."""
 
     name = "torch_direct"
+    differentiable = True
 
-    def solve(self, mat_tensor: torch.Tensor, rhs_tensor: torch.Tensor) -> torch.Tensor:
+    def solve(self, mat_tensor, rhs_tensor):
         was_1d = rhs_tensor.dim() == 1
         if was_1d:
             rhs_tensor = rhs_tensor.unsqueeze(-1)
-
-        # mat_tensor is dense
         solution = torch.linalg.solve(mat_tensor, rhs_tensor)
         return solution.squeeze(-1) if was_1d else solution
 
 
 class TorchSparseCGSolver(LinearEngine):
-    """Sparse iterative solver: Conjugate Gradient via torch.sparse.linalg.cg.
+    """Sparse Conjugate Gradient for SPD systems.
 
-    Best for large sparse SPD matrices. Single RHS only natively;
-    multi-RHS handled via loop.
-
-    Falls back to dense direct solve if CG fails or for small matrices.
+    Single RHS solved directly; multi-RHS via loop. Falls back to
+    dense direct solve below ``fallback_threshold`` or on CG
+    non-convergence.
     """
 
     name = "torch_cg"
+    differentiable = True
 
-    def __init__(self, fallback_threshold: int = 500):
-        """Args:
-        fallback_threshold: If matrix dim < threshold, use dense direct solve
-            instead of CG (faster for small matrices).
-        """
+    def __init__(self, fallback_threshold: int = 500, maxiter: int = 1000):
         self._fallback_threshold = fallback_threshold
+        self._maxiter = maxiter
 
-    def solve(self, mat_tensor: torch.Tensor, rhs_tensor: torch.Tensor) -> torch.Tensor:
+    def solve(self, mat_tensor, rhs_tensor):
         was_1d = rhs_tensor.dim() == 1
         if was_1d:
             rhs_tensor = rhs_tensor.unsqueeze(-1)
 
-        dim = mat_tensor.shape[0]
+        dense_solution = lambda b: torch.linalg.solve(  # noqa: E731
+            mat_tensor.to_dense() if mat_tensor.is_sparse else mat_tensor, b
+        )
 
-        # Fallback to dense direct for small matrices
-        if dim < self._fallback_threshold:
-            dense_mat = mat_tensor.to_dense()
-            solution = torch.linalg.solve(dense_mat, rhs_tensor)
-            return solution.squeeze(-1) if was_1d else solution
+        if mat_tensor.shape[0] < self._fallback_threshold:
+            sol = dense_solution(rhs_tensor)
+            return sol.squeeze(-1) if was_1d else sol
 
-        # Sparse CG
         try:
             from torch.sparse import linalg as sparse_linalg
-
-            if rhs_tensor.shape[1] == 1:
-                # Single RHS: direct CG
-                solution, info = sparse_linalg.cg(mat_tensor, rhs_tensor)
-                if info > 0:
-                    warnings.warn(
-                        f"CG did not converge in {info} iterations, "
-                        "falling back to dense direct solve",
-                        RuntimeWarning,
-                    )
-                    dense_mat = mat_tensor.to_dense()
-                    solution = torch.linalg.solve(dense_mat, rhs_tensor)
-            else:
-                # Multi-RHS: CG loop
-                solutions = []
-                for k in range(rhs_tensor.shape[1]):
-                    sol_k, info = sparse_linalg.cg(
-                        mat_tensor, rhs_tensor[:, k].unsqueeze(-1)
-                    )
-                    if info > 0:
-                        warnings.warn(
-                            f"CG component {k} did not converge, "
-                            "falling back to dense solve for this component",
-                            RuntimeWarning,
-                        )
-                        dense_mat = mat_tensor.to_dense()
-                        sol_k = torch.linalg.solve(
-                            dense_mat, rhs_tensor[:, k].unsqueeze(-1)
-                        )
-                    solutions.append(sol_k.squeeze(-1))
-                solution = torch.stack(solutions, dim=-1)
-
-            return solution.squeeze(-1) if was_1d else solution
-
-        except ImportError:
+        except ImportError:  # pragma: no cover
             warnings.warn(
-                "torch.sparse.linalg.cg not available, using dense fallback",
+                "torch.sparse.linalg not available, using dense fallback",
                 RuntimeWarning,
             )
-            dense_mat = mat_tensor.to_dense()
-            solution = torch.linalg.solve(dense_mat, rhs_tensor)
-            return solution.squeeze(-1) if was_1d else solution
+            sol = dense_solution(rhs_tensor)
+            return sol.squeeze(-1) if was_1d else sol
+
+        solutions = []
+        for k in range(rhs_tensor.shape[1]):
+            b_k = rhs_tensor[:, k]
+            x_k, info = sparse_linalg.cg(mat_tensor, b_k, maxiter=self._maxiter)
+            if info > 0:
+                warnings.warn(
+                    f"CG (rhs {k}) did not converge in {info} iterations, "
+                    "falling back to dense direct solve",
+                    RuntimeWarning,
+                )
+                x_k = dense_solution(b_k.unsqueeze(-1)).squeeze(-1)
+            solutions.append(x_k)
+        sol = torch.stack(solutions, dim=-1)
+        return sol.squeeze(-1) if was_1d else sol
 
 
 # -----------------------------------------------
-# region Numpy/SciPy Solvers
+# region Registry
 # -----------------------------------------------
 
+_ALGORITHM_REGISTRY: dict[str, type[LinearEngine]] = {}
 
-class NumpyDirectSolver(LinearEngine):
-    """Sparse direct solver via scipy.sparse.linalg.spsolve.
 
-    For single RHS. Multi-RHS falls back to splu.
+def register_engine(name: str, engine_cls: type[LinearEngine]) -> None:
+    """Register an engine under a canonical name."""
+    _ALGORITHM_REGISTRY[name] = engine_cls
+
+
+def get_engine(name: str) -> LinearEngine:
+    """Instantiate a registered engine by name."""
+    if name not in _ALGORITHM_REGISTRY:
+        raise ValueError(
+            f"Unknown engine: {name!r}. Available: {sorted(_ALGORITHM_REGISTRY)}"
+        )
+    return _ALGORITHM_REGISTRY[name]()
+
+
+def select_engine(
+    matrix: IMatrix,
+    algorithm: Literal["auto", "direct", "cg", "lu"] = "auto",
+) -> LinearEngine:
+    """Select an engine for a matrix.
+
+    Args:
+        matrix: coefficient matrix; dispatch key is ``matrix.backend``
+            ("numpy" | "torch"), not the concrete class.
+        algorithm: "auto" chooses by backend/sparsity/size; "direct",
+            "cg" (torch only), "lu" (numpy only) force a family.
     """
+    backend = matrix.backend
+    is_sparse = _is_sparse(matrix)
 
-    name = "numpy_direct"
+    if algorithm == "auto":
+        if backend == "torch":
+            return get_engine("torch_cg" if is_sparse else "torch_direct")
+        if is_sparse and matrix.shape[0] > 100:
+            return get_engine("numpy_lu")
+        return get_engine("numpy_direct")
 
-    def solve(self, mat_sparse: sp.spmatrix, rhs_array: np.ndarray) -> np.ndarray:
-        if rhs_array.ndim == 1:
-            return spsolve(mat_sparse, rhs_array)
-        elif rhs_array.ndim == 2 and rhs_array.shape[1] == 1:
-            return spsolve(mat_sparse, rhs_array.ravel())
-        else:
-            # Multi-RHS: delegate to LU solver
-            return NumpySparseLUSolver().solve(mat_sparse, rhs_array)
-
-
-class NumpySparseLUSolver(LinearEngine):
-    """Sparse LU factorization via scipy.sparse.linalg.splu.
-
-    Best for multi-RHS problems: factor once, solve times.
-    """
-
-    name = "numpy_lu"
-
-    def solve(self, mat_sparse: sp.spmatrix, rhs_array: np.ndarray) -> np.ndarray:
-        # Convert to CSC for efficient LU factorization
-        mat_csc = mat_sparse.tocsc() if mat_sparse.format != "csc" else mat_sparse
-        lu = splu(mat_csc)
-        return lu.solve(rhs_array)
+    if algorithm == "direct":
+        return get_engine(f"{backend}_direct")
+    if algorithm == "cg":
+        if backend != "torch":
+            raise ValueError("CG engine requires a torch-backed matrix")
+        return get_engine("torch_cg")
+    if algorithm == "lu":
+        if backend != "numpy":
+            raise ValueError("LU engine requires a numpy-backed matrix")
+        return get_engine("numpy_lu")
+    raise ValueError(f"Unknown algorithm: {algorithm!r}")
 
 
-# -----------------------------------------------
-# region Future solver stubs (extensibility)
-# -----------------------------------------------
+def _is_sparse(matrix: IMatrix) -> bool:
+    data = matrix.data
+    if sp.issparse(data):
+        return True
+    return bool(getattr(data, "is_sparse", False))
 
 
-class TorchGMRESSolver(LinearEngine):
-    """GMRES solver for non-symmetric sparse systems (Torch backend).
-
-    TODO: Implement using iterative wrapper or external library.
-    """
-
-    name = "torch_gmres"
-
-    def solve(self, mat_data, rhs):
-        raise NotImplementedError("GMRES solver not yet implemented for torch backend")
-
-
-class JacobiSolver(LinearEngine):
-    """Jacobi iterative solver.
-
-    TODO: Implement as a simple baseline iterative solver.
-    Useful for preconditioning and GPU-friendly implementations.
-    """
-
-    name = "jacobi"
-
-    def solve(self, mat_data, rhs):
-        raise NotImplementedError("Jacobi solver not yet implemented")
-
-
-# ---------------------------------------------------------------------------
-# region Register all solvers
-# ---------------------------------------------------------------------------
-
-register_solver("torch_direct", TorchDirectSolver)
-register_solver("torch_cg", TorchSparseCGSolver)
-register_solver("numpy_direct", NumpyDirectSolver)
-register_solver("numpy_lu", NumpySparseLUSolver)
+register_engine("numpy_direct", NumpyDirectSolver)
+register_engine("numpy_lu", NumpySparseLUSolver)
+register_engine("torch_direct", TorchDirectSolver)
+register_engine("torch_cg", TorchSparseCGSolver)
