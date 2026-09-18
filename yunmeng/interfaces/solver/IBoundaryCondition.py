@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
 
-from yunmeng.interfaces.supports import IRegion
+from yunmeng.interfaces.supports import Region
 from yunmeng.interfaces.types import ArrayLike
 
 # ---------------------------------------------------
@@ -68,7 +68,7 @@ class IBoundaryCondition(ABC):
 
     @property
     @abstractmethod
-    def region(self) -> IRegion:
+    def region(self) -> Region:
         """The mesh region to which this BC applies."""
         ...
 

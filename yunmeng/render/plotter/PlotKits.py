@@ -14,7 +14,7 @@ import numpy as np
 import os
 import copy
 
-from yunmeng.numerics.mesh.meshes import Mesh, MeshDimension
+from yunmeng.numerics.grids.mesh1 import Mesh, MeshDimension
 from yunmeng.numerics.fields import Field, VariableType
 from yunmeng.numerics.algos import (
     sort_anticlockwise,

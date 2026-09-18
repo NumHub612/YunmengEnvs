@@ -5,9 +5,6 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Core value types and aliases for the unified interfaces layer.
 """
 
-from __future__ import annotations
-
-from dataclasses import dataclass
 from enum import Enum
 from typing import Any, TypeAlias
 

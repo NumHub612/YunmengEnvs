@@ -3,9 +3,12 @@ from yunmeng.interfaces.supports.datahub import IDataHub, DataProduct, Sample
 from yunmeng.interfaces.supports.field import FieldMeta, IField
 from yunmeng.interfaces.supports.linalg import ILinearEqs
 from yunmeng.interfaces.supports.mesh import (
-    IRegion,
+    Region,
     ITopoAssistant,
     IGeomAssistant,
+    IPartAssistant,
     IMesh,
     IGrid,
+    NEIGHBOUR_ORDER,
+    TOPO_NONE,
 )

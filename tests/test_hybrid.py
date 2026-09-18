@@ -21,7 +21,7 @@ from yunmeng.workflow.dataset import TrajectoryEpisode, TrajectoryDataset
 
 from yunmeng.interfaces.solution import ModelRef, TrainingMeta
 from yunmeng.interfaces.types import RunMode
-from yunmeng.numerics.grids.grids2 import StructuredGrid2D
+from yunmeng.numerics.grids.grid2 import StructuredGrid2D
 from yunmeng.solvers.hyb import AdvUpwind2D, Lap5Point2D, NeuralCorrectionOperator
 from yunmeng.solutions.HybridModel import AdvDiffModel
 

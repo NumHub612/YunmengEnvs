@@ -25,7 +25,7 @@ from yunmeng.numerics.fields import (
     DataHub,
     Field,
 )
-from yunmeng.numerics.grids.grids2 import (
+from yunmeng.numerics.grids.grid2 import (
     StructuredGrid2D,
 )
 from yunmeng.solvers.commons.boundaries.new_boundary import (

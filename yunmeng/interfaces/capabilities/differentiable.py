@@ -7,8 +7,7 @@ Differentiable-layer contracts.
 
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Protocol, runtime_checkable
-from typing import List, Any
+from typing import List, Any, Protocol, runtime_checkable
 
 from yunmeng.interfaces.types import ArrayLike, RunMode
 
