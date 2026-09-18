@@ -8,14 +8,14 @@ Concrete coupling execution layer.
 from __future__ import annotations
 import numpy as np
 
-from yunmeng.solutions.standards import (
+from yunmeng.interfaces.capabilities import ISnapshottable
+from yunmeng.interfaces.solution import (
     ILinkableModel,
     IInput,
     IOutput,
-    IStateful,
     ICouplingStrategy,
     IIterativeCoupler,
-    CouplingMode,
+    CouplingKinds,
     CouplingConfig,
     IterationResult,
     DivergenceAction,
@@ -33,8 +33,8 @@ class PullCoupler(ICouplingStrategy):
     only needs to advance the target."""
 
     @property
-    def mode(self) -> CouplingMode:
-        return CouplingMode.PULL
+    def mode(self) -> CouplingKinds:
+        return CouplingKinds.PULL
 
     def execute(
         self,
@@ -70,8 +70,8 @@ class FixedPointCoupler(IIterativeCoupler):
         self._use_relative = use_relative
 
     @property
-    def mode(self) -> CouplingMode:
-        return CouplingMode.LOOP
+    def mode(self) -> CouplingKinds:
+        return CouplingKinds.LOOP
 
     def execute(self, source, target, config) -> IterationResult:
         return self.iterate(source, target, config)
@@ -80,7 +80,7 @@ class FixedPointCoupler(IIterativeCoupler):
 
     @staticmethod
     def _require_stateful(comp: ILinkableModel):
-        if not isinstance(comp, IStateful):
+        if not isinstance(comp, ISnapshottable):
             raise TypeError(
                 f"LOOP coupling requires IStateful components; "
                 f"'{comp.id}' does not implement snapshot/restore."

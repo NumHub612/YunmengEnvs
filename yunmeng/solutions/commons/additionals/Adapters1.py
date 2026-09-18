@@ -8,14 +8,14 @@ Lightweight adapter registry for exchange items.
 from __future__ import annotations
 import numpy as np
 
-from yunmeng.solutions.standards import (
+from yunmeng.interfaces.solution import (
     IAdapterOutput,
     IInput,
     IOutput,
-    GeometryType,
     IElementSet,
     Quantity,
 )
+from yunmeng.interfaces.types import GeometryType
 from yunmeng.solutions.commons.models import BaseAdapter
 from yunmeng.setting import logger
 

@@ -8,7 +8,7 @@ Lightweight input port implementation.
 from __future__ import annotations
 import numpy as np
 
-from yunmeng.solutions.standards import (
+from yunmeng.interfaces.solution import (
     ILinkableModel,
     IInput,
     IOutput,

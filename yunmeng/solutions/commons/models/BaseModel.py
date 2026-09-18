@@ -7,12 +7,12 @@ Lightweight base implementation of ``ILinkableModel``.
 
 from __future__ import annotations
 
-from yunmeng.solutions.standards import (
+from yunmeng.interfaces.solution import (
     ILinkableModel,
     IInput,
     IOutput,
-    ICallback,
-    CallbackEvent,
+    IModelCallback,
+    ModelEvent,
     ModelStatus,
     ModelMeta,
     Quantity,
@@ -32,7 +32,7 @@ class BaseModel(ILinkableModel):
         self._status = ModelStatus.CREATED
         self._inputs: list[IInput] = []
         self._outputs: list[IOutput] = []
-        self._callbacks: list[ICallback] = []
+        self._callbacks: list[IModelCallback] = []
         self._last_error: str = ""
 
     @classmethod
@@ -46,7 +46,7 @@ class BaseModel(ILinkableModel):
         return self._id
 
     @property
-    def callbacks(self) -> list[ICallback]:
+    def callbacks(self) -> list[IModelCallback]:
         return self._callbacks
 
     @property
@@ -63,11 +63,11 @@ class BaseModel(ILinkableModel):
 
     # -- callbacks ----------------------------------
 
-    def add_callback(self, callback: ICallback):
+    def add_callback(self, callback: IModelCallback):
         if callback not in self._callbacks:
             self._callbacks.append(callback)
 
-    def remove_callback(self, callback: ICallback):
+    def remove_callback(self, callback: IModelCallback):
         if callback in self._callbacks:
             self._callbacks.remove(callback)
 
@@ -163,14 +163,14 @@ class BaseModel(ILinkableModel):
                 f"{self._id}: model is FAILED ({self._last_error}); "
                 f"call finish() before re-initializing."
             )
-        self._fire(CallbackEvent.BEFORE_INITIALIZE)
+        self._fire(ModelEvent.BEFORE_INITIALIZE)
         try:
             self._do_initialize()
         except Exception as e:
             self._fail(e)
             raise
         self._status = ModelStatus.READY
-        self._fire(CallbackEvent.AFTER_INITIALIZE)
+        self._fire(ModelEvent.AFTER_INITIALIZE)
 
     def _do_initialize(self):
         """Subclass hook: build internal structures."""
@@ -179,13 +179,13 @@ class BaseModel(ILinkableModel):
         return []
 
     def prepare(self):
-        self._fire(CallbackEvent.ON_PREPARE)
+        self._fire(ModelEvent.ON_PREPARE)
 
     def update(self, inquirers: list[IOutput] = None) -> ModelStatus:
         if self._status in (ModelStatus.DONE, ModelStatus.FAILED):
             return self._status
         self._status = ModelStatus.RUNNING
-        self._fire(CallbackEvent.BEFORE_UPDATE)
+        self._fire(ModelEvent.BEFORE_UPDATE)
         try:
             self._do_update(inquirers)
         except Exception as e:  # noqa: BLE001
@@ -193,7 +193,7 @@ class BaseModel(ILinkableModel):
             return self._status
         if self._status == ModelStatus.RUNNING:
             self._status = ModelStatus.READY
-        self._fire(CallbackEvent.AFTER_UPDATE)
+        self._fire(ModelEvent.AFTER_UPDATE)
         return self._status
 
     def _do_update(self, inquirers: list[IOutput] = None):
@@ -203,7 +203,7 @@ class BaseModel(ILinkableModel):
         try:
             self._do_finish()
         finally:
-            self._fire(CallbackEvent.ON_FINISH)
+            self._fire(ModelEvent.ON_FINISH)
             self._status = ModelStatus.CREATED
             self._last_error = ""
 
@@ -216,7 +216,7 @@ class BaseModel(ILinkableModel):
         self._status = ModelStatus.FAILED
         self._last_error = f"{type(exc).__name__}: {exc}"
         self._fire(
-            CallbackEvent.ON_ERROR,
+            ModelEvent.ON_ERROR,
             error=self._last_error,
         )
 

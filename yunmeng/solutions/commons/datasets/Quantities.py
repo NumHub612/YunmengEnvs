@@ -10,7 +10,7 @@ adapters and the coupling framework matchports by quantity,
 so a single source of truth matters.
 """
 
-from yunmeng.solutions.standards import Quantity
+from yunmeng.interfaces.solution import Quantity
 
 PRECIPITATION = Quantity(
     name="precipitation",

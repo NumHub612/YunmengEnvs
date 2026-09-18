@@ -7,7 +7,6 @@ Time-, curve- and pattern-series data structures.
 
 import numpy as np
 from typing import Hashable, Any
-from dateutil.parser import parse
 import math
 import numpy as np
 from typing import Hashable, Any

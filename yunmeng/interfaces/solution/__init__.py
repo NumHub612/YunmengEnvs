@@ -25,7 +25,8 @@ from yunmeng.interfaces.solution.IModel import (
     ModelStatus,
     ExchangeMeta,
     ModelMeta,
-    ICallback,
+    ModelEvent,
+    IModelCallback,
     ILinkableModel,
 )
 from yunmeng.interfaces.solution.ITopology import (
