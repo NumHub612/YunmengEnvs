@@ -37,7 +37,7 @@ from yunmeng.workflow.optimizer import (
     TrajectoryObservationSet,
 )
 
-OUT_DIR = Path(__file__).resolve().parent
+OUT_DIR = Path(__file__).resolve().parent / "results"
 NU = 0.02
 NU_BIAS = 0.4
 LENGTH = 1.0
@@ -128,7 +128,7 @@ def rollout(solver, n_steps: int):
     return np.asarray(result)
 
 
-def main():
+def test_hybrid():
     print("=" * 64)
     print("YunmengEnvs AI-native path validation")
     print("=" * 64)
@@ -254,8 +254,3 @@ def main():
         f"{metrics['improvement_full_x']:.1f}x better"
     )
     print("=" * 64)
-    return metrics
-
-
-if __name__ == "__main__":
-    main()

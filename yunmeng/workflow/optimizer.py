@@ -5,9 +5,6 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 description
 """
 
-# -*- encoding: utf-8 -*-
-"""Estimator implementations for the migrated hybrid solver."""
-
 from __future__ import annotations
 
 import datetime

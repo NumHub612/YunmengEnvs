@@ -5,13 +5,6 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 description
 """
 
-# -*- encoding: utf-8 -*-
-"""Estimation protocols for the hybrid solver migration.
-
-This module only adds contracts that are absent from the current interfaces
-layer. IEstimable and IParameterized come from interfaces.capabilities.
-"""
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
