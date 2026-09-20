@@ -30,6 +30,13 @@ Design invariants of the solver layer:
    trial parameters, leaves a clean autograd graph under TRAIN);
    arbitrary-state restore belongs to ISnapshottable. Under EVAL-only
    coupling, snapshots are pure state copies with no graph semantics.
+
+5. Equation binding: a solver declares in its
+   SolverMeta whether its governing equation (and possibly its operator
+   assembly) is FIXED at development time or CONFIGURABLE at run time.
+   FIXED is the common case; set_problems() on a FIXED solver is
+   rejected with a clear error. IEquation objects must never be
+   silently half-applied.
 """
 
 from __future__ import annotations

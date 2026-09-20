@@ -31,6 +31,13 @@ Design invariants of the exchange layer:
    IOutput.version supports cache validation for PULL-mode scheduling;
    consumers pull through the adapter chain, so adapters must be
    idempotent and side-effect free under repeated refresh().
+
+5. Version contract (cache validation for PULL scheduling):
+   `IOutput.version` starts at 0 on initialize() and is monotonically
+   non-decreasing within one run (reset to 0 allowed across runs;
+   consumers must not cache across runs, and LOOP rollback never
+   decrements it). An adapter mirrors the version of the adaptee it
+   last adapted from; refresh() at an unchanged version is a no-op.
 """
 
 from __future__ import annotations

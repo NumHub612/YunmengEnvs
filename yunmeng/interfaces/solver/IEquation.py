@@ -2,13 +2,24 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Interface for describing and discretizing pde equations.
+Interface for describing and discretizing PDE equations.
 
-The functionality of `Equation` overlaps with that of `Solver`. The former
-is used for users customize problems and
-provide standardized, configurable numerical discretization schemes, which
-are also driven by the `Solver`.
-For known problems, more efficient solver can be directly developed.
+Relationship between IEquation, IOperator and ISolver:
+
+- Most solvers are purpose-built for a FIXED, known equation — their
+  operator assembly is hard-coded or even fixed entirely (a
+  Saint-Venant solver knows its terms).
+
+- IEquation exists for CONFIGURABLE solvers: setups where the equation
+  itself is edited at run time through external configuration (e.g.
+  experimental teaching: add/remove a diffusion or source term and
+  re-run). The solver calls set_problems([...]) before initialize();
+  each IEquation then discretizes into linear systems and/or assembles
+  the operators the solver will step with.
+
+The boundary is whole-assembly, never per-term mixing: configurable
+equations REPLACE the solver's assembly as a unit; a solver must never
+silently merge IEquation-produced terms with built-in operators.
 """
 
 from __future__ import annotations

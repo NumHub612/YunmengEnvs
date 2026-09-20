@@ -42,6 +42,10 @@ class CouplingKinds:
     """Surrogate coupling. A AI model replaces or accelerates 
     an expensive physics model while keeping the same ports."""
 
+    NESTED = "nested"
+    """Nested/multi-scale coupling: children run at finer time
+    resolution inside one parent step and feed aggregates back."""
+
     _CORE = frozenset(
         v for k, v in vars().items() if k.isupper() and isinstance(v, str)
     )
@@ -130,6 +134,47 @@ class ICouplingStrategy(ABC):
 
 
 # ---------------------------------------------------
+# region IPull/PushCoupler
+# ---------------------------------------------------
+
+
+class IPullCoupler(ICouplingStrategy):
+    """One-way pull transfer through the provider's adapter chain.
+
+    Default semantics: refresh() the chain, `input.pull()` into the
+    consumer's buffer. Stateless; one instance may serve all PULL
+    links of a composition.
+    """
+
+    @abstractmethod
+    def transfer(
+        self,
+        source: ILinkableModel,
+        target: ILinkableModel,
+        config: CouplingConfig,
+    ):
+        """Refresh adapters and move current values provider->consumer."""
+        ...
+
+
+class IPushCoupler(ICouplingStrategy):
+    """One-way push transfer. Unlike PULL, the provider initiates the
+    write; the consumer is not required to update() afterwards (sinks,
+    loggers, live dashboards)."""
+
+    @abstractmethod
+    def push(
+        self,
+        source: ILinkableModel,
+        target: ILinkableModel,
+        config: CouplingConfig,
+    ):
+        """Write the provider's current values into the consumer's
+        input buffer through the adapter chain."""
+        ...
+
+
+# ---------------------------------------------------
 # region IIterativeCoupler
 # ---------------------------------------------------
 
@@ -171,6 +216,34 @@ class IIterativeCoupler(ICouplingStrategy):
     ) -> tuple[bool, float]:
         """(converged, residual); residual = max abs diff across all
         convergence variables."""
+        ...
+
+
+# ---------------------------------------------------
+# region ISurrogateCoupler
+# ---------------------------------------------------
+
+
+class ISurrogateCoupler(ICouplingStrategy):
+    """Surrogate coupling: an AI model stands in for a physics model.
+
+    The contract is PORT ISOMORPHISM: the surrogate exposes the same
+    quantity/element-set ports as the physics model it replaces, so
+    the composition graph needs no rewiring when swapping them. The
+    coupler verifies that isomorphism and executes plain transfers
+    (surrogate links are usually PULL against the surrogate).
+    """
+
+    @abstractmethod
+    def validate_ports(
+        self,
+        physics: ILinkableModel,
+        surrogate: ILinkableModel,
+    ) -> list[str]:
+        """Check port isomorphism between the two models:
+        same port ids, same quantities (units may differ only by a
+        declared si_factor/si_offset), compatible element sets (or an
+        adapter on the link). Empty list = swappable."""
         ...
 
 
