@@ -52,17 +52,17 @@ class FdmSolver(BaseSolver):
         self,
         sid: str,
         mesh: IMesh,
+        operators: Sequence,
         config: FdmSolverConfig,
         backend: IBackend,
         nu: float = 0.02,
     ):
-        super().__init__(
-            sid,
-            mesh,
-            [FdmDiffusionOperator(config.solution_field, nu)],
-            config,
-            backend,
-        )
+        # Same positional protocol as BaseSolver: (sid, mesh, operators,
+        # config, backend); nu is a keyword-only extra. An empty or missing
+        # operator list selects the default FDM diffusion operator.
+        if not operators:
+            operators = [FdmDiffusionOperator(config.solution_field, nu)]
+        super().__init__(sid, mesh, operators, config, backend)
         self._nu = float(nu)
 
     @classmethod

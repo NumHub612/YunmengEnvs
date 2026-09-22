@@ -1,0 +1,58 @@
+# ===============================================================================
+# 下游耦合模型：左边界由耦合端口驱动，右边界 Dirichlet
+# ===============================================================================
+PROJECT: hyb
+TYPE: ComputationalModel
+BRIEF: 1D hybrid diffusion with a coupled left boundary.
+
+TEMPORAL:
+  start_time: "2026-01-01 00:00:00"
+  end_time: "2026-01-01 00:00:00.5"
+  time_step: 0.01
+
+SPATIAL:
+  type: grid1d
+  params:
+    x0: 0.0
+    x1: 1.0
+    nx: 32
+  patches:                           # 边界面注册（1D 内建 left/right，可在此覆盖或追加）
+    - {id: left,  etype: face, ids: [0]}
+    - {id: right, etype: face, ids: [32]}
+  zones:
+    - {id: all,   etype: cell, spec: "0:32"}
+
+DATAS: null
+OPERATORS: null
+
+SOLVER:
+  id: hyb-solver
+  type: HybridSolver
+  params:
+    backend: numpy
+    nu: 0.008
+    solution_field: u
+    hidden: 32
+  ics:
+    - id: ic-u
+      field: u
+      method: GaussianIC
+      params:
+        center: 0.5
+        width: 0.07
+        amplitude: 1.0
+  bcs:
+    - id: bc-right
+      field: u
+      method: DirichletBC
+      patches: [right]
+      params: {value: 0.0}
+    - id: inleft          # 耦合输入端口 hyb.inleft，驱动左边界 Dirichlet 值
+      field: u
+      method: CoupledBC
+      patches: [left]
+      params: {channel: constraints}
+  expose:
+    - field: u
+
+CUSTOMS: null

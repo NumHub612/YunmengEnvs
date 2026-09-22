@@ -1,0 +1,57 @@
+# ===============================================================================
+# 真值模型：FDM 隐式扩散，真实扩散系数
+# ===============================================================================
+PROJECT: truth
+TYPE: ComputationalModel
+BRIEF: 1D diffusion, reference physics.
+
+TEMPORAL:
+  start_time: "2026-01-01 00:00:00"
+  end_time: "2026-01-01 00:00:00.5"  # 0.5 s -> 50 steps
+  time_step: 0.01
+
+SPATIAL:
+  type: grid1d
+  params:
+    x0: 0.0
+    x1: 1.0
+    nx: 32
+  patches:                           # 边界面注册（1D 内建 left/right，可在此覆盖或追加）
+    - {id: left,  etype: face, ids: [0]}
+    - {id: right, etype: face, ids: [32]}
+  zones:
+    - {id: all,   etype: cell, spec: "0:32"}
+
+DATAS: null
+OPERATORS: null
+
+SOLVER:
+  id: truth-solver
+  type: FdmSolver
+  params:
+    backend: numpy
+    nu: 0.02
+    solution_field: u
+  ics:
+    - id: ic-u
+      field: u
+      method: GaussianIC
+      params:
+        center: 0.5
+        width: 0.07
+        amplitude: 1.0
+  bcs:
+    - id: bc-left
+      field: u
+      method: DirichletBC
+      patches: [left]
+      params: {value: 0.0}
+    - id: bc-right
+      field: u
+      method: DirichletBC
+      patches: [right]
+      params: {value: 0.0}
+  expose:
+    - field: u
+
+CUSTOMS: null

@@ -23,3 +23,18 @@ def test_simulation():
     sched.run()
     m = sched.models[0]
     print("hyb.u head:", m.get_output("hyb.u").get_values()[:4].round(5))
+
+
+def test_coupling() -> None:
+    print(
+        "=" * 60,
+        "\n[2] coupling task: truth -> hyb left boundary (PULL + adapter)\n",
+        "=" * 60,
+        sep="",
+    )
+    sched = SchedulerBuilder().build(run_config("links_coupled.yml"))
+    sched.initialize()
+    print("execution order:", sched.execution_order)
+    sched.run()
+    for m in sched.models:
+        print(f"  {m.id}: {m.get_last_error() or 'ok'}")

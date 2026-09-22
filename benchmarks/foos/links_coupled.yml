@@ -1,0 +1,35 @@
+# ===============================================================================
+# 耦合仿真任务：上游 truth 模型的左边界值 -> 下游 hyb 模型的耦合边界
+# 适配器链: 取上游场 u 的第 0 个单元值作为下游左边界 Dirichlet 值
+# ===============================================================================
+TASK: simulation
+
+MODELS:
+  - id: truth
+    from: "./truth_model.yml"
+    outputs:
+      - id: u
+        quantity: {id: u, variable: u}
+        position: {element: cell, ids: null}
+  - id: hyb
+    from: "./hyb_coupled_model.yml"
+    inputs:
+      - id: inleft
+        quantity: {id: u, variable: u}
+        position: {element: cell, ids: [0]}
+
+LINKS:
+  - id: truth_to_hyb
+    mode: PULL
+    source: {model: truth, item: u}
+    target: {model: hyb, item: inleft}
+    adapters:
+      - type: index
+        params: {index: 0}
+
+SCHEDULES:
+  max_steps: 50
+  log_freq: 10
+
+ENVS:
+  log_level: INFO

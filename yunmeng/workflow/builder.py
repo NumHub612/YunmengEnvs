@@ -104,9 +104,7 @@ class SchedulerBuilder:
                 target_elements=tgt_elems,
                 adapter_chain=adapters or None,
             )
-            logger.info(
-                f"Link '{lid}': {src_port.id} -> {tgt_port.id} ({config.mode.name})"
-            )
+            logger.info(f"Link '{lid}': {src_port.id} -> {tgt_port.id} ({config.mode})")
 
     def _model_of(self, lid: str, endpoint: dict):
         mid = endpoint["model"]

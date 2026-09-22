@@ -246,9 +246,35 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
                 f"(mesh provides {[r.name for r in self._mesh.regions()]})."
             ) from None
 
+    def _coupled_port_for(self, bc: dict, patch: str) -> BaseInput:
+        """Create (or reuse) the coupled input port ``<model>.<bc id>``."""
+        port = self._coupled_ports.get(bc["id"])
+        if port is not None:
+            return port
+        region = self._region_of(patch)
+        ids = np.asarray(region.element_ids, dtype="int64")
+        loc = getattr(region, "loc", None)
+        n = self._mesh.cell_count
+        if loc == ElementType.FACE:
+            # 1D face coordinates: face i sits at origin + i * dx
+            xs = self._mesh.origin[0] + ids * self._mesh.spacing[0]
+        else:
+            xs = self._mesh.cell_centers()[0][np.clip(ids, 0, n - 1)]
+        coords = np.column_stack([xs, np.zeros(len(ids)), np.zeros(len(ids))])
+        port = self.create_input(
+            quantity_of(bc["field"]),
+            MeshCellElementSet(coords),
+            port_id=f"{self._id}.{bc['id']}",
+            time_span=TimeSpan(start=self._start, step=self._dt),
+            required=bc.get("required", True),
+        )
+        self._coupled_ports[bc["id"]] = port
+        return port
+
     def _build_bc(self, bc: dict) -> None:
         cls = self._component(bc["method"], "boundary")
         patches = bc.get("patches") or [bc.get("region", "all")]
+        coupled = bc["method"] == "CoupledBC"
         for patch in patches:
             params = dict(bc.get("params") or {})
             value = params.pop("value", None)
@@ -261,6 +287,8 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
             if value is not None or series_id is not None:
                 key = "value" if bc["method"] == "DirichletBC" else "flux"
                 params[key] = value
+            if coupled:
+                params["port"] = self._coupled_port_for(bc, patch)
             inst = cls(bc["id"], bc["field"], self._region_of(patch), **params)
             self._solver.add_bc(inst)
 

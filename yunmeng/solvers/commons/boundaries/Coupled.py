@@ -39,10 +39,11 @@ class CoupledBoundary(IBoundaryCondition):
         self._region = region
         self._port = port
         self._channel = channel
+        self._tag = "coupled"
 
     @classmethod
     def get_name(cls) -> str:
-        return "CoupledBoundary"
+        return "CoupledBC"
 
     @property
     def id(self) -> str:
@@ -51,6 +52,10 @@ class CoupledBoundary(IBoundaryCondition):
     @property
     def target_field(self) -> str:
         return self._field
+
+    @property
+    def semantic_tag(self) -> str:
+        return self._tag
 
     @property
     def region(self) -> Region:
