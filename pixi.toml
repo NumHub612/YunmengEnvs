@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "yunmeng"
 version = "0.1.0"
 description = "Yunmeng Environmental Fluid Dynamics Solution"

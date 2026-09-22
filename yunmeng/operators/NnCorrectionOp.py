@@ -55,7 +55,7 @@ class _StencilNet(torch.nn.Module):
         return self.net(x).squeeze(-1)
 
 
-@ym_register("solver")
+@ym_register("operator")
 class NeuralCorrectionOperator(
     IParameterized, IDifferentiable, IModeSwitchable, IOperator
 ):

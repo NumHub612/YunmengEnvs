@@ -184,7 +184,6 @@ def test_hybrid():
             metrics=result.metrics,
             created_at=now_iso(),
         ),
-        model_id="hybrid-solver/nn-correction",
     )
 
     hybrid_trajectory = rollout(hybrid, n_total)

@@ -15,7 +15,7 @@ from yunmeng.interfaces.solution import (
 from yunmeng.interfaces.solver import (
     ISolver,
     IOperator,
-    IInitCondition,
+    IInitialCondition,
     IBoundaryCondition,
     ISolverCallback,
 )
@@ -46,7 +46,7 @@ _KINDS_MAP = {
     "coupler": ICoupler,
     "solver": ISolver,
     "operator": IOperator,
-    "init": IInitCondition,
+    "init": IInitialCondition,
     "boundary": IBoundaryCondition,
     "callback": ISolverCallback,
 }
@@ -66,7 +66,7 @@ def ym_register(kind: str, cls: type = None, name: str = None):
             return "foo"
         ...
 
-    # 直接调用形式(动态注册场景)
+    # dynamic registration
     ym_register("model", FooModel)
     """
     # kind checking

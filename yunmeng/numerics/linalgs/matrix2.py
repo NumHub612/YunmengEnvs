@@ -56,7 +56,9 @@ class TorchMatrix:
             values = values.to(device)
             if shape is None:
                 shape = (int(idx[0].max()) + 1, int(idx[1].max()) + 1)
-            coo = torch.sparse_coo_tensor(idx, values, size=shape, device=device)
+            coo = torch.sparse_coo_tensor(
+                idx, values, size=shape, device=device, check_invariants=False
+            )
             coo = coo.coalesce()
             if device.startswith("cuda"):
                 try:
@@ -105,7 +107,11 @@ class TorchMatrix:
         device = device or "cpu"
         idx = torch.empty((2, 0), dtype=torch.long, device=device)
         vals = torch.empty(0, dtype=torch.float64, device=device)
-        return cls(torch.sparse_coo_tensor(idx, vals, size=shape, device=device))
+        return cls(
+            torch.sparse_coo_tensor(
+                idx, vals, size=shape, device=device, check_invariants=False
+            )
+        )
 
     @classmethod
     def identity(cls, size: int, device: DeviceType = None) -> "TorchMatrix":
@@ -113,7 +119,11 @@ class TorchMatrix:
         i = torch.arange(size, device=device)
         idx = torch.stack([i, i], dim=0)
         vals = torch.ones(size, dtype=torch.float64, device=device)
-        return cls(torch.sparse_coo_tensor(idx, vals, size=(size, size)).coalesce())
+        return cls(
+            torch.sparse_coo_tensor(
+                idx, vals, size=(size, size), check_invariants=False
+            ).coalesce()
+        )
 
     # -- properties ----------------------------
 

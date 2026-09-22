@@ -115,12 +115,8 @@ class GradientTrainer(IEstimator):
 
     def _torch_params(self, target: IEstimable) -> list:
         solver = getattr(target, "solver", target)
-        params = []
-        for op in getattr(solver, "_ops", []):
-            tp = getattr(op, "torch_parameters", None)
-            if callable(tp):
-                params.extend(tp())
-        return params
+        gp = getattr(solver, "grad_parameters", None)
+        return list(gp()) if callable(gp) else []
 
     def fit(
         self, target: IEstimable, data: TrajectoryObservationSet, loss: ILoss, **kwargs
@@ -148,7 +144,7 @@ class GradientTrainer(IEstimator):
         try:
             for epoch in range(self._epochs):
                 opt.zero_grad()
-                target.reset_run()
+                target.reset()
                 predicted = target.run(self._n_steps)
                 lval = loss(predicted[:n_fit], _window(data, 0, n_fit))
                 lval.backward()
@@ -165,7 +161,7 @@ class GradientTrainer(IEstimator):
                 )
                 if vval < best_val - 1e-12:
                     best_val = vval
-                    best_state = np.array(target.get_param_vector(), copy=True)
+                    best_state = np.array(target.get_parameters(), copy=True)
                     stall = 0
                 else:
                     stall += 1
@@ -176,10 +172,10 @@ class GradientTrainer(IEstimator):
             target.eval()
 
         if best_state is not None:
-            target.set_param_vector(best_state)
+            target.set_parameters(best_state)
 
         return EstimationResult(
-            parameters={"names": target.param_names()},
+            parameters={"names": target.parameter_names()},
             metrics={
                 "final_loss": history[-1].get("loss", float("nan")),
                 "best_val_loss": best_val,
@@ -193,7 +189,7 @@ class GradientTrainer(IEstimator):
     def evaluate(
         self, target: IEstimable, data: TrajectoryObservationSet, **kwargs
     ) -> dict:
-        target.reset_run()
+        target.reset()
         n = kwargs.get("n_steps", len(data.times()))
         with torch.no_grad():
             predicted = target.run(n)

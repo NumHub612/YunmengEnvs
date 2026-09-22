@@ -242,7 +242,6 @@ def test_fvm_hyblap():
             metrics=result.metrics,
             created_at=now_iso(),
         ),
-        model_id="hyblap-solver/nn-laplacian",
     )
     sur_traj = rollout(sur, n_total)
 
