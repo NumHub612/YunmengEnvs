@@ -14,6 +14,7 @@ from yunmeng.interfaces.supports import FieldMeta, IBackend, IMesh
 from yunmeng.interfaces.types import MeshDimension, VariableType
 from yunmeng.solvers.commons import BaseSolver
 from yunmeng.operators.FvmDiffusionOp import FvmDiffusionOperator
+from yunmeng.numerics.algos import ym_register
 
 
 @dataclass
@@ -31,6 +32,7 @@ class FvmSolverConfig(SolverConfig):
         return "FvmSolver"
 
 
+@ym_register("solver")
 class FvmSolver(BaseSolver):
     """Pure-physics backward-Euler FVM diffusion solver."""
 

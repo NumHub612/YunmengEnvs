@@ -25,6 +25,7 @@ from yunmeng.interfaces.supports import (
 )
 from yunmeng.interfaces.types import ArrayLike, ElementType, RunMode, VariableType
 from yunmeng.numerics.fields import Field
+from yunmeng.numerics.algos import ym_register
 
 try:
     import torch
@@ -54,6 +55,7 @@ class _StencilNet(torch.nn.Module):
         return self.net(x).squeeze(-1)
 
 
+@ym_register("solver")
 class NeuralCorrectionOperator(
     IParameterized, IDifferentiable, IModeSwitchable, IOperator
 ):

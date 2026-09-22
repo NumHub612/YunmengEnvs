@@ -138,6 +138,10 @@ class ILinkableModel(ABC):
     @abstractmethod
     def get_meta(cls) -> ModelMeta: ...
 
+    @classmethod
+    @abstractmethod
+    def get_name(cls) -> str: ...
+
     # -- instance properties ------------------------
 
     @property

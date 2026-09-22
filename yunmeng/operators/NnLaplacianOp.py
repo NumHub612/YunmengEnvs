@@ -28,10 +28,7 @@ Design contract:
 from __future__ import annotations
 
 from typing import Sequence
-
 import numpy as np
-import torch
-import torch.nn as nn
 
 from yunmeng.interfaces.capabilities import (
     ParamMeta,
@@ -50,9 +47,20 @@ from yunmeng.interfaces.supports import DataProduct, FieldMeta
 from yunmeng.interfaces.supports.mesh import IMesh
 from yunmeng.interfaces.types import ArrayLike, ElementType, RunMode, VariableType
 from yunmeng.numerics.fields import Field
+from yunmeng.numerics.algos import ym_register
+
+try:
+    import torch
+    import torch.nn as nn
+
+    _HAS_TORCH = True
+except ImportError:  # pragma: no cover
+    torch = None
+    nn = None
+    _HAS_TORCH = False
 
 
-class _LaplacianNet(nn.Module):
+class _LaplacianNet(torch.nn.Module):
     """MLP over the normalized local 3-point stencil -> surrogate laplacian."""
 
     def __init__(self, hidden: int = 32):
@@ -72,6 +80,7 @@ class _LaplacianNet(nn.Module):
         return self.net(x).squeeze(-1)
 
 
+@ym_register("operator")
 class NeuralLaplacianOperator(
     IParameterized, IModeSwitchable, IDifferentiable, IOperator
 ):

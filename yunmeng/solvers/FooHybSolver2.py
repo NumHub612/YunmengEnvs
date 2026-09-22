@@ -27,6 +27,7 @@ from yunmeng.interfaces.types import MeshDimension, VariableType
 from yunmeng.solvers.commons import BaseSolver
 from yunmeng.operators.FvmDiffusionOp import FvmDiffusionOperator
 from yunmeng.operators.NnLaplacianOp import NeuralLaplacianOperator
+from yunmeng.numerics.algos import ym_register
 
 
 @dataclass
@@ -44,6 +45,7 @@ class HybLapSolverConfig(SolverConfig):
         return "HybLapSolver"
 
 
+@ym_register("solver")
 class HybLapSolver(BaseSolver):
     """AI surrogate-Laplacian diffusion solver with physics fallback."""
 

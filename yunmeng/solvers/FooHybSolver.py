@@ -26,6 +26,7 @@ from yunmeng.interfaces.solver import SolverConfig, SolverMeta
 from yunmeng.solvers.commons import BaseSolver
 from yunmeng.operators.FdmDiffusionOp import FdmDiffusionOperator
 from yunmeng.operators.NnCorrectionOp import NeuralCorrectionOperator
+from yunmeng.numerics.algos import ym_register
 
 
 @dataclass
@@ -43,6 +44,7 @@ class HybridSolverConfig(SolverConfig):
         return "HybridSolver"
 
 
+@ym_register("solver")
 class HybridSolver(BaseSolver):
     """Physics+neural hybrid diffusion solver."""
 

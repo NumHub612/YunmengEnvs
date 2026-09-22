@@ -25,8 +25,10 @@ from yunmeng.numerics.linalgs import LinearEqs
 
 # TODO: automatically get matrix
 from yunmeng.numerics.linalgs import NumpyMatrix, TorchMatrix
+from yunmeng.numerics.algos import ym_register
 
 
+@ym_register("operator")
 class FdmDiffusionOperator(IOperator):
     """Backward-Euler diffusion on a uniform 1D structured grid."""
 

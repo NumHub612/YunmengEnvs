@@ -12,8 +12,10 @@ import numpy as np
 from yunmeng.interfaces.solver import IBoundaryCondition
 from yunmeng.interfaces.supports import Region
 from yunmeng.interfaces.types import ArrayLike
+from yunmeng.numerics.algos import ym_register
 
 
+@ym_register("boundary")
 class DirichletBC(IBoundaryCondition):
     """Constant or time-dependent prescribed value on a mesh region."""
 

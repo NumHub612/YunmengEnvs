@@ -43,8 +43,10 @@ from yunmeng.interfaces.supports import (
 from yunmeng.interfaces.types import ArrayLike, ElementType, VariableType
 from yunmeng.numerics.fields import Field
 from yunmeng.numerics.linalgs import LinearEqs, NumpyMatrix, TorchMatrix
+from yunmeng.numerics.algos import ym_register
 
 
+@ym_register("operator")
 class FvmDiffusionOperator(IOperator):
     """Backward-Euler finite-volume diffusion operator.
 

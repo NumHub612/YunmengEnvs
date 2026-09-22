@@ -9,8 +9,10 @@ import numpy as np
 from yunmeng.interfaces.types import ArrayLike
 from yunmeng.interfaces.supports import IField
 from yunmeng.interfaces.solver import IInitialCondition
+from yunmeng.numerics.algos import ym_register
 
 
+@ym_register("init")
 class GaussianIC(IInitialCondition):
     """Gaussian initial pulse on cell centers."""
 
