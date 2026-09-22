@@ -11,7 +11,7 @@ from typing import Any, Callable
 import numpy as np
 
 from yunmeng.interfaces.capabilities import IEstimable
-from yunmeng.workflow.estimation import (
+from yunmeng.interfaces.capabilities import (
     EstimationResult,
     IEstimator,
 )

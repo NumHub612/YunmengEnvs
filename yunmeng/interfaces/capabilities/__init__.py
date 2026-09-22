@@ -10,6 +10,22 @@ from yunmeng.interfaces.capabilities.estimable import (
     IAssimilatable,
     split_namespaces,
 )
+from yunmeng.interfaces.capabilities.estimator import (
+    ModelRef,
+    MemoryStrategy,
+    IObservationSet,
+    ILoss,
+    EstimationResult,
+    IEstimator,
+    TrainingMeta,
+    IModelArtifactStore,
+)
+from yunmeng.interfaces.capabilities.scheduler import (
+    PortRef,
+    LinkSpec,
+    IComposition,
+    IScheduler,
+)
 from yunmeng.interfaces.capabilities.snapshotable import (
     ISnapshottable,
 )

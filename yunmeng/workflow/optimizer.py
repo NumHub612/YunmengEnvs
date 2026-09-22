@@ -15,7 +15,7 @@ import torch
 
 from yunmeng.interfaces.capabilities import IDifferentiable, IEstimable
 from yunmeng.interfaces.types import ArrayLike
-from yunmeng.workflow.estimation import (
+from yunmeng.interfaces.capabilities import (
     EstimationResult,
     IEstimator,
     ILoss,
