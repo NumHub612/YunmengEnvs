@@ -52,11 +52,11 @@ class HybridSolver(BaseSolver):
         self,
         sid: str,
         mesh: IMesh,
+        operators: Sequence,
         config: HybridSolverConfig,
         backend: IBackend,
         nu: float = 0.02,
         hidden: int = 32,
-        operators: Sequence = None,
     ):
         if operators is None:
             operators = [

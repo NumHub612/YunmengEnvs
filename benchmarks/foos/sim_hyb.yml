@@ -1,0 +1,22 @@
+# ===============================================================================
+# 单模型仿真任务（TASK=simulation 可省略）
+# ===============================================================================
+MODELS:
+  - id: hyb
+    description: "hybrid 1D diffusion model"
+    from: "./hyb_model.yml"
+    outputs:
+      - id: u
+        quantity: {id: u, variable: u}
+        position: {element: cell, ids: null}
+
+LINKS: null
+
+SCHEDULES:
+  max_steps: 100
+  log_freq: 20
+  timeout: 300
+
+ENVS:
+  log_level: INFO
+  device: cpu

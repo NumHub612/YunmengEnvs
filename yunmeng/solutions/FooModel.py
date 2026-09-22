@@ -14,7 +14,7 @@ import numpy as np
 from yunmeng.interfaces.capabilities import IEstimable, ISnapshottable
 from yunmeng.interfaces.solution import ModelMeta, TimeSpan
 from yunmeng.interfaces.supports import Region, IGrid
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.interfaces.types import ArrayLike, ElementType, MeshDimension
 
 from yunmeng.numerics.algos import get_class, kind_of, ym_register
 from yunmeng.numerics.fields import get_backend
@@ -121,6 +121,56 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
                 f"(registered: {sorted(ym_meshes)})."
             )
         self._mesh = cls(**(spatial.get("params") or {}))
+        self._register_regions(spatial)
+
+    # -- regions (patches / zones) ----------------------
+
+    def _register_regions(self, spatial: dict) -> None:
+        """Restore the boundary-region registration step of the legacy design.
+
+        1D grids get built-in boundary regions (left/right faces, all cells)
+        unless explicitly re-declared in the config; then SPATIAL.patches
+        (face regions) and SPATIAL.zones (cell regions) are registered.
+        Each entry supports `ids: [...]` or `spec: "i:j"` slicing.
+        """
+        patches = spatial.get("patches") or []
+        zones = spatial.get("zones") or []
+        declared = {p["id"] for p in patches} | {z["id"] for z in zones}
+
+        if self._mesh.dimension == MeshDimension.D1:
+            nx = self._mesh.cell_count
+            builtins = [
+                ("left", ElementType.FACE, [0]),
+                ("right", ElementType.FACE, [nx]),
+                ("all", ElementType.CELL, list(range(nx))),
+            ]
+            for rid, etype, ids in builtins:
+                if rid not in declared:
+                    self._add_region(rid, etype, ids)
+
+        for patch in patches:
+            etype = ElementType[str(patch.get("etype", "face")).upper()]
+            self._add_region(patch["id"], etype, self._region_ids(patch))
+        for zone in zones:
+            etype = ElementType[str(zone.get("etype", "cell")).upper()]
+            self._add_region(zone["id"], etype, self._region_ids(zone))
+
+    def _region_ids(self, entry: dict) -> list:
+        if entry.get("ids") is not None:
+            return [int(i) for i in entry["ids"]]
+        if entry.get("spec") is not None:
+            parts = str(entry["spec"]).split(":")
+            lo = int(parts[0]) if parts[0] else 0
+            hi = int(parts[1]) if len(parts) > 1 and parts[1] else None
+            return list(range(lo, hi))
+        raise ValueError(
+            f"{self._id}: region '{entry.get('id')}' needs `ids` or `spec`."
+        )
+
+    def _add_region(self, rid: str, etype: ElementType, ids: list) -> None:
+        region = Region(name=rid, loc=etype, element_ids=np.asarray(ids, dtype="int64"))
+        self._mesh.add_region(region)
+        logger.debug(f"{self._id}: region '{rid}' registered ({len(ids)} elements).")
 
     def _load_backend(self):
         sol = self._cfg.get("SOLVER") or {}
@@ -163,12 +213,16 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
         params.setdefault("end_time", self._end)
         config = cfg_cls(**params)
 
+        solver_kwargs = {
+            k: v for k, v in self._solver_params().items() if k not in allowed
+        }
         self._solver = cls(
             sol.get("id", f"{self._id}.solver"),
             self._mesh,
             self._operators,
             config,
             self._backend,
+            **solver_kwargs,
         )
 
         for ic in sol.get("ics") or []:
@@ -180,7 +234,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
     def _build_ic(self, ic: dict):
         cls = self._component(ic["method"], "init")
         params = dict(ic.get("params") or {})
-        params.setdefault("centers", self._mesh.cell_centers)
+        params.setdefault("centers", self._mesh.cell_centers()[0])
         return cls(ic["id"], ic["field"], **params)
 
     def _region_of(self, name: str) -> Region:
@@ -189,7 +243,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
         except KeyError:
             raise ValueError(
                 f"{self._id}: unknown region '{name}' "
-                f"(mesh provides {[r.id for r in self._mesh.regions()]})."
+                f"(mesh provides {[r.name for r in self._mesh.regions()]})."
             ) from None
 
     def _build_bc(self, bc: dict) -> None:
@@ -208,48 +262,20 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
                 key = "value" if bc["method"] == "DirichletBC" else "flux"
                 params[key] = value
             inst = cls(bc["id"], bc["field"], self._region_of(patch), **params)
-            # if isinstance(inst, CoupledBC):
-            #     inst.bind(self._coupled_port_for(inst))
             self._solver.add_bc(inst)
-
-    # def _coupled_port_for(self, bc: CoupledBC) -> BaseInput:
-    #     """Create (or reuse) the coupled input port ``<model>.<bc id>``."""
-    #     port = self._coupled_ports.get(bc.id)
-    #     if port is not None:
-    #         return port
-    #     centers = np.column_stack(
-    #         [
-    #             self._mesh.cell_centers,
-    #             np.zeros(self._mesh.n_cells),
-    #             np.zeros(self._mesh.n_cells),
-    #         ]
-    #     )
-    #     port = self.create_input(
-    #         quantity_of(bc.quantity_name),
-    #         MeshCellElementSet(centers[bc.region.element_ids]),
-    #         port_id=f"{self._id}.{bc.id}",
-    #         time_span=TimeSpan(start=self._start, step=self._dt),
-    #         required=bc.required,
-    #     )
-    #     self._coupled_ports[bc.id] = port
-    #     return port
 
     # -- ports ----------------------------------------
 
     def _create_ports(self) -> None:
         sol = self._cfg.get("SOLVER") or {}
         ts = TimeSpan(start=self._start, step=self._dt)
-        centers = np.column_stack(
-            [
-                self._mesh.cell_centers,
-                np.zeros(self._mesh.n_cells),
-                np.zeros(self._mesh.n_cells),
-            ]
-        )
+        centers = self._mesh.cell_centers()[0]
+        n = self._mesh.cell_count
+        coords = np.column_stack([centers, np.zeros(n), np.zeros(n)])
 
         for exp in sol.get("expose") or []:
             field = exp["field"]
-            elements = MeshCellElementSet(centers)
+            elements = MeshCellElementSet(coords)
             port = self.create_output(
                 quantity_of(field),
                 elements,
@@ -303,35 +329,45 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
             if state is not None:
                 p._set_state(state)
 
+    @classmethod
+    def load(cls, path: str):
+        raise NotImplementedError(
+            "model load requires config and registry; rebuild from the "
+            "orchestrator config, then restore() the snapshot payload"
+        )
+
     # -- IEstimable passthrough --------------------------
 
     def _estimable(self):
         for meth in (
-            "param_spec",
-            "get_param_vector",
-            "reset_run",
+            "parameter_metas",
+            "get_parameters",
+            "set_parameters",
+            "run",
             "supports_gradients",
         ):
             if not callable(getattr(self._solver, meth, None)):
                 raise TypeError(
-                    f"{self._id}: solver '{type(self._solver).__name__}' is not estimable."
+                    f"{self._id}: solver '{type(self._solver).__name__}' "
+                    f"is not estimable."
                 )
         return self._solver
 
-    def param_spec(self) -> list:
-        return self._estimable().param_spec()
+    def parameter_metas(self) -> list:
+        return self._estimable().parameter_metas()
 
+    def get_parameters(self, names: list | None = None):
+        return self._estimable().get_parameters(names)
+
+    def set_parameters(self, values: ArrayLike, names: list | None = None) -> None:
+        self._estimable().set_parameters(values, names)
+
+    # Legacy aliases kept for EstimatorBuilder call sites.
     def param_names(self) -> list:
-        return self._estimable().param_names()
-
-    def get_param_vector(self, names: list | None = None):
-        return self._estimable().get_param_vector(names)
-
-    def set_param_vector(self, values: ArrayLike, names: list | None = None) -> None:
-        self._estimable().set_param_vector(values, names)
+        return self._estimable().parameter_names()
 
     def reset_run(self) -> None:
-        self._estimable().reset_run()
+        self._solver.reset()
         self._cursor = 0
         self._publish_exposed()
 

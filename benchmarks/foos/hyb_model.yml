@@ -1,0 +1,62 @@
+# ===============================================================================
+# 模型配置（重构后格式）：1D 杂交通用模型 —— FDM 物理 + 神经修正
+# ===============================================================================
+PROJECT: hyb
+TYPE: ComputationalModel
+BRIEF: 1D diffusion, biased physics + neural correction.
+
+TEMPORAL:
+  start_time: "2026-01-01 00:00:00"
+  end_time: "2026-01-01 00:00:01"   # 1.0 s
+  time_step: 0.01                   # 100 steps
+
+SPATIAL:
+  type: grid1d
+  params:
+    x0: 0.0
+    x1: 1.0
+    nx: 32
+  patches:                           # 边界面注册（1D 内建 left/right，可在此覆盖或追加）
+    - {id: left,  etype: face, ids: [0]}
+    - {id: right, etype: face, ids: [32]}
+  zones:
+    - {id: all,   etype: cell, spec: "0:32"}
+
+DATAS: null
+
+OPERATORS: null                      # 为 null 时使用求解器默认算子组
+
+SOLVER:
+  id: hyb-solver
+  type: HybridSolver
+  params:
+    backend: numpy                   # numpy | torch（估计任务用 torch）
+    device: cpu
+    nu: 0.008                        # 偏置物理（真实 nu=0.02）
+    solution_field: u
+    hidden: 32
+  ics:
+    - id: ic-u
+      field: u
+      method: GaussianIC
+      params:
+        center: 0.5
+        width: 0.07
+        amplitude: 1.0
+  bcs:
+    - id: bc-left
+      field: u
+      method: DirichletBC
+      patches: [left]
+      params:
+        value: 0.0
+    - id: bc-right
+      field: u
+      method: DirichletBC
+      patches: [right]
+      params:
+        value: 0.0
+  expose:
+    - field: u
+
+CUSTOMS: null

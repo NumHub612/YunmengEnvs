@@ -365,3 +365,22 @@ class Scheduler(IScheduler):
             return all_results
         finally:
             self.finish()
+
+    def attach(self, composition) -> None:
+        """Bind a composition: adopt its models and wire its links."""
+        for m in composition.models.values():
+            self.add(m)
+        for link in composition.links.values():
+            src = self._instances_port(link.source)  # 按 PortRef 解析端口
+            tgt = self._instances_port(link.target)
+            self.link(src, tgt, config=link.config)
+
+    @property
+    def current_time(self) -> float:
+        """Global clock: min over model current times (models own their clocks)."""
+        times = [
+            getattr(getattr(m, "status", None), "current_time", None)
+            for m in self._models
+        ]
+        times = [t for t in times if t is not None]
+        return min(times) if times else 0.0

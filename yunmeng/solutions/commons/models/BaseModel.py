@@ -5,14 +5,20 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Lightweight base implementation of ``ILinkableModel``.
 """
 
-from yunmeng.interfaces.solution import ModelEvent, ModelMeta, ModelStatus, IExchange
+from yunmeng.interfaces.solution import (
+    ModelEvent,
+    ModelMeta,
+    ModelStatus,
+    IExchange,
+    ILinkableModel,
+)
 from yunmeng.interfaces.solution.IDataset import IElementSet, Quantity
 from yunmeng.solutions.commons.dataset import ScalarElementSet
 from yunmeng.solutions.commons.models.BaseInput import IInput, BaseInput
 from yunmeng.solutions.commons.models.BaseOutput import IOutput, BaseOutput
 
 
-class BaseModel:
+class BaseModel(ILinkableModel):
     """Concrete-ish base class for a linkable model."""
 
     def __init__(self, model_id: str, meta: ModelMeta = None):

@@ -44,7 +44,7 @@ class StructuredGrid:
 
     @property
     def dimension(self) -> MeshDimension:
-        return MeshDimension(len(self._shape))
+        return MeshDimension(f"{len(self._shape)}d")
 
     @property
     def version(self) -> int:
