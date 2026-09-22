@@ -1,2 +1,2 @@
 from yunmeng.numerics.algos.GridAssistants import *
-from yunmeng.numerics.algos.Registry import ym_register
+from yunmeng.numerics.algos.Register import *

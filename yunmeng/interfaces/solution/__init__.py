@@ -4,10 +4,7 @@ from yunmeng.interfaces.solution.ICouplings import (
     DivergenceAction,
     CouplingConfig,
     IterationResult,
-    ICouplingStrategy,
-    IIterativeCoupler,
-    IAgentCoupler,
-    INestedCoupler,
+    ICoupler,
 )
 from yunmeng.interfaces.solution.IDataset import (
     TimeSpan,

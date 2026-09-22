@@ -5,42 +5,36 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Concrete coupling execution layer.
 """
 
-from __future__ import annotations
 import numpy as np
 
 from yunmeng.interfaces.capabilities import ISnapshottable
+from yunmeng.interfaces.types import ArrayLike
 from yunmeng.interfaces.solution import (
-    ILinkableModel,
-    IInput,
-    IOutput,
-    ICouplingStrategy,
-    IIterativeCoupler,
-    CouplingKinds,
     CouplingConfig,
-    IterationResult,
+    CouplingKinds,
     DivergenceAction,
+    IterationResult,
 )
+from yunmeng.solutions.commons.models import ICoupler, IIterativeCoupler, BaseModel
+
+from yunmeng.numerics.algos import ym_register
 from yunmeng.setting import logger
+
 
 # ---------------------------------------------------
 # region PullCoupler
 # ---------------------------------------------------
-
-
-class PullCoupler(ICouplingStrategy):
-    """One-way PULL coupling: data transfer happens implicitly through
-    the target's input ports when it updates.  The strategy therefore
-    only needs to advance the target."""
+@ym_register("coupler", name="pull")
+class PullCoupler(ICoupler):
+    """One-way PULL coupling: data transfer happens implicitly through the
+    target's input ports when it updates."""
 
     @property
-    def mode(self) -> CouplingKinds:
+    def mode(self) -> str:
         return CouplingKinds.PULL
 
     def execute(
-        self,
-        source: ILinkableModel,
-        target: ILinkableModel,
-        config: CouplingConfig,
+        self, source: BaseModel, target: BaseModel, config: CouplingConfig
     ) -> IterationResult:
         target.update()
         return IterationResult(
@@ -51,44 +45,40 @@ class PullCoupler(ICouplingStrategy):
 # ---------------------------------------------------
 # region FixedPointCoupler
 # ---------------------------------------------------
-
-
+@ym_register("coupler", name="fixed_point")
 class FixedPointCoupler(IIterativeCoupler):
     """Fixed-point iterative coupler for LOOP-linked component pairs.
 
-    Both components must implement ``IStateful`` — re-advancing the
-    same step is only possible via snapshot/restore.
-
-    Snapshot contract: a snapshot captures the component's complete
-    observable state INCLUDING the frames published on its output
-    ports.  Each iteration therefore re-injects the latest relaxed
-    iterate into the exchanged output caches *after* restoring, which
-    keeps the fixed-point sequence intact across restores.
+    Both components must implement ISnapshottable. Snapshots capture the
+    complete observable state INCLUDING published port frames; each
+    iteration re-injects the latest relaxed iterate after restoring.
     """
 
     def __init__(self, use_relative: bool = False):
         self._use_relative = use_relative
+        self._last_slices: list = []
 
     @property
-    def mode(self) -> CouplingKinds:
+    def mode(self) -> str:
         return CouplingKinds.LOOP
 
-    def execute(self, source, target, config) -> IterationResult:
+    def execute(
+        self, source: BaseModel, target: BaseModel, config: CouplingConfig
+    ) -> IterationResult:
         return self.iterate(source, target, config)
 
     # -- helpers ------------------------------------
 
     @staticmethod
-    def _require_stateful(comp: ILinkableModel):
+    def _require_stateful(comp: BaseModel):
         if not isinstance(comp, ISnapshottable):
             raise TypeError(
-                f"LOOP coupling requires IStateful components; "
-                f"'{comp.id}' does not implement snapshot/restore."
+                f"LOOP coupling requires snapshot/restore support; "
+                f"'{comp.id}' does not implement it."
             )
 
     @staticmethod
-    def _exchanged_ports(comp_a, comp_b) -> list[tuple[IOutput, IInput]]:
-        """All (output, input) pairs linking the two components."""
+    def _exchanged_ports(comp_a: BaseModel, comp_b: BaseModel) -> list:
         pairs = []
         for consumer, provider_owner in ((comp_a, comp_b), (comp_b, comp_a)):
             for inp in consumer.inputs:
@@ -97,7 +87,7 @@ class FixedPointCoupler(IIterativeCoupler):
                     pairs.append((out, inp))
         return pairs
 
-    def _extract_vector(self, pairs, config):
+    def _extract_vector(self, pairs: list, config: CouplingConfig) -> tuple:
         parts, slices, pos = [], [], 0
         for out, _ in pairs:
             short = out.id.split(".")[-1]
@@ -112,11 +102,11 @@ class FixedPointCoupler(IIterativeCoupler):
         return np.concatenate(parts), slices
 
     @staticmethod
-    def _write_vector(slices, vector: np.ndarray):
+    def _write_vector(slices: list, vector: ArrayLike):
         for out, start, end in slices:
             out.set_values(vector[start:end])
 
-    def _vector_residual(self, previous, current) -> float:
+    def _vector_residual(self, previous: ArrayLike, current: ArrayLike) -> float:
         diff = np.abs(current - previous)
         if self._use_relative:
             diff = diff / (0.5 * (np.abs(previous) + np.abs(current)) + 1e-12)
@@ -124,7 +114,9 @@ class FixedPointCoupler(IIterativeCoupler):
 
     # -- main loop ----------------------------------
 
-    def iterate(self, comp_a, comp_b, config) -> IterationResult:
+    def iterate(
+        self, comp_a: BaseModel, comp_b: BaseModel, config: CouplingConfig
+    ) -> IterationResult:
         self._require_stateful(comp_a)
         self._require_stateful(comp_b)
 
@@ -140,24 +132,19 @@ class FixedPointCoupler(IIterativeCoupler):
         snap_a = comp_a.snapshot()
         snap_b = comp_b.snapshot()
 
-        history: list[float] = []
+        history = []
         converged = False
         residual = np.inf
         k = 0
 
         omega = config.relaxation
-        u_pp = None  # iterate k-2 (relaxed)
-        u_p = None  # iterate k-1 (relaxed)
+        u_pp = None
+        u_p = None
 
         for k in range(1, config.max_iterations + 1):
-            # Re-advance the SAME step from the pre-step state.
             comp_a.restore(snap_a)
             comp_b.restore(snap_b)
-            # Re-inject the relaxed iterate so this round's update()
-            # pulls the *latest* boundary conditions, not the
-            # pre-step ones wiped out by restore().
             if u_p is not None:
-                # slices are recomputed below but geometry is stable
                 self._write_vector(self._last_slices, u_p)
 
             comp_a.update()
@@ -205,7 +192,7 @@ class FixedPointCoupler(IIterativeCoupler):
             message=f"converged in {k} iterations",
         )
 
-    def converge(self, previous, current, config) -> tuple[bool, float]:
+    def converge(self, previous: dict, current: dict, config: CouplingConfig) -> tuple:
         residual = 0.0
         for name, cur in current.items():
             prev = previous.get(name)
@@ -220,10 +207,15 @@ class FixedPointCoupler(IIterativeCoupler):
     # -- divergence handling ------------------------
 
     @staticmethod
-    def _on_divergence(comp_a, comp_b, snap_a, snap_b, config):
+    def _on_divergence(
+        comp_a: BaseModel,
+        comp_b: BaseModel,
+        snap_a: dict,
+        snap_b: dict,
+        config: CouplingConfig,
+    ):
         action = config.divergence_action
         if not isinstance(action, DivergenceAction):
-            # tolerate the enum *name* or *value* being passed
             try:
                 action = DivergenceAction[action]
             except (KeyError, TypeError):
@@ -241,8 +233,7 @@ class FixedPointCoupler(IIterativeCoupler):
             comp_a.restore(snap_a)
             comp_b.restore(snap_b)
         elif action is DivergenceAction.CONTINUE:
-            logger.warning.warn(
+            logger.warning(
                 f"LOOP coupling {comp_a.id}<->{comp_b.id} diverged; "
-                f"keeping the best approximation.",
-                stacklevel=2,
+                f"keeping the best approximation."
             )

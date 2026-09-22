@@ -5,32 +5,25 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Lightweight adapter registry for exchange items.
 """
 
-from __future__ import annotations
 import numpy as np
 
-from yunmeng.interfaces.solution import (
-    IAdapterOutput,
-    IInput,
-    IOutput,
-    IElementSet,
-    Quantity,
-)
-from yunmeng.interfaces.types import GeometryType
+from yunmeng.interfaces.solution import IElementSet, IInput, IOutput, Quantity
+from yunmeng.interfaces.types import ArrayLike
 from yunmeng.solutions.commons.models import BaseAdapter
-from yunmeng.setting import logger
+from yunmeng.numerics.algos import ym_register
+
 
 # ---------------------------------------------------
 # region WeightedAdapter
 # ---------------------------------------------------
-
-
+@ym_register("adapter", name="weighted")
 class WeightedAdapter(BaseAdapter):
     """Weighted-sum reduction (e.g. Thiessen weights over stations)."""
 
     def __init__(
         self,
         adapter_id: str,
-        weights: list[float] | np.ndarray,
+        weights: ArrayLike,
         adaptee: IOutput = None,
         target_elements: IElementSet = None,
     ):
@@ -40,7 +33,7 @@ class WeightedAdapter(BaseAdapter):
             raise ValueError(f"Weights must sum to 1 (got {w.sum()}).")
         self._w = w
 
-    def adapt(self, data: np.ndarray) -> np.ndarray:
+    def adapt(self, data: ArrayLike):
         data = np.asarray(data, dtype=float).flatten()
         if data.size != self._w.size:
             raise ValueError(
@@ -53,17 +46,16 @@ class WeightedAdapter(BaseAdapter):
 # ---------------------------------------------------
 # region ElementMapAdapter
 # ---------------------------------------------------
-
-
+@ym_register("adapter", name="element_map")
 class ElementMapAdapter(BaseAdapter):
-    """Arbitrary element mapping: gather a subset of upstream elements
-    and optionally scatter them into target positions (M -> N)."""
+    """Gather a subset of upstream elements and optionally scatter them
+    into target positions (M -> N)."""
 
     def __init__(
         self,
         adapter_id: str,
-        source_indices: list[int] | np.ndarray = None,
-        target_indices: list[int] | np.ndarray = None,
+        source_indices: ArrayLike = None,
+        target_indices: ArrayLike = None,
         target_size: int = None,
         adaptee: IOutput = None,
         target_elements: IElementSet = None,
@@ -75,7 +67,12 @@ class ElementMapAdapter(BaseAdapter):
         if source_indices is not None:
             self._configure(source_indices, target_indices, target_size)
 
-    def _configure(self, source_indices, target_indices=None, target_size=None):
+    def _configure(
+        self,
+        source_indices: ArrayLike,
+        target_indices: ArrayLike = None,
+        target_size: int = None,
+    ):
         self._src = np.asarray(source_indices, dtype=int).flatten()
         self._tgt = (
             np.asarray(target_indices, dtype=int).flatten()
@@ -90,7 +87,7 @@ class ElementMapAdapter(BaseAdapter):
         self._target_size = target_size or self._src.size
 
     @staticmethod
-    def _resolve(element_set, elements) -> list[int]:
+    def _resolve(element_set: IElementSet, elements: list) -> list:
         ids = getattr(element_set, "element_ids", None)
         resolved = []
         for e in elements:
@@ -102,32 +99,6 @@ class ElementMapAdapter(BaseAdapter):
                 resolved.append(ids.index(str(e)))
         return resolved
 
-    @classmethod
-    def from_ids(
-        cls,
-        adapter_id: str,
-        source: IOutput,
-        source_elements: list,
-        target: IOutput = None,
-        target_elements: list = None,
-    ) -> "ElementMapAdapter":
-        """Resolve element ids to indices."""
-        src_idx = cls._resolve(source.element_set, source_elements)
-        tgt_idx, tgt_size = None, None
-        if target_elements is not None and target is not None:
-            tgt_idx = cls._resolve(
-                target.element_set,
-                target_elements,
-            )
-            tgt_size = target.element_set.element_count
-        return cls(
-            adapter_id,
-            src_idx,
-            tgt_idx,
-            tgt_size,
-            adaptee=source,
-        )
-
     def set_mapping(
         self,
         target_port: IInput,
@@ -135,21 +106,18 @@ class ElementMapAdapter(BaseAdapter):
         source_elements: list,
         target_elements: list = None,
     ):
-        """Configure this adapter in place (used by Scheduler.link)."""
+        """Configure in place and wire source -> this -> target."""
         src_idx = self._resolve(source_port.element_set, source_elements)
         tgt_idx, tgt_size = None, None
         if target_elements is not None:
-            tgt_idx = self._resolve(
-                target_port.element_set,
-                target_elements,
-            )
+            tgt_idx = self._resolve(target_port.element_set, target_elements)
             tgt_size = target_port.element_set.element_count
         self._configure(src_idx, tgt_idx, tgt_size)
         if self._upstream is not source_port:
             source_port.add_adapter(self)
         target_port.provider = self
 
-    def adapt(self, data: np.ndarray) -> np.ndarray:
+    def adapt(self, data: ArrayLike):
         if self._src is None:
             raise ValueError(f"ElementMapAdapter '{self._id}' has no mapping.")
         data = np.asarray(data, dtype=float).flatten()
@@ -166,11 +134,10 @@ class ElementMapAdapter(BaseAdapter):
 
 
 # ---------------------------------------------------
-# region ScaleOutput
+# region ScaleAdapter
 # ---------------------------------------------------
-
-
-class ScaleOutput(BaseAdapter):
+@ym_register("adapter", name="scale")
+class ScaleAdapter(BaseAdapter):
     """Constant factor scaling — stands in for unit conversion."""
 
     def __init__(
@@ -187,5 +154,42 @@ class ScaleOutput(BaseAdapter):
     def factor(self) -> float:
         return self._factor
 
-    def adapt(self, data: np.ndarray) -> np.ndarray:
+    def adapt(self, data: ArrayLike):
         return np.asarray(data, dtype=float) * self._factor
+
+
+# ---------------------------------------------------
+# region MeanAdapter
+# ---------------------------------------------------
+@ym_register("adapter", name="mean")
+class MeanAdapter(BaseAdapter):
+    """Spatial mean reduction to a scalar frame."""
+
+    def __init__(
+        self,
+        adapter_id: str,
+        adaptee: IOutput = None,
+        target_elements: IElementSet = None,
+    ):
+        super().__init__(adapter_id, adaptee, elements=target_elements)
+
+    def adapt(self, data: ArrayLike):
+        return np.array([float(np.mean(np.asarray(data, dtype=float)))])
+
+
+@ym_register("adapter", name="index")
+class IndexAdapter(BaseAdapter):
+    """Pick a single element by index."""
+
+    def __init__(
+        self,
+        adapter_id: str,
+        index: int,
+        adaptee: IOutput = None,
+        target_elements: IElementSet = None,
+    ):
+        super().__init__(adapter_id, adaptee, elements=target_elements)
+        self._index = int(index)
+
+    def adapt(self, data: ArrayLike):
+        return np.atleast_1d(np.asarray(data, dtype=float).flatten()[self._index])

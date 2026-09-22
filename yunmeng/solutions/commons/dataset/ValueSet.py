@@ -8,21 +8,13 @@ ValueSet used to store values of a specific variable.
 import numpy as np
 
 from yunmeng.interfaces.solution import IValueSet, Quantity
-
-# ---------------------------------------------------
-# region FrameValueSet
-# ---------------------------------------------------
+from yunmeng.interfaces.types import ArrayLike
 
 
 class FrameValueSet(IValueSet):
-    """IValueSet view over a single (elements, components) frame.
+    """IValueSet view over a single (elements, components) frame."""
 
-    This's the minimal container-semantics adapter for IValueSet:
-    ports keep raw frames for speed; consumers asking for
-    `port.values` receive this view.
-    """
-
-    def __init__(self, quantity: Quantity, frame: np.ndarray):
+    def __init__(self, quantity: Quantity, frame: ArrayLike):
         self._quantity = quantity
         self._frame = np.atleast_2d(np.asarray(frame, dtype=float))
 
@@ -34,11 +26,11 @@ class FrameValueSet(IValueSet):
     def shape(self) -> tuple:
         return (1, *self._frame.shape)
 
-    def get_values(self, time_idx: int = -1) -> np.ndarray:
+    def get_values(self, time_idx: int = -1):
         return self._frame
 
-    def set_values(self, time_idx: int, values: np.ndarray):
+    def set_values(self, time_idx: int, values: ArrayLike):
         self._frame = np.atleast_2d(np.asarray(values, dtype=float))
 
-    def append_values(self, values: np.ndarray):
+    def append_values(self, values: ArrayLike):
         self.set_values(0, values)

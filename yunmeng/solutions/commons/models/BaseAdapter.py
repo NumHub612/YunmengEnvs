@@ -8,21 +8,21 @@ An adapter is an output port: it wraps an upstream Output, pulls from
 it, transforms the values, and serves the result to its own consumers.
 """
 
-from __future__ import annotations
 import numpy as np
 
 from yunmeng.interfaces.solution import (
-    IAdapterOutput,
-    IOutput,
-    IInput,
-    Quantity,
     IElementSet,
-    TimeSpan,
+    IInput,
+    IOutput,
+    Quantity,
+    IAdapterOutput,
 )
+from yunmeng.interfaces.types import ArrayLike
+from yunmeng.solutions.commons.dataset import FrameValueSet
 
 
 class BaseAdapter(IAdapterOutput):
-    """Base class for adapters implemented as IOutput decorators."""
+    """Wraps an upstream output, transforms values on pull."""
 
     def __init__(
         self,
@@ -39,10 +39,8 @@ class BaseAdapter(IAdapterOutput):
         self._adapters: list[IAdapterOutput] = []
         self._consumers: list[IInput] = []
         self._cache_enabled = cache
-        self._cache: np.ndarray = None
-        self._cache_version: int = -1
-
-    # -- IExchangeItem ------------------------------
+        self._cache = None
+        self._cache_version = -1
 
     @property
     def id(self) -> str:
@@ -50,7 +48,6 @@ class BaseAdapter(IAdapterOutput):
 
     @property
     def owner(self):
-        """Owner of the ultimate source port."""
         return getattr(self._upstream, "owner", None)
 
     @property
@@ -70,39 +67,32 @@ class BaseAdapter(IAdapterOutput):
         return self._upstream.element_set
 
     @property
-    def time_span(self) -> TimeSpan:
+    def time_span(self):
         if self._upstream is None:
             raise ValueError(f"Adapter '{self._id}' has no upstream.")
         return self._upstream.time_span
 
     @property
-    def values(self):
-        frame = self._cache
-        if frame is None:
+    def values(self) -> FrameValueSet:
+        if self._cache is None:
             return None
-        from yunmeng.solutions.commons.datasets import FrameValueSet
-
-        return FrameValueSet(self.quantity, frame)
-
-    # -- IAdapterOutput -----------------------------
+        return FrameValueSet(self.quantity, self._cache)
 
     @property
-    def adaptee(self) -> IOutput:
+    def adaptee(self):
         return self._upstream
 
     @adaptee.setter
-    def adaptee(self, adaptee: IOutput):
+    def adaptee(self, adaptee: "IOutput "):
         self._upstream = adaptee
         self._cache_version = -1
 
-    # -- IOutput ------------------------------------
-
     @property
-    def adapters(self) -> list[IAdapterOutput]:
+    def adapters(self) -> list:
         return self._adapters
 
     @property
-    def consumers(self) -> list[IInput]:
+    def consumers(self) -> list:
         return self._consumers
 
     @property
@@ -113,12 +103,12 @@ class BaseAdapter(IAdapterOutput):
     def version(self) -> int:
         return self._upstream.version if self._upstream is not None else -1
 
-    def add_adapter(self, adapter: IAdapterOutput):
+    def add_adapter(self, adapter: "BaseAdapter"):
         if adapter not in self._adapters:
             adapter.adaptee = self
             self._adapters.append(adapter)
 
-    def remove_adapter(self, adapter: IAdapterOutput):
+    def remove_adapter(self, adapter: "BaseAdapter"):
         if adapter in self._adapters:
             adapter.adaptee = None
             self._adapters.remove(adapter)
@@ -128,12 +118,12 @@ class BaseAdapter(IAdapterOutput):
             adapter.adaptee = None
         self._adapters.clear()
 
-    def add_consumer(self, consumer: IInput):
+    def add_consumer(self, consumer: "IInput"):
         if consumer not in self._consumers:
             self._consumers.append(consumer)
             consumer.provider = self
 
-    def remove_consumer(self, consumer: IInput):
+    def remove_consumer(self, consumer: "IInput"):
         if consumer in self._consumers:
             self._consumers.remove(consumer)
             consumer.provider = None
@@ -143,15 +133,15 @@ class BaseAdapter(IAdapterOutput):
             consumer.provider = None
         self._consumers.clear()
 
-    def add_values(self, values: np.ndarray):
+    def add_values(self, values: ArrayLike):
         self._cache = np.atleast_1d(np.asarray(values, dtype=float))
         self._cache_version = self.version
         self.refresh()
 
-    def set_values(self, values: np.ndarray):
+    def set_values(self, values: ArrayLike):
         self.add_values(values)
 
-    def get_values(self, requester: IInput = None) -> np.ndarray:
+    def get_values(self, requester: "IInput " = None):
         if self._upstream is None:
             raise ValueError(f"Adapter '{self._id}' has no upstream.")
         v = self._upstream.version
@@ -164,9 +154,7 @@ class BaseAdapter(IAdapterOutput):
             self._cache_version = v
         return out
 
-    # -- chaining -----------------------------------
-
-    def then(self, next_adapter: IAdapterOutput) -> IAdapterOutput:
+    def then(self, next_adapter: "BaseAdapter") -> "BaseAdapter":
         """``a.then(b)`` wires a -> b and returns b."""
         self.add_adapter(next_adapter)
         return next_adapter
@@ -176,13 +164,12 @@ class BaseAdapter(IAdapterOutput):
         for adapter in self._adapters:
             adapter.refresh()
 
-    def adapt(self, data: np.ndarray) -> np.ndarray:
+    def adapt(self, data: ArrayLike):
         raise NotImplementedError
 
 
-def chain(source: IOutput, *stages: IAdapterOutput) -> IAdapterOutput:
-    """Compose ``source -> stages[0] -> ... -> stages[-1]`` and return
-    the chain head (the stage to connect to the target input)."""
+def chain(source: IOutput, *stages):
+    """Compose ``source -> stages[0] -> ... -> stages[-1]``; returns the head."""
     prev = source
     for stage in stages:
         if stage.adaptee is None:

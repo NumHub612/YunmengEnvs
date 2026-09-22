@@ -6,23 +6,23 @@ ElementSet class describes a collection of spatial elements.
 """
 
 import numpy as np
+
 from yunmeng.interfaces.solution import IElementSet
-from yunmeng.interfaces.types import GeometryType, ElementType, MeshDimension
+from yunmeng.interfaces.types import ArrayLike, GeometryType
+
 
 # ---------------------------------------------------
 # region SimpleElementSet
 # ---------------------------------------------------
-
-
 class SimpleElementSet(IElementSet):
     """Mesh-free element set covering IDBASED / POINT / POLYGON."""
 
     def __init__(
         self,
         gtype: GeometryType = GeometryType.IDBASED,
-        centers: np.ndarray = None,
-        outlines: list[np.ndarray] = None,
-        element_ids: list[str] = None,
+        centers: ArrayLike = None,
+        outlines: ArrayLike = None,
+        element_ids: list = None,
     ):
         self._gtype = gtype
         if gtype == GeometryType.IDBASED and centers is None:
@@ -44,27 +44,30 @@ class SimpleElementSet(IElementSet):
         return self._gtype
 
     @property
-    def element_ids(self) -> list[str]:
+    def element_ids(self) -> list:
         return self._ids
 
     def index_of(self, element_id: str) -> int:
         try:
-            return self._ids.index(element_id)
+            return self._ids.index(str(element_id))
         except ValueError:
             raise KeyError(f"Unknown element id '{element_id}'.") from None
 
-    def get_coordinates(self, element_index: int) -> np.ndarray:
+    def get_coordinates(self, element_index: int):
         if self._outlines is not None:
             return np.asarray(self._outlines[element_index], dtype=float)
         return self._centers[element_index].reshape(1, 3)
 
-    def get_center(self, element_index: int) -> np.ndarray:
+    def get_center(self, element_index: int):
         return self._centers[element_index]
 
     def __repr__(self) -> str:
         return f"SimpleElementSet({self._gtype.value}, n={self.element_count})"
 
 
+# ---------------------------------------------------
+# region ScalarElementSet
+# ---------------------------------------------------
 class ScalarElementSet(SimpleElementSet):
     """Single bulk element for lumped quantities."""
 
@@ -72,12 +75,27 @@ class ScalarElementSet(SimpleElementSet):
         super().__init__(GeometryType.IDBASED, element_ids=[element_id])
 
 
+# ---------------------------------------------------
+# region PointElementSet
+# ---------------------------------------------------
 class PointElementSet(SimpleElementSet):
-    """Point set for rain / evaporation gauges."""
+    """Point set for gauges / probes."""
 
-    def __init__(self, centers: np.ndarray, element_ids: list[str] = None):
+    def __init__(self, centers: ArrayLike, element_ids: list = None):
+        super().__init__(GeometryType.POINT, centers=centers, element_ids=element_ids)
+
+
+# ---------------------------------------------------
+# region MeshCellElementSet
+# ---------------------------------------------------
+class MeshCellElementSet(SimpleElementSet):
+    """Element set view over mesh cells (ids are integer cell indices)."""
+
+    def __init__(self, centers: ArrayLike, element_ids: list = None):
+        n = len(np.atleast_2d(np.asarray(centers, dtype=float)))
+        ids = element_ids or list(range(n))
         super().__init__(
             GeometryType.POINT,
             centers=centers,
-            element_ids=element_ids,
+            element_ids=[str(i) for i in ids],
         )

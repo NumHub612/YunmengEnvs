@@ -5,23 +5,25 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Lightweight output port implementation.
 """
 
-from __future__ import annotations
 import numpy as np
 
 from yunmeng.interfaces.solution import (
-    ILinkableModel,
-    IOutput,
-    IInput,
     IAdapterOutput,
     IElementSet,
-    IValueSet,
+    IInput,
+    ILinkableModel,
     Quantity,
     TimeSpan,
 )
-from yunmeng.solutions.commons.datasets import FrameValueSet
+from yunmeng.interfaces.types import ArrayLike
+from yunmeng.solutions.commons.dataset import FrameValueSet
 
 
-class BaseOutput(IOutput):
+def _as_frame(values: ArrayLike):
+    return np.atleast_1d(np.asarray(values, dtype=float))
+
+
+class BaseOutput:
     """Output port holding the current data frame."""
 
     def __init__(
@@ -30,19 +32,17 @@ class BaseOutput(IOutput):
         quantity: Quantity,
         elements: IElementSet,
         time_span: TimeSpan = None,
-        owner: ILinkableModel = None,
+        owner: "ILinkableModel " = None,
     ):
         self._id = item_id
         self._quantity = quantity
         self._element_set = elements
         self._time_span = time_span or TimeSpan()
         self._owner = owner
-        self._consumers: list[IInput] = []
-        self._adapters: list[IAdapterOutput] = []
-        self._cache: np.ndarray = None
-        self._generation: int = 0
-
-    # -- IExchangeItem ------------------------------
+        self._consumers: list = []
+        self._adapters: list = []
+        self._cache = None
+        self._generation = 0
 
     @property
     def id(self) -> str:
@@ -65,31 +65,29 @@ class BaseOutput(IOutput):
         return self._time_span
 
     @property
-    def values(self) -> IValueSet:
+    def values(self) -> FrameValueSet:
         if self._cache is None:
             return None
         return FrameValueSet(self._quantity, self._cache)
-
-    # -- IOutput ------------------------------------
 
     @property
     def adapters(self) -> list:
         return self._adapters
 
     @property
-    def consumers(self) -> list[IInput]:
+    def consumers(self) -> list:
         return self._consumers
 
     @property
     def version(self) -> int:
         return self._generation
 
-    def add_adapter(self, adapter):
+    def add_adapter(self, adapter: "IAdapterOutput"):
         if adapter not in self._adapters:
             adapter.adaptee = self
             self._adapters.append(adapter)
 
-    def remove_adapter(self, adapter):
+    def remove_adapter(self, adapter: "IAdapterOutput"):
         if adapter in self._adapters:
             adapter.adaptee = None
             self._adapters.remove(adapter)
@@ -99,12 +97,12 @@ class BaseOutput(IOutput):
             adapter.adaptee = None
         self._adapters.clear()
 
-    def add_consumer(self, consumer: IInput):
+    def add_consumer(self, consumer: "IInput"):
         if consumer not in self._consumers:
             self._consumers.append(consumer)
             consumer.provider = self
 
-    def remove_consumer(self, consumer: IInput):
+    def remove_consumer(self, consumer: "IInput"):
         if consumer in self._consumers:
             self._consumers.remove(consumer)
             consumer.provider = None
@@ -114,24 +112,19 @@ class BaseOutput(IOutput):
             consumer.provider = None
         self._consumers.clear()
 
-    # -- data ---------------------------------------
-
-    def _publish(self, values: np.ndarray):
-        # bumps version, refreshes adapters
+    def _publish(self, values: ArrayLike):
         self._cache = _as_frame(values)
         self._generation += 1
         for adapter in list(self._adapters):
             adapter.refresh()
 
-    def add_values(self, values: np.ndarray):
-        """Publish a new frame."""
+    def add_values(self, values: ArrayLike):
         self._publish(values)
 
-    def set_values(self, values: np.ndarray):
-        """Overwrite the current frame."""
+    def set_values(self, values: ArrayLike):
         self._publish(values)
 
-    def get_values(self, requester: IInput = None) -> np.ndarray:
+    def get_values(self, requester: "IInput " = None):
         if self._cache is None:
             raise ValueError(f"Output {self._id} has no data.")
         return self._cache
@@ -139,10 +132,7 @@ class BaseOutput(IOutput):
     # -- snapshot support ---------------------------
 
     def _state(self) -> tuple:
-        if self._cache is not None:
-            c = self._cache.copy()
-        else:
-            c = None
+        c = None if self._cache is None else self._cache.copy()
         return (c, self._generation)
 
     def _set_state(self, state: tuple):
@@ -151,7 +141,3 @@ class BaseOutput(IOutput):
         self._generation = generation
         for adapter in list(self._adapters):
             adapter.refresh()
-
-
-def _as_frame(values) -> np.ndarray:
-    return np.atleast_1d(np.asarray(values, dtype=float))

@@ -10,16 +10,16 @@ from __future__ import annotations
 from typing import Any, Callable
 import numpy as np
 
-from yunmeng.interfaces.capabilities import IEstimable
 from yunmeng.interfaces.capabilities import (
+    IEstimable,
     EstimationResult,
     IEstimator,
 )
-
-
+from yunmeng.numerics.algos import ym_register
 from yunmeng.setting import logger
 
 
+@ym_register("estimator")
 class Calibrator(IEstimator):
     """Gradient-free calibrator (DDS).
 

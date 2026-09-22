@@ -6,7 +6,12 @@ Unified components registry.
 """
 
 from yunmeng.interfaces.capabilities import IEstimator, IScheduler
-from yunmeng.interfaces.solution import ILinkableModel, IModelCallback
+from yunmeng.interfaces.solution import (
+    ILinkableModel,
+    IModelCallback,
+    IAdapterOutput,
+    ICoupler,
+)
 from yunmeng.interfaces.solver import (
     ISolver,
     IOperator,
@@ -22,6 +27,8 @@ _KINDS = (
     # solution
     "model",  # ILinkableModel
     "event",  # IModelCallback
+    "adapter",  # IAdapterOutput
+    "coupler",  # ICouplingStrategy
     # solver
     "solver",  # ISolver
     "operator",  # IOperator
@@ -35,6 +42,8 @@ _KINDS_MAP = {
     "scheduler": IScheduler,
     "model": ILinkableModel,
     "event": IModelCallback,
+    "adapter": IAdapterOutput,
+    "coupler": ICoupler,
     "solver": ISolver,
     "operator": IOperator,
     "init": IInitCondition,
@@ -46,7 +55,7 @@ _KINDS_MAP = {
 _REGISTRY: dict[str, dict] = {}
 
 
-def ym_register(kind: str, cls: type = None):
+def ym_register(kind: str, cls: type = None, name: str = None):
     """Registry algorithm class (mainly as decorator).
 
     @ym_register("model")
@@ -74,8 +83,14 @@ def ym_register(kind: str, cls: type = None):
         raise TypeError(f"{cls} is not a subclass of {target_type} of kind '{kind}'")
 
     reg_name = cls.get_name() if hasattr(cls, "get_name") else None
-    if not reg_name:
-        raise ValueError(f"{cls.__name__} must implement get_name()")
+    if name is not None and reg_name is not None and name != reg_name:
+        raise ValueError(
+            f"Class name '{cls.__name__}' and registry name '{name}' mismatch."
+        )
+    if name is None and reg_name is None:
+        raise ValueError(f"{cls.__name__} must implement get_name() or pass name")
+
+    reg_name = name if name is not None else reg_name
     if reg_name in _REGISTRY and _REGISTRY[reg_name]["cls"] is not cls:
         raise KeyError(
             f"Class name '{reg_name}' has already been registered by "
