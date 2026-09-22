@@ -1,16 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""Validate the surrogate-Laplacian solver, online learning and fallback.
-
-Pipeline (mirrors test_hyb.py):
-1. Fine-grid explicit FDM generates truth observations.
-2. Coarse-grid FvmSolver provides oracle and biased physics baselines.
-3. HybLapSolver (pure surrogate) is pre-trained by unrolled AD.
-4. Online phase: windowed rollout with observation feedback — error
-   over threshold triggers fallback to the dormant FVM operator;
-   the surrogate is fine-tuned on window data, shadow-validated and
-   resumed. Online-learning hooks are exercised end to end.
-"""
-
 from __future__ import annotations
 
 import json

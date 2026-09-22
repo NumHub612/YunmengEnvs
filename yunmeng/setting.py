@@ -6,7 +6,7 @@ Project configurations.
 import logging
 import sys
 
-LOGO = """
+LOGO = r"""
  __   __                                                   
  \ \ / /  _   _   _ __    _ __ ___     ___   _ __     __ _ 
   \ V /  | | | | | '_ \  | '_ ` _ \   / _ \ | '_ \   / _` |
@@ -18,7 +18,7 @@ LOGO = """
  |  _|   | '_ \  \ \ / / / __|                          ><(((('>         
  | |___  | | | |  \ V /  \__ \                           
  |_____| |_| |_|   \_/   |___/       -- v%s                                                                                                      
-"""  # noqa
+"""
 
 
 def print_logo(version: str, year: int):

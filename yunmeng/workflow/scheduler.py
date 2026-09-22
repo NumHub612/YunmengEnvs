@@ -22,7 +22,7 @@ from yunmeng.interfaces.solution import (
 )
 from yunmeng.numerics.algos import ym_register
 from yunmeng.setting import logger
-from yunmeng.solutions.commons.additionals import (
+from yunmeng.solutions.commons.links import (
     ElementMapAdapter,
     FixedPointCoupler,
     PullCoupler,

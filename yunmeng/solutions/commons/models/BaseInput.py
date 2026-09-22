@@ -23,7 +23,7 @@ def _as_frame(values: ArrayLike):
     return np.atleast_1d(np.asarray(values, dtype=float))
 
 
-class BaseInput:
+class BaseInput(IInput):
     """Single-provider input port."""
 
     def __init__(

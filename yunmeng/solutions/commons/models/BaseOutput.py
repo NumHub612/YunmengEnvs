@@ -10,6 +10,7 @@ import numpy as np
 from yunmeng.interfaces.solution import (
     IAdapterOutput,
     IElementSet,
+    IOutput,
     IInput,
     ILinkableModel,
     Quantity,
@@ -23,7 +24,7 @@ def _as_frame(values: ArrayLike):
     return np.atleast_1d(np.asarray(values, dtype=float))
 
 
-class BaseOutput:
+class BaseOutput(IOutput):
     """Output port holding the current data frame."""
 
     def __init__(

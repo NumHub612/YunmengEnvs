@@ -75,7 +75,7 @@ def ym_register(kind: str, cls: type = None, name: str = None):
 
     # decorator form
     if cls is None:
-        return lambda c: ym_register(kind, c)
+        return lambda c: ym_register(kind, c, name)
 
     # class checking
     target_type = _KINDS_MAP[kind]
