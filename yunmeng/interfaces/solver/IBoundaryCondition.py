@@ -26,13 +26,13 @@ class BoundaryValues:
 
     time: float
 
-    #: var -> (face_ids, prescribed values); scatter-write (Dirichlet)
+    #: var -> (elem_ids, prescribed values); scatter-write (Dirichlet)
     constraints: dict[str, tuple[ArrayLike, ArrayLike]] = dc_field(default_factory=dict)
 
-    #: var -> (face_ids, flux contributions); scatter-add (Neumann)
+    #: var -> (elem_ids, flux contributions); scatter-add (Neumann)
     fluxes: dict[str, tuple[ArrayLike, ArrayLike]] = dc_field(default_factory=dict)
 
-    #: var -> (face_ids, coeffs); Robin/mixed, reserved
+    #: var -> (elem_ids, coeffs); Robin/mixed, reserved
     mixed: dict[str, tuple[ArrayLike, ArrayLike]] = dc_field(default_factory=dict)
 
 
@@ -53,12 +53,6 @@ class IBoundaryCondition(ABC):
     @property
     @abstractmethod
     def id(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def semantic_tag(self) -> str:
-        """Free-form type tag, e.g. "wall", "open"."""
-        ...
 
     @property
     @abstractmethod

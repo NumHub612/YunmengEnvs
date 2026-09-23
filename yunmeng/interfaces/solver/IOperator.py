@@ -157,6 +157,10 @@ class IOperator(ABC):
 
     @property
     @abstractmethod
+    def id(self) -> str: ...
+
+    @property
+    @abstractmethod
     def explicit_part(self) -> bool:
         """Produces an explicit Field contribution."""
         ...

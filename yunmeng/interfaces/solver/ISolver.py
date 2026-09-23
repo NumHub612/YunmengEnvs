@@ -25,11 +25,11 @@ Design invariants of the solver layer:
    must assume standalone TRAIN context has already been validated by
    its owner; in coupled runs it will only ever observe EVAL.
 
-4. reset() vs snapshot(): reset() is the cheap rewind to the
-   post-initialize state for estimation trials (preserves bindings and
-   trial parameters, leaves a clean autograd graph under TRAIN);
-   arbitrary-state restore belongs to ISnapshottable. Under EVAL-only
-   coupling, snapshots are pure state copies with no graph semantics.
+4. Operator assembly is protocol-level. The operator list is mutable
+   through add_operator/remove_operator/clear_operators — never by
+   reaching into solver internals. build() timing rule: operators added
+   BEFORE initialize() are built during initialize(); operators added
+   AFTER initialize() are built immediately (hot add).
 
 5. Equation binding: a solver declares in its
    SolverMeta whether its governing equation (and possibly its operator
@@ -51,6 +51,7 @@ from yunmeng.interfaces.solver.IBoundaryCondition import (
     IBoundaryCondition,
 )
 from yunmeng.interfaces.solver.IInitCondition import IInitialCondition
+from yunmeng.interfaces.solver.IOperator import IOperator
 from yunmeng.interfaces.solver.IEquation import IEquation
 from yunmeng.interfaces.solver.ISolverCallback import ISolverCallback
 from yunmeng.interfaces.types import MeshDimension, RunMode
@@ -154,11 +155,19 @@ class ISolver(ABC):
 
     @property
     @abstractmethod
-    def status(self) -> SolverStatus: ...
+    def bcs(self) -> list[IBoundaryCondition]: ...
 
     @property
     @abstractmethod
-    def config(self) -> SolverConfig: ...
+    def ops(self) -> list[IOperator]: ...
+
+    @property
+    @abstractmethod
+    def ics(self) -> list[IInitialCondition]: ...
+
+    @property
+    @abstractmethod
+    def status(self) -> SolverStatus: ...
 
     @property
     @abstractmethod
@@ -176,7 +185,7 @@ class ISolver(ABC):
         """Set EVAL and propagate (by default)."""
         ...
 
-    # -- assembly -----------------------------------
+    # -- problem binding ----------------------------
 
     @abstractmethod
     def set_problems(self, eqs: list["IEquation"]):
@@ -188,25 +197,7 @@ class ISolver(ABC):
         """Get the solution field by name."""
         ...
 
-    @abstractmethod
-    def add_ic(self, ic: IInitialCondition):
-        """Add an initial condition."""
-        ...
-
-    @abstractmethod
-    def clear_ics(self, field: str = None):
-        """Clear initial conditions for a field."""
-        ...
-
-    @abstractmethod
-    def add_bc(self, bc: IBoundaryCondition):
-        """Add a boundary condition."""
-        ...
-
-    @abstractmethod
-    def clear_bcs(self, field: str):
-        """Clear boundary conditions for a field."""
-        ...
+    # -- assembly -----------------------------------
 
     @abstractmethod
     def add_callback(self, cb: "ISolverCallback"):
@@ -216,6 +207,36 @@ class ISolver(ABC):
     @abstractmethod
     def remove_callback(self, cb_id: str):
         """Remove a callback."""
+        ...
+
+    @abstractmethod
+    def add_op(self, op: "IOperator"):
+        """Add an operator."""
+        ...
+
+    @abstractmethod
+    def remove_op(self, op_id: str):
+        """Remove an operator."""
+        ...
+
+    @abstractmethod
+    def add_ic(self, ic: IInitialCondition):
+        """Add an initial condition."""
+        ...
+
+    @abstractmethod
+    def remove_ic(self, ic_id: str):
+        """Remove initial condition."""
+        ...
+
+    @abstractmethod
+    def add_bc(self, bc: IBoundaryCondition):
+        """Add a boundary condition."""
+        ...
+
+    @abstractmethod
+    def remove_bc(self, bc_id: str):
+        """Remove boundary condition."""
         ...
 
     # -- lifecycle ----------------------------------
