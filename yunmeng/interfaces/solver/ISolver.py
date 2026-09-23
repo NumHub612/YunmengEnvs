@@ -42,7 +42,7 @@ Design invariants of the solver layer:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields as dc_fields
+from dataclasses import dataclass, fields as dc_fields, asdict
 from typing import Any
 
 from yunmeng.interfaces.supports import FieldMeta, IField
@@ -104,17 +104,7 @@ class SolverConfig(ABC):
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict."""
-        result = {}
-        for f in dc_fields(self):
-            val = getattr(self, f.name)
-            item = getattr(val, "item", None)
-            if callable(item) and not isinstance(val, (str, bytes, dict, list, tuple)):
-                try:
-                    val = item()
-                except (ValueError, TypeError):
-                    pass
-            result[f.name] = val
-        return result
+        return asdict(self)
 
     @classmethod
     @abstractmethod

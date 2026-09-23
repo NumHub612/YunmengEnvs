@@ -50,7 +50,7 @@ class BaseOutput(IOutput):
         return self._id
 
     @property
-    def owner(self):
+    def owner(self) -> ILinkableModel:
         return self._owner
 
     @property

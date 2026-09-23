@@ -11,8 +11,11 @@ from yunmeng.interfaces.solution import (
     ModelStatus,
     IExchange,
     ILinkableModel,
+    IModelCallback,
+    IElementSet,
+    Quantity,
+    TimeSpan,
 )
-from yunmeng.interfaces.solution.IDataset import IElementSet, Quantity
 from yunmeng.solutions.commons.dataset import ScalarElementSet
 from yunmeng.solutions.commons.models.BaseInput import IInput, BaseInput
 from yunmeng.solutions.commons.models.BaseOutput import IOutput, BaseOutput
@@ -24,45 +27,45 @@ class BaseModel(ILinkableModel):
     def __init__(self, model_id: str):
         self._id = model_id
         self._status = ModelStatus.CREATED
-        self._inputs = []
-        self._outputs = []
-        self._callbacks = []
-        self._last_error = ""
+        self._inputs: list[IInput] = []
+        self._outputs: list[IOutput] = []
+        self._callbacks: list[IModelCallback] = []
+        self._last_error: str = ""
 
     # -- instance properties ------------------------
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self._id
 
     @property
-    def callbacks(self):
+    def status(self) -> ModelStatus:
+        return self._status
+
+    @property
+    def callbacks(self) -> list[IModelCallback]:
         return self._callbacks
 
     @property
-    def inputs(self):
+    def inputs(self) -> list[IInput]:
         return self._inputs
 
     @property
-    def outputs(self):
+    def outputs(self) -> list[IOutput]:
         return self._outputs
-
-    @property
-    def status(self):
-        return self._status
 
     # -- callbacks ----------------------------------
 
-    def add_callback(self, callback):
+    def add_callback(self, callback: IModelCallback):
         if callback not in self._callbacks:
             self._callbacks.append(callback)
 
-    def remove_callback(self, callback):
+    def remove_callback(self, callback: IModelCallback):
         if callback in self._callbacks:
             self._callbacks.remove(callback)
 
-    def _fire(self, event, **context):
-        for cb in list(self._callbacks):
+    def _fire(self, event: str, **context):
+        for cb in self._callbacks:
             cb.on_event(event, self, context)
 
     # -- ports --------------------------------------
@@ -82,22 +85,27 @@ class BaseModel(ILinkableModel):
     def get_port(self, port_id: str) -> IExchange:
         return self.get_input(port_id) or self.get_output(port_id)
 
-    def add_input(self, item):
+    def add_input(self, item: IInput):
         self._inputs.append(item)
 
-    def add_output(self, item):
+    def add_output(self, item: IOutput):
         self._outputs.append(item)
 
-    def _new_port_id(self, port_id, suffix):
+    def _port_id(self, port_id: str, suffix: str) -> str:
         pid = port_id or f"{self._id}.{suffix}"
         if self.get_port(pid) is not None:
             raise ValueError(f"{self._id}: port '{pid}' exists.")
         return pid
 
     def create_input(
-        self, quantity, elements=None, port_id=None, required=True, time_span=None
+        self,
+        quantity: Quantity,
+        elements: IElementSet = None,
+        port_id: str = None,
+        required: bool = True,
+        time_span: TimeSpan = None,
     ) -> IInput:
-        pid = self._new_port_id(port_id, quantity.name)
+        pid = self._port_id(port_id, quantity.name)
         port = BaseInput(
             pid,
             quantity,
@@ -110,9 +118,13 @@ class BaseModel(ILinkableModel):
         return port
 
     def create_output(
-        self, quantity: Quantity, elements=None, port_id=None, time_span=None
+        self,
+        quantity: Quantity,
+        elements: IElementSet = None,
+        port_id: str = None,
+        time_span: TimeSpan = None,
     ) -> IOutput:
-        pid = self._new_port_id(port_id, quantity.name)
+        pid = self._port_id(port_id, quantity.name)
         port = BaseOutput(
             pid,
             quantity,
@@ -123,7 +135,7 @@ class BaseModel(ILinkableModel):
         self.add_output(port)
         return port
 
-    def remove_port(self, port_id: str):
+    def remove_port(self, port_id: str) -> bool:
         inp = self.get_input(port_id)
         if inp is not None:
             provider = inp.provider
@@ -132,6 +144,7 @@ class BaseModel(ILinkableModel):
             inp.provider = None
             self._inputs.remove(inp)
             return True
+
         out = self.get_output(port_id)
         if out is not None:
             out.clear_adapters()
@@ -159,23 +172,26 @@ class BaseModel(ILinkableModel):
 
     def _do_initialize(self):
         """Subclass hook: build internal structures."""
+        pass
 
-    def validate(self):
+    def validate(self) -> list[str]:
         return []
 
     def prepare(self):
         self._fire(ModelEvent.ON_PREPARE)
 
-    def update(self, inquirers=None):
+    def update(self, inquirers: list[IOutput] = None):
         if self._status in (ModelStatus.DONE, ModelStatus.FAILED):
             return self._status
         self._status = ModelStatus.RUNNING
+
         self._fire(ModelEvent.BEFORE_UPDATE)
         try:
             self._do_update(inquirers)
         except Exception as e:
             self._fail(e)
             return self._status
+
         if self._status == ModelStatus.RUNNING:
             self._status = ModelStatus.READY
         self._fire(ModelEvent.AFTER_UPDATE)
@@ -183,6 +199,7 @@ class BaseModel(ILinkableModel):
 
     def _do_update(self, inquirers=None):
         """Subclass hook: advance one step."""
+        pass
 
     def finish(self):
         try:
@@ -194,15 +211,16 @@ class BaseModel(ILinkableModel):
 
     def _do_finish(self):
         """Subclass hook: release resources, flush outputs."""
+        pass
 
     # -- failure handling ---------------------------
 
-    def _fail(self, exc):
+    def _fail(self, exc: Exception):
         self._status = ModelStatus.FAILED
         self._last_error = f"{type(exc).__name__}: {exc}"
         self._fire(ModelEvent.ON_ERROR, error=self._last_error)
 
-    def get_last_error(self):
+    def get_last_error(self) -> str:
         return self._last_error
 
     def mark_done(self):

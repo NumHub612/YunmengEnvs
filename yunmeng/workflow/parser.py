@@ -137,11 +137,11 @@ class Orchestrator:
         with open(path, "r", encoding="utf-8") as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
 
-        if cfg.get("PROJECT") != mid:
+        if cfg.get("PROJECT").get("id") != mid:
             raise ConfigError(
                 f"MODELS.{mid}", f"PROJECT '{cfg.get('PROJECT')}' != id '{mid}'."
             )
-        for field in ("TYPE", "SPATIAL", "TEMPORAL"):
+        for field in ("SPATIAL", "TEMPORAL"):
             if field not in cfg:
                 raise ConfigError(f"MODELS.{mid}.{field}", "missing required field.")
         cfg.setdefault("DATAS", None)
@@ -199,14 +199,14 @@ class Orchestrator:
         if not ({"id", "type"} <= cfg.keys()):
             raise ConfigError(f"MODELS.{mid}.SOLVER", "misses 'id' or 'type'.")
         for ic in cfg.get("ics") or []:
-            if not ({"id", "field", "method"} <= ic.keys()):
+            if not ({"id", "field", "type"} <= ic.keys()):
                 raise ConfigError(
-                    f"MODELS.{mid}.SOLVER.ics", f"{ic} misses id/field/method."
+                    f"MODELS.{mid}.SOLVER.ics", f"{ic} misses id/field/type."
                 )
         for bc in cfg.get("bcs") or []:
-            if not ({"id", "field", "method"} <= bc.keys()):
+            if not ({"id", "field", "type"} <= bc.keys()):
                 raise ConfigError(
-                    f"MODELS.{mid}.SOLVER.bcs", f"{bc} misses id/field/method."
+                    f"MODELS.{mid}.SOLVER.bcs", f"{bc} misses id/field/type."
                 )
             if not (bc.get("patches") or bc.get("region")):
                 raise ConfigError(
@@ -220,8 +220,8 @@ class Orchestrator:
 
     def _check_operators(self, mid: str, cfg: list):
         for op in cfg:
-            if "method" not in op:
-                raise ConfigError(f"MODELS.{mid}.OPERATORS", f"{op} misses 'method'.")
+            if "type" not in op:
+                raise ConfigError(f"MODELS.{mid}.OPERATORS", f"{op} misses 'type'.")
 
     def _check_io(self, mid: str, ios: dict):
         for direction in ("inputs", "outputs"):

@@ -47,7 +47,7 @@ class BaseAdapter(IAdapterOutput):
         return self._id
 
     @property
-    def owner(self):
+    def owner(self) -> IOutput:
         return getattr(self._upstream, "owner", None)
 
     @property

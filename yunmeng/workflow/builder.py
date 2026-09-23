@@ -56,13 +56,14 @@ class SchedulerBuilder:
 
     def _build_models(self, sched: Scheduler):
         for model_id, cfg in self._model_configs.items():
+            mtype = cfg.get("PROJECT").get("type")
             model = self._instantiate_model(model_id, cfg)
             self._instances[model_id] = model
             sched.add(model)
-            logger.info(f"Model '{model_id}' (TYPE={cfg.get('TYPE')}) built.")
+            logger.info(f"Model '{model_id}' (TYPE={mtype}) built.")
 
     def _instantiate_model(self, model_id: str, cfg: dict):
-        mtype = cfg.get("TYPE")
+        mtype = cfg.get("PROJECT").get("type")
         try:
             cls = _resolve(mtype, "model")
         except KeyError:

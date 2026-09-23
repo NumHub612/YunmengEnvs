@@ -49,7 +49,7 @@ class BaseInput(IInput):
         return self._id
 
     @property
-    def owner(self):
+    def owner(self) -> ILinkableModel:
         return self._owner
 
     @property
@@ -75,7 +75,7 @@ class BaseInput(IInput):
         return self._required
 
     @property
-    def provider(self):
+    def provider(self) -> IOutput:
         return self._provider
 
     @provider.setter

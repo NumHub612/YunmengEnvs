@@ -30,19 +30,29 @@ def print_logo(version: str, year: int):
 
 
 # set up logging system
-def _make_logger() -> logging.Logger:
-    logger = logging.getLogger("yunmeng")
+def _make_logger(
+    log_id: str = "yunmeng", output_file: str = "yunmeng.log"
+) -> logging.Logger:
+    logger = logging.getLogger(log_id)
     if not logger.handlers:
         h = logging.StreamHandler(sys.stdout)
         h.setFormatter(
             logging.Formatter("[%(asctime)s] %(levelname)s %(message)s", "%H:%M:%S")
         )
         logger.addHandler(h)
+
+    if output_file:
+        h = logging.FileHandler(output_file)
+        h.setFormatter(
+            logging.Formatter("[%(asctime)s] %(levelname)s %(message)s", "%H:%M:%S")
+        )
+        logger.addHandler(h)
+
     logger.setLevel(logging.INFO)
     return logger
 
 
-logger = _make_logger()
+logger = _make_logger("yunmeng")
 
 
 # set up random seed
