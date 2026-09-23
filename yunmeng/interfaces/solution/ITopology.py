@@ -17,53 +17,9 @@ from yunmeng.interfaces.types import ArrayLike, MeshDimension
 
 
 class ITopologyLayer(ABC):
-    """A single layer in a potentially hierarchical topology.
+    """Abstraction for a layer of the internal topology."""
 
-    A simple lumped model has one layer (element_count=1).
-    A distributed rainfall-runoff model may have:
-        Layer 0: basin level
-        Layer 1: grid level
-    A 1-D/2-D coupled model may have:
-        Layer 0: 1-D channel network
-        Layer 1: 2-D floodplain grid
-    """
-
-    @property
-    @abstractmethod
-    def layer_id(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def parent_id(self) -> str:
-        """ID of the parent layer; None for root layer."""
-        ...
-
-    @property
-    @abstractmethod
-    def spatial_dim(self) -> MeshDimension: ...
-
-    @property
-    @abstractmethod
-    def grid_type(self) -> str: ...
-
-    @abstractmethod
-    def get_nodes(self) -> list[dict]: ...
-
-    @abstractmethod
-    def get_edges(self) -> list[dict]: ...
-
-    @abstractmethod
-    def get_elements(self) -> list[dict]: ...
-
-    def get_parent_map(self) -> dict[str, str]:
-        """Return mapping from element id → parent element id
-        in the layer above.
-        """
-        return {}
-
-    def get_children(self, element_id: str) -> list[str]:
-        """Return child element ids in the layer below."""
-        return []
+    ...
 
 
 # ---------------------------------------------------

@@ -34,13 +34,32 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
     """Linkable model wrapping a mesh-based ISolver (fdm/fvm/hyb ...)."""
 
     @classmethod
+    def get_meta(cls) -> ModelMeta:
+        return ModelMeta(
+            description="An usage example for ISolver-based models",
+            category="usage",
+            domain="1d computational",
+            engine="supports: fdm, fvm, hyb",
+            supports_loop=True,
+        )
+
+    @classmethod
+    def get_time_span(cls, config: dict) -> TimeSpan:
+        temporal = config.get("TEMPORAL") or {}
+        start, end = temporal.get("start_time"), temporal.get("end_time")
+        if start is None or end is None:
+            return TimeSpan(
+                start=0.0,
+            )
+
+    @classmethod
     def get_name(cls) -> str:
         return "ComputationalModel"
 
     def __init__(self, config: dict):
         self._cfg = config
         model_id = config.get("PROJECT") or config.get("id")
-        super().__init__(model_id, ModelMeta(name=model_id, category="computational"))
+        super().__init__(model_id)
 
         temporal = config.get("TEMPORAL") or {}
         self._dt = float(temporal.get("time_step", 1.0))

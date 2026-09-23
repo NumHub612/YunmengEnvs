@@ -21,18 +21,13 @@ from yunmeng.solutions.commons.models.BaseOutput import IOutput, BaseOutput
 class BaseModel(ILinkableModel):
     """Concrete-ish base class for a linkable model."""
 
-    def __init__(self, model_id: str, meta: ModelMeta = None):
+    def __init__(self, model_id: str):
         self._id = model_id
-        self._meta = meta or ModelMeta(name=model_id)
         self._status = ModelStatus.CREATED
         self._inputs = []
         self._outputs = []
         self._callbacks = []
         self._last_error = ""
-
-    @classmethod
-    def get_meta(cls) -> ModelMeta:
-        return ModelMeta(name=cls.__name__)
 
     # -- instance properties ------------------------
 

@@ -76,16 +76,24 @@ class ModelStatus(Enum):
 
 @dataclass
 class ModelMeta:
-    """Basic model meta."""
+    """Model meta description."""
 
-    name: str = ""
     description: str = ""
-    version: str = "1.0"
-    category: str = ""
-    outputs: list[ExchangeMeta] = dc_field(default_factory=list)
-    inputs: list[ExchangeMeta] = dc_field(default_factory=list)
-    parameters: list[ParamMeta] = dc_field(default_factory=list)
+
+    scenario: str = ""
+    """Open problem-class string: "flood_routing" / "rainfall_runoff" /
+    "advection_diffusion" / "surrogate_diffusion" / ... """
+
+    domain: str = ""
+    """Physical domain:"hydrodynamics" / "hydrology" / "water_quality"
+    / "meteorology" / ... """
+
+    engine: str = ""
+    """Name of the hosted solver(ISolver.get_name()) when the model is
+    solver-hosted; empty for self-contained models. """
+
     supports_loop: bool = False
+    """May participate in LOOP (iterative) coupling."""
 
 
 # ---------------------------------------------------

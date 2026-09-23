@@ -73,6 +73,7 @@ def make_fdm(sid: str, nu: float, end_time: float):
     solver = FdmSolver(
         sid,
         grid,
+        None,
         FdmSolverConfig(dt=DT, end_time=end_time),
         get_backend("numpy"),
         nu=nu,
@@ -87,6 +88,7 @@ def make_hybrid(sid: str, nu: float, end_time: float):
     solver = HybridSolver(
         sid,
         grid,
+        None,
         config,
         get_backend("torch", device="cpu"),
         nu=nu,
