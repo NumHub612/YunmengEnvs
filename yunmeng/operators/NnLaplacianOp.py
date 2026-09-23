@@ -187,7 +187,7 @@ class NeuralLaplacianOperator(
 
     # -- capability: IModeSwitchable -----------------
 
-    def set_mode(self, mode: RunMode) -> None:
+    def set_mode(self, mode: RunMode):
         self._mode = mode
         if mode == RunMode.TRAIN:
             self._net.train()

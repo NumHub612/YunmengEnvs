@@ -49,10 +49,10 @@ logger = _make_logger()
 class _Settings:
     """Global settings activated from the ENVS section of a config file."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._store: dict = {"log_level": "INFO", "device": "cpu"}
 
-    def load(self, configs: dict) -> None:
+    def load(self, configs: dict):
         if not configs:
             return
         self._store.update(configs)

@@ -44,15 +44,15 @@ class IBackend(Protocol):
     def asarray(
         self,
         data: object,
-        dtype: str | None = None,
-        device: DeviceType | None = None,
+        dtype: str = None,
+        device: DeviceType = None,
     ) -> ArrayLike: ...
 
     def zeros(
         self,
         shape: Sequence[int],
-        dtype: str | None = None,
-        device: DeviceType | None = None,
+        dtype: str = None,
+        device: DeviceType = None,
     ) -> ArrayLike: ...
 
     def zeros_like(self, a: ArrayLike) -> ArrayLike: ...

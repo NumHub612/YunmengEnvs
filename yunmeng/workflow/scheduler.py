@@ -39,18 +39,18 @@ class Link:
     config: CouplingConfig = field(default_factory=CouplingConfig)
 
     @property
-    def source_model(self) -> ILinkableModel | None:
+    def source_model(self) -> ILinkableModel:
         return self.source_port.owner
 
     @property
-    def target_model(self) -> ILinkableModel | None:
+    def target_model(self) -> ILinkableModel:
         return self.target_port.owner
 
 
 class ExecutionPlan:
     """Topological order over PULL links + LOOP component clusters."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.order: list = []
         self.clusters: dict = (
             {}
@@ -132,7 +132,7 @@ class Scheduler(IScheduler):
     def get_name(cls) -> str:
         return "Scheduler"
 
-    def __init__(self, loop_coupler: FixedPointCoupler | None = None) -> None:
+    def __init__(self, loop_coupler: FixedPointCoupler = None):
         self._models: list = []
         self._links: list = []
         self._loop_coupler = loop_coupler or FixedPointCoupler()
@@ -142,11 +142,11 @@ class Scheduler(IScheduler):
         self.settings: dict = {}
         self._callbacks: list = []
         self._step_count = 0
-        self._started_at: float | None = None
+        self._started_at: float = None
 
     # -- graph construction -------------------------
 
-    def add(self, model: ILinkableModel) -> None:
+    def add(self, model: ILinkableModel):
         if model not in self._models:
             self._models.append(model)
 
@@ -154,11 +154,11 @@ class Scheduler(IScheduler):
         self,
         source_port: BaseOutput,
         target_port: BaseInput,
-        config: CouplingConfig | None = None,
-        source_elements: list | None = None,
-        target_elements: list | None = None,
-        adapter_chain: list | None = None,
-    ) -> None:
+        config: CouplingConfig = None,
+        source_elements: list = None,
+        target_elements: list = None,
+        adapter_chain: list = None,
+    ):
         """Connect two ports (PULL by default).
 
         ``adapter_chain``: ordered list of adapters applied between source
@@ -199,7 +199,7 @@ class Scheduler(IScheduler):
     @staticmethod
     def _check_compatible(
         source_port: BaseOutput, target_port: BaseInput, adapted: bool
-    ) -> None:
+    ):
         sq, tq = source_port.quantity, target_port.quantity
         if not adapted and sq.name != tq.name:
             raise ValueError(
@@ -229,7 +229,7 @@ class Scheduler(IScheduler):
                 return True
         return False
 
-    def rebuild(self) -> None:
+    def rebuild(self):
         self._plan = ExecutionPlan.build(self._models, self._links)
 
     @property
@@ -246,7 +246,7 @@ class Scheduler(IScheduler):
 
     # -- lifecycle ----------------------------------
 
-    def initialize(self) -> None:
+    def initialize(self):
         errors = []
         for m in self._models:
             errors += m.validate()
@@ -257,7 +257,7 @@ class Scheduler(IScheduler):
         self.rebuild()
         self._step_count = 0
 
-    def finish(self) -> None:
+    def finish(self):
         for m in self._models:
             if m.status not in (ModelStatus.CREATED,):
                 try:
@@ -312,28 +312,28 @@ class Scheduler(IScheduler):
             m.id: m.snapshot() for m in self._models if isinstance(m, ISnapshottable)
         }
 
-    def restore_graph(self, snapshot: dict) -> None:
+    def restore_graph(self, snapshot: dict):
         for m in self._models:
             if isinstance(m, ISnapshottable) and m.id in snapshot:
                 m.restore(snapshot[m.id])
 
     # -- callbacks ----------------------------------
 
-    def add_callback(self, callback: IModelCallback) -> None:
+    def add_callback(self, callback: IModelCallback):
         if callback not in self._callbacks:
             self._callbacks.append(callback)
 
-    def remove_callback(self, callback: IModelCallback) -> None:
+    def remove_callback(self, callback: IModelCallback):
         if callback in self._callbacks:
             self._callbacks.remove(callback)
 
-    def _fire(self, event: str, **context) -> None:
+    def _fire(self, event: str, **context):
         for cb in list(self._callbacks):
             cb.on_event(event, self, context)
 
     # -- run ----------------------------------------
 
-    def run(self, max_steps: int | None = None) -> list:
+    def run(self, max_steps: int = None) -> list:
         timeout = self.settings.get("timeout")
         log_freq = int(self.settings.get("log_freq", 0) or 0)
         all_results = []
@@ -366,7 +366,7 @@ class Scheduler(IScheduler):
         finally:
             self.finish()
 
-    def attach(self, composition) -> None:
+    def attach(self, composition):
         """Bind a composition: adopt its models and wire its links."""
         for m in composition.models.values():
             self.add(m)

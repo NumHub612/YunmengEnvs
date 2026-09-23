@@ -34,7 +34,7 @@ def _resolve(name: str, kind: str) -> type:
 class SchedulerBuilder:
     """Build a Scheduler from an Orchestrator (TASK=simulation)."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._instances: dict = {}
         self._model_configs: dict = {}
 
@@ -54,7 +54,7 @@ class SchedulerBuilder:
 
     # -- models --------------------------------------
 
-    def _build_models(self, sched: Scheduler) -> None:
+    def _build_models(self, sched: Scheduler):
         for model_id, cfg in self._model_configs.items():
             model = self._instantiate_model(model_id, cfg)
             self._instances[model_id] = model
@@ -74,7 +74,7 @@ class SchedulerBuilder:
 
     # -- links ---------------------------------------
 
-    def _build_links(self, link_configs: list | None, sched: Scheduler) -> None:
+    def _build_links(self, link_configs: list, sched: Scheduler):
         for link in link_configs or []:
             lid = link["id"]
             if link.get("if_use", True) is False:
@@ -146,7 +146,7 @@ class SchedulerBuilder:
         )
         return src, tgt
 
-    def _io_item_ids(self, model_id: str, item: str, direction: str) -> list | None:
+    def _io_item_ids(self, model_id: str, item: str, direction: str) -> list:
         ios = (self._model_configs.get(model_id) or {}).get("IOS") or {}
         for it in ios.get(direction) or []:
             if it.get("id") == item:

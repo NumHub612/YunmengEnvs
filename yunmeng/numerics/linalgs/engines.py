@@ -163,7 +163,7 @@ class TorchSparseCGSolver(LinearEngine):
 _ALGORITHM_REGISTRY: dict[str, type[LinearEngine]] = {}
 
 
-def register_engine(name: str, engine_cls: type[LinearEngine]) -> None:
+def register_engine(name: str, engine_cls: type[LinearEngine]):
     """Register an engine under a canonical name."""
     _ALGORITHM_REGISTRY[name] = engine_cls
 

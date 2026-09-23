@@ -34,7 +34,7 @@ class ITopologyLayer(ABC):
 
     @property
     @abstractmethod
-    def parent_id(self) -> str | None:
+    def parent_id(self) -> str:
         """ID of the parent layer; None for root layer."""
         ...
 

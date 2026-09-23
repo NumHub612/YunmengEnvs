@@ -37,7 +37,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
     def get_name(cls) -> str:
         return "ComputationalModel"
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict):
         self._cfg = config
         model_id = config.get("PROJECT") or config.get("id")
         super().__init__(model_id, ModelMeta(name=model_id, category="computational"))
@@ -59,7 +59,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
         # Scheduler.initialize() -> assemble eagerly at construction.
         self._assemble()
 
-    def _assemble(self) -> None:
+    def _assemble(self):
         self._load_datas()
         self._load_mesh()
         self._backend = self._load_backend()
@@ -68,7 +68,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
         self._create_ports()
         self._publish_exposed()
 
-    def _do_initialize(self) -> None:
+    def _do_initialize(self):
         # structure built eagerly; reset the solver to a clean initial state
         self._solver.reset()
         self._cursor = 0
@@ -106,12 +106,12 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
 
     # -- assembly --------------------------------------
 
-    def _load_datas(self) -> None:
+    def _load_datas(self):
         datas = self._cfg.get("DATAS") or {}
         for ts in datas.get("timeseries") or []:
             self._series[ts["id"]] = Timeseries(ts["id"], ts["xs"], ts["ys"])
 
-    def _load_mesh(self) -> None:
+    def _load_mesh(self):
         spatial = self._cfg.get("SPATIAL") or {}
         mtype = spatial.get("type", "uniform1d")
         cls = ym_meshes.get(str(mtype).lower())
@@ -125,7 +125,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
 
     # -- regions (patches / zones) ----------------------
 
-    def _register_regions(self, spatial: dict) -> None:
+    def _register_regions(self, spatial: dict):
         """Restore the boundary-region registration step of the legacy design.
 
         1D grids get built-in boundary regions (left/right faces, all cells)
@@ -167,7 +167,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
             f"{self._id}: region '{entry.get('id')}' needs `ids` or `spec`."
         )
 
-    def _add_region(self, rid: str, etype: ElementType, ids: list) -> None:
+    def _add_region(self, rid: str, etype: ElementType, ids: list):
         region = Region(name=rid, loc=etype, element_ids=np.asarray(ids, dtype="int64"))
         self._mesh.add_region(region)
         logger.debug(f"{self._id}: region '{rid}' registered ({len(ids)} elements).")
@@ -200,7 +200,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
         params.pop("device", None)
         return params
 
-    def _load_solver(self) -> None:
+    def _load_solver(self):
         sol = self._cfg.get("SOLVER") or {}
         stype = sol.get("type")
         cls = self._component(stype, "solver")
@@ -271,7 +271,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
         self._coupled_ports[bc["id"]] = port
         return port
 
-    def _build_bc(self, bc: dict) -> None:
+    def _build_bc(self, bc: dict):
         cls = self._component(bc["method"], "boundary")
         patches = bc.get("patches") or [bc.get("region", "all")]
         coupled = bc["method"] == "CoupledBC"
@@ -294,7 +294,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
 
     # -- ports ----------------------------------------
 
-    def _create_ports(self) -> None:
+    def _create_ports(self):
         sol = self._cfg.get("SOLVER") or {}
         ts = TimeSpan(start=self._start, step=self._dt)
         centers = self._mesh.cell_centers()[0]
@@ -312,7 +312,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
             )
             self._expose_ports[field] = port
 
-    def _publish_exposed(self) -> None:
+    def _publish_exposed(self):
         for field, port in self._expose_ports.items():
             values = self._backend.to_host(self._solver.get_solution(field).values)
             port.set_values(values)
@@ -330,14 +330,14 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
                 errs.append(f"{self._id}: required input '{port.id}' is not connected.")
         return errs
 
-    def _do_update(self, inquirers: list | None = None) -> None:
+    def _do_update(self, inquirers: list = None):
         status = self._solver.step(self._dt)
         self._cursor += 1
         self._publish_exposed()
         if status.finished or self.current_time >= self._end - 1e-12:
             self.mark_done()
 
-    def _do_finish(self) -> None:
+    def _do_finish(self):
         self._cursor = 0
 
     # -- ISnapshottable ---------------------------------
@@ -349,7 +349,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
             "ports": {p.id: p._state() for p in self._outputs},
         }
 
-    def restore(self, snapshot: dict) -> None:
+    def restore(self, snapshot: dict):
         self._cursor = int(snapshot["cursor"])
         self._solver.restore(snapshot["solver"])
         for p in self._outputs:
@@ -384,17 +384,17 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
     def parameter_metas(self) -> list:
         return self._estimable().parameter_metas()
 
-    def get_parameters(self, names: list | None = None):
+    def get_parameters(self, names: list = None):
         return self._estimable().get_parameters(names)
 
-    def set_parameters(self, values: ArrayLike, names: list | None = None) -> None:
+    def set_parameters(self, values: ArrayLike, names: list = None):
         self._estimable().set_parameters(values, names)
 
     # Legacy aliases kept for EstimatorBuilder call sites.
     def param_names(self) -> list:
         return self._estimable().parameter_names()
 
-    def reset(self) -> None:
+    def reset(self):
         self._solver.reset()
         self._cursor = 0
         self._publish_exposed()
@@ -408,10 +408,10 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
         except TypeError:
             return False
 
-    def train(self) -> None:
+    def train(self):
         self._solver.train()
 
-    def eval(self) -> None:
+    def eval(self):
         self._solver.eval()
 
     # -- diagnostics --------------------------------

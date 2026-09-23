@@ -34,7 +34,7 @@ except ImportError:  # pragma: no cover
 class TrajectoryObservationSet(IObservationSet):
     """Observation set: full-field trajectory (n_steps, n_cells)."""
 
-    def __init__(self, times: ArrayLike, fields: dict) -> None:
+    def __init__(self, times: ArrayLike, fields: dict):
         self._times = np.asarray(times, dtype="float64")
         self._fields = {k: np.asarray(v, dtype="float64") for k, v in fields.items()}
 
@@ -51,7 +51,7 @@ class TrajectoryObservationSet(IObservationSet):
 class TrajectoryMSELoss:
     """MSE between a predicted trajectory and observed fields."""
 
-    def __init__(self, variable: str) -> None:
+    def __init__(self, variable: str):
         self._var = variable
 
     def __call__(self, predicted: ArrayLike, observed: TrajectoryObservationSet):
@@ -67,7 +67,7 @@ class TrajectoryMSELoss:
 class TrajectoryRMSELoss:
     """RMSE variant of the trajectory loss."""
 
-    def __init__(self, variable: str) -> None:
+    def __init__(self, variable: str):
         self._mse = TrajectoryMSELoss(variable)
 
     def __call__(self, predicted: ArrayLike, observed: TrajectoryObservationSet):
@@ -97,7 +97,7 @@ class GradientTrainer(IEstimator):
         device: str = "cpu",
         val_fraction: float = 0.2,
         patience: int = 60,
-    ) -> None:
+    ):
         if isinstance(memory, str):
             memory = MemoryStrategy(memory)
         if memory != MemoryStrategy.FULL:
@@ -209,7 +209,7 @@ class GradientTrainer(IEstimator):
 class InMemoryArtifactStore:
     """Versioned in-memory store for parameters theta."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._store: dict = {}
 
     def resolve(self, ref: ModelRef) -> dict:

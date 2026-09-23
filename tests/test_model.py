@@ -25,7 +25,7 @@ def test_simulation():
     print("hyb.u head:", m.get_output("hyb.u").get_values()[:4].round(5))
 
 
-def test_coupling() -> None:
+def test_coupling():
     print(
         "=" * 60,
         "\n[2] coupling task: truth -> hyb left boundary (PULL + adapter)\n",
@@ -40,7 +40,7 @@ def test_coupling() -> None:
         print(f"  {m.id}: {m.get_last_error() or 'ok'}")
 
 
-def test_estimation() -> None:
+def test_estimation():
     print(
         "=" * 60,
         "\n[3] estimation task: train the neural correction operator\n",

@@ -20,7 +20,7 @@ from yunmeng.setting import logger, settings
 class ConfigError(ValueError):
     """Configuration error with a yaml path for orientation."""
 
-    def __init__(self, path: str, message: str) -> None:
+    def __init__(self, path: str, message: str):
         super().__init__(f"[{path}] {message}")
         self.path = path
 
@@ -30,9 +30,9 @@ class Orchestrator:
 
     TASKS = ("simulation", "estimation")
 
-    def __init__(self, configs: argparse.Namespace) -> None:
+    def __init__(self, configs: argparse.Namespace):
         self._config_file = configs.config
-        self._root: str | None = None
+        self._root: str = None
         self._config: dict = {}
         self._load()
 
@@ -59,7 +59,7 @@ class Orchestrator:
         return self._config.get("MODELS", {})
 
     @property
-    def estimation(self) -> dict | None:
+    def estimation(self) -> dict:
         return self._config.get("ESTIMATION")
 
     def summary(self) -> str:
@@ -72,7 +72,7 @@ class Orchestrator:
 
     # -- phase 1: load ----------------------------------
 
-    def _load(self) -> None:
+    def _load(self):
         if not os.path.exists(self._config_file):
             raise ConfigError(self._config_file, "config file does not exist.")
         self._root = os.path.dirname(os.path.abspath(self._config_file))
@@ -95,7 +95,7 @@ class Orchestrator:
 
     # -- phase 2: structure -------------------------------
 
-    def _check_structure(self, raw: dict) -> None:
+    def _check_structure(self, raw: dict):
         for field in ("MODELS", "LINKS", "SCHEDULES"):
             if field not in raw:
                 raise ConfigError(field, f"missing required top-level section.")
@@ -103,7 +103,7 @@ class Orchestrator:
         if task not in self.TASKS:
             raise ConfigError("TASK", f"unknown task '{task}' (known: {self.TASKS}).")
 
-    def _check_task(self) -> None:
+    def _check_task(self):
         if self.task == "estimation":
             if not self._config.get("ESTIMATION"):
                 raise ConfigError(
@@ -116,7 +116,7 @@ class Orchestrator:
 
     # -- models -------------------------------------------
 
-    def _parse_models(self, configs: list) -> None:
+    def _parse_models(self, configs: list):
         models = {}
         for entry in configs:
             mid = entry.get("id")
@@ -167,20 +167,20 @@ class Orchestrator:
 
     # -- semantic checks -----------------------------------
 
-    def _check_temporal(self, mid: str, cfg: dict) -> None:
+    def _check_temporal(self, mid: str, cfg: dict):
         for f in ("start_time", "end_time", "time_step"):
             if f not in cfg:
                 raise ConfigError(f"MODELS.{mid}.TEMPORAL", f"misses '{f}'.")
         if float(cfg["time_step"]) <= 0:
             raise ConfigError(f"MODELS.{mid}.TEMPORAL.time_step", "must be > 0.")
 
-    def _check_spatial(self, mid: str, cfg: dict) -> None:
+    def _check_spatial(self, mid: str, cfg: dict):
         if "type" not in cfg:
             raise ConfigError(f"MODELS.{mid}.SPATIAL", "misses 'type'.")
         if not cfg.get("load_from") and "params" not in cfg:
             raise ConfigError(f"MODELS.{mid}.SPATIAL", "misses 'params'.")
 
-    def _check_datas(self, mid: str, cfg: dict) -> None:
+    def _check_datas(self, mid: str, cfg: dict):
         for kind in ("timeseries", "curves", "patterns"):
             for item in cfg.get(kind) or []:
                 if "id" not in item:
@@ -195,7 +195,7 @@ class Orchestrator:
                         "needs xs/ys, an expr, or a from source.",
                     )
 
-    def _check_solver(self, mid: str, cfg: dict) -> None:
+    def _check_solver(self, mid: str, cfg: dict):
         if not ({"id", "type"} <= cfg.keys()):
             raise ConfigError(f"MODELS.{mid}.SOLVER", "misses 'id' or 'type'.")
         for ic in cfg.get("ics") or []:
@@ -218,12 +218,12 @@ class Orchestrator:
                     f"MODELS.{mid}.SOLVER.coupled_bcs", f"{cbc} misses id/field."
                 )
 
-    def _check_operators(self, mid: str, cfg: list) -> None:
+    def _check_operators(self, mid: str, cfg: list):
         for op in cfg:
             if "method" not in op:
                 raise ConfigError(f"MODELS.{mid}.OPERATORS", f"{op} misses 'method'.")
 
-    def _check_io(self, mid: str, ios: dict) -> None:
+    def _check_io(self, mid: str, ios: dict):
         for direction in ("inputs", "outputs"):
             for it in ios[direction]:
                 if "id" not in it:
@@ -233,7 +233,7 @@ class Orchestrator:
 
     # -- links ---------------------------------------------
 
-    def _parse_links(self, configs: list) -> None:
+    def _parse_links(self, configs: list):
         links = []
         for link in configs:
             lid = link.get("id")

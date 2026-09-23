@@ -20,7 +20,7 @@ class StructuredGrid:
         origin: tuple[float, ...],
         upper: tuple[float, ...],
         shape: tuple[int, ...],
-    ) -> None:
+    ):
         if not (len(origin) == len(upper) == len(shape)):
             raise ValueError("origin/upper/shape must have the same length.")
         if any(n < 1 for n in shape):
@@ -84,7 +84,7 @@ class StructuredGrid:
     def regions(self) -> list[Region]:
         return list(self._regions.values())
 
-    def add_region(self, region: Region) -> None:
+    def add_region(self, region: Region):
         self._regions[region.name] = region
 
     # ---------------------------------------------------------- #
@@ -159,7 +159,7 @@ class StructuredGrid:
 class StructuredGrid1D(StructuredGrid):
     """Uniform cell-centered 1D grid on [x0, x1] with nx cells."""
 
-    def __init__(self, x0: float, x1: float, nx: int) -> None:
+    def __init__(self, x0: float, x1: float, nx: int):
         super().__init__((x0,), (x1,), (nx,))
 
 
@@ -175,7 +175,7 @@ class StructuredGrid2D(StructuredGrid):
         upper_right: tuple[float, float] = (1.0, 1.0),
         nx: int = 32,
         ny: int = 32,
-    ) -> None:
+    ):
         super().__init__(lower_left, upper_right, (nx, ny))
 
 
@@ -192,5 +192,5 @@ class StructuredGrid3D(StructuredGrid):
         nx: int = 16,
         ny: int = 16,
         nz: int = 16,
-    ) -> None:
+    ):
         super().__init__(lower_left, upper_right, (nx, ny, nz))

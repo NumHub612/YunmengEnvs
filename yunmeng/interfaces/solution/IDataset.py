@@ -23,7 +23,7 @@ class TimeSpan:
     """Time span attached to an exchange item."""
 
     start: float = 0.0
-    end: float | None = None  # None = open-ended
+    end: float = None  # None = open-ended
     step: float = 3600.0
     timezone_offset: float = 0.0
 
