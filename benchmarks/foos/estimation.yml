@@ -1,0 +1,39 @@
+# ===============================================================================
+# 估计任务：以 truth 模型的前 50 步为观测，训练 hyb 模型的神经修正算子
+# ===============================================================================
+TASK: estimation
+
+MODELS:
+  - id: truth
+    from: "./truth_model.yml"
+  - id: hyb
+    from: "./hyb_train_model.yml"
+
+LINKS: null
+
+ESTIMATION:
+  target: hyb
+  estimator:
+    name: GradientTrainer
+    params:
+      lr: 0.003
+      epochs: 60
+      n_steps: 50
+      val_fraction: 0.2
+      patience: 30
+  loss:
+    name: mse
+    params:
+      variable: u
+  data:
+    generated_by: truth
+    field: u
+    n_steps: 50
+    dt: 0.01
+
+SCHEDULES:
+  timeout: 600
+
+ENVS:
+  log_level: INFO
+  device: cpu

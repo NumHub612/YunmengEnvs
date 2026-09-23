@@ -58,7 +58,7 @@ class HybridSolver(BaseSolver):
         nu: float = 0.02,
         hidden: int = 32,
     ):
-        if operators is None:
+        if not operators:
             operators = [
                 FdmDiffusionOperator(config.solution_field, nu),
                 NeuralCorrectionOperator(

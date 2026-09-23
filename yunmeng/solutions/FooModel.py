@@ -394,7 +394,7 @@ class ComputationalModel(BaseModel, IEstimable, ISnapshottable):
     def param_names(self) -> list:
         return self._estimable().parameter_names()
 
-    def reset_run(self) -> None:
+    def reset(self) -> None:
         self._solver.reset()
         self._cursor = 0
         self._publish_exposed()

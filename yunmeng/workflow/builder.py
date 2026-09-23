@@ -247,7 +247,7 @@ class EstimatorBuilder(SchedulerBuilder):
                 raise ValueError(f"Observation generator '{ref_id}' not in MODELS.")
             ref = self._instances[ref_id]
             n = int(cfg.get("n_steps"))
-            ref.reset_run()
+            ref.reset()
             traj = np.asarray(ref.run(n), dtype="float64")
             field = cfg.get("field", "u")
             return TrajectoryObservationSet(

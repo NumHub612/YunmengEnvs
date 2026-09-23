@@ -15,7 +15,7 @@ SPATIAL:
   params:
     x0: 0.0
     x1: 1.0
-    nx: 32
+    nx: 33
   patches:                           # 边界面注册（1D 内建 left/right，可在此覆盖或追加）
     - {id: left,  etype: face, ids: [0]}
     - {id: right, etype: face, ids: [32]}

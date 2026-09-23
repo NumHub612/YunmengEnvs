@@ -38,3 +38,23 @@ def test_coupling() -> None:
     sched.run()
     for m in sched.models:
         print(f"  {m.id}: {m.get_last_error() or 'ok'}")
+
+
+def test_estimation() -> None:
+    print(
+        "=" * 60,
+        "\n[3] estimation task: train the neural correction operator\n",
+        "=" * 60,
+        sep="",
+    )
+    estimator, target, data, loss, names = EstimatorBuilder().build(
+        run_config("estimation.yml")
+    )
+    pre = estimator.evaluate(target, data, n_steps=50)
+    result = estimator.fit(target, data, loss)
+    post = estimator.evaluate(target, data, n_steps=50)
+    print(
+        f"  rmse pre={pre['rmse']:.5f} -> post={post['rmse']:.5f} "
+        f"({pre['rmse'] / post['rmse']:.1f}x better)"
+    )
+    print(" ", result.message)
