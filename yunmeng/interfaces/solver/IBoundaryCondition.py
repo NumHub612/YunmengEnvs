@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
+from typing import Protocol, runtime_checkable
+from enum import Enum
 
 from yunmeng.interfaces.supports import Region
 from yunmeng.interfaces.types import ArrayLike
@@ -16,6 +18,19 @@ from yunmeng.interfaces.types import ArrayLike
 # ---------------------------------------------------
 # region Boundary values
 # ---------------------------------------------------
+
+
+class BoundaryChannel(Enum):
+    """How prescribed values enter the system."""
+
+    CONSTRAINTS = "constraints"
+    """Dirichlet class: scatter-WRITE values into the solution."""
+
+    FLUXES = "fluxes"
+    """Neumann class: scatter-ADD flux contributions."""
+
+    MIXED = "mixed"
+    """Robin class: coefficient pairs (reserved)."""
 
 
 @dataclass
@@ -26,14 +41,22 @@ class BoundaryValues:
 
     time: float
 
-    #: var -> (elem_ids, prescribed values); scatter-write (Dirichlet)
+    #: var -> (field, [element_ids, prescribed values]); scatter-write (Dirichlet)
     constraints: dict[str, tuple[ArrayLike, ArrayLike]] = dc_field(default_factory=dict)
 
-    #: var -> (elem_ids, flux contributions); scatter-add (Neumann)
+    #: var -> (field, [element_ids, flux contributions]); scatter-add (Neumann)
     fluxes: dict[str, tuple[ArrayLike, ArrayLike]] = dc_field(default_factory=dict)
 
-    #: var -> (elem_ids, coeffs); Robin/mixed, reserved
+    #: var -> (field, [element_ids, coeffs]); Robin/mixed, reserved
     mixed: dict[str, tuple[ArrayLike, ArrayLike]] = dc_field(default_factory=dict)
+
+    def segment(self, channel: BoundaryChannel) -> dict:
+        """The per-variable dict for one channel."""
+        return {
+            BoundaryChannel.CONSTRAINTS: self.constraints,
+            BoundaryChannel.FLUXES: self.fluxes,
+            BoundaryChannel.MIXED: self.mixed,
+        }[channel]
 
 
 # ---------------------------------------------------
@@ -66,14 +89,19 @@ class IBoundaryCondition(ABC):
         """The mesh region to which this BC applies."""
         ...
 
+    @property
     @abstractmethod
-    def evaluate(self, t: float) -> tuple[str, ArrayLike]:
+    def channel(self) -> BoundaryChannel:
+        """The channel to which this BC applies."""
+        ...
+
+    @abstractmethod
+    def evaluate(self, t: float) -> ArrayLike:
         """Evaluate the rule at time t.
 
-        Returns (channel, values) where
-        channel is one of "constraints"|"fluxes"|"mixed"
-        and values are backend
-        arrays aligned with region.element_ids.
+        Returns values ONLY, in the exact order of
+        region.element_ids (invariant 4). Backend array,
+        graph-carrying allowed.
         """
         ...
 
@@ -83,16 +111,24 @@ class IBoundaryCondition(ABC):
 # ---------------------------------------------------
 
 
-class IBoundaryProvider(ABC):
-    """Per-instant boundary evaluator, held by model/solver."""
+@runtime_checkable
+class IBoundaryProvider(Protocol):
+    """Per-instant boundary evaluator, held by model/solver.
+
+    Merge-time validation: per-variable face_ids must be
+    pairwise disjoint — overlapping segments are errors;
+    uncovered faces mean natural boundary
+    (zero normal gradient), which is a default,
+    not an error.
+    """
+
+    @property
+    @abstractmethod
+    def rules(self) -> list[IBoundaryCondition]:
+        """The list of boundary conditions."""
+        ...
 
     @abstractmethod
     def evaluate(self, t: float) -> BoundaryValues:
-        """Merge all (region, variable, rule) bindings at time t.
-
-        Merge-time validation: per-variable face_ids must
-        be pairwise disjoint — overlapping segments are errors;
-        uncovered faces mean natural boundary
-        (zero normal gradient), which is a default, not an error.
-        """
+        """Merge all boundary bindings at time t."""
         ...

@@ -1,9 +1,10 @@
 from yunmeng.interfaces.solver.IBoundaryCondition import (
     IBoundaryCondition,
     BoundaryValues,
+    BoundaryChannel,
     IBoundaryProvider,
 )
-from yunmeng.interfaces.solver.IEquation import EqSymbol, IEquation
+from yunmeng.interfaces.solver.IEquation import EqTerm, IEquation
 from yunmeng.interfaces.solver.IInitCondition import IInitialCondition
 from yunmeng.interfaces.solver.IOperator import (
     OperatorKinds,
@@ -17,4 +18,10 @@ from yunmeng.interfaces.solver.ISolver import (
     SolverConfig,
     ISolver,
 )
-from yunmeng.interfaces.solver.ISolverCallback import ISolverCallback
+from yunmeng.interfaces.solver.ISolverCallback import (
+    ISolverCallback,
+    IMonitor,
+    MonitorSeverity,
+    MonitorEvent,
+    MonitorAction,
+)

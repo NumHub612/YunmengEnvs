@@ -79,7 +79,13 @@ class IBackend(Protocol):
 
     def einsum(self, equation: str, *operands: ArrayLike) -> ArrayLike: ...
 
+    def stack(self, arrays: Sequence[ArrayLike], axis: int = 0) -> ArrayLike: ...
+
     def scatter_add(
+        self, target: ArrayLike, indices: ArrayLike, values: ArrayLike
+    ) -> ArrayLike: ...
+
+    def scatter_write(
         self, target: ArrayLike, indices: ArrayLike, values: ArrayLike
     ) -> ArrayLike: ...
 

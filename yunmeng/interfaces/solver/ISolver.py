@@ -54,7 +54,7 @@ from yunmeng.interfaces.solver.IInitCondition import IInitialCondition
 from yunmeng.interfaces.solver.IOperator import IOperator
 from yunmeng.interfaces.solver.IEquation import IEquation
 from yunmeng.interfaces.solver.ISolverCallback import ISolverCallback
-from yunmeng.interfaces.types import MeshDimension, RunMode
+from yunmeng.interfaces.types import MeshDimension, ElementType, RunMode
 
 # ---------------------------------------------------
 # region Solver meta
@@ -126,7 +126,7 @@ class ISolver(ABC):
         1. Construction: class-specific, constrained at the
            factory/registry layer (get_name/get_config_class/get_meta),
            NEVER by this protocol.
-        2. Assembly: add_*, remove_*, clear_* (repeatable)
+        2. Assembly: add_*, remove_* (repeatable)
         3. Initialize: initialize(...) (once per run)
         4. Runtime: step(dt) (repeatedly)
     """
@@ -188,7 +188,7 @@ class ISolver(ABC):
     # -- problem binding ----------------------------
 
     @abstractmethod
-    def set_problems(self, eqs: list["IEquation"]):
+    def set_problems(self, eqs: list[IEquation]):
         """Set the PDE problems to be solved."""
         ...
 
@@ -200,7 +200,7 @@ class ISolver(ABC):
     # -- assembly -----------------------------------
 
     @abstractmethod
-    def add_callback(self, cb: "ISolverCallback"):
+    def add_callback(self, cb: ISolverCallback):
         """Add a callback."""
         ...
 

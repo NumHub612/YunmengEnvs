@@ -3,6 +3,8 @@ try:
 except ImportError:
     from importlib_metadata import version, PackageNotFoundError
 
+from yunmeng import solutions, solvers, operators  # noqa: trigger registration
+
 try:
     __version__ = version("yunmeng")
 except PackageNotFoundError:

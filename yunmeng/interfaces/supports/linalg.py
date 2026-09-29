@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from yunmeng.interfaces.types import ArrayLike, DeviceType
+from yunmeng.interfaces.supports.backend import IBackend
 from yunmeng.interfaces.supports.field import IField
 
 
@@ -62,8 +63,8 @@ class IMatrix(Protocol):
     # region Properties
     # -----------------------------------------------
     @property
-    def backend(self) -> str:
-        """Backend tag of the underlying storage: "numpy" | "torch"."""
+    def backend(self) -> IBackend:
+        """Backend used."""
         raise NotImplementedError()
 
     @property
