@@ -2,14 +2,14 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-description
+Coupled boundary condition.
 """
 
 from __future__ import annotations
 import numpy as np
 
 from yunmeng.interfaces.solution import IInput
-from yunmeng.interfaces.solver import IBoundaryCondition
+from yunmeng.interfaces.solver import IBoundaryCondition, BoundaryChannel
 from yunmeng.interfaces.supports import Region
 from yunmeng.interfaces.types import ArrayLike
 from yunmeng.numerics.algos import ym_register
@@ -26,21 +26,6 @@ class CoupledBoundary(IBoundaryCondition):
     value for the whole step and duplicate the provider's assembly logic.
     """
 
-    def __init__(
-        self,
-        bc_id: str,
-        target_field: str,
-        region: Region,
-        port: IInput,
-        channel: str = "constraints",
-    ):
-        self._id = bc_id
-        self._field = target_field
-        self._region = region
-        self._port = port
-        self._channel = channel
-        self._tag = "coupled"
-
     @classmethod
     def get_name(cls) -> str:
         return "CoupledBC"
@@ -50,18 +35,27 @@ class CoupledBoundary(IBoundaryCondition):
         return self._id
 
     @property
-    def target_field(self) -> str:
-        return self._field
+    def channel(self) -> BoundaryChannel:
+        return BoundaryChannel.CONSTRAINTS
 
     @property
-    def semantic_tag(self) -> str:
-        return self._tag
+    def target_field(self) -> str:
+        return self._field
 
     @property
     def region(self) -> Region:
         return self._region
 
-    def evaluate(self, t: float) -> tuple:
+    def __init__(self, bc_id: str, target_field: str, region: Region, port: IInput):
+        if not region or not region.element_ids:
+            raise ValueError(f"BC {bc_id} requires a valid region.")
+
+        self._id = bc_id
+        self._field = target_field
+        self._region = region
+        self._port = port
+
+    def evaluate(self, t: float) -> ArrayLike:
         frame = np.asarray(self._port.pull(), dtype=float).flatten()
         n = len(self._region.element_ids)
         if frame.size == 1:
@@ -70,7 +64,7 @@ class CoupledBoundary(IBoundaryCondition):
             vals = frame
         else:
             raise ValueError(
-                f"CoupledBoundary '{self._id}': provider frame has {frame.size} "
+                f"CoupledBoundary {self._id}: provider frame has {frame.size} "
                 f"values, region has {n} elements."
             )
-        return self._channel, vals
+        return vals

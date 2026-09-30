@@ -115,9 +115,9 @@ class IBoundaryCondition(ABC):
 class IBoundaryProvider(Protocol):
     """Per-instant boundary evaluator, held by model/solver.
 
-    Merge-time validation: per-variable face_ids must be
-    pairwise disjoint — overlapping segments are errors;
-    uncovered faces mean natural boundary
+    Merge validation: per-variable boundary element ids must
+    be pairwise disjoint — overlapping segments are errors;
+    uncovered boundary mean natural boundary
     (zero normal gradient), which is a default,
     not an error.
     """

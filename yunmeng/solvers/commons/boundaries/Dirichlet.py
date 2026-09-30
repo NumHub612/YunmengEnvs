@@ -2,36 +2,23 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-description
+Dirichlet boundary condition specifed the boundary value directly.
 """
 
 from __future__ import annotations
-from typing import Callable
 import numpy as np
 
-from yunmeng.interfaces.solver import IBoundaryCondition
+from yunmeng.interfaces.solver import IBoundaryCondition, BoundaryChannel
 from yunmeng.interfaces.supports import Region
 from yunmeng.interfaces.types import ArrayLike
+
 from yunmeng.numerics.algos import ym_register
+from yunmeng.numerics.fields import Timeseries
 
 
 @ym_register("boundary")
 class DirichletBC(IBoundaryCondition):
     """Constant or time-dependent prescribed value on a mesh region."""
-
-    def __init__(
-        self,
-        bc_id: str,
-        target_field: str,
-        region: Region,
-        value: float | Callable[[float], float],
-        tag: str = "open",
-    ):
-        self._id = bc_id
-        self._field = target_field
-        self._region = region
-        self._value = value
-        self._tag = tag
 
     @classmethod
     def get_name(cls) -> str:
@@ -42,8 +29,8 @@ class DirichletBC(IBoundaryCondition):
         return self._id
 
     @property
-    def semantic_tag(self) -> str:
-        return self._tag
+    def channel(self) -> BoundaryChannel:
+        return BoundaryChannel.CONSTRAINTS
 
     @property
     def target_field(self) -> str:
@@ -53,6 +40,32 @@ class DirichletBC(IBoundaryCondition):
     def region(self) -> Region:
         return self._region
 
-    def evaluate(self, t: float) -> tuple[str, ArrayLike]:
-        value = self._value(t) if callable(self._value) else self._value
-        return "constraints", np.full(len(self._region.element_ids), float(value))
+    def __init__(
+        self,
+        bc_id: str,
+        target_field: str,
+        region: Region,
+        value: float | ArrayLike | Timeseries,
+    ):
+        if not region or not region.element_ids:
+            raise ValueError(f"BC {bc_id} requires a valid region.")
+
+        if isinstance(value, ArrayLike):
+            if len(value) != len(region.element_ids):
+                raise ValueError(f"BC {bc_id} value length doesn't match region.")
+
+        self._id = bc_id
+        self._field = target_field
+        self._region = region
+        self._value = value
+        self._n_elements = len(region.element_ids)
+
+    def evaluate(self, t: float) -> ArrayLike:
+        if isinstance(self._value, ArrayLike):
+            return self._value
+
+        if isinstance(self._value, Timeseries):
+            value = self._value(t)
+        else:
+            value = self._value
+        return np.full(self._n_elements, value)
