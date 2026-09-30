@@ -12,6 +12,7 @@ import scipy.sparse as sp
 
 from yunmeng.interfaces.types import ArrayLike, DeviceType
 from yunmeng.interfaces.supports import IMatrix
+from yunmeng.numerics.fields import TorchBackend
 
 try:
     import torch
@@ -30,7 +31,7 @@ class TorchMatrix:
     torch.sparse support in the installed torch version.
     """
 
-    backend = "torch"
+    backend = TorchBackend
 
     def __init__(self, tensor: "torch.Tensor"):
         self._data = tensor

@@ -12,12 +12,13 @@ import scipy.sparse as sp
 
 from yunmeng.interfaces.types import ArrayLike, DeviceType
 from yunmeng.interfaces.supports import IMatrix
+from yunmeng.numerics.fields import NumpyBackend
 
 
 class NumpyMatrix:
     """Scipy-sparse backed matrix. EVAL-only (no autograd)."""
 
-    backend = "numpy"
+    backend = NumpyBackend
 
     def __init__(self, sparse_matrix: sp.spmatrix):
         if not sp.issparse(sparse_matrix):
