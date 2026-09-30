@@ -66,8 +66,8 @@ class ListBoundaryProvider(IBoundaryProvider):
             probe = np.asarray(bc.evaluate(0.0)).reshape(-1)
             if len(probe) != n:
                 raise ValueError(
-                    f"BC '{bc.id}': rule produced {len(probe)} values, "
-                    f"region '{bc.region.name}' has {n} elements."
+                    f"BC {bc.id} rule produced {len(probe)} values, "
+                    f"doesn't match region with {n} elements."
                 )
 
             key = (bc.channel, bc.target_field)
@@ -75,7 +75,7 @@ class ListBoundaryProvider(IBoundaryProvider):
 
         buckets = []
         for (channel, field), entries in groups.items():
-            ids = np.concatenate([entry_ids for _, entry_ids in entries])
+            ids = np.concatenate([_ids for _, _ids in entries])
             if len(np.unique(ids)) != len(ids):
                 raise ValueError(
                     f"overlapping BC segments for field {field!r} "

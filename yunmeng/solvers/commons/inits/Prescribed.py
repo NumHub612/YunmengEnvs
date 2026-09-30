@@ -12,22 +12,12 @@ from yunmeng.numerics.algos import ym_register
 
 
 @ym_register("init")
-class HotstartIC(IInitialCondition):
-    """Hotstart initial condition directly specified the field value."""
-
-    def __init__(
-        self,
-        ic_id: str,
-        target_field: str,
-        value: float | ArrayLike | IField,
-    ):
-        self._id = ic_id
-        self._field = target_field
-        self._value = value
+class PrescribedIC(IInitialCondition):
+    """Initial condition directly specified the field value."""
 
     @classmethod
     def get_name(cls) -> str:
-        return "HotstartIC"
+        return "PrescribedIC"
 
     @property
     def id(self) -> str:
@@ -36,6 +26,13 @@ class HotstartIC(IInitialCondition):
     @property
     def target_field(self) -> str:
         return self._field
+
+    def __init__(
+        self, ic_id: str, target_field: str, value: float | ArrayLike | IField
+    ):
+        self._id = ic_id
+        self._field = target_field
+        self._value = value
 
     def apply(self, field: IField):
         if field.meta.name != self._field:

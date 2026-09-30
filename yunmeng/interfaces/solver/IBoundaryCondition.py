@@ -3,6 +3,32 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Boundary condition protocols.
+
+Boundary conditions are the solver layer's PRESCRIBED-VALUE interface:
+rules that fix what happens on named mesh regions as a function of
+time alone. They live inside the solver's step pipeline, so boundary
+logic stays OUT of operators.
+
+Design invariants of the boundary layer:
+
+1. Channel is APPLICATION SEMANTICS, closed and complete. For
+   prescribed-value boundaries (rules depending on t only), linear PDE
+   theory admits exactly three ways values enter the system:
+   CONSTRAINTS (Dirichlet, scatter-write), FLUXES (Neumann,
+   scatter-add), MIXED (Robin, coefficient pairs). The set is closed —
+   use the BoundaryChannel enum, not strings.
+
+2. Channel is orthogonal to VALUE SOURCE.Sources are construction-time
+   choices; channels are type-level statics.
+
+3. Solution-dependent boundaries do NOT belong here. Weirs, gates,
+   rating curves — rules whose value depends on the current solution —
+   must be assembled as structure.* operators (implicit path).
+
+4. Positional alignment. evaluate() returns values ONLY, in the exact
+   order of region.element_ids. The provider validates shape ONCE at
+   bind time and checks per-(channel, field) segments are pairwise
+   disjoint.
 """
 
 from __future__ import annotations
