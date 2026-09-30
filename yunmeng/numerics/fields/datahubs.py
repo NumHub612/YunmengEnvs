@@ -116,8 +116,8 @@ class DataHub:
     # -- fields ---------------------------------------
 
     def register_field(self, field: Field):
-        """Register a field with the DataHub."""
-        if self._mesh is not None and not isinstance(field, GridField):
+        """Register a field."""
+        if self._mesh and not isinstance(field, GridField):
             # auto-wrap scalar fields as grid fields
             field = GridField(field.meta, field.values, self._mesh)
         self._fields[field.meta.name] = field
@@ -125,7 +125,7 @@ class DataHub:
 
     def get_field(self, name: str) -> IField:
         if name not in self._fields:
-            raise KeyError(f"field {name!r} not registered in DataHub")
+            raise KeyError(f"field {name!r} not registered")
         return self._fields[name]
 
     def field_names(self) -> list[str]:
@@ -134,26 +134,37 @@ class DataHub:
     def touch(self, name: str):
         """Bump a field's version (solver calls after writing values);
         cascade-invalidates dependent cached products."""
-        self._versions[name] = self._versions.get(name, 0) + 1  # bump version
+        # bump version
+        self._versions[name] = self._versions.get(name, 0) + 1
+        # cascade-invalidates
         victims = [
             k
             for k, e in self._cache.items()
             if any(self._versions.get(f, 0) != v for f, v in e.versions.items())
-        ]  # cascade-invalidates
+        ]
+        # remove stale cache entries
         for k in victims:
-            # cache entry is stale, remove it
             del self._cache[k]
 
     # -- products (history, EVAL only) --------------
 
     def publish(self, product: str, value: IField, t: float):
+        """Publish a new sample for a product (solver calls
+        after each step)."""
+        # ring buffer for time history
         dp, samples = self._products.get(product, (None, []))
         if dp is None:
-            dp = DataProduct(name=product, loc=value.meta.loc, dtype=value.meta.dtype)
+            dp = DataProduct(
+                name=product,
+                loc=value.meta.loc,
+                dtype=value.meta.dtype,
+            )
         samples.append(Sample(value.values, t, len(samples)))
 
-        if self._mode != RunMode.TRAIN:  # only EVAL mode keeps history
-            samples = samples[-self._levels :]  # EVAL: ring for time_order
+        # only EVAL mode keeps history
+        if self._mode != RunMode.TRAIN:
+            # EVAL: ring for time_order
+            samples = samples[-self._levels :]
         self._products[product] = (dp, samples)
 
     def get(self, product: str, time_order: int = 0) -> Sample:
@@ -161,7 +172,7 @@ class DataHub:
             raise KeyError(f"product {product!r} not published")
         samples = self._products[product][1]
 
-        idx = -1 - time_order  # time_order=0 is the most recent
+        idx = -1 - time_order  # order=0 is the most recent
         if len(samples) < -idx:
             raise IndexError(f"product {product!r} has {len(samples)} samples")
         return samples[idx]
@@ -176,17 +187,17 @@ class DataHub:
     # -- computed-entry (cache, EVAL only) ----------
 
     def get_computed(self, product: str) -> Sample:
-        """Return a fresh cached product, or None. Always None in TRAIN."""
+        """Return a fresh cached product. Always None in TRAIN."""
         if self._mode == RunMode.TRAIN:
             return None
-
         entry = self._cache.get(product)
         if entry is None:
             return None
+        # cache entry is stale, remove it
         if entry.is_stale(self._versions):
-            # cache entry is stale, remove it
             del self._cache[product]
             return None
+
         return entry.sample
 
     def put_computed(self, product: str, sample: Sample):
