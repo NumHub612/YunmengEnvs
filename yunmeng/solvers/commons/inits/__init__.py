@@ -1,2 +1,2 @@
 from yunmeng.interfaces.solver import IInitialCondition
-from yunmeng.solvers.commons.inits.Gaussian import GaussianIC
+from yunmeng.solvers.commons.inits.Hotstart import HotstartIC
