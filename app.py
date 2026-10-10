@@ -7,10 +7,8 @@ YunmengEnvs entrence.
 
 import yunmeng as ym
 from yunmeng.workflow.parser import Orchestrator
-from yunmeng.workflow.builder import SchedulerBuilder
-from yunmeng.setting import print_logo
-from yunmeng.solutions import ym_models
-from yunmeng.setting import logger
+from yunmeng.workflow.builder import SchedulerBuilder, EstimatorBuilder
+from yunmeng.setting import print_logo, logger
 
 import datetime
 import argparse
@@ -30,7 +28,7 @@ class YunmengEnvsApp:
 
         try:
             self._configer = Orchestrator(self._parser.parse_args())
-            builder = SchedulerBuilder(ym_models)
+            builder = SchedulerBuilder()
             self._scheduler = builder.build(self._configer)
             self._scheduler.initialize()
         except Exception as e:

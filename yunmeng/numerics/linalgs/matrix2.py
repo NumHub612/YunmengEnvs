@@ -31,8 +31,6 @@ class TorchMatrix:
     torch.sparse support in the installed torch version.
     """
 
-    backend = TorchBackend
-
     def __init__(self, tensor: "torch.Tensor"):
         self._data = tensor
         self._nnz_cache = None
@@ -127,6 +125,10 @@ class TorchMatrix:
         )
 
     # -- properties ----------------------------
+
+    @property
+    def btype(self) -> str:
+        return "torch"
 
     @property
     def data(self) -> "torch.Tensor":

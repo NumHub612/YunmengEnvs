@@ -53,15 +53,6 @@ from yunmeng.numerics.linalgs import LinearEqs, NumpyMatrix, TorchMatrix
 from yunmeng.setting import logger
 
 
-@dataclass
-class BaseSolverConfig(SolverConfig):
-    """Configuration shared."""
-
-    start_time: float | str = 0.0
-    end_time: float | str = 0.0
-    dt: float = 0.01
-
-
 class BaseSolver(ISolver, IEstimable, IDifferentiable):
     """Shared one-dimensional operator-stepping implementation."""
 
@@ -137,7 +128,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
     # region assembly -------------------------------
 
     def add_callback(self, cb: ISolverCallback):
-        if self._index(self._cbs, cb):
+        if self._index(self._cbs, cb.id):
             raise RuntimeError(f"Callback {cb.id} already exists.")
         self._cbs.append(cb)
 
@@ -147,7 +138,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
             del self._cbs[index]
 
     def add_op(self, op: IOperator):
-        if self._index(self._ops, op):
+        if self._index(self._ops, op.id):
             raise RuntimeError(f"Operator {op.id} already exists.")
         self._ops.append(op)
 
@@ -157,7 +148,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
             del self._ops[index]
 
     def add_ic(self, ic: IInitialCondition):
-        if self._index(self._ics, ic):
+        if self._index(self._ics, ic.id):
             raise RuntimeError(f"IC {ic.id} already exists.")
         self._ics.append(ic)
 
@@ -176,11 +167,11 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
         if index:
             del self._bcs[index]
 
-    def _index(self, sets: list, obj: object) -> int:
+    def _index(self, sets: list, oid: str) -> int:
         ids = [s.id for s in sets]
-        if obj.id not in ids:
+        if oid not in ids:
             return None
-        return ids.index(obj.id)
+        return ids.index(oid)
 
     # region lifecycle ------------------------------
 

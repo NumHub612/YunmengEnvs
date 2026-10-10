@@ -189,7 +189,7 @@ def select_engine(
         algorithm: "auto" chooses by backend/sparsity/size; "direct",
             "cg" (torch only), "lu" (numpy only) force a family.
     """
-    backend = matrix.backend
+    backend = matrix.btype
     is_sparse = _is_sparse(matrix)
 
     if algorithm == "auto":

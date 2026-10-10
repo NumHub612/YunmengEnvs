@@ -22,14 +22,13 @@ from yunmeng.interfaces.supports import Region, IGrid, IBackend, IGeomAssistant
 from yunmeng.interfaces.types import ArrayLike, ElementType, MeshDimension
 
 from yunmeng.numerics.algos import get_class, kind_of, ym_register
-from yunmeng.numerics.fields import get_backend
+from yunmeng.numerics.fields import get_backend, Timeseries
 from yunmeng.numerics.grids import ym_meshes
 from yunmeng.setting import logger, settings
 
 from yunmeng.solutions.commons.models import BaseInput, BaseModel
 from yunmeng.solutions.commons.dataset import (
     MeshCellElementSet,
-    Timeseries,
     quantity_of,
 )
 

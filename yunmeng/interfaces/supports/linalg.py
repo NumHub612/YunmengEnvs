@@ -63,7 +63,7 @@ class IMatrix(Protocol):
     # region Properties
     # -----------------------------------------------
     @property
-    def backend(self) -> IBackend:
+    def btype(self) -> str:
         """Backend used."""
         raise NotImplementedError()
 

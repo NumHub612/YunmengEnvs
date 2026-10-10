@@ -30,8 +30,8 @@ def assemble_matrix(equations: list[ILinearEqs], rhs: ArrayLike):
             rhs = eqs.rhs.values
         else:
             size = matrix.shape[0]
-            identity = get_matrix_factory(matrix.backend).identity(
-                size, device=matrix.backend.device
+            identity = get_matrix_factory(matrix.btype).identity(
+                size, device=matrix.btype.device
             )
             matrix = matrix + eqs.matrix - identity
             rhs = rhs + eqs.rhs.values - rhs

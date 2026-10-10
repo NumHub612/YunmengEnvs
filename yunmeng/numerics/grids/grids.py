@@ -154,9 +154,9 @@ class StructuredGrid:
 
 
 # -----------------------------------------------
-# region StructuredGrid1D
+# region Grid1D
 # -----------------------------------------------
-class StructuredGrid1D(StructuredGrid):
+class Grid1D(StructuredGrid):
     """Uniform cell-centered 1D grid on [x0, x1] with nx cells."""
 
     def __init__(self, x0: float, x1: float, nx: int):
@@ -164,9 +164,9 @@ class StructuredGrid1D(StructuredGrid):
 
 
 # -----------------------------------------------
-# region StructuredGrid2D
+# region Grid2D
 # -----------------------------------------------
-class StructuredGrid2D(StructuredGrid):
+class Grid2D(StructuredGrid):
     """Uniform cell-centered 2D grid on [x0,x1]x[y0,y1], nx*ny cells."""
 
     def __init__(
@@ -180,9 +180,9 @@ class StructuredGrid2D(StructuredGrid):
 
 
 # -----------------------------------------------
-# region StructuredGrid3D
+# region Grid3D
 # -----------------------------------------------
-class StructuredGrid3D(StructuredGrid):
+class Grid3D(StructuredGrid):
     """Uniform cell-centered 3D grid, nx*ny*nz cells."""
 
     def __init__(

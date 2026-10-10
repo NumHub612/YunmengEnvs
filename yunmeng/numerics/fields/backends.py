@@ -145,6 +145,14 @@ class NumpyBackend:
         np.add.at(out, np.asarray(indices), np.asarray(values))
         return out
 
+    def scatter_write(
+        self, target: ArrayLike, indices: ArrayLike, values: ArrayLike
+    ) -> ArrayLike:
+        """Indexed overwrite: out[indices] = values."""
+        out = np.array(target, copy=True)
+        out[np.asarray(indices, dtype="int64")] = np.asarray(values)
+        return out
+
     def gather(
         self,
         a: ArrayLike,
@@ -326,6 +334,16 @@ class TorchBackend:
         )
         out = target.clone()
         out.index_add_(0, idx, values)
+        return out
+
+    def scatter_write(
+        self, target: ArrayLike, indices: ArrayLike, values: ArrayLike
+    ) -> ArrayLike:
+        out = target.clone()
+        idx = torch.as_tensor(indices, dtype=torch.long, device=target.device)
+        if not isinstance(values, torch.Tensor):
+            values = torch.as_tensor(values, dtype=target.dtype, device=target.device)
+        out[idx] = values.to(device=target.device, dtype=target.dtype)
         return out
 
     def gather(

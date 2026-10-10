@@ -39,10 +39,10 @@ class LinearEqs:
                 f"The matrix is not square: {mat.shape}, or not "
                 f"compatible with the rhs size: {rhs.size}."
             )
-        if mat.backend != rhs.meta.btype:
+        if mat.btype != rhs.meta.btype:
             raise ValueError(
-                f"Backend mismatch: matrix is {mat.backend!r}, rhs "
-                f"field is {rhs.meta.btype!r}."
+                f"Backend mismatch: matrix is {mat.btype}, rhs "
+                f"field is {rhs.meta.btype}."
             )
         self._mat = mat
         self._rhs = rhs

@@ -47,12 +47,8 @@ class DirichletBC(IBoundaryCondition):
         region: Region,
         value: float | ArrayLike | Timeseries,
     ):
-        if not region or not region.element_ids:
+        if region is None or region.element_ids.shape[0] == 0:
             raise ValueError(f"BC {bc_id} requires a valid region.")
-
-        if isinstance(value, ArrayLike):
-            if len(value) != len(region.element_ids):
-                raise ValueError(f"BC {bc_id} value length doesn't match region.")
 
         self._id = bc_id
         self._field = target_field
@@ -61,11 +57,10 @@ class DirichletBC(IBoundaryCondition):
         self._n_elements = len(region.element_ids)
 
     def evaluate(self, t: float) -> ArrayLike:
-        if isinstance(self._value, ArrayLike):
-            return self._value
-
         if isinstance(self._value, Timeseries):
-            value = self._value(t)
+            value = np.full(self._n_elements, self._value(t))
+        elif isinstance(self._value, (int, float)):
+            value = np.full(self._n_elements, self._value)
         else:
             value = self._value
-        return np.full(self._n_elements, value)
+        return value

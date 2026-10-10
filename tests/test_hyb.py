@@ -19,12 +19,17 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+import numpy as np
+from yunmeng.interfaces.types import ArrayLike
+from yunmeng.interfaces.supports import IField
+from yunmeng.interfaces.solver import ISolver
+
 from yunmeng.interfaces.supports import Region
 from yunmeng.interfaces.types import ElementType
 from yunmeng.numerics.fields import get_backend
-from yunmeng.numerics.grids import StructuredGrid1D
+from yunmeng.numerics.grids import Grid1D
 
-from yunmeng.solvers.commons.inits import GaussianIC
+from yunmeng.solvers.commons.inits import PrescribedIC
 from yunmeng.solvers.commons.boundaries import DirichletBC
 from yunmeng.solvers.FooFdmSolver import FdmSolver, FdmSolverConfig
 from yunmeng.solvers.FooHybSolver import HybridSolver, HybridSolverConfig
@@ -51,20 +56,27 @@ EPOCHS = 200
 LR = 3e-3
 
 
+def gaussian_ic(x: ArrayLike, center=0.5, width=0.08, amplitude=1.0) -> ArrayLike:
+    """Gaussian initial condition."""
+    return amplitude * np.exp(-((x - center) ** 2) / (2.0 * width**2))
+
+
 def make_grid(n_cells: int):
-    grid = StructuredGrid1D(0.0, LENGTH, n_cells)
+    grid = Grid1D(0.0, LENGTH, n_cells)
     grid.add_region(Region("left", ElementType.CELL, np.array([0])))
     grid.add_region(Region("right", ElementType.CELL, np.array([n_cells - 1])))
     return grid
 
 
-def attach_conditions(solver, grid):
+def attach_conditions(
+    solver: ISolver, grid: Grid1D, center=0.5, width=0.08, amplitude=1.0
+):
     centers = grid.cell_centers()[0].reshape(-1)
-    solver.add_ic(GaussianIC("ic-u", "u", centers=centers, center=0.5, width=0.07))
-    solver.add_bc(DirichletBC("bc-left", "u", grid.get_region("left"), 0.0, tag="wall"))
-    solver.add_bc(
-        DirichletBC("bc-right", "u", grid.get_region("right"), 0.0, tag="wall")
-    )
+    inits = gaussian_ic(centers, center=center, width=width, amplitude=amplitude)
+    solver.add_ic(PrescribedIC("ic-u", "u", inits))
+
+    solver.add_bc(DirichletBC("bc-left", "u", grid.get_region("left"), 0.0))
+    solver.add_bc(DirichletBC("bc-right", "u", grid.get_region("right"), 0.0))
     solver.initialize()
 
 
@@ -73,10 +85,8 @@ def make_fdm(sid: str, nu: float, end_time: float):
     solver = FdmSolver(
         sid,
         grid,
-        None,
         FdmSolverConfig(dt=DT, end_time=end_time),
         get_backend("numpy"),
-        nu=nu,
     )
     attach_conditions(solver, grid)
     return solver
@@ -88,7 +98,6 @@ def make_hybrid(sid: str, nu: float, end_time: float):
     solver = HybridSolver(
         sid,
         grid,
-        None,
         config,
         get_backend("torch", device="cpu"),
         nu=nu,

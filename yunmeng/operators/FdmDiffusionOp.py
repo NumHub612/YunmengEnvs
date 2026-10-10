@@ -32,7 +32,24 @@ from yunmeng.numerics.algos import ym_register
 class FdmDiffusionOperator(IOperator):
     """Backward-Euler diffusion on a uniform 1D structured grid."""
 
-    def __init__(self, field: str, nu: float):
+    @classmethod
+    def get_name(cls) -> str:
+        return "FdmDiffusion"
+
+    @classmethod
+    def get_kind(cls) -> str:
+        return OperatorKinds.MATH_LAPLACIAN
+
+    @classmethod
+    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        return [DataProduct(name=f"laplacian:{fname}", loc=loc)]
+
+    @classmethod
+    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+        return []
+
+    def __init__(self, oid: str, field: str, nu: float):
+        self._id = oid
         self._field = field
         self._nu = float(nu)
         self._n = 0
@@ -41,13 +58,17 @@ class FdmDiffusionOperator(IOperator):
         self._laplacian = None
         self._identity = None
 
-    @classmethod
-    def get_name(cls) -> str:
-        return "FdmDiffusion"
+    @property
+    def id(self) -> str:
+        return self._id
 
-    @classmethod
-    def get_kind(cls) -> str:
-        return OperatorKinds.MATH_LAPLACIAN
+    @property
+    def target_fields(self) -> list[str]:
+        return [self._field]
+
+    @property
+    def time_order(self) -> int:
+        return 1
 
     @property
     def explicit_part(self) -> bool:
@@ -59,23 +80,7 @@ class FdmDiffusionOperator(IOperator):
 
     @property
     def differentiable(self) -> bool:
-        return self._backend is not None and self._backend.differentiable
-
-    @classmethod
-    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
-        return [DataProduct(name=f"laplacian:{fname}", loc=loc)]
-
-    @classmethod
-    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
-        return []
-
-    @property
-    def target_fields(self) -> list[str]:
-        return [self._field]
-
-    @property
-    def time_order(self) -> int:
-        return 1
+        return False
 
     def build(self, mesh: IGrid, backend: IBackend):
         self._backend = backend
@@ -95,9 +100,15 @@ class FdmDiffusionOperator(IOperator):
                 lap[cell, neighbor] += 1.0 / self._dx**2
 
         if backend.name == "torch":
-            self._laplacian = TorchMatrix.from_data(lap, device=str(backend.device))
+            self._laplacian = TorchMatrix.from_data(
+                lap,
+                device=str(backend.device),
+            )
             eye = torch.eye(self._n, dtype=torch.float64, device=backend.device)
-            self._identity = TorchMatrix.from_data(eye, device=str(backend.device))
+            self._identity = TorchMatrix.from_data(
+                eye,
+                device=str(backend.device),
+            )
         else:
             self._laplacian = NumpyMatrix.from_data(lap)
             self._identity = NumpyMatrix.identity(self._n)

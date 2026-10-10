@@ -27,6 +27,5 @@ from yunmeng.interfaces.solution.IModel import (
     ILinkableModel,
 )
 from yunmeng.interfaces.solution.ITopology import (
-    ITopologyLayer,
     ISpatialIndex,
 )

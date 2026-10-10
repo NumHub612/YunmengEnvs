@@ -66,10 +66,11 @@ class NeuralCorrectionOperator(
     vector; IDifferentiable exposes the live torch leaves to optimizers.
     """
 
-    def __init__(self, field: str, hidden: int = 16, device: str = "cpu"):
+    def __init__(self, oid: str, field: str, hidden: int = 16, device: str = "cpu"):
         if not _HAS_TORCH:  # pragma: no cover
             raise ImportError("NeuralCorrection requires PyTorch")
 
+        self._id = oid
         self._field = field
         self._mode = RunMode.EVAL
         self._backend = None
@@ -87,6 +88,10 @@ class NeuralCorrectionOperator(
     @classmethod
     def get_kind(cls) -> str:
         return OperatorKinds.NN_CLOSURE
+
+    @property
+    def id(self) -> str:
+        return self._id
 
     @property
     def explicit_part(self) -> bool:

@@ -18,8 +18,6 @@ from yunmeng.numerics.fields import NumpyBackend
 class NumpyMatrix:
     """Scipy-sparse backed matrix. EVAL-only (no autograd)."""
 
-    backend = NumpyBackend
-
     def __init__(self, sparse_matrix: sp.spmatrix):
         if not sp.issparse(sparse_matrix):
             raise TypeError("Input must be a scipy sparse matrix")
@@ -76,6 +74,10 @@ class NumpyMatrix:
         return cls(sp.eye(size, dtype=np.float64, format="csr"))
 
     # -- properties --------------------------------
+
+    @property
+    def btype(self) -> str:
+        return "numpy"
 
     @property
     def data(self) -> sp.spmatrix:
