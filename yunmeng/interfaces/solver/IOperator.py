@@ -161,18 +161,6 @@ class IOperator(ABC):
 
     @property
     @abstractmethod
-    def explicit_part(self) -> bool:
-        """Produces an explicit Field contribution."""
-        ...
-
-    @property
-    @abstractmethod
-    def implicit_part(self) -> bool:
-        """Produces a `LinearEqs` to be assembled."""
-        ...
-
-    @property
-    @abstractmethod
     def differentiable(self) -> bool:
         """Is the operator differentiable."""
         ...

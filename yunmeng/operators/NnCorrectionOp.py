@@ -89,22 +89,6 @@ class NeuralCorrectionOperator(
     def get_kind(cls) -> str:
         return OperatorKinds.NN_CLOSURE
 
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def explicit_part(self) -> bool:
-        return True
-
-    @property
-    def implicit_part(self) -> bool:
-        return False
-
-    @property
-    def differentiable(self) -> bool:
-        return True
-
     @classmethod
     def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
         return [DataProduct(name=f"correction:{fname}", loc=loc)]
@@ -112,6 +96,14 @@ class NeuralCorrectionOperator(
     @classmethod
     def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
         return []
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def differentiable(self) -> bool:
+        return True
 
     @property
     def target_fields(self) -> list[str]:

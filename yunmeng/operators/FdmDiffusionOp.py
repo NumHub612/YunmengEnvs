@@ -71,14 +71,6 @@ class FdmDiffusionOperator(IOperator):
         return 1
 
     @property
-    def explicit_part(self) -> bool:
-        return False
-
-    @property
-    def implicit_part(self) -> bool:
-        return True
-
-    @property
     def differentiable(self) -> bool:
         return False
 
@@ -117,4 +109,4 @@ class FdmDiffusionOperator(IOperator):
         field = datahub.get_field(self._field)
         matrix = self._identity - self._laplacian * (dt * self._nu)
         rhs = Field(field.meta, field.values)
-        return OperatorResult(explicit=None, implicit=LinearEqs(matrix, rhs))
+        return OperatorResult(implicit=LinearEqs(matrix, rhs))

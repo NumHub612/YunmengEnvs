@@ -204,9 +204,10 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
             if field_name in self._init_values:
                 field.values = self._fresh(self._init_values[field_name])
             # apply initial condition
-            idx = self._index(self._ics, field_name)
-            if idx is not None:
-                self._ics[idx].apply(field)
+            for ic in self._ics:
+                if ic.target_field == field_name:
+                    ic.apply(field)
+                    break
             # backend normalization
             field.values = self._backend.asarray(field.values)
             # recache field

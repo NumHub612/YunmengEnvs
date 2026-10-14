@@ -76,16 +76,15 @@ class HybridSolver(BaseSolver):
         nu: float = 0.02,
         hidden: int = 32,
     ):
-        if not operators:
-            operators = [
-                FdmDiffusionOperator("fdm_diffusion", "u", nu),
-                NeuralCorrectionOperator(
-                    "nn_correction",
-                    "u",
-                    hidden=hidden,
-                    device=config.device,
-                ),
-            ]
+        operators = [
+            FdmDiffusionOperator("fdm_diffusion", "u", nu),
+            NeuralCorrectionOperator(
+                "nn_correction",
+                "u",
+                hidden=hidden,
+                device=config.device,
+            ),
+        ]
         super().__init__(sid, mesh, config, backend)
         self._ops = operators
         self._nu = float(nu)
