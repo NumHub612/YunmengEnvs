@@ -11,8 +11,8 @@ Usage:
 import time
 from dataclasses import dataclass, field
 
-from yunmeng.interfaces.capabilities import IScheduler, ISnapshottable
-from yunmeng.interfaces.solution import (
+from yunmeng.standard.capabilities import IScheduler, ISnapshottable
+from yunmeng.standard.solution import (
     CouplingConfig,
     CouplingKinds,
     ILinkableModel,

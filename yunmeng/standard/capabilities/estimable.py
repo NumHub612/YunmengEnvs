@@ -10,7 +10,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.types import ArrayLike
 
 # ---------------------------------------------------
 # region IParameterized

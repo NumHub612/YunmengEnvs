@@ -12,14 +12,14 @@ from dataclasses import asdict, dataclass
 from typing import Any, Tuple
 import numpy as np
 
-from yunmeng.interfaces.capabilities import (
+from yunmeng.standard.capabilities import (
     IDifferentiable,
     IEstimable,
     IParameterized,
     ParamMeta,
     propagate_mode,
 )
-from yunmeng.interfaces.solver import (
+from yunmeng.standard.solver import (
     BoundaryValues,
     IBoundaryCondition,
     IBoundaryProvider,
@@ -32,14 +32,14 @@ from yunmeng.interfaces.solver import (
     SolverStatus,
     IEquation,
 )
-from yunmeng.interfaces.supports import (
+from yunmeng.standard.supports import (
     FieldMeta,
     IBackend,
     IField,
     IMesh,
     Region,
 )
-from yunmeng.interfaces.types import (
+from yunmeng.standard.types import (
     ArrayLike,
     ElementType,
     MeshDimension,

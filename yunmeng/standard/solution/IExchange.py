@@ -46,16 +46,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from yunmeng.interfaces.solution.IDataset import (
+from yunmeng.standard.solution.IDataset import (
     IElementSet,
     IValueSet,
     Quantity,
     TimeSpan,
 )
-from yunmeng.interfaces.types import ArrayLike, GeometryType
+from yunmeng.standard.types import ArrayLike, GeometryType
 
 if TYPE_CHECKING:
-    from yunmeng.interfaces.solution.IModel import ILinkableModel
+    from yunmeng.standard.solution.IModel import ILinkableModel
 
 # ---------------------------------------------------
 # region IExchangeItem

@@ -1,1 +1,1 @@
-from yunmeng.interfaces.solver import ISolverCallback
+from yunmeng.standard.solver import ISolverCallback

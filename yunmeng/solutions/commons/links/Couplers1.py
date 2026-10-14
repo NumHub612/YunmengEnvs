@@ -7,9 +7,9 @@ Concrete coupling execution layer.
 
 import numpy as np
 
-from yunmeng.interfaces.capabilities import ISnapshottable
-from yunmeng.interfaces.types import ArrayLike
-from yunmeng.interfaces.solution import (
+from yunmeng.standard.capabilities import ISnapshottable
+from yunmeng.standard.types import ArrayLike
+from yunmeng.standard.solution import (
     CouplingConfig,
     CouplingKinds,
     DivergenceAction,

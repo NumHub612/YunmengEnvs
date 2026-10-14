@@ -7,8 +7,8 @@ ElementSet class describes a collection of spatial elements.
 
 import numpy as np
 
-from yunmeng.interfaces.solution import IElementSet
-from yunmeng.interfaces.types import ArrayLike, GeometryType
+from yunmeng.standard.solution import IElementSet
+from yunmeng.standard.types import ArrayLike, GeometryType
 
 
 # ---------------------------------------------------

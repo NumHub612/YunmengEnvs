@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import Protocol, Sequence, runtime_checkable
 from dataclasses import dataclass
 
-from yunmeng.interfaces.supports.field import IField
-from yunmeng.interfaces.types import RunMode, ElementType, ArrayLike
+from yunmeng.standard.supports.field import IField
+from yunmeng.standard.types import RunMode, ElementType, ArrayLike
 
 
 @dataclass(frozen=True)

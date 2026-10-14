@@ -38,8 +38,8 @@ from dataclasses import dataclass, field as dc_field
 from typing import Protocol, runtime_checkable
 from enum import Enum
 
-from yunmeng.interfaces.supports import Region
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.supports import Region
+from yunmeng.standard.types import ArrayLike
 
 # ---------------------------------------------------
 # region Boundary values

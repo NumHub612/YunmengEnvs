@@ -52,8 +52,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from yunmeng.interfaces.types import ElementType
-from yunmeng.interfaces.supports import (
+from yunmeng.standard.types import ElementType
+from yunmeng.standard.supports import (
     IBackend,
     IDataHub,
     DataProduct,

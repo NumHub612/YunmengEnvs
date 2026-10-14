@@ -24,7 +24,7 @@ Design decision recorded here:
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.types import ArrayLike
 
 # ---------------------------------------------------
 # region ISpatialIndex

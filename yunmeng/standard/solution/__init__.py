@@ -1,24 +1,24 @@
 # -*- encoding: utf-8 -*-
-from yunmeng.interfaces.solution.ICouplings import (
+from yunmeng.standard.solution.ICouplings import (
     CouplingKinds,
     DivergenceAction,
     CouplingConfig,
     IterationResult,
     ICoupler,
 )
-from yunmeng.interfaces.solution.IDataset import (
+from yunmeng.standard.solution.IDataset import (
     TimeSpan,
     IElementSet,
     Quantity,
     IValueSet,
 )
-from yunmeng.interfaces.solution.IExchange import (
+from yunmeng.standard.solution.IExchange import (
     IExchangeItem,
     IInput,
     IOutput,
     IAdapterOutput,
 )
-from yunmeng.interfaces.solution.IModel import (
+from yunmeng.standard.solution.IModel import (
     ModelStatus,
     ExchangeMeta,
     ModelMeta,
@@ -26,6 +26,6 @@ from yunmeng.interfaces.solution.IModel import (
     IModelCallback,
     ILinkableModel,
 )
-from yunmeng.interfaces.solution.ITopology import (
+from yunmeng.standard.solution.ITopology import (
     ISpatialIndex,
 )

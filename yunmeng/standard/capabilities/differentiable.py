@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import List, Any, Protocol, runtime_checkable
 
-from yunmeng.interfaces.types import ArrayLike, RunMode
+from yunmeng.standard.types import ArrayLike, RunMode
 
 # ---------------------------------------------------
 # region IDifferentiable

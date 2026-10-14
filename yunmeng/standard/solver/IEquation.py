@@ -40,9 +40,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
 
-from yunmeng.interfaces.capabilities import ParamMeta
-from yunmeng.interfaces.supports import IBackend, IMesh
-from yunmeng.interfaces.solver.IOperator import IOperator
+from yunmeng.standard.capabilities import ParamMeta
+from yunmeng.standard.supports import IBackend, IMesh
+from yunmeng.standard.solver.IOperator import IOperator
 
 # ---------------------------------------------------
 # region Terms

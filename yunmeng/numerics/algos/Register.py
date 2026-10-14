@@ -5,14 +5,14 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Unified components registry.
 """
 
-from yunmeng.interfaces.capabilities import IEstimator, IScheduler
-from yunmeng.interfaces.solution import (
+from yunmeng.standard.capabilities import IEstimator, IScheduler
+from yunmeng.standard.solution import (
     ILinkableModel,
     IModelCallback,
     IAdapterOutput,
     ICoupler,
 )
-from yunmeng.interfaces.solver import (
+from yunmeng.standard.solver import (
     ISolver,
     IOperator,
     IInitialCondition,

@@ -10,14 +10,14 @@ it, transforms the values, and serves the result to its own consumers.
 
 import numpy as np
 
-from yunmeng.interfaces.solution import (
+from yunmeng.standard.solution import (
     IElementSet,
     IInput,
     IOutput,
     Quantity,
     IAdapterOutput,
 )
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.types import ArrayLike
 from yunmeng.solutions.commons.dataset import FrameValueSet
 
 

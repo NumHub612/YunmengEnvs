@@ -5,9 +5,9 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Hotstart initial condition.
 """
 
-from yunmeng.interfaces.types import ArrayLike
-from yunmeng.interfaces.supports import IField
-from yunmeng.interfaces.solver import IInitialCondition
+from yunmeng.standard.types import ArrayLike
+from yunmeng.standard.supports import IField
+from yunmeng.standard.solver import IInitialCondition
 from yunmeng.numerics.algos import ym_register
 
 

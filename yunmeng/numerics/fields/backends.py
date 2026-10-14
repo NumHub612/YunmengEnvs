@@ -12,8 +12,8 @@ from typing import Sequence
 
 import numpy as np
 
-from yunmeng.interfaces.types import ArrayLike, DeviceType
-from yunmeng.interfaces.supports import IBackend
+from yunmeng.standard.types import ArrayLike, DeviceType
+from yunmeng.standard.supports import IBackend
 
 try:
     import torch

@@ -8,8 +8,8 @@ description
 from abc import ABC, abstractmethod
 from typing import Any
 
-from yunmeng.interfaces.types import ArrayLike
-from yunmeng.interfaces.solution import ICoupler, CouplingConfig, IterationResult
+from yunmeng.standard.types import ArrayLike
+from yunmeng.standard.solution import ICoupler, CouplingConfig, IterationResult
 from yunmeng.solutions.commons.models import BaseModel
 
 # ---------------------------------------------------

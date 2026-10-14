@@ -10,8 +10,8 @@ import numpy as np
 from typing import Union
 import scipy.sparse as sp
 
-from yunmeng.interfaces.types import ArrayLike, DeviceType
-from yunmeng.interfaces.supports import IMatrix
+from yunmeng.standard.types import ArrayLike, DeviceType
+from yunmeng.standard.supports import IMatrix
 from yunmeng.numerics.fields import NumpyBackend
 
 

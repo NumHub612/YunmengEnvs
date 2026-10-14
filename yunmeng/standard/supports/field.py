@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from yunmeng.interfaces.types import (
+from yunmeng.standard.types import (
     ArrayLike,
     DeviceType,
     ElementType,

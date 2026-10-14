@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from yunmeng.interfaces.types import ArrayLike, GeometryType
+from yunmeng.standard.types import ArrayLike, GeometryType
 
 # ---------------------------------------------------
 # region TimeSpan

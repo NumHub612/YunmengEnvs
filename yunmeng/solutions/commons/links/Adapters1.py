@@ -7,8 +7,8 @@ Lightweight adapter registry for exchange items.
 
 import numpy as np
 
-from yunmeng.interfaces.solution import IElementSet, IInput, IOutput, Quantity
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.solution import IElementSet, IInput, IOutput, Quantity
+from yunmeng.standard.types import ArrayLike
 from yunmeng.solutions.commons.models import BaseAdapter
 from yunmeng.numerics.algos import ym_register
 

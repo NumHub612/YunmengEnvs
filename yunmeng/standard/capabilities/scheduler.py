@@ -40,8 +40,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
 
-from yunmeng.interfaces.solution.ICouplings import CouplingConfig, CouplingKinds
-from yunmeng.interfaces.solution.IModel import ILinkableModel
+from yunmeng.standard.solution.ICouplings import CouplingConfig, CouplingKinds
+from yunmeng.standard.solution.IModel import ILinkableModel
 
 # ---------------------------------------------------
 # region Link spec

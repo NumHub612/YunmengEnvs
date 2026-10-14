@@ -5,8 +5,8 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 description
 """
 
-from yunmeng.interfaces.supports import IMatrix, ILinearEqs, IBackend
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.supports import IMatrix, ILinearEqs, IBackend
+from yunmeng.standard.types import ArrayLike
 
 from yunmeng.numerics.linalgs.matrix1 import NumpyMatrix
 from yunmeng.numerics.linalgs.matrix2 import TorchMatrix

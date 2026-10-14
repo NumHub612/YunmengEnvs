@@ -41,8 +41,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Mapping, Protocol
 
-from yunmeng.interfaces.capabilities import IEstimable
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.capabilities import IEstimable
+from yunmeng.standard.types import ArrayLike
 
 # ---------------------------------------------------
 # region Estimators

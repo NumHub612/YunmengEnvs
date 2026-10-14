@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from yunmeng.interfaces.types import ArrayLike, DeviceType
-from yunmeng.interfaces.supports.backend import IBackend
-from yunmeng.interfaces.supports.field import IField
+from yunmeng.standard.types import ArrayLike, DeviceType
+from yunmeng.standard.supports.backend import IBackend
+from yunmeng.standard.supports.field import IField
 
 
 @runtime_checkable

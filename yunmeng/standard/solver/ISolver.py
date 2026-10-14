@@ -45,16 +45,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields as dc_fields, asdict
 from typing import Any
 
-from yunmeng.interfaces.supports import FieldMeta, IField
-from yunmeng.interfaces.solver.IBoundaryCondition import (
+from yunmeng.standard.supports import FieldMeta, IField
+from yunmeng.standard.solver.IBoundaryCondition import (
     IBoundaryProvider,
     IBoundaryCondition,
 )
-from yunmeng.interfaces.solver.IInitCondition import IInitialCondition
-from yunmeng.interfaces.solver.IOperator import IOperator
-from yunmeng.interfaces.solver.IEquation import IEquation
-from yunmeng.interfaces.solver.ISolverCallback import ISolverCallback
-from yunmeng.interfaces.types import MeshDimension, ElementType, RunMode
+from yunmeng.standard.solver.IInitCondition import IInitialCondition
+from yunmeng.standard.solver.IOperator import IOperator
+from yunmeng.standard.solver.IEquation import IEquation
+from yunmeng.standard.solver.ISolverCallback import ISolverCallback
+from yunmeng.standard.types import MeshDimension, ElementType, RunMode
 
 # ---------------------------------------------------
 # region Solver meta

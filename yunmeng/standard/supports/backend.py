@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol, Sequence, runtime_checkable
 
-from yunmeng.interfaces.types import ArrayLike, DeviceType
+from yunmeng.standard.types import ArrayLike, DeviceType
 
 
 @runtime_checkable

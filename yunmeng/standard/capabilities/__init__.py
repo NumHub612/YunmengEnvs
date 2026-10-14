@@ -1,16 +1,16 @@
-from yunmeng.interfaces.capabilities.differentiable import (
+from yunmeng.standard.capabilities.differentiable import (
     IDifferentiable,
     IModeSwitchable,
     propagate_mode,
 )
-from yunmeng.interfaces.capabilities.estimable import (
+from yunmeng.standard.capabilities.estimable import (
     ParamMeta,
     IParameterized,
     IEstimable,
     IAssimilatable,
     split_namespaces,
 )
-from yunmeng.interfaces.capabilities.estimator import (
+from yunmeng.standard.capabilities.estimator import (
     ModelRef,
     MemoryStrategy,
     IObservationSet,
@@ -20,12 +20,12 @@ from yunmeng.interfaces.capabilities.estimator import (
     TrainingMeta,
     IModelArtifactStore,
 )
-from yunmeng.interfaces.capabilities.scheduler import (
+from yunmeng.standard.capabilities.scheduler import (
     PortRef,
     LinkSpec,
     IComposition,
     IScheduler,
 )
-from yunmeng.interfaces.capabilities.snapshotable import (
+from yunmeng.standard.capabilities.snapshotable import (
     ISnapshottable,
 )

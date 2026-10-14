@@ -15,7 +15,7 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.linalg import splu, spsolve
 
-from yunmeng.interfaces.supports import IMatrix
+from yunmeng.standard.supports import IMatrix
 
 try:
     import torch

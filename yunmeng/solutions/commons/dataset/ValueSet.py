@@ -7,8 +7,8 @@ ValueSet used to store values of a specific variable.
 
 import numpy as np
 
-from yunmeng.interfaces.solution import IValueSet, Quantity
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.solution import IValueSet, Quantity
+from yunmeng.standard.types import ArrayLike
 
 
 class FrameValueSet(IValueSet):

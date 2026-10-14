@@ -7,10 +7,10 @@ Mesh protocols (minimal surface) for the interfaces layer.
 
 from __future__ import annotations
 
-from typing import Protocol, Sequence, runtime_checkable
+from typing import Protocol, List, runtime_checkable
 from dataclasses import dataclass
 
-from yunmeng.interfaces.types import ArrayLike, ElementType, MeshDimension
+from yunmeng.standard.types import ArrayLike, ElementType, MeshDimension
 
 #: Canonical neighbour direction order, truncated to the mesh dimension.
 NEIGHBOUR_ORDER: tuple[str, ...] = ("-x", "+x", "-y", "+y", "-z", "+z")
@@ -34,6 +34,88 @@ class Region:
 
 
 # ---------------------------------------------------
+# region IMesh
+# ---------------------------------------------------
+
+
+@runtime_checkable
+class IMesh(Protocol):
+    """Minimal mesh surface referenced by interface signatures."""
+
+    @property
+    def dimension(self) -> MeshDimension: ...
+
+    @property
+    def orthogonal(self) -> bool: ...
+
+    @property
+    def version(self) -> int: ...
+
+    def element_count(self, loc: ElementType) -> int: ...
+
+    def get_topo_assistant(self) -> ITopoAssistant: ...
+
+    def get_geom_assistant(self) -> IGeomAssistant: ...
+
+    def get_part_assistant(self) -> IPartAssistant: ...
+
+    def add_region(self, region: Region): ...
+
+    def get_region(self, region_id: str) -> Region: ...
+
+    def regions(self) -> List[Region]: ...
+
+
+# ---------------------------------------------------
+# region IGrid
+# ---------------------------------------------------
+
+
+@runtime_checkable
+class IGrid(IMesh, Protocol):
+    """Structured-grid (specialized IMesh)."""
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Logical grid shape counted in CELLs: (nx,) / (nx, ny) / (nx, ny, nz)."""
+        ...
+
+    @property
+    def spacing(self) -> tuple[float, ...]:
+        """Cell spacing per axis: (dx,) / (dx, dy) / (dx, dy, dz)."""
+        ...
+
+    @property
+    def origin(self) -> tuple[float, ...]:
+        """Coordinate of the grid's lower corner."""
+        ...
+
+    @property
+    def uniform(self) -> bool:
+        """Whether spacing is constant along every axis."""
+        ...
+
+    def flat_index(self, ijk: tuple[int, ...]) -> int:
+        """Logical (i, j[, k]) -> flat cell index (C-order)."""
+        ...
+
+    def ijk_index(self, flat: int) -> tuple[int, ...]:
+        """Flat cell index -> logical (i, j[, k])."""
+        ...
+
+    def interior_slice(self) -> tuple[slice, ...]:
+        """Slice selecting interior cells on the multi-dim view,
+        e.g. (slice(1, -1),) * ndim."""
+        ...
+
+    def axis_slice(self, axis: int, shift: int) -> tuple[slice, ...]:
+        """Slice of the multi-dim view shifted by `shift` along
+        `axis` (shift=-1 -> cells i-1, +1 -> cells i+1),
+        clipped to the interior-compatible range."""
+        ...
+
+
+# ---------------------------------------------------
 # region Assistants
 # ---------------------------------------------------
 
@@ -42,7 +124,7 @@ class Region:
 class ITopoAssistant(Protocol):
     """Topology queries needed at operator build time."""
 
-    def neighbors(self, element: int, loc: ElementType) -> Sequence[int]:
+    def neighbors(self, element: int, loc: ElementType) -> List[int]:
         """Fixed-order same-kind neighbours of `element`.
 
         CELL / NODE: [-x, +x, -y, +y, -z, +z] truncated to dim;NONE (-1)
@@ -54,7 +136,7 @@ class ITopoAssistant(Protocol):
 
     def connectivity(
         self, element: int, from_loc: ElementType, to_loc: ElementType
-    ) -> Sequence[int]:
+    ) -> List[int]:
         """Fixed-order incident elements of another kind.
 
         Supported pairs :
@@ -103,82 +185,3 @@ class IPartAssistant(Protocol):
     """Partition queries needed at operator build time."""
 
     def partition(self, num_shards: int, loc: ElementType) -> list: ...
-
-
-# ---------------------------------------------------
-# region IMesh
-# ---------------------------------------------------
-
-
-@runtime_checkable
-class IMesh(Protocol):
-    """Minimal mesh surface referenced by interface signatures."""
-
-    @property
-    def dimension(self) -> MeshDimension: ...
-
-    @property
-    def version(self) -> int: ...
-
-    def element_count(self, loc: ElementType) -> int: ...
-
-    def get_topo_assistant(self) -> ITopoAssistant: ...
-
-    def get_geom_assistant(self) -> IGeomAssistant: ...
-
-    def get_part_assistant(self) -> IPartAssistant: ...
-
-    def add_region(self, region: Region): ...
-
-    def get_region(self, region_id: str) -> Region: ...
-
-    def regions(self) -> Sequence[Region]: ...
-
-
-# ---------------------------------------------------
-# region IGrid
-# ---------------------------------------------------
-
-
-@runtime_checkable
-class IGrid(IMesh, Protocol):
-    """Structured-grid capability (ALSO satisfies IMesh)."""
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Logical grid shape counted in CELLs: (nx,) / (nx, ny) / (nx, ny, nz)."""
-        ...
-
-    @property
-    def spacing(self) -> tuple[float, ...]:
-        """Cell spacing per axis: (dx,) / (dx, dy) / (dx, dy, dz)."""
-        ...
-
-    @property
-    def origin(self) -> tuple[float, ...]:
-        """Coordinate of the grid's lower corner."""
-        ...
-
-    @property
-    def uniform(self) -> bool:
-        """Whether spacing is constant along every axis."""
-        ...
-
-    def flat_index(self, ijk: tuple[int, ...]) -> int:
-        """Logical (i, j[, k]) -> flat cell index (C-order)."""
-        ...
-
-    def ijk_index(self, flat: int) -> tuple[int, ...]:
-        """Flat cell index -> logical (i, j[, k])."""
-        ...
-
-    def interior_slice(self) -> tuple[slice, ...]:
-        """Slice selecting interior cells on the multi-dim view,
-        e.g. (slice(1, -1),) * ndim."""
-        ...
-
-    def axis_slice(self, axis: int, shift: int) -> tuple[slice, ...]:
-        """Slice of the multi-dim view shifted by `shift` along
-        `axis` (shift=-1 -> cells i-1, +1 -> cells i+1),
-        clipped to the interior-compatible range."""
-        ...

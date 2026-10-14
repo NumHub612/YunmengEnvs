@@ -5,7 +5,7 @@ Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 Lightweight base implementation of ``ILinkableModel``.
 """
 
-from yunmeng.interfaces.solution import (
+from yunmeng.standard.solution import (
     ModelEvent,
     ModelMeta,
     ModelStatus,

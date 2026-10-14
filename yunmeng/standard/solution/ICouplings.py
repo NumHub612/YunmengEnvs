@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
 from enum import Enum
 
-from yunmeng.interfaces.solution.IModel import ILinkableModel
+from yunmeng.standard.solution.IModel import ILinkableModel
 
 # ---------------------------------------------------
 # region Coupling kinds

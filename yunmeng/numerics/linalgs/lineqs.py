@@ -17,7 +17,7 @@ Usage:
 
 from __future__ import annotations
 
-from yunmeng.interfaces.supports import ILinearEqs, IMatrix, IField
+from yunmeng.standard.supports import ILinearEqs, IMatrix, IField
 from yunmeng.numerics.fields import Field
 from yunmeng.numerics.linalgs.engines import (
     select_engine,

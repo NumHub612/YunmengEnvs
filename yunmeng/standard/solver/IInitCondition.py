@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from yunmeng.interfaces.supports import IField
+from yunmeng.standard.supports import IField
 
 
 class IInitialCondition(ABC):

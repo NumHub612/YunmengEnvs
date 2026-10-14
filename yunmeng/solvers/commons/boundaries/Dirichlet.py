@@ -8,9 +8,9 @@ Dirichlet boundary condition specifed the boundary value directly.
 from __future__ import annotations
 import numpy as np
 
-from yunmeng.interfaces.solver import IBoundaryCondition, BoundaryChannel
-from yunmeng.interfaces.supports import Region
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.solver import IBoundaryCondition, BoundaryChannel
+from yunmeng.standard.supports import Region
+from yunmeng.standard.types import ArrayLike
 
 from yunmeng.numerics.algos import ym_register
 from yunmeng.numerics.fields import Timeseries

@@ -7,7 +7,7 @@ Lightweight input port implementation.
 
 import numpy as np
 
-from yunmeng.interfaces.solution import (
+from yunmeng.standard.solution import (
     IElementSet,
     IInput,
     ILinkableModel,
@@ -15,7 +15,7 @@ from yunmeng.interfaces.solution import (
     Quantity,
     TimeSpan,
 )
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.types import ArrayLike
 from yunmeng.solutions.commons.dataset import FrameValueSet
 
 

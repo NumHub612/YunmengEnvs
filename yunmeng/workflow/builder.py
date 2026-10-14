@@ -6,7 +6,7 @@ To assemble a new Scheduler from the orchestrator config.
 
 import importlib
 
-from yunmeng.interfaces.solution import CouplingConfig, CouplingKinds, ILinkableModel
+from yunmeng.standard.solution import CouplingConfig, CouplingKinds, ILinkableModel
 from yunmeng.numerics.algos import get_class, kind_of, available
 from yunmeng.setting import logger
 from yunmeng.workflow.optimizer import TrajectoryObservationSet, ym_losses
@@ -130,7 +130,7 @@ class SchedulerBuilder:
         if mode == "LOOP":
             params = dict(link.get("loop", {}))
             if "divergence_action" in params:
-                from yunmeng.interfaces.solution import DivergenceAction
+                from yunmeng.standard.solution import DivergenceAction
 
                 params["divergence_action"] = DivergenceAction[
                     str(params["divergence_action"]).upper()

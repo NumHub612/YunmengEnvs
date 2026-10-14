@@ -8,7 +8,7 @@ Time-, curve- and pattern-series data structures.
 import numpy as np
 from typing import Hashable, Any
 
-from yunmeng.interfaces.types import ArrayLike
+from yunmeng.standard.types import ArrayLike
 
 # ---------------------------------------------------
 # region Timeseries

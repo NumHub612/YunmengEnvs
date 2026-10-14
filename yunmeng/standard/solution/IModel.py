@@ -43,9 +43,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field as dc_field
 from enum import Enum
 
-from yunmeng.interfaces.solution.IDataset import IElementSet, Quantity
-from yunmeng.interfaces.solution.IExchange import IInput, IOutput, ExchangeMeta
-from yunmeng.interfaces.capabilities import ParamMeta
+from yunmeng.standard.solution.IDataset import IElementSet, Quantity
+from yunmeng.standard.solution.IExchange import IInput, IOutput, ExchangeMeta
+from yunmeng.standard.capabilities import ParamMeta
 
 # ---------------------------------------------------
 # region Status & Metas

@@ -36,10 +36,10 @@ from typing import TYPE_CHECKING
 from dataclasses import dataclass, field as dc_field
 from enum import Enum
 
-from yunmeng.interfaces.supports import IMesh
+from yunmeng.standard.supports import IMesh
 
 if TYPE_CHECKING:
-    from yunmeng.interfaces.solver.ISolver import ISolver
+    from yunmeng.standard.solver.ISolver import ISolver
 
 # ---------------------------------------------------
 # region ISolverCallback

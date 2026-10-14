@@ -9,8 +9,8 @@ import datetime
 import numpy as np
 
 
-from yunmeng.interfaces.types import ArrayLike
-from yunmeng.interfaces.capabilities import (
+from yunmeng.standard.types import ArrayLike
+from yunmeng.standard.capabilities import (
     IEstimable,
     IEstimator,
     EstimationResult,

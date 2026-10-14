@@ -2,15 +2,15 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-Unified analytic topo/geom/part assistants for structured grids of ANY dim.
+Unified analytic topo/geom/part assistants for structured grids.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-from yunmeng.interfaces.types import ElementType
-from yunmeng.interfaces.supports import (
+from yunmeng.standard.types import ElementType
+from yunmeng.standard.supports import (
     TOPO_NONE,
     IGrid,
     IGeomAssistant,
