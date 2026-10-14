@@ -143,13 +143,11 @@ class IOperator(ABC):
 
     # -- products -----------------------------------
 
-    @classmethod
-    def produces(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+    def produces(self) -> list[DataProduct]:
         """Declares DataProducts this operator can produce for."""
         return []
 
-    @classmethod
-    def consumes(cls, fname: str, loc: ElementType) -> list[DataProduct]:
+    def consumes(self) -> list[DataProduct]:
         """Declares DataProducts this operator can consume."""
         return []
 

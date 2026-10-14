@@ -3,6 +3,36 @@
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
 Unified analytic topo/geom/part assistants for structured grids.
+
+The grid employs an analytic indexing system based on the core logic of
+"global C-order + face-family grouped offsets,"
+ensuring that the IDs of all topological entities are fixed, unique,
+and support O(1) cross-referencing.
+
+For the face indexing system, there is an example to illustrate the concept:
+For a 2D grid with shape (3, 2), the face indexed as:
+
+x-axis faces (family 0): shape (4, 2), offset 0
+i is the face index along the x-axis ([0, 3]),
+j is the cell index along the y-axis ([0, 2]).
+The face id is calculated as: face_id = 0 + i * 2 + j
+
++  -  +  -  +  -  +
+f1    f3    f5    f7
++  -  +  -  +  -  +
+f0    f2    f4    f6
++  -  +  -  +  -  +
+
+y-axis faces (family 1): shape (3, 3), offset 8
+i is the cell index along the y-axis ([0, 2]),
+j is the face index along the x-axis ([0, 2]).
+The face id is calculated as: face_id = 8 + i * 3 + j
+
++  f10 +  f13 +  f16 +
+|      |      |      |
++  f9  +  f12 +  f15 +
+|      |      |      |
++  f8  +  f11 +  f14 +
 """
 
 from __future__ import annotations
@@ -19,7 +49,7 @@ from yunmeng.standard.supports import (
 )
 
 # ---------------------------------------------------
-# region Helper functions
+# region Helper functions for indexing
 # ---------------------------------------------------
 
 
@@ -71,7 +101,7 @@ def node_shape(cell_shape: tuple[int, ...]) -> tuple[int, ...]:
 
 
 class AnalyticTopo:
-    """ITopoAssistant for any structured grid (dim-agnostic)."""
+    """TopoAssistant for any structured grid (dim-agnostic)."""
 
     def __init__(self, grid: IGrid):
         self._g = grid
@@ -95,6 +125,7 @@ class AnalyticTopo:
         return out
 
     def neighbors(self, element: int, loc: ElementType) -> list[int]:
+        """Fixed-order [-x,+x,-y,+y,-z,+z] neighbours on a C-order lattice."""
         shape = self._g.shape
         if loc == ElementType.CELL:
             return self._grid_neighbors(element, shape)
@@ -279,7 +310,7 @@ class AnalyticTopo:
 
 
 class AnalyticGeom:
-    """IGeomAssistant for any structured grid (dim-agnostic)."""
+    """GeomAssistant for any structured grid (dim-agnostic)."""
 
     def __init__(self, grid: IGrid):
         self._g = grid
@@ -401,6 +432,10 @@ class AnalyticGeom:
 
 
 class AnalyticPart:
+    """PartAssistant for any structured grid (dim-agnostic)."""
+
+    def __init__(self, grid: IGrid):
+        self._g = grid
 
     def partition(self, num_shards: int) -> list:
         return [slice(None)] * 3

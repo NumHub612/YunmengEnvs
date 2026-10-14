@@ -25,7 +25,7 @@ class Sample:
 
 @dataclass(frozen=True)
 class DataProduct:
-    """A named, located data product published into the DataHub."""
+    """A named, located data field published into the DataHub."""
 
     name: str
     loc: ElementType

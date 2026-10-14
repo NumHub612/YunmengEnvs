@@ -9,8 +9,14 @@ from __future__ import annotations
 import numpy as np
 
 from yunmeng.standard.types import ElementType, MeshDimension
-from yunmeng.standard.supports import Region
-from yunmeng.numerics.algos import AnalyticTopo, AnalyticGeom, face_count, node_count
+from yunmeng.standard.supports import Region, IGrid
+from yunmeng.numerics.algos import (
+    AnalyticTopo,
+    AnalyticGeom,
+    AnalyticPart,
+    face_count,
+    node_count,
+)
 
 
 # -----------------------------------------------
@@ -41,6 +47,7 @@ class StructuredGrid:
         self._regions: dict[str, Region] = {}
         self._topo = AnalyticTopo(self)
         self._geom = AnalyticGeom(self)
+        self._part = AnalyticPart(self)
 
     # ---------------------------------------------------------- #
     # IMesh
@@ -93,6 +100,10 @@ class StructuredGrid:
     def get_geom_assistant(self) -> AnalyticGeom:
         """Get the analytic geometry assistant."""
         return self._geom
+
+    def get_part_assistant(self) -> AnalyticPart:
+        """Get the analytic partitioning assistant."""
+        return self._part
 
     def get_region(self, region_id: str) -> Region:
         """Get the region by region_id."""
