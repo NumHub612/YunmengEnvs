@@ -78,6 +78,7 @@ class OperatorKinds:
     MATH_DDT = "math.ddt"
     MATH_D2DT2 = "math.d2dt2"
     MATH_LIMITER = "math.limiter"
+    MATH_VALUE = "math.value"
 
     # sources
     SRC_POINT = "src.point"

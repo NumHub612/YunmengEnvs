@@ -2,19 +2,19 @@
 """
 Copyright (C) 2026, The YunmengEnvs Contributors. Welcome aboard YunmengEnvs!
 
-DataHub implementation — merged from the two legacy versions.
+DataHub implementation with declaration-driven routing.
 
-Centralizes solver-side data management across three concerns:
-    1. Time history of PRODUCTS (multi-step schemes retrieve
-       time-shifted samples via get(product, time_order)).
-       NOTE: fields themselves hold only the CURRENT state
-       (get_field); to keep a solution field's history,
-       the solver publishes it as a product each step.
-    2. Cross-operator reuse of computed products (EVAL-only cache,
-       keyed by plain product strings, e.g. "laplacian:u").
-    3. Version tracking with cache invalidation: the solver calls
-       touch(field) after writing field values; cached entries
-       whose recorded version stamps no longer match are dropped.
+Two data lines:
+    1. PRODUCTS line  — solver-published time history of solution fields
+       (ring buffer, serves multi-step schemes via time_order).
+    2. COMPUTED line  — same-timestep cross-operator derived products
+       (EVAL-only cache, invalidated by dependency-field versions).
+
+Operator declarations (DataProduct) ARE the routing table:
+    - time_order > 0        -> products history (hub.get)
+    - kind == MATH_VALUE    -> current solution field (hub.get_field)
+    - otherwise             -> computed cache (hub.get_computed),
+                               miss -> schedule the declaring producer.
 
 =====================================================
 Usage sketch
@@ -22,25 +22,25 @@ Usage sketch
     hub = DataHub(mode=RunMode.EVAL, levels=3, grid=grid)
 
     # 1) register the solver solution field (auto-wrapped as GridField)
-    hub.register_field(Field(meta, backend.zeros((n,))))
-    u = hub.get_field("u")
+    hub.register(Field(meta, backend.zeros((n,))))
+    u = hub.field("u")
     u_nd = u.values_nd
 
     # 2) solver publishes each step -> time history for multi-step
     #    schemes; time_order=1 retrieves the previous level
-    hub.publish("u", u_field, t)
-    u_prev = hub.get("u", time_order=1).value
+    hub.commit("u", u_field, t)
+    u_prev = hub.recall("u", time_order=1).value
 
     # 3) operator A computes a gradient and caches the product
-    hub.put_computed("grad:u", Sample(g, t, version=0))
+    hub.cache("grad:u", Sample(g, t, version=0))
 
     # 4) operator B reuses it (None in TRAIN or when stale)
-    cached = hub.get_computed("grad:u")
+    cached = hub.fetch("grad:u")
 
     # 5) solver writes new values -> touch invalidates stale cache
     u.values = u_new
     hub.touch("u")
-    assert hub.get_computed("grad:u") is None
+    assert hub.fetch("grad:u") is None
 
     # 6) TRAIN mode: computed cache is bypassed, cleared on entry;
     #    publish keeps the array object (and its autograd graph).
@@ -49,39 +49,17 @@ Usage sketch
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
+from yunmeng.standard.solver import OperatorKinds
 from yunmeng.standard.supports import (
     DataProduct,
     Sample,
+    ComputedEntry,
     IField,
     IMesh,
     IDataHub,
 )
 from yunmeng.standard.types import RunMode
 from yunmeng.numerics.fields.field1 import Field, GridField
-
-# ---------------------------------------------------
-# region ComputedEntry
-# ---------------------------------------------------
-
-
-@dataclass
-class ComputedEntry:
-    """A cached computed product with source-field version stamps."""
-
-    product: str
-    sample: Sample
-    versions: dict[str, int]
-
-    def is_stale(self, current: dict[str, int]) -> bool:
-        """Check if the source-field versions match  current ones."""
-        return self.versions != current
-
-
-# ---------------------------------------------------
-# region DataHub
-# ---------------------------------------------------
 
 
 class DataHub:
@@ -97,11 +75,11 @@ class DataHub:
         self._levels = max(1, int(levels))
         self._mesh = mesh
         self._fields: dict[str, Field] = {}
-        self._products: dict[str, tuple[DataProduct, list[Sample]]] = {}
         self._versions: dict[str, int] = {}
+        self._history: dict[str, list[Sample]] = {}
         self._cache: dict[str, ComputedEntry] = {}
 
-    # -- mode -----------------------------------------
+    # -- mode ---------------------------------------
 
     @property
     def mode(self) -> RunMode:
@@ -110,103 +88,116 @@ class DataHub:
     def set_mode(self, mode: RunMode):
         self._mode = mode
         if mode == RunMode.TRAIN:
-            # computed cache must be bypassed, not reused
             self._cache.clear()
 
-    # -- fields ---------------------------------------
+    # -- fields: register / field -------------------
 
-    def register_field(self, field: Field):
-        """Register a field."""
+    def register(self, field: Field):
+        """Register a solution field (current state holder)."""
         if self._mesh and not isinstance(field, GridField):
-            # auto-wrap scalar fields as grid fields
             field = GridField(field.meta, field.values, self._mesh)
         self._fields[field.meta.name] = field
-        self._versions[field.meta.name] = 0  # reset version stamp
+        self._versions[field.meta.name] = 0
+        self._history.setdefault(field.meta.name, [])
 
-    def get_field(self, name: str) -> IField:
+    def field(self, name: str) -> IField:
+        """Current-state field by name."""
         if name not in self._fields:
             raise KeyError(f"field {name!r} not registered")
         return self._fields[name]
 
-    def field_names(self) -> list[str]:
+    def fields(self) -> list[str]:
+        """Names of all registered solution fields."""
         return list(self._fields.keys())
 
+    def has_field(self, name: str) -> bool:
+        """Whether a field is registered."""
+        return name in self._fields
+
+    # -- versions: touch / version ------------------
+
     def touch(self, name: str):
-        """Bump a field's version (solver calls after writing values);
-        cascade-invalidates dependent cached products."""
-        # bump version
+        """Bump a field's version after writing values."""
         self._versions[name] = self._versions.get(name, 0) + 1
-        # cascade-invalidates
-        victims = [
-            k
-            for k, e in self._cache.items()
-            if any(self._versions.get(f, 0) != v for f, v in e.versions.items())
-        ]
-        # remove stale cache entries
+        victims = [k for k, e in self._cache.items() if e.is_stale(self._versions)]
         for k in victims:
             del self._cache[k]
 
-    # -- products (history, EVAL only) --------------
+    def version(self, name: str) -> int:
+        """Current version of a field."""
+        return self._versions.get(name, 0)
 
-    def publish(self, product: str, value: IField, t: float):
-        """Publish a new sample for a product (solver calls
-        after each step)."""
-        # ring buffer for time history
-        dp, samples = self._products.get(product, (None, []))
-        if dp is None:
-            dp = DataProduct(
-                name=product,
-                loc=value.meta.loc,
-                dtype=value.meta.dtype,
-            )
-        samples.append(Sample(value.values, t, len(samples)))
+    # -- history line: commit / recall --------------
 
-        # only EVAL mode keeps history
+    def commit(self, field: IField, t: float):
+        """Commit the field's current values as a new time level."""
+        name = field.meta.name
+        if name not in self._fields:
+            raise KeyError(f"field {name!r} not registered")
+        ring = self._history.setdefault(name, [])
+        ring.append(Sample(field.values, t, self._versions[name]))
         if self._mode != RunMode.TRAIN:
-            # EVAL: ring for time_order
-            samples = samples[-self._levels :]
-        self._products[product] = (dp, samples)
+            del ring[: -self._levels]  # ring buffer
 
-    def get(self, product: str, time_order: int = 0) -> Sample:
-        if product not in self._products:
-            raise KeyError(f"product {product!r} not published")
-        samples = self._products[product][1]
+    def recall(self, name: str, order: int = 0) -> Sample:
+        """Recall a committed field; order=0 is the most recent."""
+        ring = self._history.get(name)
+        if not ring:
+            raise KeyError(f"field {name!r} has no committed levels")
+        idx = -1 - order
+        if len(ring) < -idx:
+            raise IndexError(
+                f"field {name!r} holds {len(ring)} levels, order={order} requested"
+            )
+        return ring[idx]
 
-        idx = -1 - time_order  # order=0 is the most recent
-        if len(samples) < -idx:
-            raise IndexError(f"product {product!r} has {len(samples)} samples")
-        return samples[idx]
+    def depth(self, name: str) -> int:
+        """Number of committed levels currently held for `name`."""
+        return len(self._history.get(name, ()))
 
-    def products(self) -> list[DataProduct]:
-        return [dp for dp, _ in self._products.values()]
+    def clear_history(self, name: str):
+        """Clear the committed history of a field."""
+        self._history[name] = []
 
-    def clear_products(self):
-        self._products.clear()
-        self._cache.clear()
+    # -- computed line: cache / fetch ---------------
 
-    # -- computed-entry (cache, EVAL only) ----------
-
-    def get_computed(self, product: str) -> Sample:
-        """Return a fresh cached product. Always None in TRAIN."""
-        if self._mode == RunMode.TRAIN:
-            return None
-        entry = self._cache.get(product)
-        if entry is None:
-            return None
-        # cache entry is stale, remove it
-        if entry.is_stale(self._versions):
-            del self._cache[product]
-            return None
-
-        return entry.sample
-
-    def put_computed(self, product: str, sample: Sample):
-        """Cache a computed product. No-op in TRAIN."""
+    def cache(self, dp: DataProduct, sample: Sample, deps: list[str]):
+        """Cache a derived product, stamping the current versions of
+        its DECLARED source fields only. No-op in TRAIN mode."""
         if self._mode == RunMode.TRAIN:
             return
-        self._cache[product] = ComputedEntry(
-            product=product, sample=sample, versions=dict(self._versions)
-        )
+        stamps = {f: self._versions.get(f, 0) for f in deps}
+        self._cache[dp.name] = ComputedEntry(sample=sample, deps=stamps)
+
+    def fetch(self, dp: DataProduct) -> Sample:
+        """Fresh cached product, or None (always None in TRAIN)."""
+        if self._mode == RunMode.TRAIN:
+            return None
+        entry = self._cache.get(dp.name)
+        if entry is None:
+            return None
+        if entry.is_stale(self._versions):
+            del self._cache[dp.name]
+            return None
+        return entry.sample
 
     def clear_cache(self):
+        """Clear the computed cache."""
         self._cache.clear()
+
+    # -- declaration-driven routing -----------------
+
+    def resolve(self, dp: DataProduct) -> IField | Sample:
+        """Route a declared DataProduct to its data line.
+        Returns IField for current fields, Sample otherwise."""
+        if dp.time_order > 0:
+            return self.recall(dp.field, dp.time_order)
+        if dp.kind == OperatorKinds.MATH_VALUE or self.has_field(dp.field):
+            return self.field(dp.field)
+        sample = self.fetch(dp)
+        if sample is None:
+            raise KeyError(
+                f"computed product {dp.name!r} unavailable: "
+                "no fresh cache entry (producer not scheduled?)"
+            )
+        return sample

@@ -123,7 +123,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
         self._eqs = equations
 
     def get_solution(self, field: str) -> IField:
-        return self._hub.get_field(field)
+        return self._hub.field(field) if self._hub.has_field(field) else None
 
     # region assembly -------------------------------
 
@@ -194,12 +194,12 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
         for field_name, meta in self._exported_fields.items():
             size = self._mesh.element_count(meta.loc)
             field = Field(meta, self._backend.zeros((size,)))
-            self._hub.register_field(field)
+            self._hub.register(field)
 
     def _apply_ics(self):
         """Apply initial conditions."""
         for field_name in self._exported_fields.keys():
-            field = self._hub.get_field(field_name)
+            field = self._hub.field(field_name)
             # reset initial values
             if field_name in self._init_values:
                 field.values = self._fresh(self._init_values[field_name])
@@ -228,8 +228,9 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
 
     def reset(self):
         for field_name in self._exported_fields.keys():
-            self._hub.clear_products()
-            field = self._hub.get_field(field_name)
+            self._hub.clear_history(field_name)
+            self._hub.clear_cache()
+            field = self._hub.field(field_name)
             field.values = self._fresh(self._init_values[field_name])
             self._hub.touch(field_name)
         self._reset_status()

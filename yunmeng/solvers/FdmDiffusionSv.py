@@ -90,7 +90,7 @@ class FdmDiffusionSolver(BaseSolver):
         field_name = "u"
         field_meta = self._exported_fields[field_name]
         field_size = self._mesh.element_count(field_meta.loc)
-        field = self._hub.get_field(field_name)
+        field = self._hub.field(field_name)
 
         # call callbacks
         for cb in self._cbs:
@@ -136,7 +136,7 @@ class FdmDiffusionSolver(BaseSolver):
 
         # push field to hub
         self._hub.touch(field_name)
-        self._hub.publish(field_name, field, t + dt)
+        self._hub.commit(field, t + dt)
 
         # update status
         self._status.current_time = t + dt

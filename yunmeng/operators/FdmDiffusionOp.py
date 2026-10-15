@@ -65,7 +65,14 @@ class FdmDiffusionOperator(IOperator):
         return False
 
     def consumes(self) -> list[DataProduct]:
-        return [DataProduct(name=self._field, loc=self._field_loc)]
+        return [
+            DataProduct(
+                kind=OperatorKinds.MATH_VALUE,
+                field=self._field,
+                loc=self._field_loc,
+                time_order=0,
+            )
+        ]
 
     def produces(self) -> list[DataProduct]:
         return []
@@ -92,7 +99,7 @@ class FdmDiffusionOperator(IOperator):
 
     def forward(self, datahub: IDataHub, t: float, dt: float) -> OperatorResult:
         # A=I−Δt*ν*L, b=u^n
-        field = datahub.get_field(self._field)
+        field = datahub.resolve(self.consumes()[0])
         rhs = Field(field.meta, field.values)
         matrix = self._identity - self._laplacian * (dt * self._nu)
         return OperatorResult(implicit=LinearEqs(matrix, rhs))
