@@ -9,6 +9,7 @@ from yunmeng.standard.types import ArrayLike
 from yunmeng.standard.supports import IField
 from yunmeng.standard.solver import IInitialCondition
 from yunmeng.numerics.algos import ym_register
+from yunmeng.numerics.fields import get_backend
 
 
 @ym_register("init")
@@ -39,11 +40,21 @@ class PrescribedIC(IInitialCondition):
             raise ValueError(
                 f"Field {field.meta.name} doesn't match the IC {self.id} target field."
             )
+        backend = get_backend(field.meta.btype, field.meta.device)
+
         if isinstance(self._value, IField):
             if self._value.size != field.size:
                 raise ValueError(
                     f"Field {field.meta.name} size doesn't match the IC {self.id}."
                 )
-            field.values[:] = self._value.values
-        else:
+            values = backend.asarray(self._value.values)
+            field.values[:] = values
+        elif isinstance(self._value, float):
             field.values[:] = self._value
+        else:
+            if self._value.size != field.size:
+                raise ValueError(
+                    f"Field {field.meta.name} size doesn't match the IC {self.id}."
+                )
+            values = backend.asarray(self._value)
+            field.values[:] = values

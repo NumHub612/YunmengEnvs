@@ -7,11 +7,7 @@ Fmd diffusion solver implementation.
 
 from __future__ import annotations
 from dataclasses import dataclass
-from yunmeng.standard.supports import (
-    FieldMeta,
-    IBackend,
-    IMesh,
-)
+from yunmeng.standard.supports import FieldMeta, IBackend, IMesh, Sample
 from yunmeng.standard.types import (
     ElementType,
     MeshDimension,
@@ -70,7 +66,6 @@ class FdmDiffusionSolver(BaseSolver):
         self, sid: str, mesh: IMesh, config: FdmDiffusionSolverConfig, backend: IBackend
     ):
         super().__init__(sid, mesh, config, backend)
-        self._ops = [FdmDiffusionOperator("diff", "u", config.nu)]
 
     def _reset_status(self):
         self._status.current_time = self._config.start_time
@@ -78,6 +73,12 @@ class FdmDiffusionSolver(BaseSolver):
         self._status.time_step = self._config.dt
         self._status.finished = False
         self._status.errors = None
+
+    def initialize(self):
+        if not self._ops:
+            self._ops = [FdmDiffusionOperator("diff", "u", self._config.nu)]
+
+        super().initialize()
 
     def step(self, dt: float = None) -> SolverStatus:
         # check if initialized
@@ -125,10 +126,18 @@ class FdmDiffusionSolver(BaseSolver):
             if result.explicit:
                 explicit_total = explicit_total + result.explicit.values
 
+            # cache operator produces
+            declared = {dp.name: dp for dp in op.produces()}
+            for key, value in (result.products or {}).items():
+                dp = declared[key]
+                sample = Sample(value, t + dt, self._hub.version(...))
+                deps = [c.field for c in op.consumes()]
+                self._hub.cache(dp, sample, deps)
+
         # assemble and solve linear equations
         if implicit_eqs:
             matrix, rhs = assemble_matrix(implicit_eqs, u)
-            rhs = rhs + dt * (explicit_total + flux_total)
+            rhs = rhs + dt * (explicit_total + flux_total)  # IMEX scheme
             solution = LinearEqs(matrix, Field(field.meta, rhs)).solve()
             field.values = solution.values
         else:

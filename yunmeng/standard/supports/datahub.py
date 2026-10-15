@@ -36,6 +36,7 @@ class DataProduct:
     loc: ElementType = ElementType.CELL
     time_order: int = 0  # 0 = current; >0 = history
     qualifier: str = ""  # disambiguates same-kind variants
+    optional: bool = False  # allow missing data
 
     @property
     def name(self) -> str:

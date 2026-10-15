@@ -120,6 +120,8 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
     def set_problems(self, equations: list[IEquation]):
         if self._eq_fixed:
             raise RuntimeError("Cannot reset equations.")
+        if self._built:
+            raise RuntimeError("Cannot reset equations after build.")
         self._eqs = equations
 
     def get_solution(self, field: str) -> IField:
@@ -129,40 +131,56 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
 
     def add_callback(self, cb: ISolverCallback):
         if self._index(self._cbs, cb.id):
-            raise RuntimeError(f"Callback {cb.id} already exists.")
+            raise RuntimeError(f"Callback {cb.id!r} already exists.")
+        if self._built:
+            raise RuntimeError("Cannot add callback after build.")
         self._cbs.append(cb)
 
     def remove_callback(self, cb_id: str):
+        if self._built:
+            raise RuntimeError("Cannot remove callback after build.")
         index = self._index(self._cbs, cb_id)
         if index:
             del self._cbs[index]
 
     def add_op(self, op: IOperator):
+        if self._built:
+            raise RuntimeError("Cannot add operator after build.")
         if self._index(self._ops, op.id):
-            raise RuntimeError(f"Operator {op.id} already exists.")
+            raise RuntimeError(f"Operator {op.id!r} already exists.")
         self._ops.append(op)
 
     def remove_op(self, op_id: str):
+        if self._built:
+            raise RuntimeError("Cannot remove op after build.")
         index = self._index(self._ops, op_id)
         if index:
             del self._ops[index]
 
     def add_ic(self, ic: IInitialCondition):
         if self._index(self._ics, ic.id):
-            raise RuntimeError(f"IC {ic.id} already exists.")
+            raise RuntimeError(f"IC {ic.id!r} already exists.")
+        if self._built:
+            raise RuntimeError("Cannot add IC after build.")
         self._ics.append(ic)
 
     def remove_ic(self, ic_id: str):
+        if self._built:
+            raise RuntimeError("Cannot remove IC after build.")
         index = self._index(self._ics, ic_id)
         if index:
             del self._ics[index]
 
     def add_bc(self, bc: IBoundaryCondition):
         if self._index(self._bcs, bc):
-            raise RuntimeError(f"BC {bc.id} already exists.")
+            raise RuntimeError(f"BC {bc.id!r} already exists.")
+        if self._built:
+            raise RuntimeError("Cannot add BC after build.")
         self._bcs.append(bc)
 
     def remove_bc(self, bc_id):
+        if self._built:
+            raise RuntimeError("Cannot remove BC after build.")
         index = self._index(self._bcs, bc_id)
         if index:
             del self._bcs[index]
@@ -193,6 +211,8 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
         """Registry fields to datahub."""
         for field_name, meta in self._exported_fields.items():
             size = self._mesh.element_count(meta.loc)
+            meta.btype = self._backend.name
+            meta.device = self._backend.device
             field = Field(meta, self._backend.zeros((size,)))
             self._hub.register(field)
 

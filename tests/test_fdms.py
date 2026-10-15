@@ -1,7 +1,5 @@
 # -*- encoding: utf-8 -*-
 from __future__ import annotations
-
-import json
 from pathlib import Path
 
 import matplotlib
@@ -12,7 +10,6 @@ import numpy as np
 
 import numpy as np
 from yunmeng.standard.types import ArrayLike
-from yunmeng.standard.supports import IField
 from yunmeng.standard.solver import ISolver
 
 from yunmeng.standard.supports import Region
@@ -23,14 +20,6 @@ from yunmeng.numerics.grids import Grid1D
 from yunmeng.solvers.commons.inits import PrescribedIC
 from yunmeng.solvers.commons.boundaries import DirichletBC
 from yunmeng.solvers.FdmDiffusionSv import FdmDiffusionSolver, FdmDiffusionSolverConfig
-from yunmeng.workflow.optimizer import (
-    GradientTrainer,
-    TrainingMeta,
-    now_iso,
-    InMemoryArtifactStore,
-    TrajectoryMSELoss,
-    TrajectoryObservationSet,
-)
 
 OUT_DIR = Path(__file__).resolve().parent / "results"
 NU = 0.02
@@ -84,6 +73,7 @@ def make_fdm(sid: str, nu: float, end_time: float):
 
 def truth_trajectory():
     """Fine-grid explicit FDM truth, block-averaged to the coarse grid."""
+    # explicit FDM truth trajectory
     x = (np.arange(N_FINE) + 0.5) * LENGTH / N_FINE
     u = np.exp(-((x - 0.5) ** 2) / (2 * 0.07**2))
     dx = LENGTH / N_FINE
@@ -91,8 +81,9 @@ def truth_trajectory():
     if stability >= 0.5:
         raise RuntimeError(f"explicit truth scheme unstable: r={stability}")
 
+    # compute block-averaged coarse-grid snapshots
     n_total = int(T_FORECAST / DT_FINE)
-    space_ratio = N_FINE // N_COARSE
+    space_ratio = N_FINE // N_COARSE  # coarse grid block size
     time_stride = int(DT / DT_FINE)
     snapshots = []
     for step in range(1, n_total + 1):
@@ -101,7 +92,9 @@ def truth_trajectory():
         u = u + DT_FINE * NU * laplacian
         u[0] = 0.0
         u[-1] = 0.0
+        # save snapshots at coarse time steps
         if step % time_stride == 0:
+            # Spatial Downsampling via Averaging
             snapshots.append(u.reshape(N_COARSE, space_ratio).mean(axis=1))
     return np.stack(snapshots)
 
@@ -137,7 +130,7 @@ def plot_profiles(truth, oracle, biased, out_path: Path):
 
 
 def test_fdm_diffusion_solver():
-    # truth trajectory
+    # truth trajectory at coarse grid
     truth = truth_trajectory()
     n_train = int(T_TRAIN / DT)
     n_total = int(T_FORECAST / DT)

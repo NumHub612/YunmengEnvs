@@ -1,0 +1,252 @@
+# -*- encoding: utf-8 -*-
+from __future__ import annotations
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import json
+
+from yunmeng.standard.types import ArrayLike
+from yunmeng.standard.solver import ISolver
+
+from yunmeng.standard.supports import Region
+from yunmeng.standard.types import ElementType
+from yunmeng.numerics.fields import get_backend
+from yunmeng.numerics.grids import Grid1D
+
+from yunmeng.solvers.commons.inits import PrescribedIC
+from yunmeng.solvers.commons.boundaries import DirichletBC
+from yunmeng.solvers.FdmDiffusionSv import FdmDiffusionSolver, FdmDiffusionSolverConfig
+from yunmeng.solvers.HybDiffusionSv import HybDiffusionSolver, HybDiffusionSolverConfig
+from yunmeng.workflow.optimizer import (
+    GradientTrainer,
+    TrainingMeta,
+    now_iso,
+    InMemoryArtifactStore,
+    TrajectoryMSELoss,
+    TrajectoryObservationSet,
+)
+
+OUT_DIR = Path(__file__).resolve().parent / "results"
+NU = 0.02
+NU_BIAS = 0.4
+LENGTH = 1.0
+DT_FINE = 2.0e-4
+DT = 0.01
+N_FINE = 256
+N_COARSE = 32
+T_TRAIN = 0.5
+T_FORECAST = 1.0
+EPOCHS = 200
+LR = 3e-3
+
+
+def gaussian_ic(x: ArrayLike, center=0.5, width=0.08, amplitude=1.0) -> ArrayLike:
+    """Gaussian initial condition."""
+    return amplitude * np.exp(-((x - center) ** 2) / (2.0 * width**2))
+
+
+def make_grid(n_cells: int):
+    grid = Grid1D(0.0, LENGTH, n_cells)
+    grid.add_region(Region("left", ElementType.CELL, np.array([0])))
+    grid.add_region(Region("right", ElementType.CELL, np.array([n_cells - 1])))
+    return grid
+
+
+def attach_conditions(
+    solver: ISolver, grid: Grid1D, center=0.5, width=0.07, amplitude=1.0
+):
+    centers = grid.cell_centers()[0].reshape(-1)
+    inits = gaussian_ic(centers, center=center, width=width, amplitude=amplitude)
+    solver.add_ic(PrescribedIC("ic-u", "u", inits))
+
+    solver.add_bc(DirichletBC("bc-left", "u", grid.get_region("left"), 0.0))
+    solver.add_bc(DirichletBC("bc-right", "u", grid.get_region("right"), 0.0))
+    solver.initialize()
+
+
+def make_fdm(sid: str, nu: float, end_time: float):
+    grid = make_grid(N_COARSE)
+    config = FdmDiffusionSolverConfig(dt=DT, end_time=end_time, nu=nu)
+    solver = FdmDiffusionSolver(sid, grid, config, get_backend("numpy"))
+    attach_conditions(solver, grid)
+    return solver
+
+
+def make_hybrid(sid: str, nu: float, end_time: float):
+    grid = make_grid(N_COARSE)
+    config = HybDiffusionSolverConfig(
+        dt=DT, end_time=end_time, device="cpu", nu=nu, hidden=32
+    )
+    solver = HybDiffusionSolver(sid, grid, config, get_backend("torch", device="cpu"))
+    attach_conditions(solver, grid)
+    return solver
+
+
+def truth_trajectory():
+    """Fine-grid explicit FDM truth, block-averaged to the coarse grid."""
+    # explicit FDM truth trajectory
+    x = (np.arange(N_FINE) + 0.5) * LENGTH / N_FINE
+    u = np.exp(-((x - 0.5) ** 2) / (2 * 0.07**2))
+    dx = LENGTH / N_FINE
+    stability = NU * DT_FINE / dx**2
+    if stability >= 0.5:
+        raise RuntimeError(f"explicit truth scheme unstable: r={stability}")
+
+    # compute block-averaged coarse-grid snapshots
+    n_total = int(T_FORECAST / DT_FINE)
+    space_ratio = N_FINE // N_COARSE  # coarse grid block size
+    time_stride = int(DT / DT_FINE)
+    snapshots = []
+    for step in range(1, n_total + 1):
+        laplacian = np.zeros_like(u)
+        laplacian[1:-1] = (u[:-2] - 2 * u[1:-1] + u[2:]) / dx**2
+        u = u + DT_FINE * NU * laplacian
+        u[0] = 0.0
+        u[-1] = 0.0
+        # save snapshots at coarse time steps
+        if step % time_stride == 0:
+            # Spatial Downsampling via Averaging
+            snapshots.append(u.reshape(N_COARSE, space_ratio).mean(axis=1))
+    return np.stack(snapshots)
+
+
+def rollout(solver, n_steps: int):
+    solver.reset()
+    result = solver.run(n_steps)
+    if hasattr(result, "detach"):
+        return result.detach().cpu().numpy()
+    return np.asarray(result)
+
+
+def test_hybrid():
+    # trajectory from fine-grid spatial downsampling
+    truth = truth_trajectory()
+    n_train = int(T_TRAIN / DT)
+    n_total = int(T_FORECAST / DT)
+    observations = TrajectoryObservationSet(
+        times=np.arange(1, n_train + 1) * DT,
+        fields={"u": truth[:n_train]},
+    )
+    print(
+        f"[truth] fine={N_FINE}, coarse={N_COARSE}, "
+        f"train={n_train}, total={n_total}"
+    )
+
+    # trajectory from coase-grid with right diffusion coefficient
+    oracle = make_fdm("fdm-oracle", NU, T_FORECAST)
+    oracle_trajectory = rollout(oracle, n_total)
+    oracle_rmse = float(np.sqrt(np.mean((oracle_trajectory - truth) ** 2)))
+
+    # coarse-grid with wrong diffusion coefficient
+    baseline = make_fdm("fdm-biased", NU * NU_BIAS, T_FORECAST)
+    baseline_trajectory = rollout(baseline, n_total)
+    baseline_rmse_train = float(
+        np.sqrt(np.mean((baseline_trajectory[:n_train] - truth[:n_train]) ** 2))
+    )
+    baseline_rmse_full = float(np.sqrt(np.mean((baseline_trajectory - truth) ** 2)))
+    print(f"[fdm oracle ] RMSE full={oracle_rmse:.5f}")
+    print(
+        f"[fdm biased ] RMSE train={baseline_rmse_train:.5f} "
+        f"full={baseline_rmse_full:.5f}"
+    )
+
+    # hybrid solver with nn correction
+    hybrid = make_hybrid("hybrid", NU * NU_BIAS, T_FORECAST)
+    trainer = GradientTrainer(lr=LR, epochs=EPOCHS, n_steps=n_train)
+    before = trainer.evaluate(hybrid, observations, n_steps=n_train)
+    print(f"[hybrid pre ] RMSE train={before['rmse']:.5f}")
+
+    # train nn correction operator
+    result = trainer.fit(hybrid, observations, TrajectoryMSELoss("u"))
+    losses = [item["loss"] for item in result.history if "loss" in item]
+    print(
+        f"[train      ] loss {losses[0]:.6e} -> {losses[-1]:.6e} "
+        f"({losses[0] / max(losses[-1], 1e-30):.1f}x)"
+    )
+
+    names = hybrid.parameter_names()
+    values = hybrid.get_parameters(names)
+    store = InMemoryArtifactStore()
+    ref = store.register(
+        {"names": np.asarray(names), "values": values},
+        TrainingMeta(
+            estimator=GradientTrainer.get_name(),
+            data_lineage="fine-grid FDM truth, u, 0..0.5s",
+            metrics=result.metrics,
+            created_at=now_iso(),
+        ),
+    )
+
+    # evaluate hybrid solver in eval mode
+    hybrid_trajectory = rollout(hybrid, n_total)
+    hybrid_rmse_train = float(
+        np.sqrt(np.mean((hybrid_trajectory[:n_train] - truth[:n_train]) ** 2))
+    )
+    hybrid_rmse_forecast = float(
+        np.sqrt(np.mean((hybrid_trajectory[n_train:] - truth[n_train:]) ** 2))
+    )
+    hybrid_rmse_full = float(np.sqrt(np.mean((hybrid_trajectory - truth) ** 2)))
+    print(
+        f"[hybrid post] RMSE train={hybrid_rmse_train:.5f} "
+        f"forecast={hybrid_rmse_forecast:.5f} full={hybrid_rmse_full:.5f}"
+    )
+
+    # plot validation results
+    centers = make_grid(N_COARSE).cell_centers()[0].reshape(-1)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
+    axes[0].semilogy(losses)
+    axes[0].set_xlabel("epoch")
+    axes[0].set_ylabel("trajectory MSE")
+    axes[0].set_title("Training loss")
+    axes[0].grid(alpha=0.3)
+
+    for ax, step, title in (
+        (axes[1], n_train - 1, f"Training horizon t={T_TRAIN:.2f}s"),
+        (axes[2], -1, f"Forecast horizon t={T_FORECAST:.2f}s"),
+    ):
+        ax.plot(centers, truth[step], "k-", lw=2, label="truth")
+        ax.plot(centers, oracle_trajectory[step], "g:", lw=2, label="FDM oracle")
+        ax.plot(centers, baseline_trajectory[step], "b--", label="FDM biased")
+        ax.plot(centers, hybrid_trajectory[step], "r-.", label="Hybrid")
+        ax.set_title(title)
+        ax.legend()
+        ax.grid(alpha=0.3)
+    fig.tight_layout()
+    figure_path = OUT_DIR / "hybrid_validation.png"
+    fig.savefig(figure_path, dpi=140)
+
+    baseline_rmse_forecast = float(
+        np.sqrt(np.mean((baseline_trajectory[n_train:] - truth[n_train:]) ** 2))
+    )
+    metrics = {
+        "oracle_rmse_full": oracle_rmse,
+        "baseline_rmse_train": baseline_rmse_train,
+        "baseline_rmse_full": baseline_rmse_full,
+        "baseline_rmse_forecast": baseline_rmse_forecast,
+        "hybrid_rmse_train": hybrid_rmse_train,
+        "hybrid_rmse_forecast": hybrid_rmse_forecast,
+        "hybrid_rmse_full": hybrid_rmse_full,
+        "improvement_full_x": baseline_rmse_full / hybrid_rmse_full,
+        "improvement_forecast_x": baseline_rmse_forecast / hybrid_rmse_forecast,
+        "loss_first": losses[0],
+        "loss_last": losses[-1],
+        "artifact_ref": str(ref),
+    }
+    metrics_path = OUT_DIR / "validation_metrics.json"
+    metrics_path.write_text(
+        json.dumps(metrics, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    passed = hybrid_rmse_full < baseline_rmse_full * 0.5
+    print("=" * 64)
+    print(
+        f"VERDICT: {'PASS' if passed else 'FAIL'} — hybrid "
+        f"{hybrid_rmse_full:.5f}, biased FDM {baseline_rmse_full:.5f}, "
+        f"{metrics['improvement_full_x']:.1f}x better"
+    )
+    print("=" * 64)

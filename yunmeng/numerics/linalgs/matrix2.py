@@ -205,15 +205,24 @@ class TorchMatrix:
             raise ValueError("Invalid tensor dimension")
         raise TypeError(f"Unsupported type: {type(other)}")
 
+    def _binary_operands(self, other: "TorchMatrix"):
+        """Align layouts for + / -: torch only supports dense op sparse."""
+        a, b = self._data, other._data
+        if a.is_sparse and not b.is_sparse:
+            a = a.to_dense()
+        return a, b
+
     def __add__(self, other: "TorchMatrix") -> "TorchMatrix":
         if not isinstance(other, TorchMatrix):
             raise TypeError("Addition requires TorchMatrix")
-        return TorchMatrix(self._data + other._data)
+        a, b = self._binary_operands(other)
+        return TorchMatrix(a + b)
 
     def __sub__(self, other: "TorchMatrix") -> "TorchMatrix":
         if not isinstance(other, TorchMatrix):
             raise TypeError("Subtraction requires TorchMatrix")
-        return TorchMatrix(self._data - other._data)
+        a, b = self._binary_operands(other)
+        return TorchMatrix(a - b)
 
     def __mul__(self, scalar: float) -> "TorchMatrix":
         return TorchMatrix(self._data * scalar)

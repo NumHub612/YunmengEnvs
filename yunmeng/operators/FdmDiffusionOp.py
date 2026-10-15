@@ -62,7 +62,7 @@ class FdmDiffusionOperator(IOperator):
 
     @property
     def differentiable(self) -> bool:
-        return False
+        return self._backend is not None and self._backend.differentiable
 
     def consumes(self) -> list[DataProduct]:
         return [

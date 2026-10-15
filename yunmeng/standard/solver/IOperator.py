@@ -52,7 +52,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from yunmeng.standard.types import ElementType
+from yunmeng.standard.types import ElementType, ArrayLike
 from yunmeng.standard.supports import (
     IBackend,
     IDataHub,
@@ -111,6 +111,7 @@ class OperatorResult:
 
     explicit: IField = None
     implicit: ILinearEqs = None
+    products: dict[str, ArrayLike] = None  # key = DataProduct.name
 
 
 # ---------------------------------------------------
@@ -142,16 +143,6 @@ class IOperator(ABC):
         """Open kind string."""
         ...
 
-    # -- products -----------------------------------
-
-    def produces(self) -> list[DataProduct]:
-        """Declares DataProducts this operator can produce for."""
-        return []
-
-    def consumes(self) -> list[DataProduct]:
-        """Declares DataProducts this operator can consume."""
-        return []
-
     # -- structural behavior flags ------------------
 
     @property
@@ -161,7 +152,7 @@ class IOperator(ABC):
     @property
     @abstractmethod
     def differentiable(self) -> bool:
-        """Is the operator differentiable."""
+        """Is differentiable."""
         ...
 
     # -- fields -------------------------------------
@@ -176,6 +167,16 @@ class IOperator(ABC):
     def time_order(self) -> int:
         """The time order of the operator."""
         return 1
+
+    # -- products -----------------------------------
+
+    def produces(self) -> list[DataProduct]:
+        """Declares cache products this operator will produce for."""
+        return []
+
+    def consumes(self) -> list[DataProduct]:
+        """Declares histories/caches this operator will consume."""
+        return []
 
     # -- lifecycle ----------------------------------
 
