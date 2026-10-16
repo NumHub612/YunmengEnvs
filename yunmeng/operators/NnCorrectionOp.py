@@ -89,6 +89,14 @@ class NeuralCorrectionOperator(
     strictly decoupling data-driven adjustments from boundary conditions.
     """
 
+    @classmethod
+    def get_name(cls) -> str:
+        return "NeuralCorrection"
+
+    @classmethod
+    def get_kind(cls) -> str:
+        return OperatorKinds.NN_CLOSURE
+
     def __init__(self, oid: str, field: str, hidden: int = 16, device: str = "cpu"):
         if not _HAS_TORCH:  # pragma: no cover
             raise ImportError("NeuralCorrection requires PyTorch")
@@ -119,14 +127,6 @@ class NeuralCorrectionOperator(
         return result
 
     # region IOperator ------------------------------
-
-    @classmethod
-    def get_name(cls) -> str:
-        return "NeuralCorrection"
-
-    @classmethod
-    def get_kind(cls) -> str:
-        return OperatorKinds.NN_CLOSURE
 
     @property
     def id(self) -> str:

@@ -41,7 +41,7 @@ class HybDiffusionSolverConfig(SolverConfig):
 
 
 @ym_register("solver")
-class HybDiffusionSolver(BaseSolver):
+class HybCorrectorSolver(BaseSolver):
     """Physics+neural hybrid diffusion solver."""
 
     @classmethod

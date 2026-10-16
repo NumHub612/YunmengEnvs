@@ -20,7 +20,7 @@ from yunmeng.numerics.grids import Grid1D
 from yunmeng.solvers.commons.inits import PrescribedIC
 from yunmeng.solvers.commons.boundaries import DirichletBC
 from yunmeng.solvers.FdmDiffusionSv import FdmDiffusionSolver, FdmDiffusionSolverConfig
-from yunmeng.solvers.HybDiffusionSv import HybDiffusionSolver, HybDiffusionSolverConfig
+from yunmeng.solvers.HybCorrectorSv import HybCorrectorSolver, HybDiffusionSolverConfig
 from yunmeng.workflow.optimizer import (
     GradientTrainer,
     TrajectoryMSELoss,
@@ -78,7 +78,7 @@ def make_hybrid(sid: str, nu: float, end_time: float):
     config = HybDiffusionSolverConfig(
         dt=DT, end_time=end_time, device="cpu", nu=nu, hidden=32
     )
-    solver = HybDiffusionSolver(sid, grid, config, get_backend("torch", device="cpu"))
+    solver = HybCorrectorSolver(sid, grid, config, get_backend("torch", device="cpu"))
     attach_conditions(solver, grid)
     return solver
 
