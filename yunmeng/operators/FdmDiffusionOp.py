@@ -17,7 +17,6 @@ from yunmeng.standard.supports import (
     IBackend,
     IDataHub,
     IGrid,
-    TOPO_NONE,
 )
 from yunmeng.standard.types import ArrayLike, ElementType, MeshDimension
 from yunmeng.numerics.fields import Field
@@ -45,6 +44,7 @@ class FdmDiffusionOperator(IOperator):
         self._n = 0
         self._dx = 0.0
         self._backend = None
+        self._differentiable = False
         self._laplacian = None
         self._identity = None
 
@@ -62,7 +62,7 @@ class FdmDiffusionOperator(IOperator):
 
     @property
     def differentiable(self) -> bool:
-        return self._backend is not None and self._backend.differentiable
+        return self._differentiable
 
     def consumes(self) -> list[DataProduct]:
         return [
@@ -79,9 +79,10 @@ class FdmDiffusionOperator(IOperator):
 
     def build(self, mesh: IGrid, backend: IBackend):
         if not isinstance(mesh, IGrid) or mesh.dimension != MeshDimension.D1:
-            raise TypeError(f"Op {self._id} mesh must be a 1d IGrid instance")
+            raise TypeError(f"Op {self._id!r} mesh must be a 1d IGrid instance")
 
         self._backend = backend
+        self._differentiable = backend.differentiable
         self._n = mesh.element_count(ElementType.CELL)
         self._dx = float(mesh.spacing[0])
 

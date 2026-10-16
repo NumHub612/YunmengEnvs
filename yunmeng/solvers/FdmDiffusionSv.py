@@ -83,7 +83,7 @@ class FdmDiffusionSolver(BaseSolver):
     def step(self, dt: float = None) -> SolverStatus:
         # check if initialized
         if not self._built:
-            raise RuntimeError("solver not initialized")
+            RuntimeError(f"solver {self._id!r} not initialized")
 
         # prepare for next step
         dt = float(dt if dt is not None else self._config.dt)
