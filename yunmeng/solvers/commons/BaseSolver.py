@@ -16,6 +16,7 @@ from yunmeng.standard.capabilities import (
     IDifferentiable,
     IEstimable,
     IParameterized,
+    ISnapshottable,
     ParamMeta,
     propagate_mode,
 )
@@ -49,11 +50,9 @@ from yunmeng.standard.types import (
 
 from yunmeng.solvers.commons.boundaries import ListBoundaryProvider
 from yunmeng.numerics.fields import DataHub, Field
-from yunmeng.numerics.linalgs import LinearEqs, NumpyMatrix, TorchMatrix
-from yunmeng.setting import logger
 
 
-class BaseSolver(ISolver, IEstimable, IDifferentiable):
+class BaseSolver(ISolver, IEstimable, IDifferentiable, ISnapshottable):
     """Shared one-dimensional operator-stepping implementation."""
 
     def __init__(self, sid: str, mesh: IMesh, config: SolverConfig, backend: IBackend):
@@ -259,7 +258,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
         """Reset solver status."""
         raise NotImplementedError
 
-    # region Parameterized --------------------------
+    # region IParameterized --------------------------
 
     def _parameter_ops(self) -> list[Tuple[int, IParameterized]]:
         return [
@@ -328,7 +327,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
             upper.extend(hi)
         return lower, upper
 
-    # region Differentiable -------------------------
+    # region IDifferentiable -------------------------
 
     def grad_parameters(self) -> list[ArrayLike]:
         leaves = []
@@ -337,7 +336,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
                 leaves.extend(op.grad_parameters())
         return leaves
 
-    # region Estimable ------------------------------
+    # region IEstimable ------------------------------
 
     def run(self, n_steps: int) -> Any:
         trajectory = []
@@ -354,7 +353,7 @@ class BaseSolver(ISolver, IEstimable, IDifferentiable):
             getattr(op, "differentiable", True) for op in self._ops
         )
 
-    # region Snapshottable --------------------------
+    # region ISnapshottable --------------------------
 
     def snapshot(self):
         return {

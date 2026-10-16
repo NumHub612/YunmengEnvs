@@ -23,11 +23,8 @@ from yunmeng.solvers.FdmDiffusionSv import FdmDiffusionSolver, FdmDiffusionSolve
 from yunmeng.solvers.HybDiffusionSv import HybDiffusionSolver, HybDiffusionSolverConfig
 from yunmeng.workflow.optimizer import (
     GradientTrainer,
-    TrainingMeta,
-    now_iso,
-    InMemoryArtifactStore,
     TrajectoryMSELoss,
-    TrajectoryObservationSet,
+    TrajectorySet,
 )
 
 OUT_DIR = Path(__file__).resolve().parent / "results"
@@ -127,7 +124,7 @@ def test_hybrid():
     truth = truth_trajectory()
     n_train = int(T_TRAIN / DT)
     n_total = int(T_FORECAST / DT)
-    observations = TrajectoryObservationSet(
+    observations = TrajectorySet(
         times=np.arange(1, n_train + 1) * DT,
         fields={"u": truth[:n_train]},
     )
@@ -166,19 +163,6 @@ def test_hybrid():
     print(
         f"[train      ] loss {losses[0]:.6e} -> {losses[-1]:.6e} "
         f"({losses[0] / max(losses[-1], 1e-30):.1f}x)"
-    )
-
-    names = hybrid.parameter_names()
-    values = hybrid.get_parameters(names)
-    store = InMemoryArtifactStore()
-    ref = store.register(
-        {"names": np.asarray(names), "values": values},
-        TrainingMeta(
-            estimator=GradientTrainer.get_name(),
-            data_lineage="fine-grid FDM truth, u, 0..0.5s",
-            metrics=result.metrics,
-            created_at=now_iso(),
-        ),
     )
 
     # evaluate hybrid solver in eval mode
@@ -234,7 +218,6 @@ def test_hybrid():
         "improvement_forecast_x": baseline_rmse_forecast / hybrid_rmse_forecast,
         "loss_first": losses[0],
         "loss_last": losses[-1],
-        "artifact_ref": str(ref),
     }
     metrics_path = OUT_DIR / "validation_metrics.json"
     metrics_path.write_text(

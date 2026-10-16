@@ -47,7 +47,7 @@ class IModeSwitchable(Protocol):
     the autograd graph intact (no detach, no stale-cache replay).
     EVAL mode may reuse buffers.
 
-    Applicable layers: operator, solver, datahub.
+    Applicable layers: operator, solver.
     """
 
     @abstractmethod

@@ -9,7 +9,7 @@ import importlib
 from yunmeng.standard.solution import CouplingConfig, CouplingKinds, ILinkableModel
 from yunmeng.numerics.algos import get_class, kind_of, available
 from yunmeng.setting import logger
-from yunmeng.workflow.optimizer import TrajectoryObservationSet, ym_losses
+from yunmeng.workflow.optimizer import TrajectorySet, ym_losses
 from yunmeng.workflow.parser import Orchestrator
 from yunmeng.workflow.scheduler import Scheduler
 
@@ -236,7 +236,7 @@ class EstimatorBuilder(SchedulerBuilder):
                 )
         return cls(**(cfg.get("params") or {}))
 
-    def _build_observations(self, cfg: dict) -> TrajectoryObservationSet:
+    def _build_observations(self, cfg: dict) -> TrajectorySet:
         """Observation declaration -> TrajectoryObservationSet.
 
         Supported: inline xs/matrix, or from npz file, or generated from
@@ -251,17 +251,17 @@ class EstimatorBuilder(SchedulerBuilder):
             ref.reset()
             traj = np.asarray(ref.run(n), dtype="float64")
             field = cfg.get("field", "u")
-            return TrajectoryObservationSet(
+            return TrajectorySet(
                 times=np.arange(1, n + 1) * float(cfg.get("dt", 1.0)),
                 fields={field: traj},
             )
         if "from" in cfg:
             data = np.load(cfg["from"])
-            return TrajectoryObservationSet(
+            return TrajectorySet(
                 times=data["times"], fields={v: data[v] for v in cfg["variables"]}
             )
         field = cfg.get("field", "u")
-        return TrajectoryObservationSet(
+        return TrajectorySet(
             times=np.asarray(cfg["xs"], float),
             fields={field: np.asarray(cfg["ys"], float)},
         )
