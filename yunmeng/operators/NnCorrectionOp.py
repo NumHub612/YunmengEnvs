@@ -205,7 +205,6 @@ class NeuralCorrectionOperator(
             device=str(self._device),
         )
         product = Field(meta, values)
-        # datahub.commit(product, t)
         return OperatorResult(explicit=product)
 
     # region IParameterized ------------------------------
